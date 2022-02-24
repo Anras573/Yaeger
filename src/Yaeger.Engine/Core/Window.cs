@@ -20,6 +20,6 @@ namespace Yaeger.Engine.Core
             _innerWindow.PumpEvents();
         }
 
-        public void SetTitle(string title) => _innerWindow.Title = title;
+        public string Title { get => _innerWindow.Title; set => _innerWindow.Title = value; }
     }
 }

@@ -61,6 +61,6 @@ namespace Yaeger.Engine
         }
 
         public void AddScene(Scene scene) => _sceneManager.AddScene(scene);
-        public void SetTitle(string title) => Window.SetTitle(title);
+        public string Title { get => Window.Title; set => Window.Title = value; }
     }
 }
