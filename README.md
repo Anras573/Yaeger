@@ -1,2 +1,2 @@
-# yaeger
-YAEGER - Yet Another Experimental Game Engine Repository
+# Yaeger
+YAEGER - **Y**et **A**nother **E**xperimental **G**ame **E**ngine **R**epository
