@@ -7,6 +7,6 @@ namespace Yaeger.Engine.Core
         public abstract string Name { get; }
         public abstract void OnAttach();
         public abstract void OnDetach();
-        public abstract void OnUpdate(int deltaTime, IRenderContext renderContext);
+        public abstract void OnUpdate(float deltaTime, IRenderContext renderContext);
     }
 }

@@ -51,7 +51,7 @@ namespace Yaeger.Engine
 
                 foreach (var scene in _sceneManager)
                 {
-                    scene.OnUpdate(deltaTime.Milliseconds, _renderContext);
+                    scene.OnUpdate((float)deltaTime.TotalMilliseconds, _renderContext);
                 }
 
                 _renderContext.End();
