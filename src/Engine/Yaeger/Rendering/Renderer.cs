@@ -9,7 +9,7 @@ namespace Yaeger.Rendering;
 public class Renderer
 {
     private readonly GL _gl;
-    private readonly VertexArray<float, uint> _vao;
+    private readonly VertexArray _vao;
     
     private const string VertexShaderSource = """
                                               #version 330 core
@@ -66,7 +66,7 @@ public class Renderer
 
         var vbo = new Buffer<float>(_gl, Vertices, BufferTargetARB.ArrayBuffer);
         var ebo = new Buffer<uint>(_gl, Indices, BufferTargetARB.ElementArrayBuffer);
-        _vao = new VertexArray<float, uint>(_gl, vbo, ebo);
+        _vao = new VertexArray(_gl, vbo, ebo);
         
         CheckGlError();
         
