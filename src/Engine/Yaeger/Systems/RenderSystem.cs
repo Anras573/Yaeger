@@ -17,8 +17,7 @@ public class RenderSystem(Renderer renderer, World world)
 
             renderer.DrawQuad(transformMatrix, texture);
         }
-        
+
         renderer.EndFrame();
     }
 }
-

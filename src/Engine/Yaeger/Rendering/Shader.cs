@@ -1,4 +1,5 @@
 using System.Numerics;
+
 using Silk.NET.OpenGL;
 
 namespace Yaeger.Rendering;
@@ -32,7 +33,7 @@ public class Shader : IDisposable
         _gl.CompileShader(shader);
         var status = _gl.GetShaderInfoLog(shader);
         if (string.IsNullOrEmpty(status)) return shader;
-        
+
         throw new Exception($"Shader compilation failed: {status}");
     }
 
@@ -40,7 +41,7 @@ public class Shader : IDisposable
     {
         var status = _gl.GetProgramInfoLog(_program);
         if (string.IsNullOrEmpty(status)) return;
-        
+
         throw new Exception($"Shader program linking failed: {status}");
     }
 
@@ -50,16 +51,16 @@ public class Shader : IDisposable
     private int GetUniformLocation(string name)
     {
         if (UniformLocations.TryGetValue(name, out var location)) return location;
-        
+
         location = _gl.GetUniformLocation(_program, name);
         if (location == -1)
             throw new Exception($"Uniform '{name}' not found in shader program.");
-        
+
         UniformLocations[name] = location;
         return location;
     }
 
-    
+
     public unsafe void SetUniformMatrix4(string name, Matrix4x4 matrix)
     {
         var location = GetUniformLocation(name);
@@ -68,4 +69,3 @@ public class Shader : IDisposable
 
     public void Dispose() => _gl.DeleteProgram(_program);
 }
-

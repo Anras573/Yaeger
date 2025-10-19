@@ -14,4 +14,3 @@ public readonly struct Color(byte r, byte g, byte b, byte a = 255)
     public static readonly Color Blue = new(0, 0, 255);
     // Add more as needed
 }
-

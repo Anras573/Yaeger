@@ -16,7 +16,7 @@ public class Buffer<T> : IDisposable where T : unmanaged
         Bind();
         fixed (void* d = data)
         {
-            _gl.BufferData(_target, (nuint) (data.Length * sizeof(T)), d, BufferUsageARB.StaticDraw);
+            _gl.BufferData(_target, (nuint)(data.Length * sizeof(T)), d, BufferUsageARB.StaticDraw);
         }
     }
 
@@ -24,4 +24,3 @@ public class Buffer<T> : IDisposable where T : unmanaged
 
     public void Dispose() => _gl.DeleteBuffer(_handle);
 }
-

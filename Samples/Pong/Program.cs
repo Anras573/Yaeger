@@ -3,6 +3,7 @@
 using Pong;
 using Pong.Components;
 using Pong.Systems;
+
 using Yaeger.ECS;
 using Yaeger.Input;
 using Yaeger.Rendering;
@@ -14,7 +15,7 @@ var world = new World();
 var renderer = new Renderer(window);
 var renderSystem = new RenderSystem(renderer, world);
 
-var updateSystems = new List<IUpdateSystem> 
+var updateSystems = new List<IUpdateSystem>
 {
     new InputSystem(world),
     new MoveSystem(world),
@@ -48,7 +49,7 @@ void OnLoad()
     var ball = world.GetStore<Ball>().All().First().Key;
     var leftPlayer = world.GetStore<Player>().All().First(e => e.Value == Player.Left).Key;
     var rightPlayer = world.GetStore<Player>().All().First(e => e.Value == Player.Right).Key;
-    
+
     updateSystems.Add(new ScoringSystem(world, ball, leftPlayer, rightPlayer));
     updateSystems.Add(new PrintScoreSystem(world, leftPlayer, rightPlayer));
     updateSystems.Add(new ResetBallSystem(world, ball));
@@ -57,12 +58,12 @@ void OnLoad()
 void Update(double delta)
 {
     var deltaTime = (float)delta;
-    
+
     foreach (var system in updateSystems)
     {
         system.Update(deltaTime);
     }
-    
+
     if (Keyboard.IsKeyPressed(Keys.Escape))
         window.Close();
 }
@@ -71,7 +72,7 @@ void Render(double delta)
 {
     fps++;
     lastFpsCount += delta;
-    
+
     if (lastFpsCount >= 1.0)
     {
         fpsCounts.Push(fps);
@@ -79,6 +80,6 @@ void Render(double delta)
         fps = 0;
         lastFpsCount = 0;
     }
-        
+
     renderSystem.Render();
 }
