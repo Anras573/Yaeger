@@ -1,6 +1,7 @@
 using System.Numerics;
 
 using Pong.Components;
+
 using Yaeger.ECS;
 using Yaeger.Graphics;
 
@@ -17,7 +18,7 @@ public class EntityFactory(World world)
         MinX = -1.0f,
         MaxX = 1.0f
     };
-    
+
     public void SpawnLeftPaddle()
     {
         var leftPaddle = world.CreateEntity();
@@ -25,11 +26,11 @@ public class EntityFactory(World world)
         world.AddComponent(leftPaddle, new Transform2D(new Vector2(-0.95f, 0), 0.0f, _paddleSize));
         world.AddComponent(leftPaddle, new Velocity(Vector2.Zero));
         world.AddComponent(leftPaddle, new PlayerControlled());
-        world.AddComponent(leftPaddle, _screenBounds with { ClampY = true});
+        world.AddComponent(leftPaddle, _screenBounds with { ClampY = true });
         world.AddComponent(leftPaddle, new PlayerScore(0));
         world.AddComponent(leftPaddle, Player.Left);
     }
-    
+
     public void SpawnRightPaddle()
     {
         var rightPaddle = world.CreateEntity();
@@ -37,11 +38,11 @@ public class EntityFactory(World world)
         world.AddComponent(rightPaddle, new Transform2D(new Vector2(0.95f, 0), 0.0f, _paddleSize));
         world.AddComponent(rightPaddle, new Velocity(Vector2.Zero));
         world.AddComponent(rightPaddle, new PlayerControlled());
-        world.AddComponent(rightPaddle, _screenBounds with { ClampY = true});
+        world.AddComponent(rightPaddle, _screenBounds with { ClampY = true });
         world.AddComponent(rightPaddle, new PlayerScore(0));
         world.AddComponent(rightPaddle, Player.Right);
     }
-    
+
     public void SpawnBall()
     {
         var ball = world.CreateEntity();
@@ -55,10 +56,10 @@ public class EntityFactory(World world)
         world.AddComponent(ball, new Velocity(Vector2.Zero));
         world.AddComponent(ball, _screenBounds);
     }
-    
+
     public void SpawnBackground()
     {
-        for(var i = -1f; i < 1f; i += 0.05f)
+        for (var i = -1f; i < 1f; i += 0.05f)
         {
             var background = world.CreateEntity();
             world.AddComponent(background, _sprite);

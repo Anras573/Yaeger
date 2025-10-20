@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Numerics;
+
 using Pong.Components;
+
 using Yaeger.ECS;
 using Yaeger.Graphics;
 
@@ -14,17 +16,17 @@ public class PhysicsSystem(World world) : IUpdateSystem
     {
         // Find the ball (assume only one ball, with Velocity and Transform2D)
         (Entity ballEntity, _, Transform2D transform, Velocity velocity, Bounds bounds) = world.Query<Ball, Transform2D, Velocity, Bounds>().First();
-        
+
         // Ball bounds
         var ballPos = transform.Position;
         var ballScale = transform.Scale;
         var ballHalf = ballScale / 2f;
 
         // --- Pong-specific collision detection ---
-        
+
         if (Stopwatch.GetTimestamp() - _lastBounce < Stopwatch.Frequency / 30)
             return;
-        
+
         velocity = HandleWallCollisions(ballPos, ballHalf, velocity, bounds);
         velocity = HandlePaddleCollisions(ballPos, ballHalf, velocity);
 

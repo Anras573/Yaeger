@@ -1,5 +1,7 @@
 using System.Numerics;
+
 using Pong.Components;
+
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Input;
@@ -54,7 +56,7 @@ public class InputSystem(World world) : IUpdateSystem
         // If the ball is stopped, we can use the space key to start it
         if (!Keyboard.IsKeyPressed(Keys.Space))
             return;
-        
+
         var dirX = ball.Server == Player.Left ? 0.5f : -0.5f;
         var dirY = Random.Shared.NextSingle();
 

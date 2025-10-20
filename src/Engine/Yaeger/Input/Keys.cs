@@ -12,4 +12,3 @@ public enum Keys
     Down
     // Add more keys as needed
 }
-

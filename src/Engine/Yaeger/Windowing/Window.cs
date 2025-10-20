@@ -1,7 +1,9 @@
 using System.Numerics;
+
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+
 using Yaeger.Input;
 
 namespace Yaeger.Windowing;
@@ -14,19 +16,19 @@ public sealed class Window : IDisposable
     private Window(IWindow window)
     {
         _innerWindow = window;
-        
+
         // Forward Silk.NET events to public events
         _innerWindow.Resize += size => Resize?.Invoke(new Vector2(size.X, size.Y));
         _innerWindow.Update += delta => Update?.Invoke(delta);
         _innerWindow.Closing += Closing;
         _innerWindow.Render += delta => Render?.Invoke(delta);
-        
+
         _innerWindow.Initialize();
-        
+
         Gl = _innerWindow.CreateOpenGL();
         Gl.Viewport(0, 0, (uint)_innerWindow.Size.X, (uint)_innerWindow.Size.Y);
         _innerWindow.Resize += size => Gl.Viewport(0, 0, (uint)size.X, (uint)size.Y);
-        
+
         // Initialize the keyboard
         var inputContext = _innerWindow.CreateInput();
         Keyboard.Initialize(inputContext);
@@ -34,7 +36,7 @@ public sealed class Window : IDisposable
 
     public static Window Create()
         => new(Silk.NET.Windowing.Window.Create(WindowOptions.Default));
-    
+
     #region "Events"
     // Backing fields for public events
     private event Action? Load;
@@ -42,7 +44,7 @@ public sealed class Window : IDisposable
     private event Action<double>? Update;
     private event Action? Closing;
     private event Action<double>? Render;
-    
+
     public event Action? OnLoad
     {
         add => Load += value;
@@ -74,11 +76,10 @@ public sealed class Window : IDisposable
     {
         // Invoke the Load event
         Load?.Invoke();
-        
+
         _innerWindow.Run();
     }
     public void Close() => _innerWindow.Close();
-    
+
     public void Dispose() => _innerWindow.Dispose();
 }
-
