@@ -21,7 +21,7 @@ class Program
     private const int SpriteCount = 500;
     private const string TexturePath = "Assets/square.png";
 
-    private static readonly List<SpriteData> Sprites = new();
+    private static readonly List<SpriteData> Sprites = [];
     private static bool useBatchRendering = true;
 
     static void Main(string[] args)
@@ -56,6 +56,18 @@ class Program
 
         int fps = 0;
         double lastFpsTime = 0;
+        
+        // Toggle rendering mode
+        Keyboard.AddKeyDown(Keys.Space, () =>
+        {
+            useBatchRendering = !useBatchRendering;
+            Console.WriteLine($"Switched to {(useBatchRendering ? "BATCH" : "INDIVIDUAL")} rendering");
+        });
+        
+        Keyboard.AddKeyDown(Keys.Escape, () =>
+        {
+            window.Close();
+        });
 
         window.OnUpdate += Update;
         window.OnRender += Render;
@@ -65,18 +77,6 @@ class Program
 
         void Update(double deltaTime)
         {
-            // Toggle rendering mode
-            if (Keyboard.IsKeyPressed(Keys.Space))
-            {
-                useBatchRendering = !useBatchRendering;
-                Console.WriteLine($"Switched to {(useBatchRendering ? "BATCH" : "INDIVIDUAL")} rendering");
-            }
-
-            if (Keyboard.IsKeyPressed(Keys.Escape))
-            {
-                window.Close();
-            }
-
             // Update sprite positions and rotations
             foreach (var sprite in Sprites)
             {
