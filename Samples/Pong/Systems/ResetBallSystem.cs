@@ -17,7 +17,7 @@ public class ResetBallSystem(World world, Entity ballEntity) : IUpdateSystem
             world.TryGetComponent(ballEntity, out Transform2D transform);
             world.AddComponent(ballEntity, transform with { Position = Vector2.Zero });
             world.AddComponent(ballEntity, new Velocity(Vector2.Zero));
-            
+
             // Reset the ball state
             world.AddComponent(ballEntity, ball with { State = BallState.Waiting });
         }
