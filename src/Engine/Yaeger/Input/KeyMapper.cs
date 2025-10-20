@@ -16,7 +16,7 @@ public static class KeyMapper
         { Key.Down, Keys.Down }
         // Add more mappings as needed
     };
-    
+
     public static bool TryGetMappedKey(Key key, out Keys mappedKey) =>
         KeyMap.TryGetValue(key, out mappedKey);
 }

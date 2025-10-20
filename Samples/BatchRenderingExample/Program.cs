@@ -56,14 +56,14 @@ class Program
 
         int fps = 0;
         double lastFpsTime = 0;
-        
+
         // Toggle rendering mode
         Keyboard.AddKeyDown(Keys.Space, () =>
         {
             useBatchRendering = !useBatchRendering;
             Console.WriteLine($"Switched to {(useBatchRendering ? "BATCH" : "INDIVIDUAL")} rendering");
         });
-        
+
         Keyboard.AddKeyDown(Keys.Escape, () =>
         {
             window.Close();
