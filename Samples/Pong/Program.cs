@@ -39,6 +39,11 @@ window.OnUpdate += Update;
 window.OnRender += Render;
 window.OnClosing += () => Console.WriteLine("Average FPS: " + fpsCounts.Average());
 
+Keyboard.AddKeyDown(Keys.Escape, () =>
+{
+    window.Close();
+});
+
 window.Run();
 
 Console.WriteLine("Window closed");
@@ -63,9 +68,6 @@ void Update(double delta)
     {
         system.Update(deltaTime);
     }
-
-    if (Keyboard.IsKeyPressed(Keys.Escape))
-        window.Close();
 }
 
 void Render(double delta)
