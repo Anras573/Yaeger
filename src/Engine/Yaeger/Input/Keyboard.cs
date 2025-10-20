@@ -6,10 +6,10 @@ public static class Keyboard
 {
     private static IKeyboard? _keyboard;
     private static readonly HashSet<Keys> PressedKeys = [];
-    
+
     private static readonly Dictionary<Keys, Action> KeyDownActions = new();
     private static readonly Dictionary<Keys, Action> KeyUpActions = new();
-    
+
     internal static void Initialize(IInputContext inputContext)
     {
         if (_keyboard != null) return;
