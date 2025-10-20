@@ -1,4 +1,5 @@
 using Silk.NET.OpenGL;
+
 using StbImageSharp;
 
 namespace Yaeger.Rendering;
@@ -16,7 +17,7 @@ public class Texture : IDisposable
 
         using var stream = File.OpenRead(path);
         var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
-            
+
         fixed (byte* data = image.Data)
         {
             _gl.TexImage2D(TextureTarget.Texture2D, 0, (int)InternalFormat.Rgba, (uint)image.Width, (uint)image.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
@@ -34,7 +35,7 @@ public class Texture : IDisposable
         _gl.ActiveTexture(unit);
         _gl.BindTexture(TextureTarget.Texture2D, _handle);
     }
-    
+
     public void Unbind(TextureUnit unit = TextureUnit.Texture0)
     {
         _gl.ActiveTexture(unit);

@@ -10,8 +10,9 @@ Yaeger is a modular, experimental 2D game engine written in C#. It aims to provi
 
 - Entity-Component-System (ECS) architecture
 - 2D rendering with Silk.NET
+- Batch rendering for efficient sprite rendering
 - Input handling (keyboard, mouse)
-- Sample games (see `Samples/Pong`)
+- Sample games (see `Samples/Pong`, `Samples/BatchRenderingExample`)
 - Extensible component and system design
 
 ## Getting Started
@@ -42,10 +43,23 @@ Run the Pong sample:
 dotnet run --project Samples/Pong/Pong.csproj
 ```
 
+Run the Batch Rendering example:
+
+```bash
+dotnet run --project Samples/BatchRenderingExample/BatchRenderingExample.csproj
+```
+
 ## Project Structure
 
 - `src/Engine/Yaeger/` - Core engine source code
+  - `ECS/` - Entity-Component-System framework
+  - `Rendering/` - Rendering systems (including batch renderer)
+  - `Graphics/` - Graphics primitives and utilities
+  - `Input/` - Input handling
+  - `Windowing/` - Window management
 - `Samples/` - Example games and demos
+  - `Pong/` - Classic Pong game implementation
+  - `BatchRenderingExample/` - Demonstrates batch rendering for efficient sprite rendering
 
 ## Usage
 

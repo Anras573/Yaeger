@@ -42,4 +42,3 @@ public static class Keyboard
 
     public static bool IsKeyPressed(Keys key) => PressedKeys.Contains(key);
 }
-
