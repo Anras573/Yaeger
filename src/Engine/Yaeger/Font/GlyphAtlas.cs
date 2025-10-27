@@ -2,6 +2,8 @@ using System.Numerics;
 
 using Silk.NET.OpenGL;
 
+using Yaeger.Rendering;
+
 namespace Yaeger.Font;
 
 /// <summary>
@@ -19,61 +21,32 @@ public struct AtlasGlyph
 
 /// <summary>
 /// Manages a texture atlas of rendered glyphs for efficient text rendering.
-/// Uses SkiaSharp for glyph rasterization and OpenGL for texture storage.
+/// Uses SkiaSharp for glyph rasterization and OpenGL for _texture storage.
 /// </summary>
 public class GlyphAtlas : IDisposable
 {
-    private readonly GL _gl;
     private readonly Font _font;
     private readonly int _fontSize;
     private readonly Dictionary<uint, AtlasGlyph> _glyphs = new();
-    private uint _textureId;
+    private readonly FontTexture _texture;
     private readonly int _atlasWidth;
     private readonly int _atlasHeight;
     private bool _disposed;
 
-    public uint TextureId => _textureId;
-    public int AtlasWidth => _atlasWidth;
-    public int AtlasHeight => _atlasHeight;
-
     public GlyphAtlas(GL gl, Font font, int fontSize = 48, int atlasSize = 512)
     {
-        _gl = gl ?? throw new ArgumentNullException(nameof(gl));
         _font = font ?? throw new ArgumentNullException(nameof(font));
         _fontSize = fontSize;
         _atlasWidth = atlasSize;
         _atlasHeight = atlasSize;
 
-        InitializeAtlas();
-    }
-
-    private unsafe void InitializeAtlas()
-    {
-        // Create OpenGL texture
-        _textureId = _gl.GenTexture();
-        _gl.BindTexture(TextureTarget.Texture2D, _textureId);
-
-        // Create empty texture with alpha channel
-        var emptyData = new byte[_atlasWidth * _atlasHeight];
-        fixed (byte* data = emptyData)
-        {
-            _gl.TexImage2D(TextureTarget.Texture2D, 0, (int)InternalFormat.R8,
-                (uint)_atlasWidth, (uint)_atlasHeight, 0,
-                PixelFormat.Red, PixelType.UnsignedByte, data);
-        }
-
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
-
-        _gl.BindTexture(TextureTarget.Texture2D, 0);
+        _texture = new FontTexture(gl, _atlasWidth, _atlasHeight);
     }
 
     /// <summary>
     /// Adds a glyph to the atlas. If the glyph is already in the atlas, returns the existing entry.
     /// </summary>
-    public AtlasGlyph AddGlyph(uint codepoint)
+    private AtlasGlyph AddGlyph(uint codepoint)
     {
         if (_glyphs.TryGetValue(codepoint, out var existingGlyph))
         {
@@ -111,7 +84,7 @@ public class GlyphAtlas : IDisposable
         return _glyphs.TryGetValue(codepoint, out var glyph) ? glyph : null;
     }
 
-    private unsafe AtlasGlyph RenderGlyph(uint codepoint)
+    private AtlasGlyph RenderGlyph(uint codepoint)
     {
         // Create a SkiaSharp typeface from the font data
         // For now, we'll create a simple placeholder implementation
@@ -139,25 +112,22 @@ public class GlyphAtlas : IDisposable
         // A full implementation would render the actual glyph
         var glyphData = new byte[_fontSize * _fontSize];
         Array.Fill<byte>(glyphData, 255);
-
-        _gl.BindTexture(TextureTarget.Texture2D, _textureId);
-        fixed (byte* data = glyphData)
-        {
-            _gl.TexSubImage2D(TextureTarget.Texture2D, 0, x, y,
-                (uint)_fontSize, (uint)_fontSize,
-                PixelFormat.Red, PixelType.UnsignedByte, data);
-        }
-        _gl.BindTexture(TextureTarget.Texture2D, 0);
+        
+        _texture.SetData(new ReadOnlySpan<byte>(glyphData), x, y, _fontSize, _fontSize);
 
         return atlasGlyph;
     }
+    
+    public void BindTexture() => _texture.Bind();
+
+    public void UnbindTexture() => _texture.Unbind();
 
     public void Dispose()
     {
         if (_disposed)
             return;
 
-        _gl.DeleteTexture(_textureId);
+        _texture.Dispose();
         _disposed = true;
         GC.SuppressFinalize(this);
     }

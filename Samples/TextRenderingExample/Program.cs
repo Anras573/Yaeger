@@ -60,16 +60,16 @@ public class Program
         _textRenderSystem = new TextRenderSystem(_textRenderer, _world);
 
         // Note: In a real application, you would load a font like this:
-        // var defaultFont = _fontManager.Load("Assets/fonts/Roboto-Regular.ttf");
+        var defaultFont = _fontManager.Load("Assets/Roboto-Regular.ttf");
         //
         // And create text entities like this:
-        // var textEntity = _world.CreateEntity();
-        // _world.AddComponent(textEntity, new Text("Hello, Yaeger!", defaultFont, 48, Color.White));
-        // _world.AddComponent(textEntity, new Transform2D
-        // {
-        //     Position = new Vector2(-0.5f, 0.0f),
-        //     Scale = new Vector2(0.01f, 0.01f) // Scale down for screen-space rendering
-        // });
+        var textEntity = _world.CreateEntity();
+        _world.AddComponent(textEntity, new Text("Hello, Yaeger!", defaultFont, 12, Color.White));
+        _world.AddComponent(textEntity, new Transform2D
+        {
+            Position = new Vector2(-0.5f, 0.0f),
+            Scale = new Vector2(0.01f, 0.01f) // Scale down for screen-space rendering
+        });
 
         Console.WriteLine("Text Rendering Example - Loaded successfully!");
         Console.WriteLine("To see text rendering in action:");
@@ -85,11 +85,8 @@ public class Program
 
     private static void OnRender(double deltaTime)
     {
-        if (_textRenderSystem == null)
-            return;
-
         // Render all text entities
-        _textRenderSystem.Render();
+        _textRenderSystem?.Render();
     }
 
     private static void OnClosing()

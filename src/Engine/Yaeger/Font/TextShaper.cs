@@ -14,20 +14,13 @@ public struct GlyphInfo
     public uint Cluster { get; set; }
 }
 
-public class TextShaper
+public class TextShaper(Font font)
 {
-    private readonly Font _font;
-
-    public TextShaper(Font font)
-    {
-        _font = font ?? throw new ArgumentNullException(nameof(font));
-    }
-
     public GlyphInfo[] Shape(string text, Direction direction = Direction.LeftToRight)
     {
         if (string.IsNullOrEmpty(text))
         {
-            return Array.Empty<GlyphInfo>();
+            return [];
         }
 
         using var buffer = new Buffer();
@@ -35,7 +28,7 @@ public class TextShaper
         buffer.GuessSegmentProperties();
         buffer.Direction = direction;
 
-        _font.HarfBuzzFont.Shape(buffer);
+        font.HarfBuzzFont.Shape(buffer);
 
         var glyphInfos = buffer.GlyphInfos;
         var glyphPositions = buffer.GlyphPositions;
@@ -61,7 +54,7 @@ public class TextShaper
     {
         if (string.IsNullOrEmpty(text))
         {
-            return Array.Empty<GlyphInfo>();
+            return [];
         }
 
         using var buffer = new Buffer();
@@ -69,7 +62,7 @@ public class TextShaper
         buffer.GuessSegmentProperties();
         buffer.Direction = direction;
 
-        _font.HarfBuzzFont.Shape(buffer, features);
+        font.HarfBuzzFont.Shape(buffer, features);
 
         var glyphInfos = buffer.GlyphInfos;
         var glyphPositions = buffer.GlyphPositions;

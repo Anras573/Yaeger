@@ -15,9 +15,9 @@ public class BatchRenderer : IDisposable
     private readonly GL _gl;
     private readonly TextureManager _textureManager;
     private readonly Shader _batchShader;
-    private readonly uint _vao;
-    private readonly uint _vbo;
-    private readonly uint _ebo;
+    private readonly VertexArray _vao;
+    private readonly Buffer<float> _vbo;
+    private readonly Buffer<uint> _ebo;
 
     private const int MaxQuadsPerBatch = 1000;
     private const int VerticesPerQuad = 4;
@@ -25,16 +25,14 @@ public class BatchRenderer : IDisposable
     private const int FloatsPerVertex = 5; // 3 position + 2 texcoord
 
     private readonly float[] _vertexBuffer;
-    private readonly uint[] _indexBuffer;
-    private int _quadCount;
 
     private const string VertexShaderSource = """
                                               #version 330 core
                                               layout(location = 0) in vec3 aPosition;
                                               layout(location = 1) in vec2 aTexCoord;
-                                              
+
                                               out vec2 vTexCoord;
-                                              
+
                                               void main()
                                               {
                                                   gl_Position = vec4(aPosition, 1.0);
@@ -57,14 +55,14 @@ public class BatchRenderer : IDisposable
 
     private readonly Dictionary<string, List<Matrix4x4>> _batchQueue;
 
-    public unsafe BatchRenderer(Window window)
+    public BatchRenderer(Window window)
     {
         _gl = window.Gl;
         _textureManager = new TextureManager(_gl);
         _batchShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
         _vertexBuffer = new float[MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex];
-        _indexBuffer = new uint[MaxQuadsPerBatch * IndicesPerQuad];
+        uint[] indexBuffer = new uint[MaxQuadsPerBatch * IndicesPerQuad];
         _batchQueue = new Dictionary<string, List<Matrix4x4>>();
 
         // Generate static indices (pattern repeats for each quad)
@@ -73,55 +71,24 @@ public class BatchRenderer : IDisposable
             uint offset = i * VerticesPerQuad;
             uint indexOffset = i * IndicesPerQuad;
 
-            _indexBuffer[indexOffset + 0] = offset + 0;
-            _indexBuffer[indexOffset + 1] = offset + 1;
-            _indexBuffer[indexOffset + 2] = offset + 3;
-            _indexBuffer[indexOffset + 3] = offset + 1;
-            _indexBuffer[indexOffset + 4] = offset + 2;
-            _indexBuffer[indexOffset + 5] = offset + 3;
+            indexBuffer[indexOffset + 0] = offset + 0;
+            indexBuffer[indexOffset + 1] = offset + 1;
+            indexBuffer[indexOffset + 2] = offset + 3;
+            indexBuffer[indexOffset + 3] = offset + 1;
+            indexBuffer[indexOffset + 4] = offset + 2;
+            indexBuffer[indexOffset + 5] = offset + 3;
         }
 
         // Create VAO
-        _vao = _gl.GenVertexArray();
-        _gl.BindVertexArray(_vao);
 
         // Create VBO
-        _vbo = _gl.GenBuffer();
-        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-        unsafe
-        {
-            _gl.BufferData(BufferTargetARB.ArrayBuffer,
-                (nuint)(_vertexBuffer.Length * sizeof(float)),
-                null,
-                BufferUsageARB.DynamicDraw);
-        }
+        _vbo = new Buffer<float>(_gl, _vertexBuffer, BufferTargetARB.ArrayBuffer, BufferUsageARB.DynamicDraw);
 
         // Create EBO
-        _ebo = _gl.GenBuffer();
-        _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
-        unsafe
-        {
-            fixed (uint* indices = _indexBuffer)
-            {
-                _gl.BufferData(BufferTargetARB.ElementArrayBuffer,
-                    (nuint)(_indexBuffer.Length * sizeof(uint)),
-                    indices,
-                    BufferUsageARB.StaticDraw);
-            }
-        }
+        _ebo = new Buffer<uint>(_gl, indexBuffer, BufferTargetARB.ElementArrayBuffer);
 
         // Setup vertex attributes
-        // Position (3 floats)
-        _gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false,
-            FloatsPerVertex * sizeof(float), (void*)0);
-        _gl.EnableVertexAttribArray(0);
-
-        // TexCoord (2 floats)
-        _gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false,
-            FloatsPerVertex * sizeof(float), (void*)(3 * sizeof(float)));
-        _gl.EnableVertexAttribArray(1);
-
-        _gl.BindVertexArray(0);
+        _vao = new VertexArray(_gl, _vbo, _ebo);
 
         Console.WriteLine($"BatchRenderer initialized with max {MaxQuadsPerBatch} quads per batch");
     }
@@ -140,7 +107,7 @@ public class BatchRenderer : IDisposable
     {
         if (!_batchQueue.ContainsKey(texturePath))
         {
-            _batchQueue[texturePath] = new List<Matrix4x4>();
+            _batchQueue[texturePath] = [];
         }
         _batchQueue[texturePath].Add(transform);
     }
@@ -176,8 +143,6 @@ public class BatchRenderer : IDisposable
 
     private void FillVertexBuffer(List<Matrix4x4> transforms, int startIndex, int count)
     {
-        _quadCount = count;
-
         // Base quad vertices (unit square centered at origin)
         ReadOnlySpan<Vector3> basePositions = stackalloc Vector3[]
         {
@@ -216,8 +181,8 @@ public class BatchRenderer : IDisposable
 
     private unsafe void DrawBatch(int quadCount)
     {
-        _gl.BindVertexArray(_vao);
-        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+        _vao.Bind();
+        _vbo.Bind();
 
         int vertexCount = quadCount * VerticesPerQuad * FloatsPerVertex;
         fixed (float* vertices = _vertexBuffer)
@@ -230,14 +195,14 @@ public class BatchRenderer : IDisposable
         _gl.DrawElements(PrimitiveType.Triangles, (uint)indexCount,
             DrawElementsType.UnsignedInt, null);
 
-        _gl.BindVertexArray(0);
+        _vao.Unbind();
     }
 
     public void Dispose()
     {
-        _gl.DeleteVertexArray(_vao);
-        _gl.DeleteBuffer(_vbo);
-        _gl.DeleteBuffer(_ebo);
+        _vao.Dispose();
+        _vbo.Dispose();
+        _ebo.Dispose();
         _batchShader.Dispose();
     }
 }

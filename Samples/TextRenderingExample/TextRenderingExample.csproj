@@ -12,4 +12,10 @@
       <ProjectReference Include="..\..\src\Engine\Yaeger\Yaeger.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="Assets\Roboto-Regular.ttf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

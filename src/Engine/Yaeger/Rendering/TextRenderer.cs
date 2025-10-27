@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 using Silk.NET.OpenGL;
 
@@ -16,9 +17,9 @@ public class TextRenderer : IDisposable
     private readonly GL _gl;
     private readonly Shader _textShader;
     private readonly Dictionary<Font.Font, GlyphAtlas> _glyphAtlases = new();
-    private readonly uint _vao;
-    private readonly uint _vbo;
-    private readonly uint _ebo;
+    private readonly FontVertexArray _vao;
+    private readonly Buffer<float> _vbo;
+    private readonly Buffer<uint> _ebo;
 
     private const int MaxQuadsPerBatch = 1000;
     private const int VerticesPerQuad = 4;
@@ -26,7 +27,6 @@ public class TextRenderer : IDisposable
     private const int FloatsPerVertex = 9; // 3 position + 2 texcoord + 4 color
 
     private readonly float[] _vertexBuffer;
-    private readonly uint[] _indexBuffer;
     private int _quadCount;
 
     private const string VertexShaderSource = """
@@ -61,13 +61,13 @@ public class TextRenderer : IDisposable
                                                 }
                                                 """;
 
-    public unsafe TextRenderer(Window window)
+    public TextRenderer(Window window)
     {
         _gl = window.Gl ?? throw new ArgumentNullException(nameof(window));
         _textShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
         _vertexBuffer = new float[MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex];
-        _indexBuffer = new uint[MaxQuadsPerBatch * IndicesPerQuad];
+        uint[] indexBuffer = new uint[MaxQuadsPerBatch * IndicesPerQuad];
 
         // Generate static indices
         for (uint i = 0; i < MaxQuadsPerBatch; i++)
@@ -75,55 +75,24 @@ public class TextRenderer : IDisposable
             uint offset = i * VerticesPerQuad;
             uint indexOffset = i * IndicesPerQuad;
 
-            _indexBuffer[indexOffset + 0] = offset + 0;
-            _indexBuffer[indexOffset + 1] = offset + 1;
-            _indexBuffer[indexOffset + 2] = offset + 3;
-            _indexBuffer[indexOffset + 3] = offset + 1;
-            _indexBuffer[indexOffset + 4] = offset + 2;
-            _indexBuffer[indexOffset + 5] = offset + 3;
+            indexBuffer[indexOffset + 0] = offset + 0;
+            indexBuffer[indexOffset + 1] = offset + 1;
+            indexBuffer[indexOffset + 2] = offset + 3;
+            indexBuffer[indexOffset + 3] = offset + 1;
+            indexBuffer[indexOffset + 4] = offset + 2;
+            indexBuffer[indexOffset + 5] = offset + 3;
         }
-
-        // Create VAO
-        _vao = _gl.GenVertexArray();
-        _gl.BindVertexArray(_vao);
-
+        
         // Create VBO
-        _vbo = _gl.GenBuffer();
-        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-        _gl.BufferData(BufferTargetARB.ArrayBuffer,
-            (nuint)(_vertexBuffer.Length * sizeof(float)),
-            null,
-            BufferUsageARB.DynamicDraw);
+        _vbo = new Buffer<float>(_gl, _vertexBuffer, BufferTargetARB.ArrayBuffer, BufferUsageARB.DynamicDraw);
 
         // Create EBO
-        _ebo = _gl.GenBuffer();
-        _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
-        fixed (uint* indices = _indexBuffer)
-        {
-            _gl.BufferData(BufferTargetARB.ElementArrayBuffer,
-                (nuint)(_indexBuffer.Length * sizeof(uint)),
-                indices,
-                BufferUsageARB.StaticDraw);
-        }
+        _ebo = new Buffer<uint>(_gl, indexBuffer, BufferTargetARB.ElementArrayBuffer);
 
-        // Setup vertex attributes
-        // Position (3 floats)
-        _gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false,
-            FloatsPerVertex * sizeof(float), (void*)0);
-        _gl.EnableVertexAttribArray(0);
-
-        // TexCoord (2 floats)
-        _gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false,
-            FloatsPerVertex * sizeof(float), (void*)(3 * sizeof(float)));
-        _gl.EnableVertexAttribArray(1);
-
-        // Color (4 floats)
-        _gl.VertexAttribPointer(2, 4, VertexAttribPointerType.Float, false,
-            FloatsPerVertex * sizeof(float), (void*)(5 * sizeof(float)));
-        _gl.EnableVertexAttribArray(2);
-
-        _gl.BindVertexArray(0);
-
+        // Create VAO
+        _vao = new FontVertexArray(_gl, _vbo, _ebo);
+        _vao.Unbind();
+        
         // Enable blending for text rendering
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -134,7 +103,7 @@ public class TextRenderer : IDisposable
     /// <summary>
     /// Gets or creates a glyph atlas for the specified font.
     /// </summary>
-    public GlyphAtlas GetOrCreateAtlas(Font.Font font, int fontSize = 48)
+    private GlyphAtlas GetOrCreateAtlas(Font.Font font, int fontSize = 48)
     {
         if (_glyphAtlases.TryGetValue(font, out var atlas))
         {
@@ -188,7 +157,7 @@ public class TextRenderer : IDisposable
             // If batch is full, render it
             if (_quadCount >= MaxQuadsPerBatch)
             {
-                RenderBatch(atlas.TextureId);
+                RenderBatch(atlas);
                 _quadCount = 0;
             }
         }
@@ -196,7 +165,7 @@ public class TextRenderer : IDisposable
         // Render remaining quads
         if (_quadCount > 0)
         {
-            RenderBatch(atlas.TextureId);
+            RenderBatch(atlas);
         }
     }
 
@@ -247,17 +216,15 @@ public class TextRenderer : IDisposable
         _quadCount++;
     }
 
-    private unsafe void RenderBatch(uint textureId)
+    private unsafe void RenderBatch(GlyphAtlas atlas)
     {
         if (_quadCount == 0)
             return;
-
+        
         _textShader.Bind();
-        _gl.ActiveTexture(TextureUnit.Texture0);
-        _gl.BindTexture(TextureTarget.Texture2D, textureId);
-
-        _gl.BindVertexArray(_vao);
-        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+        atlas.BindTexture();
+        _vao.Bind();
+        _vbo.Bind();
 
         int vertexCount = _quadCount * VerticesPerQuad * FloatsPerVertex;
         fixed (float* vertices = _vertexBuffer)
@@ -267,13 +234,23 @@ public class TextRenderer : IDisposable
         }
 
         int indexCount = _quadCount * IndicesPerQuad;
-        _gl.DrawElements(PrimitiveType.Triangles, (uint)indexCount,
-            DrawElementsType.UnsignedInt, null);
+        _gl.DrawElements(PrimitiveType.Triangles, (uint)indexCount, DrawElementsType.UnsignedInt, null);
 
-        _gl.BindVertexArray(0);
+        _vao.Unbind();
         _textShader.Unbind();
+        
+        CheckGlError(nameof(TextRenderer));
     }
 
+    private void CheckGlError([CallerMemberName] string context = "")
+    {
+        var error = _gl.GetError();
+        if (error != GLEnum.NoError)
+        {
+            Console.WriteLine($"OpenGL error after {context}: {error}");
+        }
+    }
+    
     public void Dispose()
     {
         foreach (var atlas in _glyphAtlases.Values)
@@ -282,9 +259,9 @@ public class TextRenderer : IDisposable
         }
         _glyphAtlases.Clear();
 
-        _gl.DeleteVertexArray(_vao);
-        _gl.DeleteBuffer(_vbo);
-        _gl.DeleteBuffer(_ebo);
+        _vao.Dispose();
+        _vbo.Dispose();
+        _ebo.Dispose();
         _textShader.Dispose();
 
         GC.SuppressFinalize(this);
