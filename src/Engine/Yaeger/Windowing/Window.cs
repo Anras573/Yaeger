@@ -37,6 +37,8 @@ public sealed class Window : IDisposable
     public static Window Create()
         => new(Silk.NET.Windowing.Window.Create(WindowOptions.Default));
 
+    public Vector2 Size => new(_innerWindow.Size.X, _innerWindow.Size.Y);
+
     #region "Events"
     // Backing fields for public events
     private event Action? Load;
