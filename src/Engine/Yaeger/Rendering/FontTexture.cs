@@ -55,5 +55,18 @@ public class FontTexture : IDisposable
         Unbind();
     }
 
+    public void SetData(Span<Byte> data, int xOffset, int yOffset, int width, int height)
+    {
+        Bind();
+        unsafe
+        {
+            fixed (void* d = data)
+            {
+                _gl.TexSubImage2D(TextureTarget.Texture2D, 0, xOffset, yOffset, (uint)width, (uint)height, PixelFormat.Red, PixelType.UnsignedByte, d);
+            }
+        }
+        Unbind();
+    }
+
     public void Dispose() => _gl.DeleteTexture(_handle);
 }

@@ -126,8 +126,7 @@ public class TextRenderer : IDisposable
         var atlas = GetOrCreateAtlas(font, fontSize);
         atlas.AddGlyphsForText(text);
 
-        var shaper = new TextShaper(font);
-        var glyphs = shaper.Shape(text);
+        var glyphs = font.Shape(text);
 
         _quadCount = 0;
         float x = 0;

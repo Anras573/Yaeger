@@ -9,19 +9,6 @@ using Yaeger.Rendering;
 namespace Yaeger.Font;
 
 /// <summary>
-/// Represents a glyph in the atlas with its texture coordinates and metrics.
-/// </summary>
-public struct AtlasGlyph
-{
-    public uint Codepoint { get; set; }
-    public Vector2 TexCoordMin { get; set; }
-    public Vector2 TexCoordMax { get; set; }
-    public Vector2 Size { get; set; }
-    public Vector2 Bearing { get; set; }
-    public float Advance { get; set; }
-}
-
-/// <summary>
 /// Manages a texture atlas of rendered glyphs for efficient text rendering.
 /// Uses SkiaSharp for glyph rasterization and OpenGL for texture storage.
 /// </summary>
@@ -36,6 +23,7 @@ public class GlyphAtlas : IDisposable
     private readonly SKTypeface _typeface;
     private readonly SKFont _skFont;
     private bool _disposed;
+    private int _nextAtlasIndex = 0;
 
     public GlyphAtlas(GL gl, Font font, int fontSize = 48, int atlasSize = 512)
     {
@@ -52,6 +40,7 @@ public class GlyphAtlas : IDisposable
 
         // Create SKFont with the desired size
         _skFont = new SKFont(_typeface, _fontSize);
+        _skFont.Edging = SKFontEdging.Antialias;
     }
 
     /// <summary>
@@ -73,18 +62,16 @@ public class GlyphAtlas : IDisposable
     /// <summary>
     /// Batch adds multiple glyphs to the atlas for a given text string.
     /// </summary>
-    public void AddGlyphsForText(string text)
+    public AtlasGlyph[] AddGlyphsForText(string text)
     {
         if (string.IsNullOrEmpty(text))
-            return;
+            return [];
 
-        var shaper = new TextShaper(_font);
-        var glyphs = shaper.Shape(text);
+        var glyphs = _font.Shape(text);
 
-        foreach (var glyph in glyphs)
-        {
-            AddGlyph(glyph.Codepoint);
-        }
+        return glyphs
+            .Select(g => AddGlyph(g.Codepoint))
+            .ToArray();
     }
 
     /// <summary>
@@ -98,7 +85,7 @@ public class GlyphAtlas : IDisposable
     private AtlasGlyph RenderGlyph(uint codepoint)
     {
         // Calculate position in atlas (simple grid layout)
-        int glyphIndex = _glyphs.Count;
+        int glyphIndex = _nextAtlasIndex++;
         int glyphsPerRow = _atlasWidth / _fontSize;
         int x = (glyphIndex % glyphsPerRow) * _fontSize;
         int y = (glyphIndex / glyphsPerRow) * _fontSize;
@@ -107,8 +94,7 @@ public class GlyphAtlas : IDisposable
         var text = char.ConvertFromUtf32((int)codepoint);
 
         // Measure the glyph using SKFont
-        var bounds = new SKRect();
-        var advance = _skFont.MeasureText(text, out bounds);
+        var advance = _skFont.MeasureText(text, out SKRect bounds);
 
         // Calculate metrics
         var glyphWidth = (int)Math.Ceiling(bounds.Width);
@@ -135,11 +121,9 @@ public class GlyphAtlas : IDisposable
         canvas.Clear(SKColors.Transparent);
 
         // Create paint for rendering the glyph
-        using var paint = new SKPaint
-        {
-            Color = SKColors.White,
-            IsAntialias = true
-        };
+        using var paint = new SKPaint();
+        paint.Color = SKColors.White;
+        paint.IsAntialias = true;
 
         // Draw the glyph using the modern API
         // Position it so the glyph is properly positioned
@@ -151,25 +135,17 @@ public class GlyphAtlas : IDisposable
 
         if (pixmap != null)
         {
-            // Copy pixel data to a byte array
-            var glyphData = new byte[_fontSize * _fontSize];
             var pixelSpan = pixmap.GetPixelSpan();
-
-            if (pixelSpan.Length >= glyphData.Length)
-            {
-                pixelSpan.Slice(0, glyphData.Length).CopyTo(glyphData);
-
-                // Upload to texture atlas
-                _texture.SetData(new ReadOnlySpan<byte>(glyphData), x, y, _fontSize, _fontSize);
-            }
+            // Upload to texture atlas
+            _texture.SetData(pixelSpan, x, y, _fontSize, _fontSize);
         }
 
         // Create atlas glyph with actual metrics
         var atlasGlyph = new AtlasGlyph
         {
             Codepoint = codepoint,
-            TexCoordMin = new Vector2((float)x / _atlasWidth, (float)y / _atlasHeight),
-            TexCoordMax = new Vector2((float)(x + _fontSize) / _atlasWidth, (float)(y + _fontSize) / _atlasHeight),
+            TexCoordMin = new Vector2((float)x / _atlasWidth, (float)(y + _fontSize) / _atlasHeight),
+            TexCoordMax = new Vector2((float)(x + _fontSize) / _atlasWidth, (float)y / _atlasHeight),
             Size = new Vector2(renderWidth, renderHeight),
             Bearing = bearing,
             Advance = advance
@@ -187,8 +163,8 @@ public class GlyphAtlas : IDisposable
         return new AtlasGlyph
         {
             Codepoint = codepoint,
-            TexCoordMin = new Vector2((float)x / _atlasWidth, (float)y / _atlasHeight),
-            TexCoordMax = new Vector2((float)(x + _fontSize) / _atlasWidth, (float)(y + _fontSize) / _atlasHeight),
+            TexCoordMin = new Vector2((float)x / _atlasWidth, (float)(y + _fontSize) / _atlasHeight),
+            TexCoordMax = new Vector2((float)(x + _fontSize) / _atlasWidth, (float)y / _atlasHeight),
             Size = new Vector2(0, 0),
             Bearing = Vector2.Zero,
             Advance = advance

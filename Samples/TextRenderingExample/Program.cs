@@ -8,95 +8,67 @@ using Yaeger.Rendering;
 using Yaeger.Systems;
 using Yaeger.Windowing;
 
-namespace TextRenderingExample;
+using var window = Window.Create();
+var world = new World();
+var fontManager = new FontManager();
+var textRenderer = new TextRenderer(window);
+var textRenderSystem = new TextRenderSystem(textRenderer, world);
 
-public class Program
+window.OnLoad += OnLoad;
+window.OnRender += OnRender;
+window.OnClosing += OnClosing;
+
+Keyboard.AddKeyDown(Keys.Escape, () => window.Close());
+
+window.Run();
+
+Console.WriteLine("Window closed");
+
+return;
+
+void OnLoad()
 {
-    private static Window? _window;
-    private static World? _world;
-    private static TextRenderer? _textRenderer;
-    private static TextRenderSystem? _textRenderSystem;
-    private static FontManager? _fontManager;
+    Console.WriteLine("Text Rendering Example - Loading...");
 
-    public static void Main()
+    var defaultFont = fontManager.Load("Assets/Roboto-Regular.ttf");
+
+    var textEntity = world.CreateEntity();
+    world.AddComponent(textEntity, new Text("Hello, Yaeger!", defaultFont, 48, Color.White));
+    world.AddComponent(textEntity, new Transform2D
     {
-        _window = Window.Create();
+        Position = new Vector2(-0.95f, 0),
+        Scale = new Vector2(0.005f, 0.005f) // Scale down for screen-space rendering
+    });
 
-        _window.OnLoad += OnLoad;
-        _window.OnUpdate += OnUpdate;
-        _window.OnRender += OnRender;
-        _window.OnClosing += OnClosing;
-
-        Keyboard.AddKeyDown(Keys.Escape, () => _window.Close());
-
-        _window.Run();
-
-        Console.WriteLine("Window closed");
-    }
-
-    private static void OnLoad()
+    var textEntity2 = world.CreateEntity();
+    world.AddComponent(textEntity2, new Text("The quick brown fox jumps over the lazy dog", defaultFont, 32, Color.Green));
+    world.AddComponent(textEntity2, new Transform2D
     {
-        Console.WriteLine("Text Rendering Example - Loading...");
+        Position = new Vector2(-0.95f, -0.2f),
+        Scale = new Vector2(0.003f, 0.003f) // Scale down for screen-space rendering
+    });
 
-        if (_window == null)
-            return;
-
-        // Initialize ECS World
-        _world = new World();
-
-        // Initialize Font System
-        _fontManager = new FontManager();
-
-        // Try to load a system font (this is a placeholder - in a real scenario you'd provide a font file)
-        // For demonstration purposes, we'll create a mock font path
-        // In a real application, you would provide a valid .ttf file path
-        Console.WriteLine("Note: Text rendering requires a valid TrueType font file.");
-        Console.WriteLine("Please provide a .ttf font file in the Assets directory to see rendered text.");
-
-        // Initialize Text Renderer
-        _textRenderer = new TextRenderer(_window);
-
-        // Create Text Render System
-        _textRenderSystem = new TextRenderSystem(_textRenderer, _world);
-
-        // Note: In a real application, you would load a font like this:
-        var defaultFont = _fontManager.Load("Assets/Roboto-Regular.ttf");
-        //
-        // And create text entities like this:
-        var textEntity = _world.CreateEntity();
-        _world.AddComponent(textEntity, new Text("Hello, Yaeger!", defaultFont, 12, Color.White));
-        _world.AddComponent(textEntity, new Transform2D
-        {
-            Position = new Vector2(-0.5f, 0.0f),
-            Scale = new Vector2(0.01f, 0.01f) // Scale down for screen-space rendering
-        });
-
-        Console.WriteLine("Text Rendering Example - Loaded successfully!");
-        Console.WriteLine("To see text rendering in action:");
-        Console.WriteLine("1. Add a .ttf font file to an Assets/fonts directory");
-        Console.WriteLine("2. Uncomment the font loading code in Program.cs");
-        Console.WriteLine("3. Rebuild and run the example");
-    }
-
-    private static void OnUpdate(double deltaTime)
+    var textEntity3 = world.CreateEntity();
+    world.AddComponent(textEntity3, new Text("Press ESC to exit", defaultFont, 24, Color.Blue));
+    world.AddComponent(textEntity3, new Transform2D
     {
-        // Update logic here if needed
-    }
+        Position = new Vector2(-0.95f, -0.4f),
+        Scale = new Vector2(0.002f, 0.002f) // Scale down for screen-space rendering
+    });
+}
 
-    private static void OnRender(double deltaTime)
-    {
-        // Render all text entities
-        _textRenderSystem?.Render();
-    }
+void OnRender(double deltaTime)
+{
+    // Render all text entities
+    textRenderSystem.Render();
+}
 
-    private static void OnClosing()
-    {
-        Console.WriteLine("Text Rendering Example - Closing...");
+void OnClosing()
+{
+    Console.WriteLine("Text Rendering Example - Closing...");
 
-        _textRenderer?.Dispose();
-        _fontManager?.Dispose();
-        _window?.Dispose();
+    textRenderer.Dispose();
+    fontManager.Dispose();
 
-        Console.WriteLine("Text Rendering Example - Closed successfully!");
-    }
+    Console.WriteLine("Text Rendering Example - Closed successfully!");
 }
