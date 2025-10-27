@@ -26,7 +26,7 @@ public class FontTexture : IDisposable
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
         _gl.GenerateMipmap(TextureTarget.Texture2D);
-        
+
         _gl.BindTexture(TextureTarget.Texture2D, 0);
     }
 
@@ -41,7 +41,7 @@ public class FontTexture : IDisposable
         _gl.ActiveTexture(unit);
         _gl.BindTexture(TextureTarget.Texture2D, 0);
     }
-    
+
     public void SetData<T>(ReadOnlySpan<T> data, int xOffset, int yOffset, int width, int height) where T : unmanaged
     {
         Bind();

@@ -2,6 +2,8 @@ using System.Numerics;
 
 using Silk.NET.OpenGL;
 
+using SkiaSharp;
+
 using Yaeger.Rendering;
 
 namespace Yaeger.Font;
@@ -21,7 +23,7 @@ public struct AtlasGlyph
 
 /// <summary>
 /// Manages a texture atlas of rendered glyphs for efficient text rendering.
-/// Uses SkiaSharp for glyph rasterization and OpenGL for _texture storage.
+/// Uses SkiaSharp for glyph rasterization and OpenGL for texture storage.
 /// </summary>
 public class GlyphAtlas : IDisposable
 {
@@ -31,6 +33,8 @@ public class GlyphAtlas : IDisposable
     private readonly FontTexture _texture;
     private readonly int _atlasWidth;
     private readonly int _atlasHeight;
+    private readonly SKTypeface _typeface;
+    private readonly SKFont _skFont;
     private bool _disposed;
 
     public GlyphAtlas(GL gl, Font font, int fontSize = 48, int atlasSize = 512)
@@ -41,6 +45,13 @@ public class GlyphAtlas : IDisposable
         _atlasHeight = atlasSize;
 
         _texture = new FontTexture(gl, _atlasWidth, _atlasHeight);
+
+        // Create SkiaSharp typeface from font bytes
+        using var fontData = SKData.CreateCopy(_font.FontBytes);
+        _typeface = SKTypeface.FromData(fontData) ?? throw new InvalidOperationException("Failed to create typeface from font data");
+
+        // Create SKFont with the desired size
+        _skFont = new SKFont(_typeface, _fontSize);
     }
 
     /// <summary>
@@ -86,38 +97,104 @@ public class GlyphAtlas : IDisposable
 
     private AtlasGlyph RenderGlyph(uint codepoint)
     {
-        // Create a SkiaSharp typeface from the font data
-        // For now, we'll create a simple placeholder implementation
-        // A full implementation would require extracting font data from HarfBuzz
-
         // Calculate position in atlas (simple grid layout)
         int glyphIndex = _glyphs.Count;
         int glyphsPerRow = _atlasWidth / _fontSize;
         int x = (glyphIndex % glyphsPerRow) * _fontSize;
         int y = (glyphIndex / glyphsPerRow) * _fontSize;
 
-        // For now, create a simple rectangular glyph representation
-        // A full implementation would render actual glyph shapes using SkiaSharp
+        // Convert codepoint to string for rendering
+        var text = char.ConvertFromUtf32((int)codepoint);
+
+        // Measure the glyph using SKFont
+        var bounds = new SKRect();
+        var advance = _skFont.MeasureText(text, out bounds);
+
+        // Calculate metrics
+        var glyphWidth = (int)Math.Ceiling(bounds.Width);
+        var glyphHeight = (int)Math.Ceiling(bounds.Height);
+        var bearing = new Vector2(bounds.Left, -bounds.Top);
+
+        // Ensure glyph fits in the allocated space
+        var renderWidth = Math.Min(Math.Max(glyphWidth, 1), _fontSize);
+        var renderHeight = Math.Min(Math.Max(glyphHeight, 1), _fontSize);
+
+        // Create a bitmap to render the glyph
+        var imageInfo = new SKImageInfo(_fontSize, _fontSize, SKColorType.Alpha8);
+        using var surface = SKSurface.Create(imageInfo);
+
+        if (surface == null)
+        {
+            // Fallback to empty glyph if surface creation fails
+            return CreateEmptyGlyph(codepoint, x, y, advance);
+        }
+
+        var canvas = surface.Canvas;
+
+        // Clear the canvas
+        canvas.Clear(SKColors.Transparent);
+
+        // Create paint for rendering the glyph
+        using var paint = new SKPaint
+        {
+            Color = SKColors.White,
+            IsAntialias = true
+        };
+
+        // Draw the glyph using the modern API
+        // Position it so the glyph is properly positioned
+        canvas.DrawText(text, -bounds.Left, -bounds.Top, SKTextAlign.Left, _skFont, paint);
+
+        // Get the pixel data
+        using var image = surface.Snapshot();
+        using var pixmap = image.PeekPixels();
+
+        if (pixmap != null)
+        {
+            // Copy pixel data to a byte array
+            var glyphData = new byte[_fontSize * _fontSize];
+            var pixelSpan = pixmap.GetPixelSpan();
+
+            if (pixelSpan.Length >= glyphData.Length)
+            {
+                pixelSpan.Slice(0, glyphData.Length).CopyTo(glyphData);
+
+                // Upload to texture atlas
+                _texture.SetData(new ReadOnlySpan<byte>(glyphData), x, y, _fontSize, _fontSize);
+            }
+        }
+
+        // Create atlas glyph with actual metrics
         var atlasGlyph = new AtlasGlyph
         {
             Codepoint = codepoint,
             TexCoordMin = new Vector2((float)x / _atlasWidth, (float)y / _atlasHeight),
             TexCoordMax = new Vector2((float)(x + _fontSize) / _atlasWidth, (float)(y + _fontSize) / _atlasHeight),
-            Size = new Vector2(_fontSize * 0.6f, _fontSize * 0.8f),
-            Bearing = new Vector2(0, _fontSize * 0.8f),
-            Advance = _fontSize * 0.6f
+            Size = new Vector2(renderWidth, renderHeight),
+            Bearing = bearing,
+            Advance = advance
         };
-
-        // Upload a simple white square for now (placeholder)
-        // A full implementation would render the actual glyph
-        var glyphData = new byte[_fontSize * _fontSize];
-        Array.Fill<byte>(glyphData, 255);
-        
-        _texture.SetData(new ReadOnlySpan<byte>(glyphData), x, y, _fontSize, _fontSize);
 
         return atlasGlyph;
     }
-    
+
+    private AtlasGlyph CreateEmptyGlyph(uint codepoint, int x, int y, float advance)
+    {
+        // Create an empty glyph as fallback
+        var glyphData = new byte[_fontSize * _fontSize];
+        _texture.SetData(new ReadOnlySpan<byte>(glyphData), x, y, _fontSize, _fontSize);
+
+        return new AtlasGlyph
+        {
+            Codepoint = codepoint,
+            TexCoordMin = new Vector2((float)x / _atlasWidth, (float)y / _atlasHeight),
+            TexCoordMax = new Vector2((float)(x + _fontSize) / _atlasWidth, (float)(y + _fontSize) / _atlasHeight),
+            Size = new Vector2(0, 0),
+            Bearing = Vector2.Zero,
+            Advance = advance
+        };
+    }
+
     public void BindTexture() => _texture.Bind();
 
     public void UnbindTexture() => _texture.Unbind();
@@ -127,6 +204,8 @@ public class GlyphAtlas : IDisposable
         if (_disposed)
             return;
 
+        _skFont?.Dispose();
+        _typeface?.Dispose();
         _texture.Dispose();
         _disposed = true;
         GC.SuppressFinalize(this);

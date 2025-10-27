@@ -82,7 +82,7 @@ public class TextRenderer : IDisposable
             indexBuffer[indexOffset + 4] = offset + 2;
             indexBuffer[indexOffset + 5] = offset + 3;
         }
-        
+
         // Create VBO
         _vbo = new Buffer<float>(_gl, _vertexBuffer, BufferTargetARB.ArrayBuffer, BufferUsageARB.DynamicDraw);
 
@@ -92,7 +92,7 @@ public class TextRenderer : IDisposable
         // Create VAO
         _vao = new FontVertexArray(_gl, _vbo, _ebo);
         _vao.Unbind();
-        
+
         // Enable blending for text rendering
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -220,7 +220,7 @@ public class TextRenderer : IDisposable
     {
         if (_quadCount == 0)
             return;
-        
+
         _textShader.Bind();
         atlas.BindTexture();
         _vao.Bind();
@@ -238,7 +238,7 @@ public class TextRenderer : IDisposable
 
         _vao.Unbind();
         _textShader.Unbind();
-        
+
         CheckGlError(nameof(TextRenderer));
     }
 
@@ -250,7 +250,7 @@ public class TextRenderer : IDisposable
             Console.WriteLine($"OpenGL error after {context}: {error}");
         }
     }
-    
+
     public void Dispose()
     {
         foreach (var atlas in _glyphAtlases.Values)
