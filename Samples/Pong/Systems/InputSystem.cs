@@ -49,7 +49,9 @@ public class InputSystem(World world) : IUpdateSystem
 
     private void HandleBallInput()
     {
-        (Entity ballEntity, Ball ball) = world.GetStore<Ball>().All().First();
+        var ballEntity = world.GetEntity(EntityTags.Ball);
+        var ball = world.GetComponent<Ball>(ballEntity);
+
         if (ball.State != BallState.Waiting)
             return;
 

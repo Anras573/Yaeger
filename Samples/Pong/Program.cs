@@ -1,7 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
 using Pong;
-using Pong.Components;
 using Pong.Systems;
 
 using Yaeger.Audio;
@@ -15,6 +14,8 @@ using var window = Window.Create();
 var world = new World();
 var renderer = new Renderer(window);
 var renderSystem = new RenderSystem(renderer, world);
+var textRenderer = new TextRenderer(window);
+var textRenderSystem = new TextRenderSystem(textRenderer, world);
 
 // Example: How to use the sound system (requires .wav audio files)
 // Uncomment the following lines to play sounds:
@@ -51,6 +52,7 @@ entityFactory.SpawnLeftPaddle();
 entityFactory.SpawnRightPaddle();
 entityFactory.SpawnBall();
 entityFactory.SpawnBackground();
+entityFactory.SpawnScoreBoard();
 
 window.OnLoad += OnLoad;
 window.OnResize += size => Console.WriteLine($"Window resized to {size.X}x{size.Y}");
@@ -70,13 +72,9 @@ return;
 
 void OnLoad()
 {
-    var ball = world.GetStore<Ball>().All().First().Key;
-    var leftPlayer = world.GetStore<Player>().All().First(e => e.Value == Player.Left).Key;
-    var rightPlayer = world.GetStore<Player>().All().First(e => e.Value == Player.Right).Key;
-
-    updateSystems.Add(new ScoringSystem(world, ball, leftPlayer, rightPlayer));
-    updateSystems.Add(new PrintScoreSystem(world, leftPlayer, rightPlayer));
-    updateSystems.Add(new ResetBallSystem(world, ball));
+    updateSystems.Add(new ScoringSystem(world));
+    updateSystems.Add(new PrintScoreSystem(world));
+    updateSystems.Add(new ResetBallSystem(world));
 }
 
 void Update(double delta)
@@ -103,4 +101,5 @@ void Render(double delta)
     }
 
     renderSystem.Render();
+    textRenderSystem.Render();
 }
