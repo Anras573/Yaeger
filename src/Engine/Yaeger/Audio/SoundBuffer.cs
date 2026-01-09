@@ -32,6 +32,8 @@ public sealed class SoundBuffer : IDisposable
     /// <returns>A new SoundBuffer instance.</returns>
     public static unsafe SoundBuffer Create(AudioContext context, ReadOnlySpan<byte> data, BufferFormat format, int sampleRate)
     {
+        ArgumentNullException.ThrowIfNull(context);
+        
         var bufferId = context.Al.GenBuffer();
 
         fixed (byte* dataPtr = data)
@@ -114,6 +116,13 @@ public sealed class SoundBuffer : IDisposable
             if (new string(chunkId) == "data")
             {
                 var data = reader.ReadBytes(chunkSize);
+
+                // WAV chunks should be aligned to even byte boundaries
+                // If chunk size is odd, skip the padding byte
+                if (chunkSize % 2 == 1 && stream.Position < stream.Length)
+                {
+                    reader.ReadByte();
+                }
 
                 // Determine format
                 BufferFormat format;

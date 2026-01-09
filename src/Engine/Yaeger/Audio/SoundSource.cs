@@ -41,6 +41,8 @@ public sealed class SoundSource : IDisposable
     /// <param name="buffer">The sound buffer to play.</param>
     public void SetBuffer(SoundBuffer buffer)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(buffer);
         _al.SetSourceProperty(_sourceId, SourceInteger.Buffer, (int)buffer.BufferId);
     }
 
@@ -49,6 +51,7 @@ public sealed class SoundSource : IDisposable
     /// </summary>
     public void Play()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _al.SourcePlay(_sourceId);
     }
 
@@ -57,6 +60,7 @@ public sealed class SoundSource : IDisposable
     /// </summary>
     public void Pause()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _al.SourcePause(_sourceId);
     }
 
@@ -65,6 +69,7 @@ public sealed class SoundSource : IDisposable
     /// </summary>
     public void Stop()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _al.SourceStop(_sourceId);
     }
 
