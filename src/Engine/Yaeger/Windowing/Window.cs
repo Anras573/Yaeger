@@ -4,6 +4,7 @@ using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
+using Yaeger.Audio;
 using Yaeger.Input;
 
 namespace Yaeger.Windowing;
@@ -12,6 +13,11 @@ public sealed class Window : IDisposable
 {
     private readonly IWindow _innerWindow;
     internal GL Gl { get; }
+
+    /// <summary>
+    /// Gets the audio context for this window.
+    /// </summary>
+    public AudioContext AudioContext { get; }
 
     private Window(IWindow window)
     {
@@ -32,6 +38,9 @@ public sealed class Window : IDisposable
         // Initialize the keyboard
         var inputContext = _innerWindow.CreateInput();
         Keyboard.Initialize(inputContext);
+
+        // Initialize audio
+        AudioContext = Audio.AudioContext.Create();
     }
 
     public static Window Create()
@@ -83,5 +92,9 @@ public sealed class Window : IDisposable
     }
     public void Close() => _innerWindow.Close();
 
-    public void Dispose() => _innerWindow.Dispose();
+    public void Dispose()
+    {
+        AudioContext.Dispose();
+        _innerWindow.Dispose();
+    }
 }
