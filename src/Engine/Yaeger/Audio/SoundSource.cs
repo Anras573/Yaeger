@@ -78,6 +78,7 @@ public sealed class SoundSource : IDisposable
     /// </summary>
     public SourceState GetState()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _al.GetSourceProperty(_sourceId, GetSourceInteger.SourceState, out int state);
         return (SourceState)state;
     }
@@ -89,10 +90,15 @@ public sealed class SoundSource : IDisposable
     {
         get
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             _al.GetSourceProperty(_sourceId, SourceBoolean.Looping, out bool value);
             return value;
         }
-        set => _al.SetSourceProperty(_sourceId, SourceBoolean.Looping, value);
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.SetSourceProperty(_sourceId, SourceBoolean.Looping, value);
+        }
     }
 
     /// <summary>
@@ -102,10 +108,15 @@ public sealed class SoundSource : IDisposable
     {
         get
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             _al.GetSourceProperty(_sourceId, SourceFloat.Pitch, out float value);
             return value;
         }
-        set => _al.SetSourceProperty(_sourceId, SourceFloat.Pitch, value);
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.SetSourceProperty(_sourceId, SourceFloat.Pitch, value);
+        }
     }
 
     /// <summary>
@@ -115,10 +126,15 @@ public sealed class SoundSource : IDisposable
     {
         get
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             _al.GetSourceProperty(_sourceId, SourceFloat.Gain, out float value);
             return value;
         }
-        set => _al.SetSourceProperty(_sourceId, SourceFloat.Gain, Math.Clamp(value, 0f, 1f));
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.SetSourceProperty(_sourceId, SourceFloat.Gain, Math.Clamp(value, 0f, 1f));
+        }
     }
 
     /// <summary>
@@ -128,10 +144,15 @@ public sealed class SoundSource : IDisposable
     {
         get
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             _al.GetSourceProperty(_sourceId, SourceVector3.Position, out var value);
             return value;
         }
-        set => _al.SetSourceProperty(_sourceId, SourceVector3.Position, value);
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.SetSourceProperty(_sourceId, SourceVector3.Position, value);
+        }
     }
 
     /// <summary>
@@ -141,10 +162,15 @@ public sealed class SoundSource : IDisposable
     {
         get
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             _al.GetSourceProperty(_sourceId, SourceVector3.Velocity, out var value);
             return value;
         }
-        set => _al.SetSourceProperty(_sourceId, SourceVector3.Velocity, value);
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.SetSourceProperty(_sourceId, SourceVector3.Velocity, value);
+        }
     }
 
     public void Dispose()
