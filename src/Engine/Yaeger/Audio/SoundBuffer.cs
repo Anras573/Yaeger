@@ -93,6 +93,12 @@ public sealed class SoundBuffer : IDisposable
         reader.ReadInt16(); // Block align
         var bitsPerSample = reader.ReadInt16();
 
+        // Validate audio format (1 = PCM)
+        if (audioFormat != 1)
+        {
+            throw new NotSupportedException($"Unsupported WAV audio format: {audioFormat}. Only PCM (format 1) is supported.");
+        }
+
         // Skip any extra fmt data
         if (fmtSize > 16)
         {
@@ -128,6 +134,13 @@ public sealed class SoundBuffer : IDisposable
             {
                 // Skip unknown chunks
                 reader.ReadBytes(chunkSize);
+                
+                // WAV chunks should be aligned to even byte boundaries
+                // If chunk size is odd, skip the padding byte
+                if (chunkSize % 2 == 1 && stream.Position < stream.Length)
+                {
+                    reader.ReadByte();
+                }
             }
         }
 
