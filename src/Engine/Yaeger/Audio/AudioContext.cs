@@ -11,6 +11,7 @@ public sealed class AudioContext : IDisposable
     private readonly ALContext _alc;
     private readonly nint _device;
     private readonly nint _context;
+    private bool _disposed;
 
     private unsafe AudioContext(AL al, ALContext alc, Device* device, Context* context)
     {
@@ -54,10 +55,14 @@ public sealed class AudioContext : IDisposable
 
     public unsafe void Dispose()
     {
+        if (_disposed)
+            return;
+
         _alc.MakeContextCurrent(null);
         _alc.DestroyContext((Context*)_context);
         _alc.CloseDevice((Device*)_device);
         _al.Dispose();
         _alc.Dispose();
+        _disposed = true;
     }
 }
