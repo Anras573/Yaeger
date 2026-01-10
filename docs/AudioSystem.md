@@ -76,7 +76,7 @@ using System.Numerics;
 // Position the sound in 3D space
 soundSource.Position = new Vector3(10f, 0f, 0f);
 
-// Set velocity for doppler effect
+// Set velocity for Doppler effect
 soundSource.Velocity = new Vector3(1f, 0f, 0f);
 ```
 
