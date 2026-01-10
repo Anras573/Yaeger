@@ -28,6 +28,7 @@ var renderSystem = new RenderSystem(renderer, world);
 // soundSource.Play();
 //
 // To loop background music:
+// var musicBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/music.wav");
 // var musicSource = SoundSource.Create(window.AudioContext);
 // musicSource.Looping = true;
 // musicSource.SetBuffer(musicBuffer);
