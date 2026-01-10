@@ -214,6 +214,14 @@ public sealed class SoundBuffer : IDisposable
         throw new InvalidDataException("Invalid WAV file: missing data chunk");
     }
 
+    /// <summary>
+    /// Releases the underlying OpenAL buffer associated with this sound buffer.
+    /// </summary>
+    /// <remarks>
+    /// After calling this method, the <see cref="BufferId"/> must no longer be used, and
+    /// any operations that depend on this sound buffer will fail. This method is safe
+    /// to call multiple times; subsequent calls have no effect.
+    /// </remarks>
     public void Dispose()
     {
         if (_disposed)
