@@ -35,22 +35,44 @@ public sealed class AudioContext : IDisposable
         var al = AL.GetApi(true);
         var alc = ALContext.GetApi(true);
 
-        var device = alc.OpenDevice("");
-        if (device == null)
+        Device* device = null;
+        Context* context = null;
+
+        try
         {
-            throw new InvalidOperationException("Failed to open audio device");
-        }
+            device = alc.OpenDevice("");
+            if (device == null)
+            {
+                throw new InvalidOperationException("Failed to open audio device");
+            }
 
-        var context = alc.CreateContext(device, null);
-        if (context == null)
+            context = alc.CreateContext(device, null);
+            if (context == null)
+            {
+                alc.CloseDevice(device);
+                throw new InvalidOperationException("Failed to create audio context");
+            }
+
+            alc.MakeContextCurrent(context);
+
+            return new AudioContext(al, alc, device, context);
+        }
+        catch
         {
-            alc.CloseDevice(device);
-            throw new InvalidOperationException("Failed to create audio context");
+            if (context != null)
+            {
+                alc.DestroyContext(context);
+            }
+
+            if (device != null)
+            {
+                alc.CloseDevice(device);
+            }
+
+            al.Dispose();
+            alc.Dispose();
+            throw;
         }
-
-        alc.MakeContextCurrent(context);
-
-        return new AudioContext(al, alc, device, context);
     }
 
     public unsafe void Dispose()
