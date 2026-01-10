@@ -41,6 +41,18 @@ public sealed class SoundBuffer : IDisposable
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        // Validate sample rate
+        if (sampleRate <= 0 || sampleRate > 192000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sampleRate), sampleRate, "Sample rate must be between 1 and 192000 Hz");
+        }
+
+        // Validate data is not empty
+        if (data.Length == 0)
+        {
+            throw new ArgumentException("Audio data cannot be empty", nameof(data));
+        }
+
         var bufferId = context.Al.GenBuffer();
 
         try
@@ -188,12 +200,8 @@ public sealed class SoundBuffer : IDisposable
                 }
                 var data = reader.ReadBytes(chunkSize);
 
-                // WAV chunks should be aligned to even byte boundaries
-                // If chunk size is odd, skip the padding byte
-                if (chunkSize % 2 == 1 && stream.Position < stream.Length)
-                {
-                    reader.ReadByte();
-                }
+                // Skip padding byte if needed
+                SkipChunkPaddingIfNeeded(reader, chunkSize, stream);
 
                 // Determine format
                 var format = (numChannels, bitsPerSample) switch
@@ -213,16 +221,28 @@ public sealed class SoundBuffer : IDisposable
                 // Skip unknown chunks
                 reader.ReadBytes(chunkSize);
                 
-                // WAV chunks should be aligned to even byte boundaries
-                // If chunk size is odd, skip the padding byte
-                if (chunkSize % 2 == 1 && stream.Position < stream.Length)
-                {
-                    reader.ReadByte();
-                }
+                // Skip padding byte if needed
+                SkipChunkPaddingIfNeeded(reader, chunkSize, stream);
             }
         }
 
         throw new InvalidDataException("Invalid WAV file: missing data chunk");
+    }
+
+    /// <summary>
+    /// Skips the padding byte if the chunk size is odd to maintain even byte alignment.
+    /// </summary>
+    /// <param name="reader">The binary reader.</param>
+    /// <param name="chunkSize">The size of the chunk.</param>
+    /// <param name="stream">The stream to check position against.</param>
+    private static void SkipChunkPaddingIfNeeded(BinaryReader reader, int chunkSize, Stream stream)
+    {
+        // WAV chunks should be aligned to even byte boundaries
+        // If chunk size is odd, skip the padding byte
+        if (chunkSize % 2 == 1 && stream.Position < stream.Length)
+        {
+            reader.ReadByte();
+        }
     }
 
     /// <summary>
