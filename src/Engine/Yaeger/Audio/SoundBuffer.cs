@@ -112,6 +112,13 @@ public sealed class SoundBuffer : IDisposable
         }
 
         var fmtSize = reader.ReadInt32();
+        
+        // Validate fmt chunk size before reading format-dependent data
+        if (fmtSize < 16 || fmtSize > 1024)
+        {
+            throw new InvalidDataException($"Invalid fmt chunk size: {fmtSize} (expected 16-1024 bytes)");
+        }
+
         var audioFormat = reader.ReadInt16();
         var numChannels = reader.ReadInt16();
         var sampleRate = reader.ReadInt32();
@@ -129,11 +136,6 @@ public sealed class SoundBuffer : IDisposable
         if (bitsPerSample != 8 && bitsPerSample != 16)
         {
             throw new NotSupportedException($"Unsupported bits per sample: {bitsPerSample}. Only 8-bit and 16-bit PCM are supported.");
-        }
-        // Validate fmt chunk size
-        if (fmtSize < 16 || fmtSize > 1024)
-        {
-            throw new InvalidDataException($"Invalid fmt chunk size: {fmtSize} (expected 16-1024 bytes)");
         }
 
         // Validate audio format (1 = PCM)
