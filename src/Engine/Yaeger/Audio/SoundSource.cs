@@ -188,7 +188,7 @@ public sealed class SoundSource : IDisposable
     }
 
     /// <summary>
-    /// Gets or sets the velocity of the sound source in 3D space (for doppler effect).
+    /// Gets or sets the velocity of the sound source in 3D space (for Doppler effect).
     /// </summary>
     public Vector3 Velocity
     {
