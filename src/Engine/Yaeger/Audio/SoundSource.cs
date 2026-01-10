@@ -22,7 +22,14 @@ public sealed class SoundSource : IDisposable
     /// <summary>
     /// Gets the OpenAL source ID.
     /// </summary>
-    public uint SourceId => _sourceId;
+    public uint SourceId
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _sourceId;
+        }
+    }
 
     /// <summary>
     /// Creates a new sound source.
