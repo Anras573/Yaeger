@@ -216,6 +216,12 @@ public sealed class SoundSource : IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases the underlying OpenAL sound source and marks this <see cref="SoundSource"/> as disposed.
+    /// </summary>
+    /// <remarks>
+    /// After calling this method, the instance should not be used anymore. Subsequent calls have no effect.
+    /// </remarks>
     public void Dispose()
     {
         if (_disposed)
