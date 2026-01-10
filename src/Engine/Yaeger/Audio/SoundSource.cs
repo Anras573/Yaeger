@@ -122,6 +122,7 @@ public sealed class SoundSource : IDisposable
 
     /// <summary>
     /// Gets or sets the gain/volume (0.0 to 1.0).
+    /// Values outside this range will be automatically clamped to the valid range.
     /// </summary>
     public float Gain
     {

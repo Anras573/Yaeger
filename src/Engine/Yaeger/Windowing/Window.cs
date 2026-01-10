@@ -39,8 +39,19 @@ public sealed class Window : IDisposable
         var inputContext = _innerWindow.CreateInput();
         Keyboard.Initialize(inputContext);
 
-        // Initialize audio
-        AudioContext = Audio.AudioContext.Create();
+        // Initialize audio - if this fails, we need to clean up resources
+        try
+        {
+            AudioContext = Audio.AudioContext.Create();
+        }
+        catch
+        {
+            // Clean up already-initialized resources if audio initialization fails
+            Gl.Dispose();
+            inputContext.Dispose();
+            _innerWindow.Dispose();
+            throw;
+        }
     }
 
     public static Window Create()

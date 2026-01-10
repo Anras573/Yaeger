@@ -52,6 +52,8 @@ public sealed class SoundBuffer : IDisposable
     /// <returns>A new SoundBuffer instance.</returns>
     public static SoundBuffer FromFile(AudioContext context, string filePath)
     {
+        ArgumentNullException.ThrowIfNull(context);
+        
         if (!File.Exists(filePath))
         {
             throw new FileNotFoundException($"Audio file not found: {filePath}");
@@ -65,6 +67,12 @@ public sealed class SoundBuffer : IDisposable
     {
         using var stream = File.OpenRead(filePath);
         using var reader = new BinaryReader(stream);
+
+        // Validate minimum WAV file size (44 bytes for minimal PCM WAV header)
+        if (stream.Length < 44)
+        {
+            throw new InvalidDataException("File is too small to be a valid WAV file");
+        }
 
         // Read RIFF header
         var riff = reader.ReadChars(4);
@@ -110,8 +118,20 @@ public sealed class SoundBuffer : IDisposable
         // Find data chunk
         while (stream.Position < stream.Length)
         {
+            // Ensure we have enough bytes to read chunk ID and size
+            if (stream.Position + 8 > stream.Length)
+            {
+                break; // Not enough bytes for another chunk
+            }
+
             var chunkId = reader.ReadChars(4);
             var chunkSize = reader.ReadInt32();
+
+            // Validate that chunk size doesn't exceed remaining stream length
+            if (stream.Position + chunkSize > stream.Length)
+            {
+                throw new InvalidDataException($"Invalid chunk size: {chunkSize} bytes exceeds remaining file size");
+            }
 
             if (new string(chunkId) == "data")
             {
