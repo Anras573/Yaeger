@@ -239,7 +239,7 @@ public sealed class SoundBuffer : IDisposable
             return;
 
         _disposed = true;
-        GC.SuppressFinalize(this);
+        System.GC.SuppressFinalize(this);
         _al.DeleteBuffer(_bufferId);
     }
 }
