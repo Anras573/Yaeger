@@ -33,12 +33,20 @@ public sealed class SoundBuffer : IDisposable
     public static unsafe SoundBuffer Create(AudioContext context, ReadOnlySpan<byte> data, BufferFormat format, int sampleRate)
     {
         ArgumentNullException.ThrowIfNull(context);
-        
+
         var bufferId = context.Al.GenBuffer();
 
-        fixed (byte* dataPtr = data)
+        try
         {
-            context.Al.BufferData(bufferId, format, dataPtr, data.Length, sampleRate);
+            fixed (byte* dataPtr = data)
+            {
+                context.Al.BufferData(bufferId, format, dataPtr, data.Length, sampleRate);
+            }
+        }
+        catch
+        {
+            context.Al.DeleteBuffer(bufferId);
+            throw;
         }
 
         return new SoundBuffer(context.Al, bufferId);
