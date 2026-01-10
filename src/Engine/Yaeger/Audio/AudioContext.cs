@@ -24,7 +24,14 @@ public sealed class AudioContext : IDisposable
     /// <summary>
     /// Gets the OpenAL instance.
     /// </summary>
-    public AL Al => _al;
+    public AL Al
+    {
+        get
+        {
+            System.ObjectDisposedException.ThrowIf(_disposed, this);
+            return _al;
+        }
+    }
 
     /// <summary>
     /// Creates and initializes a new audio context.
