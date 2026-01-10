@@ -196,17 +196,15 @@ public sealed class SoundBuffer : IDisposable
                 }
 
                 // Determine format
-                BufferFormat format;
-                if (numChannels == 1 && bitsPerSample == 8)
-                    format = BufferFormat.Mono8;
-                else if (numChannels == 1 && bitsPerSample == 16)
-                    format = BufferFormat.Mono16;
-                else if (numChannels == 2 && bitsPerSample == 8)
-                    format = BufferFormat.Stereo8;
-                else if (numChannels == 2 && bitsPerSample == 16)
-                    format = BufferFormat.Stereo16;
-                else
-                    throw new NotSupportedException($"Unsupported WAV format: {numChannels} channels, {bitsPerSample} bits per sample");
+                var format = (numChannels, bitsPerSample) switch
+                {
+                    (1, 8)  => BufferFormat.Mono8,
+                    (1, 16) => BufferFormat.Mono16,
+                    (2, 8)  => BufferFormat.Stereo8,
+                    (2, 16) => BufferFormat.Stereo16,
+                    _ => throw new NotSupportedException(
+                        $"Unsupported WAV format: {numChannels} channels, {bitsPerSample} bits per sample")
+                };
 
                 return (data, format, sampleRate);
             }
