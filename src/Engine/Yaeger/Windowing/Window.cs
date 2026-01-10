@@ -38,19 +38,20 @@ public sealed class Window : IDisposable
         // Initialize the keyboard
         var inputContext = _innerWindow.CreateInput();
         Keyboard.Initialize(inputContext);
+        // Note: inputContext lifecycle is managed by _innerWindow, which will dispose it
 
         // Initialize audio - if this fails, we need to clean up resources
         try
         {
             AudioContext = Audio.AudioContext.Create();
         }
-        catch
+        catch (Exception ex)
         {
             // Clean up already-initialized resources if audio initialization fails
             Gl.Dispose();
             inputContext.Dispose();
             _innerWindow.Dispose();
-            throw;
+            throw new InvalidOperationException("Failed to initialize audio system. Ensure audio device is available.", ex);
         }
     }
 

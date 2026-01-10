@@ -20,7 +20,14 @@ public sealed class SoundBuffer : IDisposable
     /// <summary>
     /// Gets the OpenAL buffer ID.
     /// </summary>
-    public uint BufferId => _bufferId;
+    public uint BufferId
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _bufferId;
+        }
+    }
 
     /// <summary>
     /// Creates a sound buffer from raw PCM audio data.
@@ -61,6 +68,7 @@ public sealed class SoundBuffer : IDisposable
     public static SoundBuffer FromFile(AudioContext context, string filePath)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(filePath);
         
         if (!File.Exists(filePath))
         {
@@ -111,10 +119,22 @@ public sealed class SoundBuffer : IDisposable
         reader.ReadInt16(); // Block align
         var bitsPerSample = reader.ReadInt16();
 
+        // Validate fmt chunk size
+        if (fmtSize < 16 || fmtSize > 1024)
+        {
+            throw new InvalidDataException($"Invalid fmt chunk size: {fmtSize} (expected 16-1024 bytes)");
+        }
+
         // Validate audio format (1 = PCM)
         if (audioFormat != 1)
         {
             throw new NotSupportedException($"Unsupported WAV audio format: {audioFormat}. Only PCM (format 1) is supported.");
+        }
+
+        // Validate sample rate
+        if (sampleRate <= 0 || sampleRate > 192000)
+        {
+            throw new InvalidDataException($"Invalid sample rate: {sampleRate} Hz (expected 1-192000 Hz)");
         }
 
         // Skip any extra fmt data
@@ -134,6 +154,12 @@ public sealed class SoundBuffer : IDisposable
 
             var chunkId = reader.ReadChars(4);
             var chunkSize = reader.ReadInt32();
+
+            // Validate chunk size is not negative
+            if (chunkSize < 0)
+            {
+                throw new InvalidDataException($"Invalid chunk size: {chunkSize} (negative value)");
+            }
 
             // Validate that chunk size doesn't exceed remaining stream length
             if (stream.Position + chunkSize > stream.Length)
