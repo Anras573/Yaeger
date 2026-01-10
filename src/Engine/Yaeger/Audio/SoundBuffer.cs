@@ -143,6 +143,10 @@ public sealed class SoundBuffer : IDisposable
 
             if (new string(chunkId) == "data")
             {
+                if (chunkSize <= 0)
+                {
+                    throw new InvalidDataException($"Invalid data chunk size: {chunkSize} (must be greater than 0)");
+                }
                 var data = reader.ReadBytes(chunkSize);
 
                 // WAV chunks should be aligned to even byte boundaries
