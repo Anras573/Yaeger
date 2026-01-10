@@ -82,6 +82,15 @@ public sealed class AudioContext : IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases the OpenAL audio context, device, and associated resources.
+    /// </summary>
+    /// <remarks>
+    /// This method is safe to call multiple times; subsequent calls after the first
+    /// have no effect. All cleanup steps are attempted, and if any step throws an
+    /// exception, the first such exception is rethrown after all cleanup attempts
+    /// have completed. The method also suppresses finalization for this instance.
+    /// </remarks>
     public unsafe void Dispose()
     {
         if (_disposed)
