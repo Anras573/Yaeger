@@ -140,7 +140,7 @@ musicSource.Gain = 0.3f;
 musicSource.Play();
 ```
 
-## Supported Audio Format
+## Supported Audio Formats
 
 The current implementation supports WAV files with the following specifications:
 
