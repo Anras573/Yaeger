@@ -163,7 +163,7 @@ soundBuffer.Dispose();
 - The audio context is created during window initialization
 - Only one audio context exists per window
 - OpenAL manages the audio device and context lifecycle
-- All audio operations are thread-safe through OpenAL
+- Audio operations must be performed from the thread that owns the OpenAL context (typically the window's main thread); thread safety across multiple threads is not guaranteed by the engine
 
 ## Future Enhancements
 
