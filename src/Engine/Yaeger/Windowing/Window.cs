@@ -4,6 +4,7 @@ using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
+using Yaeger.Audio;
 using Yaeger.Input;
 
 namespace Yaeger.Windowing;
@@ -12,6 +13,11 @@ public sealed class Window : IDisposable
 {
     private readonly IWindow _innerWindow;
     internal GL Gl { get; }
+
+    /// <summary>
+    /// Gets the audio context for this window.
+    /// </summary>
+    public AudioContext AudioContext { get; }
 
     private Window(IWindow window)
     {
@@ -32,6 +38,20 @@ public sealed class Window : IDisposable
         // Initialize the keyboard
         var inputContext = _innerWindow.CreateInput();
         Keyboard.Initialize(inputContext);
+        // Note: inputContext lifecycle is managed by _innerWindow, which will dispose it
+
+        // Initialize audio - if this fails, we need to clean up resources
+        try
+        {
+            AudioContext = Audio.AudioContext.Create();
+        }
+        catch (Exception ex)
+        {
+            // Clean up already-initialized resources if audio initialization fails
+            Gl.Dispose();
+            _innerWindow.Dispose();
+            throw new InvalidOperationException("Failed to initialize audio system. Ensure audio device is available.", ex);
+        }
     }
 
     public static Window Create()
@@ -83,5 +103,17 @@ public sealed class Window : IDisposable
     }
     public void Close() => _innerWindow.Close();
 
-    public void Dispose() => _innerWindow.Dispose();
+    public void Dispose()
+    {
+        // Dispose the AudioContext before the window. The audio system is independent of the
+        // IWindow lifecycle, so this order is safe and makes ownership of audio resources explicit.
+        try
+        {
+            AudioContext.Dispose();
+        }
+        finally
+        {
+            _innerWindow.Dispose();
+        }
+    }
 }

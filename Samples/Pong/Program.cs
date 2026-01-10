@@ -4,6 +4,7 @@ using Pong;
 using Pong.Components;
 using Pong.Systems;
 
+using Yaeger.Audio;
 using Yaeger.ECS;
 using Yaeger.Input;
 using Yaeger.Rendering;
@@ -14,6 +15,24 @@ using var window = Window.Create();
 var world = new World();
 var renderer = new Renderer(window);
 var renderSystem = new RenderSystem(renderer, world);
+
+// Example: How to use the sound system (requires .wav audio files)
+// Uncomment the following lines to play sounds:
+//
+// var soundBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/beep.wav");
+// var soundSource = SoundSource.Create(window.AudioContext);
+// soundSource.SetBuffer(soundBuffer);
+// soundSource.Play();
+//
+// To play a sound when the ball hits a paddle:
+// soundSource.Play();
+//
+// To loop background music:
+// var musicBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/music.wav");
+// var musicSource = SoundSource.Create(window.AudioContext);
+// musicSource.Looping = true;
+// musicSource.SetBuffer(musicBuffer);
+// musicSource.Play();
 
 var updateSystems = new List<IUpdateSystem>
 {
