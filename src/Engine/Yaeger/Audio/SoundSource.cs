@@ -26,7 +26,7 @@ public sealed class SoundSource : IDisposable
     {
         get
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            System.ObjectDisposedException.ThrowIf(_disposed, this);
             return _sourceId;
         }
     }
