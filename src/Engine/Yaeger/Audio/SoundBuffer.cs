@@ -219,8 +219,8 @@ public sealed class SoundBuffer : IDisposable
         if (_disposed)
             return;
 
-        _al.DeleteBuffer(_bufferId);
         _disposed = true;
         GC.SuppressFinalize(this);
+        _al.DeleteBuffer(_bufferId);
     }
 }
