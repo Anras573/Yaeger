@@ -89,11 +89,34 @@ public sealed class AudioContext : IDisposable
 
         _disposed = true;
 
-        _alc.MakeContextCurrent(null);
-        _alc.DestroyContext((Context*)_context);
-        _alc.CloseDevice((Device*)_device);
-        _al.Dispose();
-        _alc.Dispose();
+        System.Exception? firstException = null;
+
+        void Try(System.Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (System.Exception ex)
+            {
+                if (firstException is null)
+                {
+                    firstException = ex;
+                }
+            }
+        }
+
+        Try(() => _alc.MakeContextCurrent(null));
+        Try(() => _alc.DestroyContext((Context*)_context));
+        Try(() => _alc.CloseDevice((Device*)_device));
+        Try(() => _al.Dispose());
+        Try(() => _alc.Dispose());
+
         System.GC.SuppressFinalize(this);
+
+        if (firstException is not null)
+        {
+            throw firstException;
+        }
     }
 }
