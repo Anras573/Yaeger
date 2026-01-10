@@ -119,6 +119,17 @@ public sealed class SoundBuffer : IDisposable
         reader.ReadInt16(); // Block align
         var bitsPerSample = reader.ReadInt16();
 
+        // Validate channel count (only mono and stereo are supported)
+        if (numChannels != 1 && numChannels != 2)
+        {
+            throw new NotSupportedException($"Unsupported number of channels: {numChannels}. Only mono (1) and stereo (2) are supported.");
+        }
+
+        // Validate bits per sample (only 8-bit and 16-bit PCM are supported)
+        if (bitsPerSample != 8 && bitsPerSample != 16)
+        {
+            throw new NotSupportedException($"Unsupported bits per sample: {bitsPerSample}. Only 8-bit and 16-bit PCM are supported.");
+        }
         // Validate fmt chunk size
         if (fmtSize < 16 || fmtSize > 1024)
         {
