@@ -31,6 +31,7 @@ public sealed class SoundSource : IDisposable
     /// <returns>A new SoundSource instance.</returns>
     public static SoundSource Create(AudioContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
         var sourceId = context.Al.GenSource();
         return new SoundSource(context.Al, sourceId);
     }
