@@ -211,6 +211,7 @@ public sealed class SoundSource : IDisposable
             return;
 
         _al.DeleteSource(_sourceId);
+        System.GC.SuppressFinalize(this);
         _disposed = true;
     }
 }
