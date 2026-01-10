@@ -49,7 +49,6 @@ public sealed class Window : IDisposable
         {
             // Clean up already-initialized resources if audio initialization fails
             Gl.Dispose();
-            inputContext.Dispose();
             _innerWindow.Dispose();
             throw new InvalidOperationException("Failed to initialize audio system. Ensure audio device is available.", ex);
         }
