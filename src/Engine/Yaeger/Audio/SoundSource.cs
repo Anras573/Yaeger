@@ -74,7 +74,18 @@ public sealed class SoundSource : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(buffer);
-        _al.SetSourceProperty(_sourceId, SourceInteger.Buffer, (int)buffer.BufferId);
+
+        int bufferId;
+        try
+        {
+            bufferId = (int)buffer.BufferId;
+        }
+        catch (ObjectDisposedException)
+        {
+            throw new ObjectDisposedException(nameof(SoundBuffer), "Cannot set a disposed buffer on the sound source.");
+        }
+
+        _al.SetSourceProperty(_sourceId, SourceInteger.Buffer, bufferId);
     }
 
     /// <summary>
