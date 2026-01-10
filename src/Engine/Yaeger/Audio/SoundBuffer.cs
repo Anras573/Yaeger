@@ -183,5 +183,6 @@ public sealed class SoundBuffer : IDisposable
 
         _al.DeleteBuffer(_bufferId);
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }
