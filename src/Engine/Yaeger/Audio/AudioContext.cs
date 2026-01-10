@@ -87,12 +87,13 @@ public sealed class AudioContext : IDisposable
         if (_disposed)
             return;
 
+        _disposed = true;
+
         _alc.MakeContextCurrent(null);
         _alc.DestroyContext((Context*)_context);
         _alc.CloseDevice((Device*)_device);
         _al.Dispose();
         _alc.Dispose();
         System.GC.SuppressFinalize(this);
-        _disposed = true;
     }
 }
