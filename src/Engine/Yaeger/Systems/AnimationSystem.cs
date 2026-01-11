@@ -58,6 +58,8 @@ public class AnimationSystem(World world)
                         // Animation finished, stay on last frame
                         nextFrameIndex = animation.Frames.Length - 1;
                         newState.IsFinished = true;
+                        // Clamp elapsed time to the duration of the final frame to avoid storing an excessively large value
+                        newElapsedTime = currentFrame.Duration;
                         break;
                     }
                 }
