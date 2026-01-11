@@ -14,6 +14,12 @@ public class AnimationSystem(World world)
     /// <param name="deltaTime">The time elapsed since the last update, in seconds.</param>
     public void Update(float deltaTime)
     {
+        // Guard against negative deltaTime to prevent animations from stepping backwards
+        if (deltaTime < 0f)
+        {
+            return;
+        }
+
         foreach ((Entity entity, Animation animation, AnimationState state) in world.Query<Animation, AnimationState>())
         {
             // Skip if animation is finished and not looping

@@ -129,17 +129,17 @@ The animation system integrates seamlessly with the existing ECS architecture:
 ### AnimationFrame
 
 ```csharp
-public readonly struct AnimationFrame(string texturePath, float duration)
+public readonly record struct AnimationFrame(string texturePath, float duration)
 {
-    public string TexturePath { get; }  // Path to the texture file
-    public float Duration { get; }      // Duration in seconds
+    public string TexturePath { get; init; }  // Path to the texture file
+    public float Duration { get; init; }      // Duration in seconds (must be > 0)
 }
 ```
 
 ### Animation
 
 ```csharp
-public readonly struct Animation
+public readonly record struct Animation
 {
     public AnimationFrame[] Frames { get; }
     public bool Loop { get; }
@@ -152,7 +152,7 @@ public readonly struct Animation
 ### AnimationState
 
 ```csharp
-public struct AnimationState
+public record struct AnimationState
 {
     public int CurrentFrameIndex { get; set; }
     public float ElapsedTime { get; set; }
