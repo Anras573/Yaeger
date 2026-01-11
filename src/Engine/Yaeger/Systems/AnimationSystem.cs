@@ -56,7 +56,8 @@ public class AnimationSystem(World world)
                     else
                     {
                         // Animation finished, stay on last frame
-                        nextFrameIndex = animation.Frames.Length - 1;
+                        currentFrameIndex = animation.Frames.Length - 1;
+                        currentFrame = animation.Frames[currentFrameIndex];
                         newState.IsFinished = true;
                         // Clamp elapsed time to the duration of the final frame to avoid storing an excessively large value
                         newElapsedTime = currentFrame.Duration;
