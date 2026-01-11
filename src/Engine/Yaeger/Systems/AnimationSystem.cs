@@ -30,6 +30,7 @@ public class AnimationSystem(World world)
 
             // Create a mutable copy of the state
             var newState = state;
+            var oldFrameIndex = state.CurrentFrameIndex;
 
             // Update elapsed time
             var newElapsedTime = newState.ElapsedTime + deltaTime;
@@ -68,9 +69,12 @@ public class AnimationSystem(World world)
             newState.ElapsedTime = newElapsedTime;
             world.AddComponent(entity, newState);
 
-            // Update the sprite texture to match the current frame
-            var sprite = new Sprite(currentFrame.TexturePath);
-            world.AddComponent(entity, sprite);
+            // Only update the sprite texture if the frame has changed
+            if (currentFrameIndex != oldFrameIndex)
+            {
+                var sprite = new Sprite(currentFrame.TexturePath);
+                world.AddComponent(entity, sprite);
+            }
         }
     }
 }

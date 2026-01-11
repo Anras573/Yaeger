@@ -37,8 +37,16 @@ public readonly struct Animation
     /// </summary>
     /// <param name="frames">The frames that make up the animation.</param>
     /// <param name="loop">Whether the animation should loop. Default is true.</param>
+    /// <exception cref="ArgumentNullException">Thrown when frames is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when frames is empty.</exception>
     public Animation(AnimationFrame[] frames, bool loop = true)
     {
+        ArgumentNullException.ThrowIfNull(frames);
+        if (frames.Length == 0)
+        {
+            throw new ArgumentException("Animation must have at least one frame.", nameof(frames));
+        }
+
         Frames = frames;
         Loop = loop;
     }
@@ -46,16 +54,5 @@ public readonly struct Animation
     /// <summary>
     /// Gets the total duration of the animation in seconds.
     /// </summary>
-    public float TotalDuration
-    {
-        get
-        {
-            float total = 0;
-            foreach (var frame in Frames)
-            {
-                total += frame.Duration;
-            }
-            return total;
-        }
-    }
+    public float TotalDuration => Frames.Sum(frame => frame.Duration);
 }
