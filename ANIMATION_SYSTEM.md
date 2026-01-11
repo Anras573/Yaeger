@@ -51,8 +51,10 @@ The `AnimationSystem` updates all entities that have both `Animation` and `Anima
 Here's a complete example showing how to create an animated entity:
 
 ```csharp
+using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
+using Yaeger.Rendering;
 using Yaeger.Systems;
 using Yaeger.Windowing;
 
