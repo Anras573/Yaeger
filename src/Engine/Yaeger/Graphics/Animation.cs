@@ -3,24 +3,13 @@ namespace Yaeger.Graphics;
 /// <summary>
 /// Represents a frame in an animation with a texture path and duration.
 /// </summary>
-public readonly struct AnimationFrame(string texturePath, float duration)
-{
-    /// <summary>
-    /// Gets the path to the texture for this frame.
-    /// </summary>
-    public string TexturePath { get; } = texturePath;
-
-    /// <summary>
-    /// Gets the duration in seconds that this frame should be displayed.
-    /// </summary>
-    public float Duration { get; } = duration;
-}
+public readonly record struct AnimationFrame(string TexturePath, float Duration);
 
 /// <summary>
 /// Component that defines an animation as a collection of frames.
 /// Each frame consists of a texture and a duration.
 /// </summary>
-public readonly struct Animation
+public readonly record struct Animation
 {
     /// <summary>
     /// Gets the frames that make up this animation.
