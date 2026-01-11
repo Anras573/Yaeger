@@ -160,7 +160,7 @@ public record struct AnimationState
     public float ElapsedTime { get; set; }
     public bool IsFinished { get; set; }
     
-    public AnimationState(int currentFrameIndex = 0, float elapsedTime = 0f, bool isFinished = false)
+    public AnimationState(int CurrentFrameIndex = 0, float ElapsedTime = 0f, bool IsFinished = false)
 }
 ```
 
