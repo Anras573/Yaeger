@@ -22,15 +22,17 @@ public class AnimationSystem(World world)
                 continue;
             }
 
-            // Skip if animation has no frames
-            if (animation.Frames.Length == 0)
+            // Validate frame index to prevent crashes from manually modified state
+            var currentState = state;
+            if (currentState.CurrentFrameIndex < 0 || currentState.CurrentFrameIndex >= animation.Frames.Length)
             {
-                continue;
+                // Reset to first frame if invalid
+                currentState = new AnimationState(0, 0f, false);
             }
 
             // Create a mutable copy of the state
-            var newState = state;
-            var oldFrameIndex = state.CurrentFrameIndex;
+            var newState = currentState;
+            var oldFrameIndex = currentState.CurrentFrameIndex;
 
             // Update elapsed time
             var newElapsedTime = newState.ElapsedTime + deltaTime;
