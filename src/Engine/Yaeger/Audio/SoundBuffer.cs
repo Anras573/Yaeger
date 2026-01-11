@@ -81,7 +81,7 @@ public sealed class SoundBuffer : IDisposable
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(filePath);
-        
+
         if (!File.Exists(filePath))
         {
             throw new FileNotFoundException($"Audio file not found: {filePath}");
@@ -124,7 +124,7 @@ public sealed class SoundBuffer : IDisposable
         }
 
         var fmtSize = reader.ReadInt32();
-        
+
         // Validate fmt chunk size before reading format-dependent data
         if (fmtSize < 16 || fmtSize > 1024)
         {
@@ -206,9 +206,9 @@ public sealed class SoundBuffer : IDisposable
                 // Determine format
                 var format = (numChannels, bitsPerSample) switch
                 {
-                    (1, 8)  => BufferFormat.Mono8,
+                    (1, 8) => BufferFormat.Mono8,
                     (1, 16) => BufferFormat.Mono16,
-                    (2, 8)  => BufferFormat.Stereo8,
+                    (2, 8) => BufferFormat.Stereo8,
                     (2, 16) => BufferFormat.Stereo16,
                     _ => throw new NotSupportedException(
                         $"Unsupported WAV format: {numChannels} channels, {bitsPerSample} bits per sample")
@@ -220,7 +220,7 @@ public sealed class SoundBuffer : IDisposable
             {
                 // Skip unknown chunks
                 reader.ReadBytes(chunkSize);
-                
+
                 // Skip padding byte if needed
                 SkipChunkPaddingIfNeeded(reader, chunkSize, stream);
             }
