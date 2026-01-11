@@ -34,7 +34,7 @@ The `AnimationState` component tracks the current state of an animation, includi
 var animState = new AnimationState();
 
 // Or specify a starting frame
-var animState = new AnimationState(currentFrameIndex: 2, elapsedTime: 0f);
+var animState = new AnimationState(CurrentFrameIndex: 2, ElapsedTime: 0f);
 ```
 
 ## System
