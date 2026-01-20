@@ -21,7 +21,6 @@ tests/
     ├── ECS/
     │   ├── WorldTests.cs           # World entity management tests
     │   ├── EntityTests.cs          # Entity behavior tests
-    │   ├── ComponentStorageTests.cs # Component storage tests
     │   └── WorldExtensionsTests.cs # ECS query system tests
     ├── Graphics/
     │   ├── Transform2DTests.cs     # 2D transformation tests
@@ -76,15 +75,6 @@ dotnet test --collect:"XPlat Code Coverage"
 - Collection usage (HashSet, Dictionary)
 
 **Test Count**: 6 tests
-
-#### ComponentStorage Tests (`ComponentStorageTests.cs`)
-- Component storage and retrieval
-- Component updates
-- Component removal
-- Multiple entity storage
-- Iterator behavior (`All()` method)
-
-**Test Count**: 8 tests
 
 #### WorldExtensions Tests (`WorldExtensionsTests.cs`)
 - Two-component queries
@@ -171,8 +161,10 @@ public void MethodName_ShouldDoSomething()
 
 3. **Data Structures**
    - Entity as value type
-   - Component storage efficiency
+   - Component storage (tested through World API)
    - Collection compatibility
+
+> **Note on ComponentStorage**: `ComponentStorage<T>` is an internal implementation detail of the ECS system. It is not directly tested because users should interact with components exclusively through the `World` class API (`AddComponent`, `RemoveComponent`, `TryGetComponent`, etc.). The component storage behavior is thoroughly tested indirectly through `WorldTests` and `WorldExtensionsTests`.
 
 ### ⚠️ Not Tested (Requires Integration Testing)
 
@@ -276,10 +268,10 @@ The recommended CI pipeline should:
 ### Expected Test Results
 
 Current test statistics:
-- **Total Tests**: 55
-- **Passed**: 55
+- **Total Tests**: 47
+- **Passed**: 47
 - **Failed**: 0
-- **Execution Time**: ~0.6 seconds
+- **Execution Time**: ~0.06 seconds
 
 ## Future Testing Improvements
 
@@ -346,4 +338,4 @@ When adding new features to Yaeger:
 
 **Last Updated**: January 2026
 **Test Framework Version**: xUnit 2.9.2
-**Test Count**: 55 tests
+**Test Count**: 47 tests
