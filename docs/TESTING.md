@@ -72,9 +72,8 @@ dotnet test --collect:"XPlat Code Coverage"
 - Value type behavior
 - Hash code generation
 - Equality comparison
-- Collection usage (HashSet, Dictionary)
 
-**Test Count**: 6 tests
+**Test Count**: 4 tests
 
 #### WorldExtensions Tests (`WorldExtensionsTests.cs`)
 - Two-component queries
@@ -268,8 +267,8 @@ The recommended CI pipeline should:
 ### Expected Test Results
 
 Current test statistics:
-- **Total Tests**: 47
-- **Passed**: 47
+- **Total Tests**: 45
+- **Passed**: 45
 - **Failed**: 0
 - **Execution Time**: ~0.06 seconds
 
@@ -338,4 +337,4 @@ When adding new features to Yaeger:
 
 **Last Updated**: January 2026
 **Test Framework Version**: xUnit 2.9.2
-**Test Count**: 47 tests
+**Test Count**: 45 tests
