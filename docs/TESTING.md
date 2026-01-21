@@ -103,7 +103,7 @@ dotnet test --collect:"XPlat Code Coverage"
 - Value type behavior
 - Transparency support
 
-**Test Count**: 10 tests
+**Test Count**: 11 tests
 
 ## Testing Approach
 
