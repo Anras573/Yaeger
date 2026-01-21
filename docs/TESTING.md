@@ -94,7 +94,7 @@ dotnet test --collect:"XPlat Code Coverage"
 - Matrix composition (scale, rotation, translation)
 - Property mutation
 
-**Test Count**: 13 tests
+**Test Count**: 12 tests
 
 #### Color Tests (`ColorTests.cs`)
 - RGB value construction
