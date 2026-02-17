@@ -5,12 +5,13 @@ using Yaeger.Graphics;
 
 namespace Pong.Systems;
 
-public class ScoringSystem(World world, Entity ballEntity, Entity leftPlayerEntity, Entity rightPlayerEntity) : IUpdateSystem
+public class ScoringSystem(World world) : IUpdateSystem
 {
     public void Update(float deltaTime)
     {
-        world.TryGetComponent(ballEntity, out Transform2D transform);
-        world.TryGetComponent(ballEntity, out Bounds bounds);
+        var ballEntity = world.GetEntity(EntityTags.Ball);
+        var transform = world.GetComponent<Transform2D>(ballEntity);
+        var bounds = world.GetComponent<Bounds>(ballEntity);
 
         // Check for score
         // Ball bounds
@@ -18,24 +19,25 @@ public class ScoringSystem(World world, Entity ballEntity, Entity leftPlayerEnti
         var ballScale = transform.Scale;
         var ballHalf = ballScale / 2f;
 
+        // Left player scored
         if (ballPos.X + ballHalf.X > bounds.MaxX)
         {
-            // Left player scored
-            world.AddComponent(ballEntity, new Ball { State = BallState.Scored, Server = Player.Right });
-
-            world.TryGetComponent(leftPlayerEntity, out PlayerScore leftScore);
-            world.AddComponent(leftPlayerEntity, leftScore with { Score = leftScore.Score + 1 });
-            return;
+            HandleScore(EntityTags.LeftPaddle, Player.Right, ballEntity);
         }
 
+        // Right player scored
         if (ballPos.X - ballHalf.X < bounds.MinX)
         {
-            // Right player scored
-            world.AddComponent(ballEntity, new Ball { State = BallState.Scored, Server = Player.Left });
-
-            world.TryGetComponent(rightPlayerEntity, out PlayerScore rightScore);
-            world.AddComponent(rightPlayerEntity, rightScore with { Score = rightScore.Score + 1 });
-            return;
+            HandleScore(EntityTags.RightPaddle, Player.Left, ballEntity);
         }
+    }
+
+    private void HandleScore(string playerTag, Player server, Entity ballEntity)
+    {
+        var playerEntity = world.GetEntity(playerTag);
+        var playerScore = world.GetComponent<PlayerScore>(playerEntity);
+
+        world.AddComponent(playerEntity, playerScore with { Score = playerScore.Score + 1 });
+        world.AddComponent(ballEntity, new Ball { State = BallState.Scored, Server = server });
     }
 }

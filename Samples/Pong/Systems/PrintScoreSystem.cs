@@ -1,29 +1,26 @@
 using Pong.Components;
 
 using Yaeger.ECS;
+using Yaeger.Graphics;
 
 namespace Pong.Systems;
 
-public class PrintScoreSystem(World world, Entity leftPlayerEntity, Entity rightPlayerEntity) : IUpdateSystem
+public class PrintScoreSystem(World world) : IUpdateSystem
 {
-    private int _leftScore = 0;
-    private int _rightScore = 0;
-
     public void Update(float deltaTime)
     {
-        world.TryGetComponent(leftPlayerEntity, out PlayerScore leftPlayerScore);
-        world.TryGetComponent(rightPlayerEntity, out PlayerScore rightPlayerScore);
+        UpdateScore(EntityTags.LeftPaddle, EntityTags.LeftScore);
+        UpdateScore(EntityTags.RightPaddle, EntityTags.RightScore);
+    }
 
-        if (leftPlayerScore.Score != _leftScore)
-        {
-            _leftScore = leftPlayerScore.Score;
-            Console.WriteLine($"Left Player Score: {_leftScore}");
-        }
+    private void UpdateScore(string playerTag, string scoreTag)
+    {
+        var player = world.GetEntity(playerTag);
+        var playerScore = world.GetComponent<PlayerScore>(player);
 
-        if (rightPlayerScore.Score != _rightScore)
-        {
-            _rightScore = rightPlayerScore.Score;
-            Console.WriteLine($"Right Player Score: {_rightScore}");
-        }
+        var scoreEntity = world.GetEntity(scoreTag);
+        var scoreText = world.GetComponent<Text>(scoreEntity);
+
+        world.AddComponent(scoreEntity, scoreText with { Content = playerScore.Score.ToString() });
     }
 }

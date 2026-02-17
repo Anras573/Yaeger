@@ -3,20 +3,40 @@ namespace Yaeger.ECS;
 public class World
 {
     private int _nextEntityId = 1;
-    private readonly HashSet<int> _entities = [];
+    private readonly HashSet<Entity> _entities = [];
     private readonly Dictionary<Type, object> _componentStores = new();
     private readonly Dictionary<Type, Action<int>> _removeDelegates = new();
+    private readonly Dictionary<string, Entity> _taggedEntities = new();
+    private readonly Dictionary<Entity, string> _entitiesByTag = new();
 
     public Entity CreateEntity()
     {
         var id = _nextEntityId++;
-        _entities.Add(id);
-        return new Entity(id);
+        var entity = new Entity(id);
+        _entities.Add(entity);
+        return entity;
     }
+
+    public Entity CreateEntity(string tag)
+    {
+        var entity = CreateEntity();
+        _taggedEntities[tag] = entity;
+        _entitiesByTag[entity] = tag;
+        return entity;
+    }
+
+    public bool TryGetEntity(string tag, out Entity entity) => _taggedEntities.TryGetValue(tag, out entity);
+    public Entity GetEntity(string tag) => _taggedEntities[tag];
 
     public void DestroyEntity(Entity entity)
     {
-        _entities.Remove(entity.Id);
+        if (_entitiesByTag.TryGetValue(entity, out var tag))
+        {
+            _taggedEntities.Remove(tag);
+            _entitiesByTag.Remove(entity);
+        }
+
+        _entities.Remove(entity);
         foreach (var store in _componentStores.Values)
         {
             if (!_removeDelegates.TryGetValue(store.GetType(), out var removeDelegate))
@@ -50,7 +70,9 @@ public class World
         return false;
     }
 
-    public IEnumerable<Entity> Entities => _entities.Select(id => new Entity(id));
+    public T GetComponent<T>(Entity entity) where T : struct => GetStore<T>().Get(entity);
+
+    public IEnumerable<Entity> Entities => _entities;
 
     public ComponentStorage<T> GetStore<T>() where T : struct
     {

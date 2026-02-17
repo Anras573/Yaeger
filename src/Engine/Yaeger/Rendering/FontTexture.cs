@@ -21,11 +21,12 @@ public class FontTexture : IDisposable
                 PixelFormat.Red, PixelType.UnsignedByte, data);
         }
 
+        // Use LINEAR filtering for smooth text at various sizes
+        // Don't use mipmaps for font atlas - we update regions dynamically
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
         _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
-        _gl.GenerateMipmap(TextureTarget.Texture2D);
 
         _gl.BindTexture(TextureTarget.Texture2D, 0);
     }
