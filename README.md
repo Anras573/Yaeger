@@ -58,7 +58,7 @@ The project includes a comprehensive test suite covering the ECS system and grap
 dotnet test
 ```
 
-For more information about testing, see the [Testing Guide](docs/TESTING.md).
+For more information about testing, see the [Testing Guide](docs/testing.md).
 
 ## Project Structure
 
