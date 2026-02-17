@@ -96,10 +96,13 @@ public class GlyphAtlas : IDisposable
         // Measure the glyph using SKFont
         var advance = _skFont.MeasureText(text, out SKRect bounds);
 
-        // Calculate metrics
-        var glyphWidth = (int)Math.Ceiling(bounds.Width);
-        var glyphHeight = (int)Math.Ceiling(bounds.Height);
-        var bearing = new Vector2(bounds.Left, -bounds.Top);
+        // Add 1px padding to account for anti-aliasing pixels at edges
+        const int padding = 0; // Set to 0 for now, can be adjusted if needed
+
+        // Calculate metrics with padding
+        var glyphWidth = (int)Math.Ceiling(bounds.Width) + padding * 2;
+        var glyphHeight = (int)Math.Ceiling(bounds.Height) + padding * 2;
+        var bearing = new Vector2(bounds.Left - padding, -bounds.Top + padding);
 
         // Ensure glyph fits in the allocated space
         var renderWidth = Math.Min(Math.Max(glyphWidth, 1), _fontSize);
@@ -125,9 +128,8 @@ public class GlyphAtlas : IDisposable
         paint.Color = SKColors.White;
         paint.IsAntialias = true;
 
-        // Draw the glyph using the modern API
-        // Position it so the glyph is properly positioned
-        canvas.DrawText(text, -bounds.Left, -bounds.Top, SKTextAlign.Left, _skFont, paint);
+        // Draw the glyph with padding offset to preserve anti-aliased edges
+        canvas.DrawText(text, -bounds.Left + padding, -bounds.Top + padding, SKTextAlign.Left, _skFont, paint);
 
         // Get the pixel data
         using var image = surface.Snapshot();
@@ -141,11 +143,12 @@ public class GlyphAtlas : IDisposable
         }
 
         // Create atlas glyph with actual metrics
+        // Texture coordinates must match the actual glyph size, not the full cell
         var atlasGlyph = new AtlasGlyph
         {
             Codepoint = codepoint,
-            TexCoordMin = new Vector2((float)x / _atlasWidth, (float)(y + _fontSize) / _atlasHeight),
-            TexCoordMax = new Vector2((float)(x + _fontSize) / _atlasWidth, (float)y / _atlasHeight),
+            TexCoordMin = new Vector2((float)x / _atlasWidth, (float)(y + renderHeight) / _atlasHeight),
+            TexCoordMax = new Vector2((float)(x + renderWidth) / _atlasWidth, (float)y / _atlasHeight),
             Size = new Vector2(renderWidth, renderHeight),
             Bearing = bearing,
             Advance = advance
