@@ -1,5 +1,4 @@
 using Silk.NET.OpenGL;
-
 using StbImageSharp;
 
 namespace Yaeger.Rendering;
@@ -20,13 +19,39 @@ public class Texture : IDisposable
 
         fixed (byte* data = image.Data)
         {
-            _gl.TexImage2D(TextureTarget.Texture2D, 0, (int)InternalFormat.Rgba, (uint)image.Width, (uint)image.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
+            _gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                (int)InternalFormat.Rgba,
+                (uint)image.Width,
+                (uint)image.Height,
+                0,
+                PixelFormat.Rgba,
+                PixelType.UnsignedByte,
+                data
+            );
         }
 
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.Repeat);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.Repeat);
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.Linear
+        );
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Linear
+        );
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS,
+            (int)GLEnum.Repeat
+        );
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT,
+            (int)GLEnum.Repeat
+        );
         _gl.GenerateMipmap(TextureTarget.Texture2D);
     }
 

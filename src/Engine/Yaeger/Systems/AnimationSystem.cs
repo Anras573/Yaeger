@@ -20,7 +20,12 @@ public class AnimationSystem(World world)
             return;
         }
 
-        foreach ((Entity entity, Animation animation, AnimationState state) in world.Query<Animation, AnimationState>())
+        foreach (
+            (Entity entity, Animation animation, AnimationState state) in world.Query<
+                Animation,
+                AnimationState
+            >()
+        )
         {
             // Skip if animation is finished and not looping
             if (state.IsFinished && !animation.Loop)
@@ -30,7 +35,10 @@ public class AnimationSystem(World world)
 
             // Validate frame index to prevent crashes from manually modified state
             var currentState = state;
-            if (currentState.CurrentFrameIndex < 0 || currentState.CurrentFrameIndex >= animation.Frames.Length)
+            if (
+                currentState.CurrentFrameIndex < 0
+                || currentState.CurrentFrameIndex >= animation.Frames.Length
+            )
             {
                 // Reset to first frame if invalid
                 currentState = new AnimationState(0, 0f, false);

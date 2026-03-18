@@ -1,5 +1,4 @@
 using System.Numerics;
-
 using Silk.NET.OpenGL;
 
 namespace Yaeger.Rendering;
@@ -32,7 +31,8 @@ public class Shader : IDisposable
         _gl.ShaderSource(shader, source);
         _gl.CompileShader(shader);
         var status = _gl.GetShaderInfoLog(shader);
-        if (string.IsNullOrEmpty(status)) return shader;
+        if (string.IsNullOrEmpty(status))
+            return shader;
 
         throw new Exception($"Shader compilation failed: {status}");
     }
@@ -40,17 +40,20 @@ public class Shader : IDisposable
     private void CheckLinkStatus()
     {
         var status = _gl.GetProgramInfoLog(_program);
-        if (string.IsNullOrEmpty(status)) return;
+        if (string.IsNullOrEmpty(status))
+            return;
 
         throw new Exception($"Shader program linking failed: {status}");
     }
 
     public void Bind() => _gl.UseProgram(_program);
+
     public void Unbind() => _gl.UseProgram(0);
 
     private int GetUniformLocation(string name)
     {
-        if (UniformLocations.TryGetValue(name, out var location)) return location;
+        if (UniformLocations.TryGetValue(name, out var location))
+            return location;
 
         location = _gl.GetUniformLocation(_program, name);
         if (location == -1)
@@ -59,7 +62,6 @@ public class Shader : IDisposable
         UniformLocations[name] = location;
         return location;
     }
-
 
     public unsafe void SetUniformMatrix4(string name, Matrix4x4 matrix)
     {

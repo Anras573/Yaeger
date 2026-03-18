@@ -30,13 +30,17 @@ public readonly record struct AnimationFrame
         ArgumentException.ThrowIfNullOrEmpty(texturePath);
         if (duration <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(duration), "Duration must be greater than 0.");
+            throw new ArgumentOutOfRangeException(
+                nameof(duration),
+                "Duration must be greater than 0."
+            );
         }
 
         TexturePath = texturePath;
         Duration = duration;
     }
 }
+
 /// <summary>
 /// Component that defines an animation as a collection of frames.
 /// Each frame consists of a texture and a duration.

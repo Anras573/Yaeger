@@ -23,13 +23,26 @@ public class VertexArray : IDisposable
         VertexAttributeFloatPointer(1, TexCoordCount, VertexSize, 3);
     }
 
-    private unsafe void VertexAttributeFloatPointer(uint index, int count, uint vertexSize, int offset)
+    private unsafe void VertexAttributeFloatPointer(
+        uint index,
+        int count,
+        uint vertexSize,
+        int offset
+    )
     {
-        _gl.VertexAttribPointer(index, count, VertexAttribPointerType.Float, false, vertexSize * sizeof(float), (void*)(offset * sizeof(float)));
+        _gl.VertexAttribPointer(
+            index,
+            count,
+            VertexAttribPointerType.Float,
+            false,
+            vertexSize * sizeof(float),
+            (void*)(offset * sizeof(float))
+        );
         _gl.EnableVertexAttribArray(index);
     }
 
     public void Bind() => _gl.BindVertexArray(_handle);
+
     public void Unbind() => _gl.BindVertexArray(0);
 
     public void Dispose() => _gl.DeleteVertexArray(_handle);

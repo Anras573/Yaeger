@@ -1,7 +1,5 @@
 using System.Numerics;
-
 using Pong.Components;
-
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Input;
@@ -14,7 +12,13 @@ public class InputSystem(World world) : IUpdateSystem
     {
         HandleBallInput();
 
-        foreach ((Entity paddle, Transform2D transform, Velocity velocity, _) in world.Query<Transform2D, Velocity, PlayerControlled>())
+        foreach (
+            (Entity paddle, Transform2D transform, Velocity velocity, _) in world.Query<
+                Transform2D,
+                Velocity,
+                PlayerControlled
+            >()
+        )
         {
             world.AddComponent(paddle, HandlePaddleInput(transform, velocity));
         }
@@ -28,20 +32,24 @@ public class InputSystem(World world) : IUpdateSystem
             // Naive paddle detection based on x position
             // Left paddle
             case < 0f:
-                {
-                    if (Keyboard.IsKeyPressed(Keys.W)) dir += 1f;
-                    if (Keyboard.IsKeyPressed(Keys.S)) dir -= 1f;
-                    velocity.Value = new Vector2(0, dir * 1.0f);
-                    break;
-                }
+            {
+                if (Keyboard.IsKeyPressed(Keys.W))
+                    dir += 1f;
+                if (Keyboard.IsKeyPressed(Keys.S))
+                    dir -= 1f;
+                velocity.Value = new Vector2(0, dir * 1.0f);
+                break;
+            }
             // Right paddle
             case > 0f:
-                {
-                    if (Keyboard.IsKeyPressed(Keys.Up)) dir += 1f;
-                    if (Keyboard.IsKeyPressed(Keys.Down)) dir -= 1f;
-                    velocity.Value = new Vector2(0, dir * 1.0f);
-                    break;
-                }
+            {
+                if (Keyboard.IsKeyPressed(Keys.Up))
+                    dir += 1f;
+                if (Keyboard.IsKeyPressed(Keys.Down))
+                    dir -= 1f;
+                velocity.Value = new Vector2(0, dir * 1.0f);
+                break;
+            }
         }
 
         return velocity;

@@ -1,5 +1,4 @@
 using System.Numerics;
-
 using Yaeger.Graphics;
 
 namespace Yaeger.Tests.Graphics;
@@ -102,10 +101,11 @@ public class Transform2DTests
         // The transform matrix applies scale, then rotation, then translation
         // After 90 degree rotation the matrix should have rotated components
         // We just check that rotation has affected the matrix (it's not identity)
-        var hasRotation = MathF.Abs(matrix.M11 - 1.0f) > 0.01f ||
-                         MathF.Abs(matrix.M12) > 0.01f ||
-                         MathF.Abs(matrix.M21) > 0.01f ||
-                         MathF.Abs(matrix.M22 - 1.0f) > 0.01f;
+        var hasRotation =
+            MathF.Abs(matrix.M11 - 1.0f) > 0.01f
+            || MathF.Abs(matrix.M12) > 0.01f
+            || MathF.Abs(matrix.M21) > 0.01f
+            || MathF.Abs(matrix.M22 - 1.0f) > 0.01f;
         Assert.True(hasRotation);
     }
 
@@ -116,7 +116,8 @@ public class Transform2DTests
         var transform = new Transform2D(
             new Vector2(10, 20),
             rotation: 0f,
-            scale: new Vector2(2, 2));
+            scale: new Vector2(2, 2)
+        );
 
         // Act
         var matrix = transform.TransformMatrix;

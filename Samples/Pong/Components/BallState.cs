@@ -4,5 +4,5 @@ public enum BallState
 {
     Waiting,
     Moving,
-    Scored
+    Scored,
 }

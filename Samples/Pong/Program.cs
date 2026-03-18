@@ -2,7 +2,6 @@
 
 using Pong;
 using Pong.Systems;
-
 using Yaeger.Audio;
 using Yaeger.ECS;
 using Yaeger.Input;
@@ -60,10 +59,13 @@ window.OnUpdate += Update;
 window.OnRender += Render;
 window.OnClosing += () => Console.WriteLine("Average FPS: " + fpsCounts.Average());
 
-Keyboard.AddKeyDown(Keys.Escape, () =>
-{
-    window.Close();
-});
+Keyboard.AddKeyDown(
+    Keys.Escape,
+    () =>
+    {
+        window.Close();
+    }
+);
 
 window.Run();
 

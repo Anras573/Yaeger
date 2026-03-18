@@ -1,8 +1,6 @@
 using System.Numerics;
-
 using BatchRenderingExample.Components;
 using BatchRenderingExample.Systems;
-
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Input;
@@ -11,10 +9,10 @@ using Yaeger.Systems;
 using Yaeger.Windowing;
 
 // This example demonstrates batch rendering in Yaeger.
-// 
+//
 // Batch rendering groups draw calls by texture to minimize GPU state changes,
 // which is essential for efficient font rendering and rendering many sprites.
-// 
+//
 // Press SPACE to toggle between batch rendering and individual rendering.
 // Press ESC to exit.
 
@@ -38,10 +36,12 @@ var physicsSystem = new PhysicsSystem(world);
 var random = new Random(42);
 for (int i = 0; i < spriteCount; i++)
 {
-    var velocity = new Velocity(new Vector2(
-        (float)random.NextDouble() * 0.5f - 0.25f,
-        (float)random.NextDouble() * 0.5f - 0.25f
-    ));
+    var velocity = new Velocity(
+        new Vector2(
+            (float)random.NextDouble() * 0.5f - 0.25f,
+            (float)random.NextDouble() * 0.5f - 0.25f
+        )
+    );
 
     var position = new Vector2(
         (float)random.NextDouble() * 2f - 1f,
@@ -67,16 +67,22 @@ int fps = 0;
 double lastFpsTime = 0;
 
 // Toggle rendering mode
-Keyboard.AddKeyDown(Keys.Space, () =>
-{
-    useBatchRendering = !useBatchRendering;
-    Console.WriteLine($"Switched to {(useBatchRendering ? "BATCH" : "INDIVIDUAL")} rendering");
-});
+Keyboard.AddKeyDown(
+    Keys.Space,
+    () =>
+    {
+        useBatchRendering = !useBatchRendering;
+        Console.WriteLine($"Switched to {(useBatchRendering ? "BATCH" : "INDIVIDUAL")} rendering");
+    }
+);
 
-Keyboard.AddKeyDown(Keys.Escape, () =>
-{
-    window.Close();
-});
+Keyboard.AddKeyDown(
+    Keys.Escape,
+    () =>
+    {
+        window.Close();
+    }
+);
 
 window.OnUpdate += Update;
 window.OnRender += Render;
@@ -95,7 +101,9 @@ void Render(double deltaTime)
 
     if (lastFpsTime >= 1.0)
     {
-        Console.WriteLine($"FPS: {fps} ({(useBatchRendering ? "BATCH" : "INDIVIDUAL")} rendering, {spriteCount} sprites)");
+        Console.WriteLine(
+            $"FPS: {fps} ({(useBatchRendering ? "BATCH" : "INDIVIDUAL")} rendering, {spriteCount} sprites)"
+        );
         fps = 0;
         lastFpsTime = 0;
     }

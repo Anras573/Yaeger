@@ -1,7 +1,5 @@
 using System.Numerics;
-
 using Pong.Components;
-
 using Yaeger.ECS;
 using Yaeger.Graphics;
 

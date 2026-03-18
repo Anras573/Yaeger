@@ -1,9 +1,7 @@
 using System.Numerics;
-
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
-
 using Yaeger.Audio;
 using Yaeger.Input;
 
@@ -50,12 +48,14 @@ public sealed class Window : IDisposable
             // Clean up already-initialized resources if audio initialization fails
             Gl.Dispose();
             _innerWindow.Dispose();
-            throw new InvalidOperationException("Failed to initialize audio system. Ensure audio device is available.", ex);
+            throw new InvalidOperationException(
+                "Failed to initialize audio system. Ensure audio device is available.",
+                ex
+            );
         }
     }
 
-    public static Window Create()
-        => new(Silk.NET.Windowing.Window.Create(WindowOptions.Default));
+    public static Window Create() => new(Silk.NET.Windowing.Window.Create(WindowOptions.Default));
 
     public Vector2 Size => new(_innerWindow.Size.X, _innerWindow.Size.Y);
 
@@ -101,6 +101,7 @@ public sealed class Window : IDisposable
 
         _innerWindow.Run();
     }
+
     public void Close() => _innerWindow.Close();
 
     public void Dispose()

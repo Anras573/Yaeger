@@ -1,7 +1,5 @@
 using System.Numerics;
-
 using Pong.Components;
-
 using Yaeger.ECS;
 using Yaeger.Font;
 using Yaeger.Graphics;
@@ -17,7 +15,7 @@ public class EntityFactory(World world)
         MinY = -1.0f,
         MaxY = 1.0f,
         MinX = -1.0f,
-        MaxX = 1.0f
+        MaxX = 1.0f,
     };
 
     public void SpawnLeftPaddle()
@@ -49,11 +47,7 @@ public class EntityFactory(World world)
         var ball = world.CreateEntity(EntityTags.Ball);
         world.AddComponent(ball, _sprite);
         world.AddComponent(ball, new Transform2D(Vector2.Zero, 0.0f, new Vector2(0.025f)));
-        world.AddComponent(ball, new Ball
-        {
-            State = BallState.Waiting,
-            Server = Player.Left
-        });
+        world.AddComponent(ball, new Ball { State = BallState.Waiting, Server = Player.Left });
         world.AddComponent(ball, new Velocity(Vector2.Zero));
         world.AddComponent(ball, _screenBounds);
     }
@@ -64,7 +58,10 @@ public class EntityFactory(World world)
         {
             var background = world.CreateEntity();
             world.AddComponent(background, _sprite);
-            world.AddComponent(background, new Transform2D(new Vector2(0, i), 0.0f, new Vector2(0.00625f, 0.0125f)));
+            world.AddComponent(
+                background,
+                new Transform2D(new Vector2(0, i), 0.0f, new Vector2(0.00625f, 0.0125f))
+            );
         }
     }
 
@@ -76,18 +73,24 @@ public class EntityFactory(World world)
 
         var leftScore = world.CreateEntity(EntityTags.LeftScore);
         world.AddComponent(leftScore, new Text("0", defaultFont, scoreFontSize, Color.White));
-        world.AddComponent(leftScore, new Transform2D
-        {
-            Position = new Vector2(-0.15f, 0.8f),
-            Scale = new Vector2(0.005f, 0.005f) // Scale down for screen-space rendering
-        });
+        world.AddComponent(
+            leftScore,
+            new Transform2D
+            {
+                Position = new Vector2(-0.15f, 0.8f),
+                Scale = new Vector2(0.005f, 0.005f), // Scale down for screen-space rendering
+            }
+        );
 
         var rightScore = world.CreateEntity(EntityTags.RightScore);
         world.AddComponent(rightScore, new Text("0", defaultFont, scoreFontSize, Color.White));
-        world.AddComponent(rightScore, new Transform2D
-        {
-            Position = new Vector2(0.075f, 0.8f),
-            Scale = new Vector2(0.005f, 0.005f) // Scale down for screen-space rendering
-        });
+        world.AddComponent(
+            rightScore,
+            new Transform2D
+            {
+                Position = new Vector2(0.075f, 0.8f),
+                Scale = new Vector2(0.005f, 0.005f), // Scale down for screen-space rendering
+            }
+        );
     }
 }

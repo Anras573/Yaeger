@@ -37,14 +37,23 @@ public sealed class SoundBuffer : IDisposable
     /// <param name="format">The audio format (e.g., Mono16, Stereo16).</param>
     /// <param name="sampleRate">The sample rate in Hz.</param>
     /// <returns>A new SoundBuffer instance.</returns>
-    public static unsafe SoundBuffer Create(AudioContext context, ReadOnlySpan<byte> data, BufferFormat format, int sampleRate)
+    public static unsafe SoundBuffer Create(
+        AudioContext context,
+        ReadOnlySpan<byte> data,
+        BufferFormat format,
+        int sampleRate
+    )
     {
         ArgumentNullException.ThrowIfNull(context);
 
         // Validate sample rate
         if (sampleRate <= 0 || sampleRate > 192000)
         {
-            throw new ArgumentOutOfRangeException(nameof(sampleRate), sampleRate, "Sample rate must be between 1 and 192000 Hz");
+            throw new ArgumentOutOfRangeException(
+                nameof(sampleRate),
+                sampleRate,
+                "Sample rate must be between 1 and 192000 Hz"
+            );
         }
 
         // Validate data is not empty
@@ -128,7 +137,9 @@ public sealed class SoundBuffer : IDisposable
         // Validate fmt chunk size before reading format-dependent data
         if (fmtSize < 16 || fmtSize > 1024)
         {
-            throw new InvalidDataException($"Invalid fmt chunk size: {fmtSize} (expected 16-1024 bytes)");
+            throw new InvalidDataException(
+                $"Invalid fmt chunk size: {fmtSize} (expected 16-1024 bytes)"
+            );
         }
 
         var audioFormat = reader.ReadInt16();
@@ -141,25 +152,33 @@ public sealed class SoundBuffer : IDisposable
         // Validate channel count (only mono and stereo are supported)
         if (numChannels != 1 && numChannels != 2)
         {
-            throw new NotSupportedException($"Unsupported number of channels: {numChannels}. Only mono (1) and stereo (2) are supported.");
+            throw new NotSupportedException(
+                $"Unsupported number of channels: {numChannels}. Only mono (1) and stereo (2) are supported."
+            );
         }
 
         // Validate bits per sample (only 8-bit and 16-bit PCM are supported)
         if (bitsPerSample != 8 && bitsPerSample != 16)
         {
-            throw new NotSupportedException($"Unsupported bits per sample: {bitsPerSample}. Only 8-bit and 16-bit PCM are supported.");
+            throw new NotSupportedException(
+                $"Unsupported bits per sample: {bitsPerSample}. Only 8-bit and 16-bit PCM are supported."
+            );
         }
 
         // Validate audio format (1 = PCM)
         if (audioFormat != 1)
         {
-            throw new NotSupportedException($"Unsupported WAV audio format: {audioFormat}. Only PCM (format 1) is supported.");
+            throw new NotSupportedException(
+                $"Unsupported WAV audio format: {audioFormat}. Only PCM (format 1) is supported."
+            );
         }
 
         // Validate sample rate
         if (sampleRate <= 0 || sampleRate > 192000)
         {
-            throw new InvalidDataException($"Invalid sample rate: {sampleRate} Hz (expected 1-192000 Hz)");
+            throw new InvalidDataException(
+                $"Invalid sample rate: {sampleRate} Hz (expected 1-192000 Hz)"
+            );
         }
 
         // Skip any extra fmt data
@@ -189,14 +208,18 @@ public sealed class SoundBuffer : IDisposable
             // Validate that chunk size doesn't exceed remaining stream length
             if (stream.Position + chunkSize > stream.Length)
             {
-                throw new InvalidDataException($"Invalid chunk size: {chunkSize} bytes exceeds remaining file size");
+                throw new InvalidDataException(
+                    $"Invalid chunk size: {chunkSize} bytes exceeds remaining file size"
+                );
             }
 
             if (new string(chunkId) == "data")
             {
                 if (chunkSize <= 0)
                 {
-                    throw new InvalidDataException($"Invalid data chunk size: {chunkSize} (must be greater than 0)");
+                    throw new InvalidDataException(
+                        $"Invalid data chunk size: {chunkSize} (must be greater than 0)"
+                    );
                 }
                 var data = reader.ReadBytes(chunkSize);
 
@@ -211,7 +234,8 @@ public sealed class SoundBuffer : IDisposable
                     (2, 8) => BufferFormat.Stereo8,
                     (2, 16) => BufferFormat.Stereo16,
                     _ => throw new NotSupportedException(
-                        $"Unsupported WAV format: {numChannels} channels, {bitsPerSample} bits per sample")
+                        $"Unsupported WAV format: {numChannels} channels, {bitsPerSample} bits per sample"
+                    ),
                 };
 
                 return (data, format, sampleRate);

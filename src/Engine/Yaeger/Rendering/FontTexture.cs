@@ -16,17 +16,41 @@ public class FontTexture : IDisposable
         var emptyData = new byte[width * height];
         fixed (byte* data = emptyData)
         {
-            _gl.TexImage2D(TextureTarget.Texture2D, 0, (int)InternalFormat.R8,
-                (uint)width, (uint)height, 0,
-                PixelFormat.Red, PixelType.UnsignedByte, data);
+            _gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                (int)InternalFormat.R8,
+                (uint)width,
+                (uint)height,
+                0,
+                PixelFormat.Red,
+                PixelType.UnsignedByte,
+                data
+            );
         }
 
         // Use LINEAR filtering for smooth text at various sizes
         // Don't use mipmaps for font atlas - we update regions dynamically
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
-        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.Linear
+        );
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Linear
+        );
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS,
+            (int)GLEnum.ClampToEdge
+        );
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT,
+            (int)GLEnum.ClampToEdge
+        );
 
         _gl.BindTexture(TextureTarget.Texture2D, 0);
     }
@@ -43,14 +67,25 @@ public class FontTexture : IDisposable
         _gl.BindTexture(TextureTarget.Texture2D, 0);
     }
 
-    public void SetData<T>(ReadOnlySpan<T> data, int xOffset, int yOffset, int width, int height) where T : unmanaged
+    public void SetData<T>(ReadOnlySpan<T> data, int xOffset, int yOffset, int width, int height)
+        where T : unmanaged
     {
         Bind();
         unsafe
         {
             fixed (void* d = data)
             {
-                _gl.TexSubImage2D(TextureTarget.Texture2D, 0, xOffset, yOffset, (uint)width, (uint)height, PixelFormat.Red, PixelType.UnsignedByte, d);
+                _gl.TexSubImage2D(
+                    TextureTarget.Texture2D,
+                    0,
+                    xOffset,
+                    yOffset,
+                    (uint)width,
+                    (uint)height,
+                    PixelFormat.Red,
+                    PixelType.UnsignedByte,
+                    d
+                );
             }
         }
         Unbind();
@@ -63,7 +98,17 @@ public class FontTexture : IDisposable
         {
             fixed (void* d = data)
             {
-                _gl.TexSubImage2D(TextureTarget.Texture2D, 0, xOffset, yOffset, (uint)width, (uint)height, PixelFormat.Red, PixelType.UnsignedByte, d);
+                _gl.TexSubImage2D(
+                    TextureTarget.Texture2D,
+                    0,
+                    xOffset,
+                    yOffset,
+                    (uint)width,
+                    (uint)height,
+                    PixelFormat.Red,
+                    PixelType.UnsignedByte,
+                    d
+                );
             }
         }
         Unbind();
