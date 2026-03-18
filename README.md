@@ -20,7 +20,7 @@ Yaeger is a modular, experimental 2D game engine written in C#. It aims to provi
 
 ### Prerequisites
 
-- .NET 9.0 SDK or later
+- .NET 10.0 SDK or later
 - Compatible OS (Windows, macOS, Linux)
 
 ## Build & Run
