@@ -5,7 +5,7 @@
 Yaeger is a modular, experimental 2D game engine written in C# using Entity-Component-System (ECS) architecture. The engine leverages Silk.NET for graphics, input handling, and windowing capabilities. This is a small-to-medium sized project with 21 source files across engine and sample code.
 
 **Key Technologies:**
-- **Language**: C# with .NET 9.0 target framework
+- **Language**: C# with .NET 10.0 target framework
 - **Graphics**: Silk.NET (version 2.22.0) for OpenGL rendering
 - **Image Processing**: StbImageSharp (version 2.30.15)
 - **Architecture**: Entity-Component-System (ECS) pattern
@@ -14,12 +14,12 @@ Yaeger is a modular, experimental 2D game engine written in C# using Entity-Comp
 ## Build Instructions
 
 ### Prerequisites
-- **.NET 9.0 SDK** - Critical requirement! The project will NOT build with .NET 8.0 or earlier
+- **.NET 10.0 SDK** - Critical requirement! The project will NOT build with .NET 9.0 or earlier
 - Compatible OS (Windows, macOS, Linux)
 
-### Installing .NET 9.0 (if not available)
+### Installing .NET 10.0 (if not available)
 ```bash
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --version 9.0.101
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --version 10.0.100
 export PATH="$HOME/.dotnet:$PATH"
 ```
 
@@ -127,7 +127,7 @@ dotnet format --verify-no-changes
 ### Build Configuration
 - **.editorconfig** - Extensive code style configuration (500+ lines)
 - **yaeger.sln** - Visual Studio solution with Debug/Release configurations
-- **Yaeger.csproj** - Engine project: library, .NET 9.0, unsafe blocks enabled
+- **Yaeger.csproj** - Engine project: library, .NET 10.0, unsafe blocks enabled
 - **Pong.csproj** - Sample project: executable, references engine project
 
 ### Development Tools
@@ -137,7 +137,7 @@ dotnet format --verify-no-changes
 ## Development Workflow
 
 ### Making Changes
-1. **Always ensure .NET 9.0 is available** - Check with `dotnet --version`
+1. **Always ensure .NET 10.0 is available** - Check with `dotnet --version`
 2. **Build first** - `dotnet build yaeger.sln` to verify current state
 3. **Make minimal changes** - This is an experimental project
 4. **Format before commit** - `dotnet format` is mandatory
@@ -151,8 +151,8 @@ dotnet format --verify-no-changes
 ### Common Issues and Workarounds
 
 #### .NET Version Issues
-- **Problem**: `NETSDK1045: The current .NET SDK does not support targeting .NET 9.0`
-- **Solution**: Install .NET 9.0 SDK using the curl command above
+- **Problem**: `NETSDK1045: The current .NET SDK does not support targeting .NET 10.0`
+- **Solution**: Install .NET 10.0 SDK using the curl command above
 
 #### Platform Issues
 - **Problem**: `System.PlatformNotSupportedException: Couldn't find a suitable window platform`

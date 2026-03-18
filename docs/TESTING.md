@@ -11,7 +11,7 @@ This document describes the testing approach implemented for the Yaeger 2D game 
 - **Testing Framework**: xUnit 2.9.2
 - **Test SDK**: Microsoft.NET.Test.Sdk 17.12.0
 - **Coverage Tool**: coverlet.collector 6.0.2
-- **Target Framework**: .NET 9.0
+- **Target Framework**: .NET 10.0
 
 ### Project Structure
 
@@ -302,7 +302,7 @@ Current test statistics:
 **Solution**: This indicates a signature mismatch with reflection. Ensure component types are structs and storage methods match expected signatures.
 
 **Issue**: Tests pass locally but fail in CI
-**Solution**: Ensure .NET 9.0 SDK is installed in the CI environment.
+**Solution**: Ensure .NET 10.0 SDK is installed in the CI environment.
 
 **Issue**: Tests are slow
 **Solution**: Profile tests to identify slow operations. Current test suite runs in under 1 second.
