@@ -1,5 +1,4 @@
 using HarfBuzzSharp;
-
 using Buffer = HarfBuzzSharp.Buffer;
 
 namespace Yaeger.Font;
@@ -49,13 +48,13 @@ public class Font : IDisposable
         {
             result[i] = new GlyphInfo
             {
-                GlyphIndex = glyphInfos[i].Codepoint,  // This is actually glyph index
-                Codepoint = codepoints[glyphInfos[i].Cluster],  // Original character codepoint
+                GlyphIndex = glyphInfos[i].Codepoint, // This is actually glyph index
+                Codepoint = codepoints[glyphInfos[i].Cluster], // Original character codepoint
                 Cluster = glyphInfos[i].Cluster,
                 XAdvance = glyphPositions[i].XAdvance,
                 YAdvance = glyphPositions[i].YAdvance,
                 XOffset = glyphPositions[i].XOffset,
-                YOffset = glyphPositions[i].YOffset
+                YOffset = glyphPositions[i].YOffset,
             };
         }
 

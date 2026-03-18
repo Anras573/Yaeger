@@ -12,9 +12,11 @@ public static class Keyboard
 
     internal static void Initialize(IInputContext inputContext)
     {
-        if (_keyboard != null) return;
+        if (_keyboard != null)
+            return;
         _keyboard = inputContext.Keyboards.Count > 0 ? inputContext.Keyboards[0] : null;
-        if (_keyboard == null) return;
+        if (_keyboard == null)
+            return;
         _keyboard.KeyDown += OnKeyDown;
         _keyboard.KeyUp += OnKeyUp;
     }

@@ -2,13 +2,19 @@ using Silk.NET.OpenGL;
 
 namespace Yaeger.Rendering;
 
-public class Buffer<T> : IDisposable where T : unmanaged
+public class Buffer<T> : IDisposable
+    where T : unmanaged
 {
     private readonly GL _gl;
     private readonly uint _handle;
     private readonly BufferTargetARB _target;
 
-    public unsafe Buffer(GL gl, ReadOnlySpan<T> data, BufferTargetARB target, BufferUsageARB usage = BufferUsageARB.StaticDraw)
+    public unsafe Buffer(
+        GL gl,
+        ReadOnlySpan<T> data,
+        BufferTargetARB target,
+        BufferUsageARB usage = BufferUsageARB.StaticDraw
+    )
     {
         _gl = gl;
         _target = target;

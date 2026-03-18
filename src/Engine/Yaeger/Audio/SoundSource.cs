@@ -1,5 +1,4 @@
 using System.Numerics;
-
 using Silk.NET.OpenAL;
 
 namespace Yaeger.Audio;
@@ -82,7 +81,10 @@ public sealed class SoundSource : IDisposable
         }
         catch (ObjectDisposedException)
         {
-            throw new ObjectDisposedException(nameof(SoundBuffer), "Cannot set a disposed buffer on the sound source.");
+            throw new ObjectDisposedException(
+                nameof(SoundBuffer),
+                "Cannot set a disposed buffer on the sound source."
+            );
         }
 
         _al.SetSourceProperty(_sourceId, SourceInteger.Buffer, bufferId);

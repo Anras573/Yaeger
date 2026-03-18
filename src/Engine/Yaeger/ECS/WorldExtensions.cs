@@ -29,7 +29,10 @@ public static class WorldExtensions
 
         foreach ((Entity entity, T1 component1) in store1.All())
         {
-            if (store2.TryGet(entity, out var component2) && store3.TryGet(entity, out var component3))
+            if (
+                store2.TryGet(entity, out var component2)
+                && store3.TryGet(entity, out var component3)
+            )
             {
                 yield return (entity, component1, component2, component3);
             }
@@ -49,7 +52,11 @@ public static class WorldExtensions
 
         foreach ((Entity entity, T1 component1) in store1.All())
         {
-            if (store2.TryGet(entity, out var component2) && store3.TryGet(entity, out var component3) && store4.TryGet(entity, out var component4))
+            if (
+                store2.TryGet(entity, out var component2)
+                && store3.TryGet(entity, out var component3)
+                && store4.TryGet(entity, out var component4)
+            )
             {
                 yield return (entity, component1, component2, component3, component4);
             }

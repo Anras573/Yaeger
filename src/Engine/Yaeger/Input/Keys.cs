@@ -9,6 +9,6 @@ public enum Keys
     Space,
     Escape,
     Up,
-    Down
+    Down,
     // Add more keys as needed
 }

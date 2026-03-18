@@ -1,7 +1,5 @@
 using System.Numerics;
-
 using Silk.NET.OpenGL;
-
 using Yaeger.Windowing;
 
 namespace Yaeger.Rendering;
@@ -27,31 +25,31 @@ public class BatchRenderer : IDisposable
     private readonly float[] _vertexBuffer;
 
     private const string VertexShaderSource = """
-                                              #version 330 core
-                                              layout(location = 0) in vec3 aPosition;
-                                              layout(location = 1) in vec2 aTexCoord;
+        #version 330 core
+        layout(location = 0) in vec3 aPosition;
+        layout(location = 1) in vec2 aTexCoord;
 
-                                              out vec2 vTexCoord;
+        out vec2 vTexCoord;
 
-                                              void main()
-                                              {
-                                                  gl_Position = vec4(aPosition, 1.0);
-                                                  vTexCoord = aTexCoord;
-                                              }
-                                              """;
+        void main()
+        {
+            gl_Position = vec4(aPosition, 1.0);
+            vTexCoord = aTexCoord;
+        }
+        """;
 
     private const string FragmentShaderSource = """
-                                                #version 330 core
-                                                in vec2 vTexCoord;
-                                                out vec4 FragColor;
-                                                
-                                                uniform sampler2D uTexture;
-                                                
-                                                void main()
-                                                {
-                                                    FragColor = texture(uTexture, vTexCoord);
-                                                }
-                                                """;
+        #version 330 core
+        in vec2 vTexCoord;
+        out vec4 FragColor;
+
+        uniform sampler2D uTexture;
+
+        void main()
+        {
+            FragColor = texture(uTexture, vTexCoord);
+        }
+        """;
 
     private readonly Dictionary<string, List<Matrix4x4>> _batchQueue;
 
@@ -82,7 +80,12 @@ public class BatchRenderer : IDisposable
         // Create VAO
 
         // Create VBO
-        _vbo = new Buffer<float>(_gl, _vertexBuffer, BufferTargetARB.ArrayBuffer, BufferUsageARB.DynamicDraw);
+        _vbo = new Buffer<float>(
+            _gl,
+            _vertexBuffer,
+            BufferTargetARB.ArrayBuffer,
+            BufferUsageARB.DynamicDraw
+        );
 
         // Create EBO
         _ebo = new Buffer<uint>(_gl, indexBuffer, BufferTargetARB.ElementArrayBuffer);
@@ -146,10 +149,10 @@ public class BatchRenderer : IDisposable
         // Base quad vertices (unit square centered at origin)
         ReadOnlySpan<Vector3> basePositions = stackalloc Vector3[]
         {
-            new Vector3( 0.5f,  0.5f, 0.0f),
-            new Vector3( 0.5f, -0.5f, 0.0f),
+            new Vector3(0.5f, 0.5f, 0.0f),
+            new Vector3(0.5f, -0.5f, 0.0f),
             new Vector3(-0.5f, -0.5f, 0.0f),
-            new Vector3(-0.5f,  0.5f, 0.0f)
+            new Vector3(-0.5f, 0.5f, 0.0f),
         };
 
         ReadOnlySpan<Vector2> texCoords = stackalloc Vector2[]
@@ -157,7 +160,7 @@ public class BatchRenderer : IDisposable
             new Vector2(1f, 1f),
             new Vector2(1f, 0f),
             new Vector2(0f, 0f),
-            new Vector2(0f, 1f)
+            new Vector2(0f, 1f),
         };
 
         for (int i = 0; i < count; i++)
@@ -187,13 +190,21 @@ public class BatchRenderer : IDisposable
         int vertexCount = quadCount * VerticesPerQuad * FloatsPerVertex;
         fixed (float* vertices = _vertexBuffer)
         {
-            _gl.BufferSubData(BufferTargetARB.ArrayBuffer, 0,
-                (nuint)(vertexCount * sizeof(float)), vertices);
+            _gl.BufferSubData(
+                BufferTargetARB.ArrayBuffer,
+                0,
+                (nuint)(vertexCount * sizeof(float)),
+                vertices
+            );
         }
 
         int indexCount = quadCount * IndicesPerQuad;
-        _gl.DrawElements(PrimitiveType.Triangles, (uint)indexCount,
-            DrawElementsType.UnsignedInt, null);
+        _gl.DrawElements(
+            PrimitiveType.Triangles,
+            (uint)indexCount,
+            DrawElementsType.UnsignedInt,
+            null
+        );
 
         _vao.Unbind();
     }

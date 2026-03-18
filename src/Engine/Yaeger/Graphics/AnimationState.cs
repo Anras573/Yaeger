@@ -4,7 +4,11 @@ namespace Yaeger.Graphics;
 /// Component that tracks the current state of an animation.
 /// This includes the current frame index and elapsed time within that frame.
 /// </summary>
-public record struct AnimationState(int CurrentFrameIndex = 0, float ElapsedTime = 0f, bool IsFinished = false)
+public record struct AnimationState(
+    int CurrentFrameIndex = 0,
+    float ElapsedTime = 0f,
+    bool IsFinished = false
+)
 {
     /// <summary>
     /// Gets or sets the index of the current frame being displayed.

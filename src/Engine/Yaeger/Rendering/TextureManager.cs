@@ -8,7 +8,8 @@ public class TextureManager(GL gl)
 
     public Texture Get(string path)
     {
-        if (_cache.TryGetValue(path, out var texture)) return texture;
+        if (_cache.TryGetValue(path, out var texture))
+            return texture;
         texture = new Texture(gl, path);
         _cache[path] = texture;
 

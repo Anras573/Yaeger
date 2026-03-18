@@ -27,8 +27,14 @@ public class WorldExtensionsTests
 
         // Assert
         Assert.Equal(2, results.Count);
-        Assert.Contains(results, r => r.Item1.Equals(entity1) && r.Item2.Value == 1 && r.Item3.Name == "A");
-        Assert.Contains(results, r => r.Item1.Equals(entity2) && r.Item2.Value == 2 && r.Item3.Name == "B");
+        Assert.Contains(
+            results,
+            r => r.Item1.Equals(entity1) && r.Item2.Value == 1 && r.Item3.Name == "A"
+        );
+        Assert.Contains(
+            results,
+            r => r.Item1.Equals(entity2) && r.Item2.Value == 2 && r.Item3.Name == "B"
+        );
     }
 
     [Fact]
@@ -67,7 +73,11 @@ public class WorldExtensionsTests
 
         // Assert
         Assert.Single(results);
-        Assert.Contains(results, r => r.Item1.Equals(entity1) && r.Item2.Value == 1 && r.Item3.Name == "A" && r.Item4.Flag);
+        Assert.Contains(
+            results,
+            r =>
+                r.Item1.Equals(entity1) && r.Item2.Value == 1 && r.Item3.Name == "A" && r.Item4.Flag
+        );
     }
 
     [Fact]
@@ -93,12 +103,15 @@ public class WorldExtensionsTests
 
         // Assert
         Assert.Single(results);
-        Assert.Contains(results, r =>
-            r.Item1.Equals(entity1) &&
-            r.Item2.Value == 1 &&
-            r.Item3.Name == "A" &&
-            r.Item4.Flag &&
-            r.Item5.Score == 100);
+        Assert.Contains(
+            results,
+            r =>
+                r.Item1.Equals(entity1)
+                && r.Item2.Value == 1
+                && r.Item3.Name == "A"
+                && r.Item4.Flag
+                && r.Item5.Score == 100
+        );
     }
 
     [Fact]

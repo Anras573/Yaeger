@@ -1,5 +1,4 @@
 using System.Numerics;
-
 using Yaeger.ECS;
 using Yaeger.Font;
 using Yaeger.Graphics;
@@ -34,27 +33,39 @@ void OnLoad()
 
     var textEntity = world.CreateEntity();
     world.AddComponent(textEntity, new Text("Hello, Yaeger!", defaultFont, 24, Color.White));
-    world.AddComponent(textEntity, new Transform2D
-    {
-        Position = new Vector2(-0.95f, 0),
-        Scale = new Vector2(0.003f, 0.003f) // Scale down for screen-space rendering
-    });
+    world.AddComponent(
+        textEntity,
+        new Transform2D
+        {
+            Position = new Vector2(-0.95f, 0),
+            Scale = new Vector2(0.003f, 0.003f), // Scale down for screen-space rendering
+        }
+    );
 
     var textEntity2 = world.CreateEntity();
-    world.AddComponent(textEntity2, new Text("The quick brown fox jumps over the lazy dog", defaultFont, 16, Color.Green));
-    world.AddComponent(textEntity2, new Transform2D
-    {
-        Position = new Vector2(-0.95f, -0.2f),
-        Scale = new Vector2(0.003f, 0.003f) // Scale down for screen-space rendering
-    });
+    world.AddComponent(
+        textEntity2,
+        new Text("The quick brown fox jumps over the lazy dog", defaultFont, 16, Color.Green)
+    );
+    world.AddComponent(
+        textEntity2,
+        new Transform2D
+        {
+            Position = new Vector2(-0.95f, -0.2f),
+            Scale = new Vector2(0.003f, 0.003f), // Scale down for screen-space rendering
+        }
+    );
 
     var textEntity3 = world.CreateEntity();
     world.AddComponent(textEntity3, new Text("Press ESC to exit", defaultFont, 8, Color.Blue));
-    world.AddComponent(textEntity3, new Transform2D
-    {
-        Position = new Vector2(-0.95f, -0.4f),
-        Scale = new Vector2(0.003f, 0.003f) // Scale down for screen-space rendering
-    });
+    world.AddComponent(
+        textEntity3,
+        new Transform2D
+        {
+            Position = new Vector2(-0.95f, -0.4f),
+            Scale = new Vector2(0.003f, 0.003f), // Scale down for screen-space rendering
+        }
+    );
 }
 
 void OnRender(double deltaTime)

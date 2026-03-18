@@ -6,7 +6,8 @@ public class FontManager : IDisposable
 {
     private readonly Dictionary<string, Font> _fonts = new();
     private bool _disposed;
-    private readonly string _assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty;
+    private readonly string _assemblyPath =
+        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty;
 
     public Font Load(string fontPath)
     {

@@ -1,8 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
-
 using Silk.NET.OpenGL;
-
 using Yaeger.Font;
 using Yaeger.Graphics;
 using Yaeger.Windowing;
@@ -30,36 +28,36 @@ public class TextRenderer : IDisposable
     private int _quadCount;
 
     private const string VertexShaderSource = """
-                                              #version 330 core
-                                              layout(location = 0) in vec3 aPosition;
-                                              layout(location = 1) in vec2 aTexCoord;
-                                              layout(location = 2) in vec4 aColor;
-                                              
-                                              out vec2 vTexCoord;
-                                              out vec4 vColor;
-                                              
-                                              void main()
-                                              {
-                                                  gl_Position = vec4(aPosition, 1.0);
-                                                  vTexCoord = aTexCoord;
-                                                  vColor = aColor;
-                                              }
-                                              """;
+        #version 330 core
+        layout(location = 0) in vec3 aPosition;
+        layout(location = 1) in vec2 aTexCoord;
+        layout(location = 2) in vec4 aColor;
+
+        out vec2 vTexCoord;
+        out vec4 vColor;
+
+        void main()
+        {
+            gl_Position = vec4(aPosition, 1.0);
+            vTexCoord = aTexCoord;
+            vColor = aColor;
+        }
+        """;
 
     private const string FragmentShaderSource = """
-                                                #version 330 core
-                                                in vec2 vTexCoord;
-                                                in vec4 vColor;
-                                                out vec4 FragColor;
-                                                
-                                                uniform sampler2D uTexture;
-                                                
-                                                void main()
-                                                {
-                                                    float alpha = texture(uTexture, vTexCoord).r;
-                                                    FragColor = vec4(vColor.rgb, vColor.a * alpha);
-                                                }
-                                                """;
+        #version 330 core
+        in vec2 vTexCoord;
+        in vec4 vColor;
+        out vec4 FragColor;
+
+        uniform sampler2D uTexture;
+
+        void main()
+        {
+            float alpha = texture(uTexture, vTexCoord).r;
+            FragColor = vec4(vColor.rgb, vColor.a * alpha);
+        }
+        """;
 
     public TextRenderer(Window window)
     {
@@ -84,7 +82,12 @@ public class TextRenderer : IDisposable
         }
 
         // Create VBO
-        _vbo = new Buffer<float>(_gl, _vertexBuffer, BufferTargetARB.ArrayBuffer, BufferUsageARB.DynamicDraw);
+        _vbo = new Buffer<float>(
+            _gl,
+            _vertexBuffer,
+            BufferTargetARB.ArrayBuffer,
+            BufferUsageARB.DynamicDraw
+        );
 
         // Create EBO
         _ebo = new Buffer<uint>(_gl, indexBuffer, BufferTargetARB.ElementArrayBuffer);
@@ -118,7 +121,13 @@ public class TextRenderer : IDisposable
     /// <summary>
     /// Renders text at the specified position with the given transform.
     /// </summary>
-    public void DrawText(string text, Matrix4x4 transform, Font.Font font, int fontSize, Color color)
+    public void DrawText(
+        string text,
+        Matrix4x4 transform,
+        Font.Font font,
+        int fontSize,
+        Color color
+    )
     {
         if (string.IsNullOrEmpty(text))
             return;
@@ -168,8 +177,16 @@ public class TextRenderer : IDisposable
         }
     }
 
-    private void AddGlyphQuad(Matrix4x4 transform, float x, float y, float w, float h,
-        Vector2 texMin, Vector2 texMax, Color color)
+    private void AddGlyphQuad(
+        Matrix4x4 transform,
+        float x,
+        float y,
+        float w,
+        float h,
+        Vector2 texMin,
+        Vector2 texMax,
+        Color color
+    )
     {
         // Normalize color to 0-1 range
         float r = color.R / 255.0f;
@@ -181,9 +198,9 @@ public class TextRenderer : IDisposable
         ReadOnlySpan<Vector3> positions = stackalloc Vector3[]
         {
             new Vector3(x + w, y + h, 0.0f), // top-right
-            new Vector3(x + w, y,     0.0f), // bottom-right
-            new Vector3(x,     y,     0.0f), // bottom-left
-            new Vector3(x,     y + h, 0.0f)  // top-left
+            new Vector3(x + w, y, 0.0f), // bottom-right
+            new Vector3(x, y, 0.0f), // bottom-left
+            new Vector3(x, y + h, 0.0f), // top-left
         };
 
         ReadOnlySpan<Vector2> texCoords = stackalloc Vector2[]
@@ -191,7 +208,7 @@ public class TextRenderer : IDisposable
             new Vector2(texMax.X, texMax.Y),
             new Vector2(texMax.X, texMin.Y),
             new Vector2(texMin.X, texMin.Y),
-            new Vector2(texMin.X, texMax.Y)
+            new Vector2(texMin.X, texMax.Y),
         };
 
         int vertexOffset = _quadCount * VerticesPerQuad * FloatsPerVertex;
@@ -228,12 +245,21 @@ public class TextRenderer : IDisposable
         int vertexCount = _quadCount * VerticesPerQuad * FloatsPerVertex;
         fixed (float* vertices = _vertexBuffer)
         {
-            _gl.BufferSubData(BufferTargetARB.ArrayBuffer, 0,
-                (nuint)(vertexCount * sizeof(float)), vertices);
+            _gl.BufferSubData(
+                BufferTargetARB.ArrayBuffer,
+                0,
+                (nuint)(vertexCount * sizeof(float)),
+                vertices
+            );
         }
 
         int indexCount = _quadCount * IndicesPerQuad;
-        _gl.DrawElements(PrimitiveType.Triangles, (uint)indexCount, DrawElementsType.UnsignedInt, null);
+        _gl.DrawElements(
+            PrimitiveType.Triangles,
+            (uint)indexCount,
+            DrawElementsType.UnsignedInt,
+            null
+        );
 
         _vao.Unbind();
         _textShader.Unbind();

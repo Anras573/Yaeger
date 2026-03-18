@@ -125,7 +125,10 @@ public sealed class AudioContext : IDisposable
 
         if (firstException is not null)
         {
-            System.Diagnostics.Trace.WriteLine(firstException, "Error while disposing AudioContext.");
+            System.Diagnostics.Trace.WriteLine(
+                firstException,
+                "Error while disposing AudioContext."
+            );
         }
     }
 }

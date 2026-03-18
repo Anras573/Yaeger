@@ -1,8 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
-
 using Silk.NET.OpenGL;
-
 using Yaeger.Windowing;
 
 namespace Yaeger.Rendering;
@@ -13,32 +11,32 @@ public class Renderer
     private readonly VertexArray _vao;
 
     private const string VertexShaderSource = """
-                                              #version 330 core
-                                              layout(location = 0) in vec3 aPosition;
-                                              layout(location = 1) in vec2 aTexCoord;
-                                              
-                                              uniform mat4 uTransform;
-                                              
-                                              out vec2 vTexCoord;
-                                              
-                                              void main()
-                                              {
-                                                  gl_Position = uTransform * vec4(aPosition, 1.0);
-                                                  vTexCoord = aTexCoord;
-                                              }
-                                              """;
+        #version 330 core
+        layout(location = 0) in vec3 aPosition;
+        layout(location = 1) in vec2 aTexCoord;
+
+        uniform mat4 uTransform;
+
+        out vec2 vTexCoord;
+
+        void main()
+        {
+            gl_Position = uTransform * vec4(aPosition, 1.0);
+            vTexCoord = aTexCoord;
+        }
+        """;
     private const string FragmentShaderSource = """
-                                                #version 330 core
-                                                in vec2 vTexCoord;
-                                                out vec4 FragColor;
-                                                
-                                                uniform sampler2D uTexture;
-                                                
-                                                void main()
-                                                {
-                                                    FragColor = texture(uTexture, vTexCoord);
-                                                }
-                                                """;
+        #version 330 core
+        in vec2 vTexCoord;
+        out vec4 FragColor;
+
+        uniform sampler2D uTexture;
+
+        void main()
+        {
+            FragColor = texture(uTexture, vTexCoord);
+        }
+        """;
 
     private readonly TextureManager _textureManager;
     private readonly Shader _textureShader;
@@ -46,17 +44,29 @@ public class Renderer
     private static readonly float[] Vertices =
     [
         //X     Y     Z     U   V
-        0.5f,  0.5f, 0.0f, 1f, 1f,
-        0.5f, -0.5f, 0.0f, 1f, 0f,
-        -0.5f, -0.5f, 0.0f, 0f, 0f,
-        -0.5f,  0.5f, 0.0f, 0f, 1f
+        0.5f,
+        0.5f,
+        0.0f,
+        1f,
+        1f,
+        0.5f,
+        -0.5f,
+        0.0f,
+        1f,
+        0f,
+        -0.5f,
+        -0.5f,
+        0.0f,
+        0f,
+        0f,
+        -0.5f,
+        0.5f,
+        0.0f,
+        0f,
+        1f,
     ];
 
-    private static readonly uint[] Indices =
-    [
-        0, 1, 3,
-        1, 2, 3
-    ];
+    private static readonly uint[] Indices = [0, 1, 3, 1, 2, 3];
 
     public Renderer(Window window)
     {
@@ -71,7 +81,9 @@ public class Renderer
 
         CheckGlError();
 
-        Console.WriteLine($"GL initialized: {_gl.GetStringS(GLEnum.Version)}, {_gl.GetStringS(GLEnum.Renderer)}");
+        Console.WriteLine(
+            $"GL initialized: {_gl.GetStringS(GLEnum.Version)}, {_gl.GetStringS(GLEnum.Renderer)}"
+        );
     }
 
     private void CheckGlError([CallerMemberName] string context = "")
@@ -100,7 +112,8 @@ public class Renderer
         CheckGlError();
     }
 
-    public void EndFrame() { /* No-op for now */ }
+    public void EndFrame() { /* No-op for now */
+    }
 
     public unsafe void DrawQuad(Matrix4x4 model, string texturePath)
     {
@@ -112,7 +125,12 @@ public class Renderer
         texture.Bind();
         _vao.Bind();
 
-        _gl.DrawElements(PrimitiveType.Triangles, (uint)Indices.Length, DrawElementsType.UnsignedInt, null);
+        _gl.DrawElements(
+            PrimitiveType.Triangles,
+            (uint)Indices.Length,
+            DrawElementsType.UnsignedInt,
+            null
+        );
 
         _vao.Unbind();
         texture.Unbind();

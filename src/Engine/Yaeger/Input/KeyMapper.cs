@@ -13,7 +13,7 @@ public static class KeyMapper
         { Key.Space, Keys.Space },
         { Key.Escape, Keys.Escape },
         { Key.Up, Keys.Up },
-        { Key.Down, Keys.Down }
+        { Key.Down, Keys.Down },
         // Add more mappings as needed
     };
 
