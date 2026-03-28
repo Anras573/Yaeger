@@ -95,7 +95,10 @@ public sealed class SoundBuffer : IDisposable
 
         if (!File.Exists(resolvedPath))
         {
-            throw new FileNotFoundException($"Audio file not found: {filePath}");
+            throw new FileNotFoundException(
+                $"Audio file not found. Requested path: {filePath}, resolved path: {resolvedPath}",
+                resolvedPath
+            );
         }
 
         var (data, format, sampleRate) = LoadWavFile(resolvedPath);

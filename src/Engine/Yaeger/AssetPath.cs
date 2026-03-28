@@ -13,18 +13,20 @@ namespace Yaeger;
 public static class AssetPath
 {
     /// <summary>
-    /// Resolves a relative asset path against the application's base directory.
+    /// Resolves an asset path against the application's base directory.
     /// Absolute paths are returned unchanged.
     /// </summary>
-    /// <param name="relativePath">The relative path to the asset file.</param>
+    /// <param name="path">
+    /// The asset path to resolve. May be relative (e.g. <c>"Assets/square.png"</c>) or an absolute path.
+    /// </param>
     /// <returns>The fully resolved absolute path.</returns>
-    public static string Resolve(string relativePath)
+    public static string Resolve(string path)
     {
-        if (Path.IsPathRooted(relativePath))
+        if (Path.IsPathRooted(path))
         {
-            return relativePath;
+            return path;
         }
 
-        return Path.Combine(AppContext.BaseDirectory, relativePath);
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, path));
     }
 }
