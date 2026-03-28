@@ -91,12 +91,14 @@ public sealed class SoundBuffer : IDisposable
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(filePath);
 
-        if (!File.Exists(filePath))
+        var resolvedPath = AssetPath.Resolve(filePath);
+
+        if (!File.Exists(resolvedPath))
         {
             throw new FileNotFoundException($"Audio file not found: {filePath}");
         }
 
-        var (data, format, sampleRate) = LoadWavFile(filePath);
+        var (data, format, sampleRate) = LoadWavFile(resolvedPath);
         return Create(context, data, format, sampleRate);
     }
 

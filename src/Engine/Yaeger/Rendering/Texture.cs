@@ -14,7 +14,7 @@ public class Texture : IDisposable
         _handle = _gl.GenTexture();
         _gl.BindTexture(TextureTarget.Texture2D, _handle);
 
-        using var stream = File.OpenRead(path);
+        using var stream = File.OpenRead(AssetPath.Resolve(path));
         var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
 
         fixed (byte* data = image.Data)
