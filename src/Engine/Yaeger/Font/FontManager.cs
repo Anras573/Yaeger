@@ -1,13 +1,9 @@
-using System.Reflection;
-
 namespace Yaeger.Font;
 
 public class FontManager : IDisposable
 {
     private readonly Dictionary<string, Font> _fonts = new();
     private bool _disposed;
-    private readonly string _assemblyPath =
-        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty;
 
     public Font Load(string fontPath)
     {
@@ -16,7 +12,7 @@ public class FontManager : IDisposable
             return existingFont;
         }
 
-        var font = new Font(Path.Combine(_assemblyPath, fontPath));
+        var font = new Font(AssetPath.Resolve(fontPath));
         _fonts[fontPath] = font;
         return font;
     }
