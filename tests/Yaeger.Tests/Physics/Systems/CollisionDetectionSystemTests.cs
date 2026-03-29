@@ -351,4 +351,24 @@ public class CollisionDetectionSystemTests
         // B and C are exactly touching (overlap = 0), so no collision
         Assert.Equal(2, system.Manifolds.Count);
     }
+
+    [Fact]
+    public void Detect_BoxCircle_SameEntity_ShouldNotSelfCollide()
+    {
+        // Arrange — entity has both BoxCollider2D and CircleCollider2D
+        var world = new World();
+
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(entity, new BoxCollider2D(2, 2));
+        world.AddComponent(entity, new CircleCollider2D(1.0f));
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — should not generate a self-collision manifold
+        Assert.Empty(system.Manifolds);
+    }
 }

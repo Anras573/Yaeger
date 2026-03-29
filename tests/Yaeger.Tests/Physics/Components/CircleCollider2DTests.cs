@@ -22,4 +22,16 @@ public class CircleCollider2DTests
         Assert.Equal(3.0f, collider.Radius);
         Assert.Equal(new Vector2(1, 2), collider.Offset);
     }
+
+    [Fact]
+    public void Constructor_WithZeroRadius_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new CircleCollider2D(0.0f));
+    }
+
+    [Fact]
+    public void Constructor_WithNegativeRadius_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new CircleCollider2D(-1.0f));
+    }
 }

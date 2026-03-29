@@ -52,6 +52,14 @@ public class RigidBody2DTests
     }
 
     [Fact]
+    public void CreateDynamic_WithNegativeLinearDrag_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RigidBody2D.CreateDynamic(1.0f, linearDrag: -0.5f)
+        );
+    }
+
+    [Fact]
     public void CreateStatic_ShouldHaveZeroMassAndInverseMass()
     {
         var body = RigidBody2D.CreateStatic();

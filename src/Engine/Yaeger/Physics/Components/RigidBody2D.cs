@@ -38,8 +38,8 @@ public struct RigidBody2D
     /// </summary>
     /// <param name="mass">Mass in kilograms. Must be greater than zero.</param>
     /// <param name="gravityScale">Multiplier for gravity. Default is 1.0.</param>
-    /// <param name="linearDrag">Linear drag coefficient. Default is 0.0 (no drag).</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when mass is less than or equal to zero.</exception>
+    /// <param name="linearDrag">Linear drag coefficient. Must be non-negative. Default is 0.0 (no drag).</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when mass is less than or equal to zero, or linearDrag is negative.</exception>
     public static RigidBody2D CreateDynamic(
         float mass,
         float gravityScale = 1.0f,
@@ -51,6 +51,13 @@ public struct RigidBody2D
                 nameof(mass),
                 mass,
                 "Mass must be greater than zero for dynamic bodies."
+            );
+
+        if (linearDrag < 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(linearDrag),
+                linearDrag,
+                "Linear drag must be non-negative."
             );
 
         return new RigidBody2D

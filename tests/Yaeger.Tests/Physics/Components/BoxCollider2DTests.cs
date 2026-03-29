@@ -39,4 +39,28 @@ public class BoxCollider2DTests
 
         Assert.Equal(new Vector2(2, 3), collider.HalfSize);
     }
+
+    [Fact]
+    public void Constructor_WithZeroWidth_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BoxCollider2D(0, 5));
+    }
+
+    [Fact]
+    public void Constructor_WithZeroHeight_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BoxCollider2D(5, 0));
+    }
+
+    [Fact]
+    public void Constructor_WithNegativeSize_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BoxCollider2D(new Vector2(-1, 2)));
+    }
+
+    [Fact]
+    public void Constructor_WithNegativeHeight_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BoxCollider2D(new Vector2(2, -1)));
+    }
 }

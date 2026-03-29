@@ -81,6 +81,10 @@ public class CollisionDetectionSystem(World world)
         {
             for (var j = 0; j < circleEntities.Count; j++)
             {
+                // Skip self-collision (entity has both BoxCollider2D and CircleCollider2D)
+                if (boxEntities[i].Entity == circleEntities[j].Entity)
+                    continue;
+
                 if (TestBoxCircle(boxEntities[i], circleEntities[j], out var manifold))
                 {
                     _manifolds.Add(manifold);

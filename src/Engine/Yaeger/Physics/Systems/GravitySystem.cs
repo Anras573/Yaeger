@@ -20,12 +20,10 @@ public class GravitySystem(World world, Vector2 gravity) : IUpdateSystem
 
     public void Update(float deltaTime)
     {
-        foreach (
-            (Entity entity, RigidBody2D body, Velocity2D velocity) in world.Query<
-                RigidBody2D,
-                Velocity2D
-            >()
-        )
+        // Snapshot query results to avoid modifying component stores during iteration
+        var entities = world.Query<RigidBody2D, Velocity2D>().ToList();
+
+        foreach ((Entity entity, RigidBody2D body, Velocity2D velocity) in entities)
         {
             if (body.Type != BodyType.Dynamic)
                 continue;
