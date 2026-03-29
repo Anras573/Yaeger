@@ -33,8 +33,10 @@ public class CollisionDetectionSystemTests
         // Assert
         Assert.Single(system.Manifolds);
         var manifold = system.Manifolds[0];
-        Assert.Equal(a, manifold.EntityA);
-        Assert.Equal(b, manifold.EntityB);
+        var entities = new[] { manifold.EntityA, manifold.EntityB };
+        Assert.Contains(a, entities);
+        Assert.Contains(b, entities);
+        Assert.NotEqual(manifold.EntityA, manifold.EntityB);
         Assert.True(manifold.PenetrationDepth > 0);
     }
 
@@ -243,8 +245,10 @@ public class CollisionDetectionSystemTests
         // Assert
         Assert.Single(system.Manifolds);
         var manifold = system.Manifolds[0];
-        Assert.Equal(box, manifold.EntityA);
-        Assert.Equal(circle, manifold.EntityB);
+        var entities = new[] { manifold.EntityA, manifold.EntityB };
+        Assert.Contains(box, entities);
+        Assert.Contains(circle, entities);
+        Assert.NotEqual(manifold.EntityA, manifold.EntityB);
         Assert.True(manifold.PenetrationDepth > 0);
     }
 

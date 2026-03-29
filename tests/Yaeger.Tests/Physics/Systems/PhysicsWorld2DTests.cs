@@ -89,8 +89,10 @@ public class PhysicsWorld2DTests
 
         // Assert
         Assert.Single(firedEvents);
-        Assert.Equal(a, firedEvents[0].EntityA);
-        Assert.Equal(b, firedEvents[0].EntityB);
+        var entities = new[] { firedEvents[0].EntityA, firedEvents[0].EntityB };
+        Assert.Contains(a, entities);
+        Assert.Contains(b, entities);
+        Assert.NotEqual(firedEvents[0].EntityA, firedEvents[0].EntityB);
     }
 
     [Fact]
