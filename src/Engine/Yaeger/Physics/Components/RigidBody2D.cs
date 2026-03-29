@@ -12,6 +12,7 @@ public struct RigidBody2D
 
     /// <summary>
     /// Precomputed inverse mass (1 / Mass). Zero for static and kinematic bodies.
+    /// For dynamic bodies, this is always positive since mass must be &gt; 0.
     /// </summary>
     public float InverseMass;
 
@@ -35,16 +36,27 @@ public struct RigidBody2D
     /// <summary>
     /// Creates a dynamic rigid body with the specified mass.
     /// </summary>
+    /// <param name="mass">Mass in kilograms. Must be greater than zero.</param>
+    /// <param name="gravityScale">Multiplier for gravity. Default is 1.0.</param>
+    /// <param name="linearDrag">Linear drag coefficient. Default is 0.0 (no drag).</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when mass is less than or equal to zero.</exception>
     public static RigidBody2D CreateDynamic(
         float mass,
         float gravityScale = 1.0f,
         float linearDrag = 0.0f
     )
     {
+        if (mass <= 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(mass),
+                mass,
+                "Mass must be greater than zero for dynamic bodies."
+            );
+
         return new RigidBody2D
         {
             Mass = mass,
-            InverseMass = mass > 0 ? 1.0f / mass : 0.0f,
+            InverseMass = 1.0f / mass,
             GravityScale = gravityScale,
             LinearDrag = linearDrag,
             Type = BodyType.Dynamic,

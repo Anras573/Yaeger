@@ -153,4 +153,25 @@ public class MovementSystemTests
         var velocity = world.GetComponent<Velocity2D>(entity);
         Assert.Equal(100, velocity.Linear.X);
     }
+
+    [Fact]
+    public void Update_WithHighDragAndLargeDeltaTime_ShouldClampDragFactorToZero()
+    {
+        // Arrange — drag * deltaTime > 1 should not invert velocity
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(Vector2.Zero));
+        world.AddComponent(entity, new Velocity2D(100, 50));
+        world.AddComponent(entity, RigidBody2D.CreateDynamic(1.0f, linearDrag: 2.0f));
+
+        var system = new MovementSystem(world);
+
+        // Act — large deltaTime causes drag factor to go negative without clamping
+        system.Update(1.0f); // dragFactor = 1 - 2*1 = -1, should be clamped to 0
+
+        // Assert — velocity should be zeroed, not inverted
+        var velocity = world.GetComponent<Velocity2D>(entity);
+        Assert.Equal(0.0f, velocity.Linear.X);
+        Assert.Equal(0.0f, velocity.Linear.Y);
+    }
 }

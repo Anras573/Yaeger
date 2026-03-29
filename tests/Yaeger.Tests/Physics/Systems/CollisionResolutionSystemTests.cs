@@ -251,4 +251,41 @@ public class CollisionResolutionSystemTests
         Assert.True(transformA.Position.X < 0);
         Assert.True(transformB.Position.X > 1);
     }
+
+    [Fact]
+    public void Resolve_WithoutPhysicsMaterial_ShouldUseDefaultMaterial()
+    {
+        // Arrange — entities without PhysicsMaterial should use PhysicsMaterial.Default
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, new Velocity2D(10, 0));
+        world.AddComponent(a, RigidBody2D.CreateDynamic(1.0f));
+        // No PhysicsMaterial added — should fall back to Default (Restitution=0.3, Friction=0.4)
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, Velocity2D.Zero);
+        world.AddComponent(b, RigidBody2D.CreateStatic());
+        // No PhysicsMaterial added
+
+        var manifold = new CollisionManifold
+        {
+            EntityA = a,
+            EntityB = b,
+            Normal = new Vector2(1, 0),
+            PenetrationDepth = 0.1f,
+            ContactPoint = new Vector2(0.5f, 0),
+        };
+
+        var system = new CollisionResolutionSystem(world);
+
+        // Act
+        system.Resolve([manifold]);
+
+        // Assert — with Default restitution of 0.3, the body should bounce back somewhat
+        var velA = world.GetComponent<Velocity2D>(a);
+        Assert.True(velA.Linear.X < 0); // Should have reversed due to restitution
+    }
 }

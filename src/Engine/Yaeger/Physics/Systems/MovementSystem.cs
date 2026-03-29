@@ -30,7 +30,12 @@ public class MovementSystem(World world) : IUpdateSystem
             // Apply linear drag to dynamic bodies
             if (body.Type == BodyType.Dynamic && body.LinearDrag > 0)
             {
-                newVelocity.Linear *= 1.0f - body.LinearDrag * deltaTime;
+                var dragFactor = 1.0f - body.LinearDrag * deltaTime;
+                if (dragFactor < 0.0f)
+                {
+                    dragFactor = 0.0f;
+                }
+                newVelocity.Linear *= dragFactor;
             }
 
             // Integrate position and rotation

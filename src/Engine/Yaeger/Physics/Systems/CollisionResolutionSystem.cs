@@ -58,9 +58,11 @@ public class CollisionResolutionSystem(World world)
         world.TryGetComponent<Velocity2D>(manifold.EntityA, out var velocityA);
         world.TryGetComponent<Velocity2D>(manifold.EntityB, out var velocityB);
 
-        // Get physics materials for restitution and friction
-        world.TryGetComponent<PhysicsMaterial>(manifold.EntityA, out var materialA);
-        world.TryGetComponent<PhysicsMaterial>(manifold.EntityB, out var materialB);
+        // Get physics materials for restitution and friction (fall back to default if missing)
+        if (!world.TryGetComponent<PhysicsMaterial>(manifold.EntityA, out var materialA))
+            materialA = PhysicsMaterial.Default;
+        if (!world.TryGetComponent<PhysicsMaterial>(manifold.EntityB, out var materialB))
+            materialB = PhysicsMaterial.Default;
 
         // Use minimum restitution (more conservative bounce)
         var restitution = MathF.Min(materialA.Restitution, materialB.Restitution);

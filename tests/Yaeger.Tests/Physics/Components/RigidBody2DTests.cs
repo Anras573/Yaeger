@@ -40,11 +40,15 @@ public class RigidBody2DTests
     }
 
     [Fact]
-    public void CreateDynamic_WithZeroMass_ShouldHaveZeroInverseMass()
+    public void CreateDynamic_WithZeroMass_ShouldThrowArgumentOutOfRangeException()
     {
-        var body = RigidBody2D.CreateDynamic(0.0f);
+        Assert.Throws<ArgumentOutOfRangeException>(() => RigidBody2D.CreateDynamic(0.0f));
+    }
 
-        Assert.Equal(0.0f, body.InverseMass);
+    [Fact]
+    public void CreateDynamic_WithNegativeMass_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => RigidBody2D.CreateDynamic(-1.0f));
     }
 
     [Fact]
