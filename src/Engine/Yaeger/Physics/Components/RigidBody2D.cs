@@ -8,13 +8,13 @@ public struct RigidBody2D
     /// <summary>
     /// Mass of the body in kilograms. Must be positive for dynamic bodies.
     /// </summary>
-    public float Mass;
+    public float Mass { get; init; }
 
     /// <summary>
     /// Precomputed inverse mass (1 / Mass). Zero for static and kinematic bodies.
     /// For dynamic bodies, this is always positive since mass must be &gt; 0.
     /// </summary>
-    public float InverseMass;
+    public float InverseMass { get; init; }
 
     /// <summary>
     /// Multiplier for gravity applied to this body. Default is 1.0.

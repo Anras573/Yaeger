@@ -19,8 +19,25 @@ public struct PhysicsMaterial
     /// <summary>
     /// Creates a new physics material with the specified properties.
     /// </summary>
+    /// <param name="restitution">Bounciness. Must be in range [0, 1].</param>
+    /// <param name="friction">Friction coefficient. Must be non-negative.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when restitution is outside [0, 1] or friction is negative.</exception>
     public PhysicsMaterial(float restitution, float friction)
     {
+        if (restitution < 0.0f || restitution > 1.0f)
+            throw new ArgumentOutOfRangeException(
+                nameof(restitution),
+                restitution,
+                "Restitution must be between 0 and 1."
+            );
+
+        if (friction < 0.0f)
+            throw new ArgumentOutOfRangeException(
+                nameof(friction),
+                friction,
+                "Friction must be non-negative."
+            );
+
         Restitution = restitution;
         Friction = friction;
     }

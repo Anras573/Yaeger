@@ -212,11 +212,13 @@ public class CollisionDetectionSystem(World world)
         // Handle the case where the circle center is inside the box
         Vector2 normal;
         float penetration;
+        Vector2 contactPoint;
 
         if (distance > 0)
         {
             normal = delta / distance;
             penetration = circle.Collider.Radius - distance;
+            contactPoint = closest;
         }
         else
         {
@@ -228,11 +230,15 @@ public class CollisionDetectionSystem(World world)
             {
                 normal = new Vector2(circle.Center.X < box.Center.X ? -1.0f : 1.0f, 0);
                 penetration = dx + circle.Collider.Radius;
+                // Contact point on the box face along the normal
+                contactPoint = new Vector2(box.Center.X + halfSize.X * normal.X, circle.Center.Y);
             }
             else
             {
                 normal = new Vector2(0, circle.Center.Y < box.Center.Y ? -1.0f : 1.0f);
                 penetration = dy + circle.Collider.Radius;
+                // Contact point on the box face along the normal
+                contactPoint = new Vector2(circle.Center.X, box.Center.Y + halfSize.Y * normal.Y);
             }
         }
 
@@ -243,7 +249,7 @@ public class CollisionDetectionSystem(World world)
             EntityB = circle.Entity,
             Normal = normal,
             PenetrationDepth = penetration,
-            ContactPoint = closest,
+            ContactPoint = contactPoint,
         };
 
         return true;

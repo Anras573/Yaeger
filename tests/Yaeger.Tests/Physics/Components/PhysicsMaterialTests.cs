@@ -39,4 +39,22 @@ public class PhysicsMaterialTests
         Assert.Equal(0.0f, material.Restitution);
         Assert.Equal(1.0f, material.Friction);
     }
+
+    [Fact]
+    public void Constructor_WithNegativeRestitution_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PhysicsMaterial(-0.1f, 0.5f));
+    }
+
+    [Fact]
+    public void Constructor_WithRestitutionAboveOne_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PhysicsMaterial(1.1f, 0.5f));
+    }
+
+    [Fact]
+    public void Constructor_WithNegativeFriction_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PhysicsMaterial(0.5f, -0.1f));
+    }
 }

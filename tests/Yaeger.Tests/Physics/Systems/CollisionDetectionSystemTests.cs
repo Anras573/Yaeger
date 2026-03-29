@@ -294,6 +294,36 @@ public class CollisionDetectionSystemTests
         Assert.Single(system.Manifolds);
     }
 
+    [Fact]
+    public void Detect_BoxCircle_CircleInsideBox_ContactPointShouldBeOnBoxSurface()
+    {
+        // Arrange — circle centered inside box, slightly offset on X
+        var world = new World();
+
+        var box = world.CreateEntity();
+        world.AddComponent(box, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(box, new BoxCollider2D(10, 10)); // half size = 5
+
+        var circle = world.CreateEntity();
+        world.AddComponent(circle, new Transform2D(new Vector2(2, 0)));
+        world.AddComponent(circle, new CircleCollider2D(0.5f));
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — contact point should be on the box face, not at circle center
+        Assert.Single(system.Manifolds);
+        var manifold = system.Manifolds[0];
+
+        // Circle is at (2,0), closest point on box is (2,0) (inside), distance=0
+        // Shortest push-out axis is X (dx=3 < dy=5), normal = (1,0)
+        // Contact point should be on the right face of the box: (5, 0)
+        Assert.Equal(5.0f, manifold.ContactPoint.X, 0.001f);
+        Assert.Equal(0.0f, manifold.ContactPoint.Y, 0.001f);
+    }
+
     #endregion
 
     [Fact]
