@@ -67,11 +67,12 @@ public class PhysicsWorld2D : IUpdateSystem
         _collisionResolutionSystem.Resolve(_collisionDetectionSystem.Manifolds);
 
         // 5. Fire collision events
-        if (OnCollision is not null)
+        var handler = OnCollision;
+        if (handler is not null)
         {
             foreach (var manifold in _collisionDetectionSystem.Manifolds)
             {
-                OnCollision.Invoke(manifold);
+                handler(manifold);
             }
         }
     }

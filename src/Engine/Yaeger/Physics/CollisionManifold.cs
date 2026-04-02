@@ -20,6 +20,7 @@ public struct CollisionManifold
 
     /// <summary>
     /// The collision normal pointing from entity A towards entity B.
+    /// Must be a unit vector (length 1). Collision resolution depends on this invariant.
     /// </summary>
     public Vector2 Normal;
 

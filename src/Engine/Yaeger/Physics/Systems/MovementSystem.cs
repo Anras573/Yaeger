@@ -13,16 +13,15 @@ public class MovementSystem(World world) : IUpdateSystem
 {
     public void Update(float deltaTime)
     {
-        // Snapshot query results to avoid modifying component stores during iteration
-        var entities = world.Query<Transform2D, Velocity2D, RigidBody2D>().ToList();
-
+        // Query enumerates RigidBody2D store; we only write back Transform2D and Velocity2D,
+        // so no snapshot needed — iterating a different store than we're mutating.
         foreach (
             (
                 Entity entity,
+                RigidBody2D body,
                 Transform2D transform,
-                Velocity2D velocity,
-                RigidBody2D body
-            ) in entities
+                Velocity2D velocity
+            ) in world.Query<RigidBody2D, Transform2D, Velocity2D>()
         )
         {
             if (body.Type == BodyType.Static)
