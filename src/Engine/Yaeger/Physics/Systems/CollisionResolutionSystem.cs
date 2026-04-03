@@ -34,6 +34,13 @@ public class CollisionResolutionSystem(World world)
 
     private void ResolveManifold(CollisionManifold manifold)
     {
+        // Ensure Normal is a unit vector; skip degenerate manifolds
+        var normalLenSq = manifold.Normal.LengthSquared();
+        if (normalLenSq < 1e-10f)
+            return;
+        if (MathF.Abs(normalLenSq - 1.0f) > 1e-4f)
+            manifold.Normal = manifold.Normal / MathF.Sqrt(normalLenSq);
+
         var hasBodyA = world.TryGetComponent<RigidBody2D>(manifold.EntityA, out var bodyA);
         var hasBodyB = world.TryGetComponent<RigidBody2D>(manifold.EntityB, out var bodyB);
 

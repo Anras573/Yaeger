@@ -13,6 +13,8 @@ namespace Yaeger.Physics.Systems;
 public class CollisionDetectionSystem(World world)
 {
     private readonly List<CollisionManifold> _manifolds = [];
+    private readonly List<(Entity Entity, Vector2 Center, BoxCollider2D Collider)> _boxEntities = [];
+    private readonly List<(Entity Entity, Vector2 Center, CircleCollider2D Collider)> _circleEntities = [];
 
     /// <summary>
     /// The collision manifolds detected in the last call to <see cref="Detect"/>.
@@ -27,8 +29,8 @@ public class CollisionDetectionSystem(World world)
         _manifolds.Clear();
 
         // Collect all collidable entities with their world positions
-        var boxEntities = new List<(Entity Entity, Vector2 Center, BoxCollider2D Collider)>();
-        var circleEntities = new List<(Entity Entity, Vector2 Center, CircleCollider2D Collider)>();
+        _boxEntities.Clear();
+        _circleEntities.Clear();
 
         foreach (
             (Entity entity, Transform2D transform, BoxCollider2D collider) in world.Query<
@@ -38,7 +40,7 @@ public class CollisionDetectionSystem(World world)
         )
         {
             var center = transform.Position + collider.Offset;
-            boxEntities.Add((entity, center, collider));
+            _boxEntities.Add((entity, center, collider));
         }
 
         foreach (
@@ -49,15 +51,15 @@ public class CollisionDetectionSystem(World world)
         )
         {
             var center = transform.Position + collider.Offset;
-            circleEntities.Add((entity, center, collider));
+            _circleEntities.Add((entity, center, collider));
         }
 
         // Box vs Box
-        for (var i = 0; i < boxEntities.Count; i++)
+        for (var i = 0; i < _boxEntities.Count; i++)
         {
-            for (var j = i + 1; j < boxEntities.Count; j++)
+            for (var j = i + 1; j < _boxEntities.Count; j++)
             {
-                if (TestBoxBox(boxEntities[i], boxEntities[j], out var manifold))
+                if (TestBoxBox(_boxEntities[i], _boxEntities[j], out var manifold))
                 {
                     _manifolds.Add(manifold);
                 }
@@ -65,11 +67,11 @@ public class CollisionDetectionSystem(World world)
         }
 
         // Circle vs Circle
-        for (var i = 0; i < circleEntities.Count; i++)
+        for (var i = 0; i < _circleEntities.Count; i++)
         {
-            for (var j = i + 1; j < circleEntities.Count; j++)
+            for (var j = i + 1; j < _circleEntities.Count; j++)
             {
-                if (TestCircleCircle(circleEntities[i], circleEntities[j], out var manifold))
+                if (TestCircleCircle(_circleEntities[i], _circleEntities[j], out var manifold))
                 {
                     _manifolds.Add(manifold);
                 }
@@ -77,15 +79,15 @@ public class CollisionDetectionSystem(World world)
         }
 
         // Box vs Circle
-        for (var i = 0; i < boxEntities.Count; i++)
+        for (var i = 0; i < _boxEntities.Count; i++)
         {
-            for (var j = 0; j < circleEntities.Count; j++)
+            for (var j = 0; j < _circleEntities.Count; j++)
             {
                 // Skip self-collision (entity has both BoxCollider2D and CircleCollider2D)
-                if (boxEntities[i].Entity == circleEntities[j].Entity)
+                if (_boxEntities[i].Entity == _circleEntities[j].Entity)
                     continue;
 
-                if (TestBoxCircle(boxEntities[i], circleEntities[j], out var manifold))
+                if (TestBoxCircle(_boxEntities[i], _circleEntities[j], out var manifold))
                 {
                     _manifolds.Add(manifold);
                 }
