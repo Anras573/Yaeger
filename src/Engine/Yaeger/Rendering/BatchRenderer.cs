@@ -98,6 +98,9 @@ public class BatchRenderer : IDisposable
 
     public void BeginFrame()
     {
+        _gl.Enable(GLEnum.Blend);
+        _gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
+
         _gl.ClearColor(0f, 0f, 0f, 1f);
         _gl.Clear((uint)ClearBufferMask.ColorBufferBit);
         _batchQueue.Clear();

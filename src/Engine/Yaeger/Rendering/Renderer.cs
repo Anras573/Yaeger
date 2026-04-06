@@ -106,6 +106,9 @@ public class Renderer
         // Always set the viewport to the current framebuffer size
         _gl.Viewport(0, 0, (uint)width, (uint)height);
 
+        _gl.Enable(GLEnum.Blend);
+        _gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
+
         _gl.ClearColor(0f, 0f, 0f, 1f);
         _gl.Clear((uint)ClearBufferMask.ColorBufferBit);
 
