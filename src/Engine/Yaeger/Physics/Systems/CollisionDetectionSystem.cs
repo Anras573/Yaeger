@@ -27,11 +27,10 @@ public class CollisionDetectionSystem(World world)
     public void Detect()
     {
         _manifolds.Clear();
-
-        // Collect all collidable entities with their world positions
         _boxEntities.Clear();
         _circleEntities.Clear();
 
+        // Collect all collidable entities with their world positions
         foreach (
             (Entity entity, Transform2D transform, BoxCollider2D collider) in world.Query<
                 Transform2D,
