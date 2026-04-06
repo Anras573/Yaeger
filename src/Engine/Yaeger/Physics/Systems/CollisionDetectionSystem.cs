@@ -13,8 +13,13 @@ namespace Yaeger.Physics.Systems;
 public class CollisionDetectionSystem(World world)
 {
     private readonly List<CollisionManifold> _manifolds = [];
-    private readonly List<(Entity Entity, Vector2 Center, BoxCollider2D Collider)> _boxEntities = [];
-    private readonly List<(Entity Entity, Vector2 Center, CircleCollider2D Collider)> _circleEntities = [];
+    private readonly List<(Entity Entity, Vector2 Center, BoxCollider2D Collider)> _boxEntities =
+    [];
+    private readonly List<(
+        Entity Entity,
+        Vector2 Center,
+        CircleCollider2D Collider
+    )> _circleEntities = [];
 
     /// <summary>
     /// The collision manifolds detected in the last call to <see cref="Detect"/>.
