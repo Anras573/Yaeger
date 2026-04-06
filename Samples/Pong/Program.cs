@@ -2,7 +2,6 @@
 
 using Pong;
 using Pong.Systems;
-using Yaeger.Audio;
 using Yaeger.ECS;
 using Yaeger.Input;
 using Yaeger.Rendering;
