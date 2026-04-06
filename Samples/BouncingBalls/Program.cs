@@ -18,51 +18,11 @@ var physics = new PhysicsWorld2D(world, new Vector2(0, -2.0f));
 
 // --- Walls (static boxes forming a container) ---
 var wallThickness = 0.05f;
-var wallSprite = new Sprite("Assets/square.png");
 
-// Floor
-var floor = world.CreateEntity();
-world.AddComponent(floor, wallSprite);
-world.AddComponent(
-    floor,
-    new Transform2D(new Vector2(0, -1.0f), 0.0f, new Vector2(2.0f, wallThickness))
-);
-world.AddComponent(floor, RigidBody2D.CreateStatic());
-world.AddComponent(floor, new BoxCollider2D(2.0f, wallThickness));
-world.AddComponent(floor, PhysicsMaterial.Default);
-
-// Ceiling
-var ceiling = world.CreateEntity();
-world.AddComponent(ceiling, wallSprite);
-world.AddComponent(
-    ceiling,
-    new Transform2D(new Vector2(0, 1.0f), 0.0f, new Vector2(2.0f, wallThickness))
-);
-world.AddComponent(ceiling, RigidBody2D.CreateStatic());
-world.AddComponent(ceiling, new BoxCollider2D(2.0f, wallThickness));
-world.AddComponent(ceiling, PhysicsMaterial.Default);
-
-// Left wall
-var leftWall = world.CreateEntity();
-world.AddComponent(leftWall, wallSprite);
-world.AddComponent(
-    leftWall,
-    new Transform2D(new Vector2(-1.0f, 0), 0.0f, new Vector2(wallThickness, 2.0f))
-);
-world.AddComponent(leftWall, RigidBody2D.CreateStatic());
-world.AddComponent(leftWall, new BoxCollider2D(wallThickness, 2.0f));
-world.AddComponent(leftWall, PhysicsMaterial.Default);
-
-// Right wall
-var rightWall = world.CreateEntity();
-world.AddComponent(rightWall, wallSprite);
-world.AddComponent(
-    rightWall,
-    new Transform2D(new Vector2(1.0f, 0), 0.0f, new Vector2(wallThickness, 2.0f))
-);
-world.AddComponent(rightWall, RigidBody2D.CreateStatic());
-world.AddComponent(rightWall, new BoxCollider2D(wallThickness, 2.0f));
-world.AddComponent(rightWall, PhysicsMaterial.Default);
+CreateWall(new Vector2(0, -1.0f), new Vector2(2.0f, wallThickness)); // Floor
+CreateWall(new Vector2(0, 1.0f), new Vector2(2.0f, wallThickness)); // Ceiling
+CreateWall(new Vector2(-1.0f, 0), new Vector2(wallThickness, 2.0f)); // Left
+CreateWall(new Vector2(1.0f, 0), new Vector2(wallThickness, 2.0f)); // Right
 
 // --- Balls ---
 var ballSprite = new Sprite("Assets/circle.png");
@@ -165,3 +125,13 @@ window.OnRender += _ =>
 Keyboard.AddKeyDown(Keys.Escape, () => window.Close());
 
 window.Run();
+
+void CreateWall(Vector2 position, Vector2 size)
+{
+    var wall = world.CreateEntity();
+    world.AddComponent(wall, new Sprite("Assets/square.png"));
+    world.AddComponent(wall, new Transform2D(position, 0.0f, size));
+    world.AddComponent(wall, RigidBody2D.CreateStatic());
+    world.AddComponent(wall, new BoxCollider2D(size.X, size.Y));
+    world.AddComponent(wall, PhysicsMaterial.Default);
+}
