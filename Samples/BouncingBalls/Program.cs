@@ -133,5 +133,5 @@ void CreateWall(Vector2 position, Vector2 size)
     world.AddComponent(wall, new Transform2D(position, 0.0f, size));
     world.AddComponent(wall, RigidBody2D.CreateStatic());
     world.AddComponent(wall, new BoxCollider2D(size.X, size.Y));
-    world.AddComponent(wall, PhysicsMaterial.Default);
+    world.AddComponent(wall, new PhysicsMaterial(1.0f, friction: 0.2f));
 }
