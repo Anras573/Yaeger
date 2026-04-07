@@ -69,5 +69,11 @@ public class Shader : IDisposable
         _gl.UniformMatrix4(location, 1, false, (float*)&matrix);
     }
 
+    public void SetUniformVec4(string name, Vector4 value)
+    {
+        var location = GetUniformLocation(name);
+        _gl.Uniform4(location, value.X, value.Y, value.Z, value.W);
+    }
+
     public void Dispose() => _gl.DeleteProgram(_program);
 }
