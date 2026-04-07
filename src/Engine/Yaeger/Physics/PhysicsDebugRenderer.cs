@@ -83,9 +83,9 @@ public class PhysicsDebugRenderer : IDisposable
 
         // Collect box collider outlines
         foreach (
-            (Entity _, Transform2D transform, BoxCollider2D collider) in _world.Query<
-                Transform2D,
-                BoxCollider2D
+            (Entity _, BoxCollider2D collider, Transform2D transform) in _world.Query<
+                BoxCollider2D,
+                Transform2D
             >()
         )
         {
@@ -95,9 +95,9 @@ public class PhysicsDebugRenderer : IDisposable
 
         // Collect circle collider outlines
         foreach (
-            (Entity _, Transform2D transform, CircleCollider2D collider) in _world.Query<
-                Transform2D,
-                CircleCollider2D
+            (Entity _, CircleCollider2D collider, Transform2D transform) in _world.Query<
+                CircleCollider2D,
+                Transform2D
             >()
         )
         {
