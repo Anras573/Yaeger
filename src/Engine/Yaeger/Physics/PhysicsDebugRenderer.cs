@@ -1,10 +1,10 @@
 using System.Numerics;
-using Silk.NET.OpenGL;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Physics.Components;
 using Yaeger.Rendering;
 using Yaeger.Windowing;
+using GL = Silk.NET.OpenGL.GL;
 
 namespace Yaeger.Physics;
 
@@ -15,7 +15,7 @@ public class PhysicsDebugRenderer : IDisposable
 {
     private readonly GL _gl;
     private readonly World _world;
-    private readonly Yaeger.Rendering.Shader _shader;
+    private readonly Shader _shader;
     private readonly DebugVertexArray _vao;
     private readonly Buffer<float> _vbo;
 
@@ -58,15 +58,15 @@ public class PhysicsDebugRenderer : IDisposable
         _gl = window.Gl;
         _world = world;
 
-        _shader = new Yaeger.Rendering.Shader(_gl, VertexShaderSource, FragmentShaderSource);
+        _shader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
         _vertexBuffer = new float[MaxLineSegments * VerticesPerLine * FloatsPerVertex];
 
         _vbo = new Buffer<float>(
             _gl,
             _vertexBuffer,
-            BufferTargetARB.ArrayBuffer,
-            BufferUsageARB.DynamicDraw
+            Silk.NET.OpenGL.BufferTargetARB.ArrayBuffer,
+            Silk.NET.OpenGL.BufferUsageARB.DynamicDraw
         );
 
         _vao = new DebugVertexArray(_gl, _vbo);
@@ -178,10 +178,10 @@ public class PhysicsDebugRenderer : IDisposable
         var byteCount = (nuint)(_vertexCount * FloatsPerVertex * sizeof(float));
         fixed (float* ptr = _vertexBuffer)
         {
-            _gl.BufferSubData(BufferTargetARB.ArrayBuffer, 0, byteCount, ptr);
+            _gl.BufferSubData(Silk.NET.OpenGL.BufferTargetARB.ArrayBuffer, 0, byteCount, ptr);
         }
 
-        _gl.DrawArrays(PrimitiveType.Lines, 0, (uint)_vertexCount);
+        _gl.DrawArrays(Silk.NET.OpenGL.PrimitiveType.Lines, 0, (uint)_vertexCount);
 
         _vao.Unbind();
         _shader.Unbind();
