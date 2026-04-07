@@ -16,6 +16,10 @@ var renderSystem = new RenderSystem(renderer, world);
 // Physics world with downward gravity (positive Y is up in NDC)
 var physics = new PhysicsWorld2D(world, new Vector2(0, -2.0f));
 
+// Debug renderer for collider wireframes (toggle with Space)
+using var debugRenderer = new PhysicsDebugRenderer(window, world);
+var showDebug = false;
+
 // --- Walls (static boxes forming a container) ---
 var wallThickness = 0.05f;
 
@@ -120,9 +124,13 @@ window.OnUpdate += delta =>
 window.OnRender += _ =>
 {
     renderSystem.Render();
+
+    if (showDebug)
+        debugRenderer.Render();
 };
 
 Keyboard.AddKeyDown(Keys.Escape, () => window.Close());
+Keyboard.AddKeyDown(Keys.Space, () => showDebug = !showDebug);
 
 window.Run();
 
