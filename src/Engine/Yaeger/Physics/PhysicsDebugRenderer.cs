@@ -9,14 +9,13 @@ using Yaeger.Windowing;
 namespace Yaeger.Physics;
 
 /// <summary>
-/// Renders wireframe outlines for physics colliders using GL_LINES.
-/// Draws green outlines for box colliders and green outlines for circle colliders.
+/// Renders configurable wireframe outlines for physics colliders using GL_LINES.
 /// </summary>
 public class PhysicsDebugRenderer : IDisposable
 {
     private readonly GL _gl;
     private readonly World _world;
-    private readonly Rendering.Shader _shader;
+    private readonly Yaeger.Rendering.Shader _shader;
     private readonly DebugVertexArray _vao;
     private readonly Buffer<float> _vbo;
 
@@ -59,7 +58,7 @@ public class PhysicsDebugRenderer : IDisposable
         _gl = window.Gl;
         _world = world;
 
-        _shader = new Rendering.Shader(_gl, VertexShaderSource, FragmentShaderSource);
+        _shader = new Yaeger.Rendering.Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
         _vertexBuffer = new float[MaxLineSegments * VerticesPerLine * FloatsPerVertex];
 
@@ -150,7 +149,10 @@ public class PhysicsDebugRenderer : IDisposable
     private void AddLine(Vector2 from, Vector2 to)
     {
         if (_vertexCount + 2 > MaxLineSegments * VerticesPerLine)
-            return;
+        {
+            Flush();
+            _vertexCount = 0;
+        }
 
         var offset = _vertexCount * FloatsPerVertex;
 

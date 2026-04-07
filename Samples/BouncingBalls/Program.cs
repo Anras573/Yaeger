@@ -17,7 +17,7 @@ var renderSystem = new RenderSystem(renderer, world);
 var physics = new PhysicsWorld2D(world, new Vector2(0, -2.0f));
 
 // Debug renderer for collider wireframes (toggle with Space)
-var debugRenderer = new PhysicsDebugRenderer(window, world);
+using var debugRenderer = new PhysicsDebugRenderer(window, world);
 var showDebug = false;
 
 // --- Walls (static boxes forming a container) ---
