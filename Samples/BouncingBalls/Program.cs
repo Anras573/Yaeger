@@ -116,10 +116,7 @@ foreach (var config in ballConfigs)
 }
 
 // --- Event wiring ---
-window.OnUpdate += delta =>
-{
-    physics.Update((float)delta);
-};
+window.OnUpdate += delta => physics.Update((float)delta);
 
 window.OnRender += _ =>
 {
@@ -129,7 +126,7 @@ window.OnRender += _ =>
         debugRenderer.Render();
 };
 
-Keyboard.AddKeyDown(Keys.Escape, () => window.Close());
+Keyboard.AddKeyDown(Keys.Escape, window.Close);
 Keyboard.AddKeyDown(Keys.Space, () => showDebug = !showDebug);
 
 window.Run();
