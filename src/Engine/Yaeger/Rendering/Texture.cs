@@ -8,6 +8,9 @@ public class Texture : IDisposable
     private readonly GL _gl;
     private readonly uint _handle;
 
+    public int Width { get; private set; }
+    public int Height { get; private set; }
+
     public unsafe Texture(GL gl, string path)
     {
         _gl = gl;
@@ -16,6 +19,9 @@ public class Texture : IDisposable
 
         using var stream = File.OpenRead(AssetPath.Resolve(path));
         var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
+
+        Width = image.Width;
+        Height = image.Height;
 
         fixed (byte* data = image.Data)
         {

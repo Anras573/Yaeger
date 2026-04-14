@@ -9,6 +9,7 @@ public class Renderer
 {
     private readonly GL _gl;
     private readonly VertexArray _vao;
+    private readonly Buffer<float> _vbo;
 
     private const string VertexShaderSource = """
         #version 330 core
@@ -41,30 +42,8 @@ public class Renderer
     private readonly TextureManager _textureManager;
     private readonly Shader _textureShader;
 
-    private static readonly float[] Vertices =
-    [
-        //X     Y     Z     U   V
-        0.5f,
-        0.5f,
-        0.0f,
-        1f,
-        1f,
-        0.5f,
-        -0.5f,
-        0.0f,
-        1f,
-        0f,
-        -0.5f,
-        -0.5f,
-        0.0f,
-        0f,
-        0f,
-        -0.5f,
-        0.5f,
-        0.0f,
-        0f,
-        1f,
-    ];
+    // Mutable vertex buffer: 4 vertices × 5 floats (x, y, z, u, v)
+    private readonly float[] _vertices = new float[20];
 
     private static readonly uint[] Indices = [0, 1, 3, 1, 2, 3];
 
@@ -75,9 +54,14 @@ public class Renderer
         _textureManager = new TextureManager(_gl);
         _textureShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
-        var vbo = new Buffer<float>(_gl, Vertices, BufferTargetARB.ArrayBuffer);
+        _vbo = new Buffer<float>(
+            _gl,
+            _vertices,
+            BufferTargetARB.ArrayBuffer,
+            BufferUsageARB.DynamicDraw
+        );
         var ebo = new Buffer<uint>(_gl, Indices, BufferTargetARB.ElementArrayBuffer);
-        _vao = new VertexArray(_gl, vbo, ebo);
+        _vao = new VertexArray(_gl, _vbo, ebo);
 
         CheckGlError();
 
@@ -118,10 +102,53 @@ public class Renderer
     public void EndFrame() { /* No-op for now */
     }
 
-    public unsafe void DrawQuad(Matrix4x4 model, string texturePath)
-    {
-        var texture = _textureManager.Get(texturePath);
+    /// <summary>Draws a quad using the full texture (UV 0,0 → 1,1).</summary>
+    public void DrawQuad(Matrix4x4 model, string texturePath) =>
+        DrawQuad(model, texturePath, Vector2.Zero, Vector2.One);
 
+    /// <summary>Draws a quad using a sub-region of the texture defined by UV coordinates.</summary>
+    public unsafe void DrawQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
+    {
+        // Base positions of a unit quad (centred at origin)
+        ReadOnlySpan<Vector3> positions =
+        [
+            new Vector3(0.5f, 0.5f, 0f),
+            new Vector3(0.5f, -0.5f, 0f),
+            new Vector3(-0.5f, -0.5f, 0f),
+            new Vector3(-0.5f, 0.5f, 0f),
+        ];
+
+        // UV corners matching the position layout
+        ReadOnlySpan<Vector2> uvs =
+        [
+            new Vector2(uvMax.X, uvMax.Y),
+            new Vector2(uvMax.X, uvMin.Y),
+            new Vector2(uvMin.X, uvMin.Y),
+            new Vector2(uvMin.X, uvMax.Y),
+        ];
+
+        for (int i = 0; i < 4; i++)
+        {
+            int offset = i * 5;
+            _vertices[offset + 0] = positions[i].X;
+            _vertices[offset + 1] = positions[i].Y;
+            _vertices[offset + 2] = positions[i].Z;
+            _vertices[offset + 3] = uvs[i].X;
+            _vertices[offset + 4] = uvs[i].Y;
+        }
+
+        _vbo.Bind();
+        fixed (float* v = _vertices)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.ArrayBuffer,
+                0,
+                (nuint)(_vertices.Length * sizeof(float)),
+                v
+            );
+        }
+
+        var texture = _textureManager.Get(texturePath);
         _textureShader.Bind();
         _textureShader.SetUniformMatrix4("uTransform", model);
 

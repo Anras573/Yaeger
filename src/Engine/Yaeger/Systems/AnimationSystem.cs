@@ -5,6 +5,8 @@ namespace Yaeger.Systems;
 
 /// <summary>
 /// System that updates animations and changes sprite textures based on the current animation frame.
+/// Supports both <see cref="Sprite"/>-based animations (one texture file per frame) and
+/// <see cref="SpriteSheet"/>-based animations (UV sub-region per frame on a shared texture).
 /// </summary>
 public class AnimationSystem(World world)
 {
@@ -88,8 +90,13 @@ public class AnimationSystem(World world)
             newState.ElapsedTime = newElapsedTime;
             world.AddComponent(entity, newState);
 
-            // Only update the sprite texture if the frame has changed
-            if (currentFrameIndex != oldFrameIndex)
+            // Only update the sprite texture if the frame has changed.
+            // SpriteSheet entities derive their UV from AnimationState at render time,
+            // so they do not need a Sprite component written back here.
+            if (
+                currentFrameIndex != oldFrameIndex
+                && !world.TryGetComponent<SpriteSheet>(entity, out _)
+            )
             {
                 var sprite = new Sprite(currentFrame.TexturePath);
                 world.AddComponent(entity, sprite);

@@ -10,5 +10,12 @@ public enum Keys
     Escape,
     Up,
     Down,
+    R,
+    I,
+    J,
+    H,
+    Num1,
+    Num2,
+    Num3,
     // Add more keys as needed
 }
