@@ -45,7 +45,7 @@ public readonly record struct AnimationFrame
     /// </summary>
     /// <param name="sprite">The sprite for this frame.</param>
     /// <param name="duration">The duration of this frame in seconds. Must be greater than 0.</param>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="sprite"/> is null or has an empty texture path.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="sprite"/>'s texture path is null or empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="duration"/> is less than or equal to 0.</exception>
     public AnimationFrame(Sprite sprite, float duration)
     {
