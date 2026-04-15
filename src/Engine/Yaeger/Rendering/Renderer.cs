@@ -109,34 +109,33 @@ public class Renderer
     /// <summary>Draws a quad using a sub-region of the texture defined by UV coordinates.</summary>
     public unsafe void DrawQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
     {
-        // Base positions of a unit quad (centred at origin)
-        ReadOnlySpan<Vector3> positions =
-        [
-            new Vector3(0.5f, 0.5f, 0f),
-            new Vector3(0.5f, -0.5f, 0f),
-            new Vector3(-0.5f, -0.5f, 0f),
-            new Vector3(-0.5f, 0.5f, 0f),
-        ];
+        // Vertex 0: top-right
+        _vertices[0] = 0.5f;
+        _vertices[1] = 0.5f;
+        _vertices[2] = 0f;
+        _vertices[3] = uvMax.X;
+        _vertices[4] = uvMax.Y;
 
-        // UV corners matching the position layout
-        ReadOnlySpan<Vector2> uvs =
-        [
-            new Vector2(uvMax.X, uvMax.Y),
-            new Vector2(uvMax.X, uvMin.Y),
-            new Vector2(uvMin.X, uvMin.Y),
-            new Vector2(uvMin.X, uvMax.Y),
-        ];
+        // Vertex 1: bottom-right
+        _vertices[5] = 0.5f;
+        _vertices[6] = -0.5f;
+        _vertices[7] = 0f;
+        _vertices[8] = uvMax.X;
+        _vertices[9] = uvMin.Y;
 
-        for (int i = 0; i < 4; i++)
-        {
-            int offset = i * 5;
-            _vertices[offset + 0] = positions[i].X;
-            _vertices[offset + 1] = positions[i].Y;
-            _vertices[offset + 2] = positions[i].Z;
-            _vertices[offset + 3] = uvs[i].X;
-            _vertices[offset + 4] = uvs[i].Y;
-        }
+        // Vertex 2: bottom-left
+        _vertices[10] = -0.5f;
+        _vertices[11] = -0.5f;
+        _vertices[12] = 0f;
+        _vertices[13] = uvMin.X;
+        _vertices[14] = uvMin.Y;
 
+        // Vertex 3: top-left
+        _vertices[15] = -0.5f;
+        _vertices[16] = 0.5f;
+        _vertices[17] = 0f;
+        _vertices[18] = uvMin.X;
+        _vertices[19] = uvMax.Y;
         _vbo.Bind();
         fixed (float* v = _vertices)
         {
