@@ -83,10 +83,10 @@ var sheets = new Dictionary<string, SpriteSheet>
 var samurai = world.CreateEntity("samurai");
 var currentSheetName = "Idle";
 
-void ApplyAnimation(string name)
+void ApplyAnimation(string name, float frameDuration = 0.1f, bool loop = true)
 {
     var sheet = sheets[name];
-    var anim = MakeAnimation(sheet.FrameCount, frameDuration: 0.1f, loop: name != "Dead");
+    var anim = MakeAnimation(sheet.FrameCount, frameDuration: frameDuration, loop: loop);
     world.AddComponent(samurai, sheet);
     world.AddComponent(samurai, anim);
     world.AddComponent(samurai, new AnimationState(0, 0f, false));
@@ -96,19 +96,27 @@ void ApplyAnimation(string name)
 ApplyAnimation("Idle");
 world.AddComponent(samurai, new Transform2D(Vector2.Zero, 0f, Vector2.One));
 
+void ApplyCombatSequence()
+{
+    var atk1 = MakeAnimation(sheets["Attack_1"].FrameCount, frameDuration: 0.1f, loop: false);
+    var atk2 = MakeAnimation(sheets["Attack_2"].FrameCount, frameDuration: 0.1f, loop: false);
+    var atk3 = MakeAnimation(sheets["Attack_3"].FrameCount, frameDuration: 0.1f, loop: false);
+}
+
 // ------------------------------------------------------------------
 // Key bindings: switch animations at runtime.
 // ------------------------------------------------------------------
 Keyboard.AddKeyDown(Keys.W, () => ApplyAnimation("Walk"));
-Keyboard.AddKeyDown(Keys.R, () => ApplyAnimation("Run"));
-Keyboard.AddKeyDown(Keys.J, () => ApplyAnimation("Jump"));
+Keyboard.AddKeyDown(Keys.R, () => ApplyAnimation("Run", frameDuration: 0.05f)); // Faster frame rate for running
+Keyboard.AddKeyDown(Keys.J, () => ApplyAnimation("Jump", loop: false)); // Don't loop the jump animation
 Keyboard.AddKeyDown(Keys.I, () => ApplyAnimation("Idle"));
-Keyboard.AddKeyDown(Keys.Num1, () => ApplyAnimation("Attack_1"));
-Keyboard.AddKeyDown(Keys.Num2, () => ApplyAnimation("Attack_2"));
-Keyboard.AddKeyDown(Keys.Num3, () => ApplyAnimation("Attack_3"));
-Keyboard.AddKeyDown(Keys.H, () => ApplyAnimation("Hurt"));
-Keyboard.AddKeyDown(Keys.S, () => ApplyAnimation("Shield"));
-Keyboard.AddKeyDown(Keys.D, () => ApplyAnimation("Dead"));
+Keyboard.AddKeyDown(Keys.Num1, () => ApplyAnimation("Attack_1", loop: false)); // Don't loop attack animations
+Keyboard.AddKeyDown(Keys.Num2, () => ApplyAnimation("Attack_2", loop: false));
+Keyboard.AddKeyDown(Keys.Num3, () => ApplyAnimation("Attack_3", loop: false));
+Keyboard.AddKeyDown(Keys.C, ApplyCombatSequence); // Trigger the full combat sequence (for demonstration)
+Keyboard.AddKeyDown(Keys.H, () => ApplyAnimation("Hurt", frameDuration: 0.2f, loop: false)); // Slower frame rate for hurt animation
+Keyboard.AddKeyDown(Keys.S, () => ApplyAnimation("Shield", frameDuration: 0.2f)); // Slower frame rate for shield animation
+Keyboard.AddKeyDown(Keys.D, () => ApplyAnimation("Dead", loop: false)); // Don't loop the dead animation
 
 window.OnUpdate += deltaTime => animationSystem.Update((float)deltaTime);
 window.OnRender += _ => renderSystem.Render();

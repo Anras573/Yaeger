@@ -17,5 +17,6 @@ public enum Keys
     Num1,
     Num2,
     Num3,
+    C,
     // Add more keys as needed
 }
