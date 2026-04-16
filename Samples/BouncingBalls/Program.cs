@@ -130,7 +130,6 @@ Keyboard.AddKeyDown(Keys.Escape, window.Close);
 Keyboard.AddKeyDown(Keys.Space, () => showDebug = !showDebug);
 
 window.Run();
-return;
 
 void CreateWall(Vector2 position, Vector2 size)
 {
