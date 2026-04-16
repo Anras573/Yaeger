@@ -199,7 +199,7 @@ public class Renderer
         }
     }
 
-    private unsafe void DrawQuadCore(Matrix4x4 model, string texturePath)
+    private void DrawQuadCore(Matrix4x4 model, string texturePath)
     {
         var texture = _textureManager.Get(texturePath);
         _textureShader.Bind();
