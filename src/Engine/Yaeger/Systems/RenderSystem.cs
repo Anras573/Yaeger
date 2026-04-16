@@ -36,6 +36,10 @@ public class RenderSystem(Renderer renderer, World world)
             ) in world.Query<SpriteSheet, AnimationState, Transform2D>()
         )
         {
+            if (sheet.FrameCount <= 0)
+            {
+                continue;
+            }
             var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
             var (uvMin, uvMax) = sheet.GetFrameUv(frameIndex);
             renderer.DrawQuad(transform.TransformMatrix, sheet.TexturePath, uvMin, uvMax);
