@@ -9,13 +9,17 @@ public class RenderSystem(Renderer renderer, World world)
     public void Render()
     {
         renderer.BeginFrame();
+        var spriteSheetStore = world.GetStore<SpriteSheet>();
 
         // Render plain sprites (full texture UV).
         foreach (
-            (Entity entity, Sprite sprite, Transform2D transform) in world.Query<Sprite, Transform2D>()
+            (Entity entity, Sprite sprite, Transform2D transform) in world.Query<
+                Sprite,
+                Transform2D
+            >()
         )
         {
-            if (world.HasComponent<SpriteSheet>(entity))
+            if (spriteSheetStore.TryGet(entity, out _))
             {
                 continue;
             }

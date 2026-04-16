@@ -78,12 +78,12 @@ public readonly struct SpriteSheet
         var frameHeight = 1f / Rows;
 
         var uMin = col * frameWidth;
-        var vMin = row * frameHeight;
         var uMax = uMin + frameWidth;
-        var vMax = vMin + frameHeight;
+        var vMax = 1f - (row * frameHeight);
+        var vMin = vMax - frameHeight;
 
-        var uvMin = new Vector2(uMin, vMax);
-        var uvMax = new Vector2(uMax, vMin);
+        var uvMin = new Vector2(uMin, vMin);
+        var uvMax = new Vector2(uMax, vMax);
 
         return (uvMin, uvMax);
     }

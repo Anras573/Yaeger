@@ -42,8 +42,37 @@ public class Renderer
     private readonly TextureManager _textureManager;
     private readonly Shader _textureShader;
 
+    private static readonly float[] FullQuadVertices =
+    [
+        // Vertex 0: top-right
+        0.5f,
+        0.5f,
+        0f,
+        1f,
+        1f,
+        // Vertex 1: bottom-right
+        0.5f,
+        -0.5f,
+        0f,
+        1f,
+        0f,
+        // Vertex 2: bottom-left
+        -0.5f,
+        -0.5f,
+        0f,
+        0f,
+        0f,
+        // Vertex 3: top-left
+        -0.5f,
+        0.5f,
+        0f,
+        0f,
+        1f,
+    ];
+
     // Mutable vertex buffer: 4 vertices × 5 floats (x, y, z, u, v)
     private readonly float[] _vertices = new float[20];
+    private bool _fullUvBufferLoaded = true;
 
     private static readonly uint[] Indices = [0, 1, 3, 1, 2, 3];
 
@@ -56,7 +85,7 @@ public class Renderer
 
         _vbo = new Buffer<float>(
             _gl,
-            _vertices,
+            FullQuadVertices,
             BufferTargetARB.ArrayBuffer,
             BufferUsageARB.DynamicDraw
         );
@@ -103,12 +132,26 @@ public class Renderer
     }
 
     /// <summary>Draws a quad using the full texture (UV 0,0 → 1,1).</summary>
-    public void DrawQuad(Matrix4x4 model, string texturePath) =>
-        DrawQuad(model, texturePath, Vector2.Zero, Vector2.One);
+    public void DrawQuad(Matrix4x4 model, string texturePath)
+    {
+        if (!_fullUvBufferLoaded)
+        {
+            UploadVertices(FullQuadVertices);
+            _fullUvBufferLoaded = true;
+        }
+
+        DrawQuadCore(model, texturePath);
+    }
 
     /// <summary>Draws a quad using a sub-region of the texture defined by UV coordinates.</summary>
     public unsafe void DrawQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
     {
+        if (uvMin == Vector2.Zero && uvMax == Vector2.One)
+        {
+            DrawQuad(model, texturePath);
+            return;
+        }
+
         // Vertex 0: top-right
         _vertices[0] = 0.5f;
         _vertices[1] = 0.5f;
@@ -136,17 +179,28 @@ public class Renderer
         _vertices[17] = 0f;
         _vertices[18] = uvMin.X;
         _vertices[19] = uvMax.Y;
+
+        UploadVertices(_vertices);
+        _fullUvBufferLoaded = false;
+        DrawQuadCore(model, texturePath);
+    }
+
+    private unsafe void UploadVertices(float[] vertices)
+    {
         _vbo.Bind();
-        fixed (float* v = _vertices)
+        fixed (float* vertexPtr = vertices)
         {
             _gl.BufferSubData(
                 BufferTargetARB.ArrayBuffer,
                 0,
-                (nuint)(_vertices.Length * sizeof(float)),
-                v
+                (nuint)(vertices.Length * sizeof(float)),
+                vertexPtr
             );
         }
+    }
 
+    private unsafe void DrawQuadCore(Matrix4x4 model, string texturePath)
+    {
         var texture = _textureManager.Get(texturePath);
         _textureShader.Bind();
         _textureShader.SetUniformMatrix4("uTransform", model);
