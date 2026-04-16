@@ -188,20 +188,11 @@ public class PhysicsDebugRenderer : IDisposable
 
     public void Dispose()
     {
-        void DisposeResources()
+        try
         {
             _vao.Dispose();
             _vbo.Dispose();
             _shader.Dispose();
-        }
-
-        try
-        {
-            DisposeResources();
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error disposing PhysicsDebugRenderer: {ex}");
         }
         finally
         {
