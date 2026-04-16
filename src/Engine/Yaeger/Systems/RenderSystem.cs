@@ -10,6 +10,7 @@ public class RenderSystem(Renderer renderer, World world)
     {
         renderer.BeginFrame();
         var spriteSheetStore = world.GetStore<SpriteSheet>();
+        var animationStateStore = world.GetStore<AnimationState>();
 
         // Render plain sprites (full texture UV).
         foreach (
@@ -19,7 +20,7 @@ public class RenderSystem(Renderer renderer, World world)
             >()
         )
         {
-            if (spriteSheetStore.TryGet(entity, out _))
+            if (spriteSheetStore.TryGet(entity, out _) && animationStateStore.TryGet(entity, out _))
             {
                 continue;
             }

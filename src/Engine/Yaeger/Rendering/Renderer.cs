@@ -199,7 +199,7 @@ public class Renderer
         }
     }
 
-    private void DrawQuadCore(Matrix4x4 model, string texturePath)
+    private unsafe void DrawQuadCore(Matrix4x4 model, string texturePath)
     {
         var texture = _textureManager.Get(texturePath);
         _textureShader.Bind();
@@ -207,13 +207,12 @@ public class Renderer
 
         texture.Bind();
         _vao.Bind();
-        var indexOffset = nint.Zero;
 
         _gl.DrawElements(
             PrimitiveType.Triangles,
             (uint)Indices.Length,
             DrawElementsType.UnsignedInt,
-            in indexOffset
+            null
         );
 
         _vao.Unbind();
