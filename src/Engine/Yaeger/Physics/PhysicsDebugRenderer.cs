@@ -70,7 +70,6 @@ public class PhysicsDebugRenderer : IDisposable
         );
 
         _vao = new DebugVertexArray(_gl, _vbo);
-        _vao.Unbind();
     }
 
     /// <summary>
@@ -189,9 +188,24 @@ public class PhysicsDebugRenderer : IDisposable
 
     public void Dispose()
     {
-        _vao.Dispose();
-        _vbo.Dispose();
-        _shader.Dispose();
-        GC.SuppressFinalize(this);
+        void DisposeResources()
+        {
+            _vao.Dispose();
+            _vbo.Dispose();
+            _shader.Dispose();
+        }
+
+        try
+        {
+            DisposeResources();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error disposing PhysicsDebugRenderer: {ex}");
+        }
+        finally
+        {
+            GC.SuppressFinalize(this);
+        }
     }
 }

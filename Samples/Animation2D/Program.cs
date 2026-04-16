@@ -26,6 +26,7 @@ var texts = new[]
     "Press 'J' to jump",
     "Press 'I' for idle",
     "Press '1', '2', or '3' for attacks",
+    "Press 'C' for combat sequence",
     "Press 'H' for hurt",
     "Press 'S' for shield",
     "Press 'D' for dead",
@@ -96,11 +97,13 @@ void ApplyAnimation(string name, float frameDuration = 0.1f, bool loop = true)
 ApplyAnimation("Idle");
 world.AddComponent(samurai, new Transform2D(Vector2.Zero, 0f, Vector2.One));
 
+var combatPhase = -1;
+var combatSequence = new[] { "Attack_1", "Attack_2", "Attack_3" };
+
 void ApplyCombatSequence()
 {
-    var atk1 = MakeAnimation(sheets["Attack_1"].FrameCount, frameDuration: 0.1f, loop: false);
-    var atk2 = MakeAnimation(sheets["Attack_2"].FrameCount, frameDuration: 0.1f, loop: false);
-    var atk3 = MakeAnimation(sheets["Attack_3"].FrameCount, frameDuration: 0.1f, loop: false);
+    combatPhase = 0;
+    ApplyAnimation(combatSequence[combatPhase], loop: false);
 }
 
 // ------------------------------------------------------------------
@@ -129,6 +132,24 @@ world.AddComponent(
 );
 
 window.OnUpdate += deltaTime => animationSystem.Update((float)deltaTime);
+window.OnUpdate += _ =>
+{
+    // Advance through the combat sequence automatically when each attack finishes
+    if (combatPhase < 0)
+        return;
+
+    if (world.TryGetComponent<AnimationState>(samurai, out var state) && state.IsFinished)
+    {
+        combatPhase++;
+        if (combatPhase < combatSequence.Length)
+            ApplyAnimation(combatSequence[combatPhase], loop: false);
+        else
+        {
+            combatPhase = -1;
+            ApplyAnimation("Idle");
+        }
+    }
+};
 window.OnUpdate += _ =>
 {
     // Update the current animation label text to reflect the active animation
