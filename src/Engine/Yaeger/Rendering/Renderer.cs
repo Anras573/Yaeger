@@ -207,12 +207,13 @@ public class Renderer
 
         texture.Bind();
         _vao.Bind();
+        var indexOffset = nint.Zero;
 
         _gl.DrawElements(
             PrimitiveType.Triangles,
             (uint)Indices.Length,
             DrawElementsType.UnsignedInt,
-            null
+            in indexOffset
         );
 
         _vao.Unbind();

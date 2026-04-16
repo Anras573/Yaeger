@@ -70,6 +70,7 @@ public class PhysicsDebugRenderer : IDisposable
         );
 
         _vao = new DebugVertexArray(_gl, _vbo);
+        _vao.Unbind();
     }
 
     /// <summary>
