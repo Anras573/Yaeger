@@ -12,9 +12,13 @@ public class RenderSystem(Renderer renderer, World world)
 
         // Render plain sprites (full texture UV).
         foreach (
-            (Entity _, Sprite sprite, Transform2D transform) in world.Query<Sprite, Transform2D>()
+            (Entity entity, Sprite sprite, Transform2D transform) in world.Query<Sprite, Transform2D>()
         )
         {
+            if (world.HasComponent<SpriteSheet>(entity))
+            {
+                continue;
+            }
             renderer.DrawQuad(transform.TransformMatrix, sprite.TexturePath);
         }
 
