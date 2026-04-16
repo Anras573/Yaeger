@@ -118,7 +118,24 @@ Keyboard.AddKeyDown(Keys.H, () => ApplyAnimation("Hurt", frameDuration: 0.2f, lo
 Keyboard.AddKeyDown(Keys.S, () => ApplyAnimation("Shield", frameDuration: 0.2f)); // Slower frame rate for shield animation
 Keyboard.AddKeyDown(Keys.D, () => ApplyAnimation("Dead", loop: false)); // Don't loop the dead animation
 
+var currentAnimationLabel = world.CreateEntity();
+world.AddComponent(
+    currentAnimationLabel,
+    new Text($"Current Animation: {currentSheetName}", defaultFont, 24, Color.Green)
+);
+world.AddComponent(
+    currentAnimationLabel,
+    new Transform2D(new Vector2(-0.95f, -0.9f), 0f, new Vector2(0.003f, 0.003f))
+);
+
 window.OnUpdate += deltaTime => animationSystem.Update((float)deltaTime);
+window.OnUpdate += _ =>
+{
+    // Update the current animation label text to reflect the active animation
+    var textComp = world.GetComponent<Text>(currentAnimationLabel);
+    textComp.Content = $"Current Animation: {currentSheetName}";
+    world.AddComponent(currentAnimationLabel, textComp); // Re-add to trigger the text system to update the rendering
+};
 window.OnRender += _ => renderSystem.Render();
 window.OnRender += _ => textRenderSystem.Render();
 
