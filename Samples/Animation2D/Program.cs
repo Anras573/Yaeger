@@ -159,5 +159,10 @@ window.OnUpdate += _ =>
 };
 window.OnRender += _ => renderSystem.Render();
 window.OnRender += _ => textRenderSystem.Render();
+window.OnClosing += () =>
+{
+    textRenderer.Dispose();
+    fontManager.Dispose();
+};
 
 window.Run();

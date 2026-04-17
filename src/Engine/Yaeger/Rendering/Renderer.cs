@@ -73,6 +73,9 @@ public class Renderer
     // Mutable vertex buffer: 4 vertices × 5 floats (x, y, z, u, v)
     private readonly float[] _vertices = new float[20];
     private bool _fullUvBufferLoaded = true;
+    private bool _hasLastCustomUv;
+    private Vector2 _lastCustomUvMin;
+    private Vector2 _lastCustomUvMax;
 
     private static readonly uint[] Indices = [0, 1, 3, 1, 2, 3];
 
@@ -152,6 +155,17 @@ public class Renderer
             return;
         }
 
+        if (
+            !_fullUvBufferLoaded
+            && _hasLastCustomUv
+            && uvMin == _lastCustomUvMin
+            && uvMax == _lastCustomUvMax
+        )
+        {
+            DrawQuadCore(model, texturePath);
+            return;
+        }
+
         // Vertex 0: top-right
         _vertices[0] = 0.5f;
         _vertices[1] = 0.5f;
@@ -182,6 +196,9 @@ public class Renderer
 
         UploadVertices(_vertices);
         _fullUvBufferLoaded = false;
+        _hasLastCustomUv = true;
+        _lastCustomUvMin = uvMin;
+        _lastCustomUvMax = uvMax;
         DrawQuadCore(model, texturePath);
     }
 
