@@ -7,8 +7,10 @@ namespace Yaeger.Rendering;
 
 public class Renderer
 {
+    private const float UvComparisonEpsilon = 1e-6f;
     private readonly GL _gl;
     private readonly VertexArray _vao;
+    private readonly Buffer<float> _vbo;
 
     private const string VertexShaderSource = """
         #version 330 core
@@ -41,30 +43,40 @@ public class Renderer
     private readonly TextureManager _textureManager;
     private readonly Shader _textureShader;
 
-    private static readonly float[] Vertices =
+    private static readonly float[] FullQuadVertices =
     [
-        //X     Y     Z     U   V
+        // Vertex 0: top-right
         0.5f,
         0.5f,
-        0.0f,
+        0f,
         1f,
         1f,
+        // Vertex 1: bottom-right
         0.5f,
         -0.5f,
-        0.0f,
+        0f,
         1f,
         0f,
+        // Vertex 2: bottom-left
         -0.5f,
         -0.5f,
-        0.0f,
         0f,
         0f,
+        0f,
+        // Vertex 3: top-left
         -0.5f,
         0.5f,
-        0.0f,
+        0f,
         0f,
         1f,
     ];
+
+    // Mutable vertex buffer: 4 vertices × 5 floats (x, y, z, u, v)
+    private readonly float[] _vertices = new float[20];
+    private bool _fullUvBufferLoaded = true;
+    private bool _hasLastCustomUv;
+    private Vector2 _lastCustomUvMin;
+    private Vector2 _lastCustomUvMax;
 
     private static readonly uint[] Indices = [0, 1, 3, 1, 2, 3];
 
@@ -75,9 +87,14 @@ public class Renderer
         _textureManager = new TextureManager(_gl);
         _textureShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
-        var vbo = new Buffer<float>(_gl, Vertices, BufferTargetARB.ArrayBuffer);
+        _vbo = new Buffer<float>(
+            _gl,
+            FullQuadVertices,
+            BufferTargetARB.ArrayBuffer,
+            BufferUsageARB.DynamicDraw
+        );
         var ebo = new Buffer<uint>(_gl, Indices, BufferTargetARB.ElementArrayBuffer);
-        _vao = new VertexArray(_gl, vbo, ebo);
+        _vao = new VertexArray(_gl, _vbo, ebo);
 
         CheckGlError();
 
@@ -118,10 +135,97 @@ public class Renderer
     public void EndFrame() { /* No-op for now */
     }
 
-    public unsafe void DrawQuad(Matrix4x4 model, string texturePath)
+    /// <summary>Draws a quad using the full texture (UV 0,0 → 1,1).</summary>
+    public void DrawQuad(Matrix4x4 model, string texturePath)
+    {
+        if (!_fullUvBufferLoaded)
+        {
+            UploadVertices(FullQuadVertices);
+            _fullUvBufferLoaded = true;
+        }
+
+        DrawQuadCore(model, texturePath);
+    }
+
+    /// <summary>Draws a quad using a sub-region of the texture defined by UV coordinates.</summary>
+    public void DrawQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
+    {
+        if (UvEquals(uvMin, Vector2.Zero) && UvEquals(uvMax, Vector2.One))
+        {
+            DrawQuad(model, texturePath);
+            return;
+        }
+
+        if (
+            !_fullUvBufferLoaded
+            && _hasLastCustomUv
+            && UvEquals(uvMin, _lastCustomUvMin)
+            && UvEquals(uvMax, _lastCustomUvMax)
+        )
+        {
+            DrawQuadCore(model, texturePath);
+            return;
+        }
+
+        // Vertex 0: top-right
+        _vertices[0] = 0.5f;
+        _vertices[1] = 0.5f;
+        _vertices[2] = 0f;
+        _vertices[3] = uvMax.X;
+        _vertices[4] = uvMax.Y;
+
+        // Vertex 1: bottom-right
+        _vertices[5] = 0.5f;
+        _vertices[6] = -0.5f;
+        _vertices[7] = 0f;
+        _vertices[8] = uvMax.X;
+        _vertices[9] = uvMin.Y;
+
+        // Vertex 2: bottom-left
+        _vertices[10] = -0.5f;
+        _vertices[11] = -0.5f;
+        _vertices[12] = 0f;
+        _vertices[13] = uvMin.X;
+        _vertices[14] = uvMin.Y;
+
+        // Vertex 3: top-left
+        _vertices[15] = -0.5f;
+        _vertices[16] = 0.5f;
+        _vertices[17] = 0f;
+        _vertices[18] = uvMin.X;
+        _vertices[19] = uvMax.Y;
+
+        UploadVertices(_vertices);
+        _fullUvBufferLoaded = false;
+        _hasLastCustomUv = true;
+        _lastCustomUvMin = uvMin;
+        _lastCustomUvMax = uvMax;
+        DrawQuadCore(model, texturePath);
+    }
+
+    private static bool UvEquals(Vector2 left, Vector2 right)
+    {
+        return MathF.Abs(left.X - right.X) <= UvComparisonEpsilon
+            && MathF.Abs(left.Y - right.Y) <= UvComparisonEpsilon;
+    }
+
+    private unsafe void UploadVertices(float[] vertices)
+    {
+        _vbo.Bind();
+        fixed (float* vertexPtr = vertices)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.ArrayBuffer,
+                0,
+                (nuint)(vertices.Length * sizeof(float)),
+                vertexPtr
+            );
+        }
+    }
+
+    private unsafe void DrawQuadCore(Matrix4x4 model, string texturePath)
     {
         var texture = _textureManager.Get(texturePath);
-
         _textureShader.Bind();
         _textureShader.SetUniformMatrix4("uTransform", model);
 

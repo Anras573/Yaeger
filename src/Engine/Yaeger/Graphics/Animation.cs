@@ -39,6 +39,28 @@ public readonly record struct AnimationFrame
         TexturePath = texturePath;
         Duration = duration;
     }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AnimationFrame"/> struct.
+    /// </summary>
+    /// <param name="sprite">The sprite for this frame.</param>
+    /// <param name="duration">The duration of this frame in seconds. Must be greater than 0.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="sprite"/>'s texture path is null or empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="duration"/> is less than or equal to 0.</exception>
+    public AnimationFrame(Sprite sprite, float duration)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(sprite.TexturePath);
+        if (duration <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(duration),
+                "Duration must be greater than 0."
+            );
+        }
+
+        TexturePath = sprite.TexturePath;
+        Duration = duration;
+    }
 }
 
 /// <summary>

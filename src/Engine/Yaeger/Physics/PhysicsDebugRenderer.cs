@@ -189,9 +189,15 @@ public class PhysicsDebugRenderer : IDisposable
 
     public void Dispose()
     {
-        _vao.Dispose();
-        _vbo.Dispose();
-        _shader.Dispose();
-        GC.SuppressFinalize(this);
+        try
+        {
+            _vao.Dispose();
+            _vbo.Dispose();
+            _shader.Dispose();
+        }
+        finally
+        {
+            GC.SuppressFinalize(this);
+        }
     }
 }

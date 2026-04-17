@@ -92,8 +92,6 @@ public class BatchRenderer : IDisposable
 
         // Setup vertex attributes
         _vao = new VertexArray(_gl, _vbo, _ebo);
-
-        Console.WriteLine($"BatchRenderer initialized with max {MaxQuadsPerBatch} quads per batch");
     }
 
     public void BeginFrame()

@@ -14,6 +14,14 @@ public static class KeyMapper
         { Key.Escape, Keys.Escape },
         { Key.Up, Keys.Up },
         { Key.Down, Keys.Down },
+        { Key.R, Keys.R },
+        { Key.I, Keys.I },
+        { Key.J, Keys.J },
+        { Key.H, Keys.H },
+        { Key.Number1, Keys.Num1 },
+        { Key.Number2, Keys.Num2 },
+        { Key.Number3, Keys.Num3 },
+        { Key.C, Keys.C },
         // Add more mappings as needed
     };
 
