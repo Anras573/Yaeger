@@ -7,6 +7,7 @@ namespace Yaeger.Rendering;
 
 public class Renderer
 {
+    private const float UvComparisonEpsilon = 1e-6f;
     private readonly GL _gl;
     private readonly VertexArray _vao;
     private readonly Buffer<float> _vbo;
@@ -158,8 +159,8 @@ public class Renderer
         if (
             !_fullUvBufferLoaded
             && _hasLastCustomUv
-            && uvMin == _lastCustomUvMin
-            && uvMax == _lastCustomUvMax
+            && UvEquals(uvMin, _lastCustomUvMin)
+            && UvEquals(uvMax, _lastCustomUvMax)
         )
         {
             DrawQuadCore(model, texturePath);
@@ -200,6 +201,12 @@ public class Renderer
         _lastCustomUvMin = uvMin;
         _lastCustomUvMax = uvMax;
         DrawQuadCore(model, texturePath);
+    }
+
+    private static bool UvEquals(Vector2 left, Vector2 right)
+    {
+        return MathF.Abs(left.X - right.X) <= UvComparisonEpsilon
+            && MathF.Abs(left.Y - right.Y) <= UvComparisonEpsilon;
     }
 
     private unsafe void UploadVertices(float[] vertices)
