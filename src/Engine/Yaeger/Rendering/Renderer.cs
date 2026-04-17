@@ -148,9 +148,9 @@ public class Renderer
     }
 
     /// <summary>Draws a quad using a sub-region of the texture defined by UV coordinates.</summary>
-    public unsafe void DrawQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
+    public void DrawQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
     {
-        if (uvMin == Vector2.Zero && uvMax == Vector2.One)
+        if (UvEquals(uvMin, Vector2.Zero) && UvEquals(uvMax, Vector2.One))
         {
             DrawQuad(model, texturePath);
             return;
