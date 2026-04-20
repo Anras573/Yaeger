@@ -18,38 +18,44 @@ public class EntityFactory(World world)
         MaxX = 1.0f,
     };
 
+    // Shared paddle prefab: common components for both paddles.
+    // Position and Player side are applied as overrides after instantiation.
+    private Prefab PaddlePrefab =>
+        new PrefabBuilder()
+            .With(_sprite)
+            .With(new Velocity(Vector2.Zero))
+            .With(new PlayerControlled())
+            .With(_screenBounds with { ClampY = true })
+            .With(new PlayerScore(0))
+            .Build();
+
+    // Ball prefab: all ball components at their initial state.
+    private Prefab BallPrefab =>
+        new PrefabBuilder()
+            .With(_sprite)
+            .With(new Transform2D(Vector2.Zero, 0.0f, new Vector2(0.025f)))
+            .With(new Ball { State = BallState.Waiting, Server = Player.Left })
+            .With(new Velocity(Vector2.Zero))
+            .With(_screenBounds)
+            .Build();
+
     public void SpawnLeftPaddle()
     {
-        var leftPaddle = world.CreateEntity(EntityTags.LeftPaddle);
-        world.AddComponent(leftPaddle, _sprite);
+        var leftPaddle = world.Instantiate(PaddlePrefab, EntityTags.LeftPaddle);
         world.AddComponent(leftPaddle, new Transform2D(new Vector2(-0.95f, 0), 0.0f, _paddleSize));
-        world.AddComponent(leftPaddle, new Velocity(Vector2.Zero));
-        world.AddComponent(leftPaddle, new PlayerControlled());
-        world.AddComponent(leftPaddle, _screenBounds with { ClampY = true });
-        world.AddComponent(leftPaddle, new PlayerScore(0));
         world.AddComponent(leftPaddle, Player.Left);
     }
 
     public void SpawnRightPaddle()
     {
-        var rightPaddle = world.CreateEntity(EntityTags.RightPaddle);
-        world.AddComponent(rightPaddle, _sprite);
+        var rightPaddle = world.Instantiate(PaddlePrefab, EntityTags.RightPaddle);
         world.AddComponent(rightPaddle, new Transform2D(new Vector2(0.95f, 0), 0.0f, _paddleSize));
-        world.AddComponent(rightPaddle, new Velocity(Vector2.Zero));
-        world.AddComponent(rightPaddle, new PlayerControlled());
-        world.AddComponent(rightPaddle, _screenBounds with { ClampY = true });
-        world.AddComponent(rightPaddle, new PlayerScore(0));
         world.AddComponent(rightPaddle, Player.Right);
     }
 
     public void SpawnBall()
     {
-        var ball = world.CreateEntity(EntityTags.Ball);
-        world.AddComponent(ball, _sprite);
-        world.AddComponent(ball, new Transform2D(Vector2.Zero, 0.0f, new Vector2(0.025f)));
-        world.AddComponent(ball, new Ball { State = BallState.Waiting, Server = Player.Left });
-        world.AddComponent(ball, new Velocity(Vector2.Zero));
-        world.AddComponent(ball, _screenBounds);
+        world.Instantiate(BallPrefab, EntityTags.Ball);
     }
 
     public void SpawnBackground()

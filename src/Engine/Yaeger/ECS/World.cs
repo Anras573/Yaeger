@@ -81,6 +81,26 @@ public class World
     public T GetComponent<T>(Entity entity)
         where T : struct => GetStore<T>().Get(entity);
 
+    /// <summary>
+    /// Instantiates a <see cref="Prefab"/> by creating a new entity and applying all of the
+    /// prefab's component values to it.
+    /// </summary>
+    /// <param name="prefab">The prefab template to instantiate.</param>
+    /// <param name="tag">
+    /// An optional tag for the new entity.  When provided the entity is registered under
+    /// this tag and can be looked up via <see cref="GetEntity"/> or <see cref="TryGetEntity"/>.
+    /// Tags must be unique within the world; passing a tag that is already in use replaces
+    /// the previous mapping.
+    /// </param>
+    /// <returns>The newly created entity with all prefab components applied.</returns>
+    public Entity Instantiate(Prefab prefab, string? tag = null)
+    {
+        ArgumentNullException.ThrowIfNull(prefab);
+        var entity = tag is not null ? CreateEntity(tag) : CreateEntity();
+        prefab.Apply(this, entity);
+        return entity;
+    }
+
     public IEnumerable<Entity> Entities => _entities;
 
     public ComponentStorage<T> GetStore<T>()
