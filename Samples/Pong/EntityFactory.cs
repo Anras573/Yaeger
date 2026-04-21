@@ -6,8 +6,9 @@ using Yaeger.Graphics;
 
 namespace Pong;
 
-public class EntityFactory(World world)
+public class EntityFactory
 {
+    private readonly World _world;
     private readonly Vector2 _paddleSize = new(0.025f, 0.5f);
     private readonly Sprite _sprite = new("Assets/square.png");
     private readonly Bounds _screenBounds = new()
@@ -18,10 +19,18 @@ public class EntityFactory(World world)
         MaxX = 1.0f,
     };
 
-    // Shared paddle prefab: common components for both paddles.
-    // Position and Player side are applied as overrides after instantiation.
-    private Prefab PaddlePrefab =>
-        new PrefabBuilder()
+    // Shared paddle prefab built once; Position and Player side are applied as
+    // overrides after instantiation.
+    private readonly Prefab _paddlePrefab;
+
+    // Ball prefab built once; all ball components at their initial state.
+    private readonly Prefab _ballPrefab;
+
+    public EntityFactory(World world)
+    {
+        _world = world;
+
+        _paddlePrefab = new PrefabBuilder()
             .With(_sprite)
             .With(new Velocity(Vector2.Zero))
             .With(new PlayerControlled())
@@ -29,42 +38,41 @@ public class EntityFactory(World world)
             .With(new PlayerScore(0))
             .Build();
 
-    // Ball prefab: all ball components at their initial state.
-    private Prefab BallPrefab =>
-        new PrefabBuilder()
+        _ballPrefab = new PrefabBuilder()
             .With(_sprite)
             .With(new Transform2D(Vector2.Zero, 0.0f, new Vector2(0.025f)))
             .With(new Ball { State = BallState.Waiting, Server = Player.Left })
             .With(new Velocity(Vector2.Zero))
             .With(_screenBounds)
             .Build();
+    }
 
     public void SpawnLeftPaddle()
     {
-        var leftPaddle = world.Instantiate(PaddlePrefab, EntityTags.LeftPaddle);
-        world.AddComponent(leftPaddle, new Transform2D(new Vector2(-0.95f, 0), 0.0f, _paddleSize));
-        world.AddComponent(leftPaddle, Player.Left);
+        var leftPaddle = _world.Instantiate(_paddlePrefab, EntityTags.LeftPaddle);
+        _world.AddComponent(leftPaddle, new Transform2D(new Vector2(-0.95f, 0), 0.0f, _paddleSize));
+        _world.AddComponent(leftPaddle, Player.Left);
     }
 
     public void SpawnRightPaddle()
     {
-        var rightPaddle = world.Instantiate(PaddlePrefab, EntityTags.RightPaddle);
-        world.AddComponent(rightPaddle, new Transform2D(new Vector2(0.95f, 0), 0.0f, _paddleSize));
-        world.AddComponent(rightPaddle, Player.Right);
+        var rightPaddle = _world.Instantiate(_paddlePrefab, EntityTags.RightPaddle);
+        _world.AddComponent(rightPaddle, new Transform2D(new Vector2(0.95f, 0), 0.0f, _paddleSize));
+        _world.AddComponent(rightPaddle, Player.Right);
     }
 
     public void SpawnBall()
     {
-        world.Instantiate(BallPrefab, EntityTags.Ball);
+        _world.Instantiate(_ballPrefab, EntityTags.Ball);
     }
 
     public void SpawnBackground()
     {
         for (var i = -1f; i < 1f; i += 0.05f)
         {
-            var background = world.CreateEntity();
-            world.AddComponent(background, _sprite);
-            world.AddComponent(
+            var background = _world.CreateEntity();
+            _world.AddComponent(background, _sprite);
+            _world.AddComponent(
                 background,
                 new Transform2D(new Vector2(0, i), 0.0f, new Vector2(0.00625f, 0.0125f))
             );
@@ -77,9 +85,9 @@ public class EntityFactory(World world)
         var fontManager = new FontManager();
         var defaultFont = fontManager.Load("Assets/Roboto-Regular.ttf");
 
-        var leftScore = world.CreateEntity(EntityTags.LeftScore);
-        world.AddComponent(leftScore, new Text("0", defaultFont, scoreFontSize, Color.White));
-        world.AddComponent(
+        var leftScore = _world.CreateEntity(EntityTags.LeftScore);
+        _world.AddComponent(leftScore, new Text("0", defaultFont, scoreFontSize, Color.White));
+        _world.AddComponent(
             leftScore,
             new Transform2D
             {
@@ -88,9 +96,9 @@ public class EntityFactory(World world)
             }
         );
 
-        var rightScore = world.CreateEntity(EntityTags.RightScore);
-        world.AddComponent(rightScore, new Text("0", defaultFont, scoreFontSize, Color.White));
-        world.AddComponent(
+        var rightScore = _world.CreateEntity(EntityTags.RightScore);
+        _world.AddComponent(rightScore, new Text("0", defaultFont, scoreFontSize, Color.White));
+        _world.AddComponent(
             rightScore,
             new Transform2D
             {

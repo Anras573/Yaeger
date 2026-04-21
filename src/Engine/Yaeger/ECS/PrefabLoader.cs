@@ -83,6 +83,9 @@ public sealed class PrefabLoader
         {
             var root = doc.RootElement;
 
+            if (root.ValueKind != JsonValueKind.Object)
+                throw new PrefabLoadException("Prefab JSON root must be a JSON object.");
+
             if (!root.TryGetProperty("components", out var componentsEl))
                 throw new PrefabLoadException(
                     "Prefab JSON is missing the required 'components' array."
@@ -95,6 +98,11 @@ public sealed class PrefabLoader
 
             foreach (var componentEl in componentsEl.EnumerateArray())
             {
+                if (componentEl.ValueKind != JsonValueKind.Object)
+                    throw new PrefabLoadException(
+                        "Each component entry in 'components' must be a JSON object."
+                    );
+
                 if (!componentEl.TryGetProperty("type", out var typeEl))
                     throw new PrefabLoadException(
                         "Each component entry must have a 'type' property."

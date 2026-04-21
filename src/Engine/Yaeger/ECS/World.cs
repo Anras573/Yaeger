@@ -20,6 +20,10 @@ public class World
     public Entity CreateEntity(string tag)
     {
         var entity = CreateEntity();
+        // Clean up the previous entity's reverse mapping when a tag is reused so that
+        // destroying the old entity does not accidentally remove the new entity's tag.
+        if (_taggedEntities.TryGetValue(tag, out var previousEntity))
+            _entitiesByTag.Remove(previousEntity);
         _taggedEntities[tag] = entity;
         _entitiesByTag[entity] = tag;
         return entity;
@@ -89,13 +93,16 @@ public class World
     /// <param name="tag">
     /// An optional tag for the new entity.  When provided the entity is registered under
     /// this tag and can be looked up via <see cref="GetEntity"/> or <see cref="TryGetEntity"/>.
-    /// Tags must be unique within the world; passing a tag that is already in use replaces
-    /// the previous mapping.
+    /// Tags must be unique within the world; if the tag is already in use the previous
+    /// entity's reverse mapping is cleaned up before the new mapping is created.
+    /// The tag must not be empty or whitespace.
     /// </param>
     /// <returns>The newly created entity with all prefab components applied.</returns>
     public Entity Instantiate(Prefab prefab, string? tag = null)
     {
         ArgumentNullException.ThrowIfNull(prefab);
+        if (tag is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(tag);
         var entity = tag is not null ? CreateEntity(tag) : CreateEntity();
         prefab.Apply(this, entity);
         return entity;

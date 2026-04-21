@@ -376,8 +376,68 @@ public class PrefabLoaderTests
     public void Load_FileDoesNotExist_ThrowsFileNotFoundException()
     {
         var loader = MakeLoader();
+        var missingPath = Path.Combine(
+            Path.GetTempPath(),
+            $"missing-prefab-{Guid.NewGuid():N}.json"
+        );
 
-        Assert.Throws<FileNotFoundException>(() => loader.Load("/nonexistent/prefab.json"));
+        Assert.Throws<FileNotFoundException>(() => loader.Load(missingPath));
+    }
+
+    // ── PrefabLoader.Parse – root shape validation ────────────────────────────
+
+    [Fact]
+    public void Parse_NonObjectRoot_ThrowsPrefabLoadException()
+    {
+        var loader = MakeLoader();
+
+        Assert.Throws<PrefabLoadException>(() => loader.Parse("""[]"""));
+    }
+
+    [Fact]
+    public void Parse_NonObjectComponentEntry_ThrowsPrefabLoadException()
+    {
+        var loader = MakeLoader();
+
+        Assert.Throws<PrefabLoadException>(() => loader.Parse("""{ "components": [ 42 ] }"""));
+    }
+
+    // ── World.Instantiate – tag validation ────────────────────────────────────
+
+    [Fact]
+    public void Instantiate_EmptyTag_ThrowsArgumentException()
+    {
+        var world = new World();
+        var prefab = new PrefabBuilder().Build();
+
+        Assert.Throws<ArgumentException>(() => world.Instantiate(prefab, ""));
+    }
+
+    [Fact]
+    public void Instantiate_WhitespaceTag_ThrowsArgumentException()
+    {
+        var world = new World();
+        var prefab = new PrefabBuilder().Build();
+
+        Assert.Throws<ArgumentException>(() => world.Instantiate(prefab, "   "));
+    }
+
+    // ── World tag reuse – reverse mapping correctness ────────────────────────
+
+    [Fact]
+    public void Instantiate_ReusingTag_DestroyOldEntityDoesNotRemoveNewTagMapping()
+    {
+        var world = new World();
+        var prefab = new PrefabBuilder().Build();
+
+        var first = world.Instantiate(prefab, "shared");
+        var second = world.Instantiate(prefab, "shared");
+
+        world.DestroyEntity(first);
+
+        // The tag should still point to the second entity.
+        Assert.True(world.TryGetEntity("shared", out var found));
+        Assert.Equal(second, found);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
