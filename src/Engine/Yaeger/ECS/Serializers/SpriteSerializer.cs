@@ -20,9 +20,17 @@ public sealed class SpriteSerializer : IComponentSerializer
     /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
-        var texturePath =
-            element.GetProperty("texturePath").GetString()
-            ?? throw new PrefabLoadException("Sprite 'texturePath' must be a non-null string.");
+        if (!element.TryGetProperty("texturePath", out var texturePathEl))
+            throw new PrefabLoadException(
+                "Sprite component is missing required 'texturePath' property."
+            );
+
+        if (texturePathEl.ValueKind != JsonValueKind.String)
+            throw new PrefabLoadException("Sprite 'texturePath' must be a string.");
+
+        var texturePath = texturePathEl.GetString();
+        if (string.IsNullOrWhiteSpace(texturePath))
+            throw new PrefabLoadException("Sprite 'texturePath' must be a non-empty string.");
 
         var component = new Sprite(texturePath);
         return (world, entity) => world.AddComponent(entity, component);

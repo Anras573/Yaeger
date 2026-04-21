@@ -127,7 +127,7 @@ public sealed class PrefabLoader
                 Action<World, Entity> adder;
                 try
                 {
-                    adder = serializer.Deserialize(componentEl);
+                    adder = serializer.Deserialize(componentEl.Clone());
                 }
                 catch (Exception ex) when (ex is not PrefabLoadException)
                 {

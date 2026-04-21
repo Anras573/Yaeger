@@ -28,21 +28,62 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
     /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
-        var texturePath =
-            element.GetProperty("texturePath").GetString()
-            ?? throw new PrefabLoadException(
-                "SpriteSheet 'texturePath' must be a non-null string."
-            );
-
-        var columns = element.GetProperty("columns").GetInt32();
-
-        var rows = element.TryGetProperty("rows", out var rowsEl) ? rowsEl.GetInt32() : 1;
-
-        int? frameCount = element.TryGetProperty("frameCount", out var fcEl)
-            ? fcEl.GetInt32()
-            : null;
+        var texturePath = GetRequiredString(element, "texturePath");
+        var columns = GetRequiredPositiveInt(element, "columns");
+        var rows = GetOptionalPositiveInt(element, "rows") ?? 1;
+        var frameCount = GetOptionalPositiveInt(element, "frameCount");
 
         var component = new SpriteSheet(texturePath, columns, rows, frameCount);
         return (world, entity) => world.AddComponent(entity, component);
+    }
+
+    private static string GetRequiredString(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+            throw new PrefabLoadException(
+                $"SpriteSheet is missing required '{propertyName}' property."
+            );
+
+        if (property.ValueKind != JsonValueKind.String)
+            throw new PrefabLoadException($"SpriteSheet '{propertyName}' must be a string.");
+
+        return property.GetString()
+            ?? throw new PrefabLoadException(
+                $"SpriteSheet '{propertyName}' must be a non-null string."
+            );
+    }
+
+    private static int GetRequiredPositiveInt(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+            throw new PrefabLoadException(
+                $"SpriteSheet is missing required '{propertyName}' property."
+            );
+
+        if (!property.TryGetInt32(out var value))
+            throw new PrefabLoadException($"SpriteSheet '{propertyName}' must be an integer.");
+
+        if (value <= 0)
+            throw new PrefabLoadException($"SpriteSheet '{propertyName}' must be greater than 0.");
+
+        return value;
+    }
+
+    private static int? GetOptionalPositiveInt(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+            return null;
+
+        if (!property.TryGetInt32(out var value))
+            throw new PrefabLoadException(
+                $"SpriteSheet '{propertyName}' must be an integer when provided."
+            );
+
+        if (value <= 0)
+            throw new PrefabLoadException(
+                $"SpriteSheet '{propertyName}' must be greater than 0 when provided."
+            );
+
+        return value;
     }
 }

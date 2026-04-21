@@ -162,6 +162,82 @@ public class PrefabLoaderTests
     }
 
     [Fact]
+    public void SpriteSerializer_MissingTexturePath_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse("""{ "components": [ { "type": "Sprite" } ] }""")
+        );
+        Assert.Contains("texturePath", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSerializer_NonStringTexturePath_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse("""{ "components": [ { "type": "Sprite", "texturePath": 123 } ] }""")
+        );
+        Assert.Contains("texturePath", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_MissingTexturePath_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse("""{ "components": [ { "type": "SpriteSheet", "columns": 4 } ] }""")
+        );
+        Assert.Contains("texturePath", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_MissingColumns_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png" } ] }"""
+            )
+        );
+        Assert.Contains("columns", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_ZeroColumns_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 0 } ] }"""
+            )
+        );
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_ZeroRows_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "rows": 0 } ] }"""
+            )
+        );
+    }
+
+    [Fact]
     public void Transform2DSerializer_RoundTrip_WithArrayVectors()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
