@@ -23,7 +23,17 @@ public sealed class ComponentRegistry
     public void Register(IComponentSerializer serializer)
     {
         ArgumentNullException.ThrowIfNull(serializer);
-        _serializers[serializer.TypeId] = serializer;
+
+        string? typeId = serializer.TypeId;
+        if (string.IsNullOrWhiteSpace(typeId))
+        {
+            throw new ArgumentException(
+                "Serializer TypeId cannot be null, empty, or whitespace.",
+                nameof(serializer)
+            );
+        }
+
+        _serializers[typeId] = serializer;
     }
 
     /// <summary>
