@@ -30,11 +30,14 @@ public class EntityFactory
     {
         _world = world;
 
+        var paddleBounds = _screenBounds;
+        paddleBounds.ClampY = true;
+
         _paddlePrefab = new PrefabBuilder()
             .With(_sprite)
             .With(new Velocity(Vector2.Zero))
             .With(new PlayerControlled())
-            .With(_screenBounds with { ClampY = true })
+            .With(paddleBounds)
             .With(new PlayerScore(0))
             .Build();
 

@@ -8,9 +8,12 @@ namespace Yaeger.ECS;
 /// <remarks>
 /// Create prefabs with <see cref="PrefabBuilder"/>.
 /// Because C# components are structs, each instantiation receives its own copy of
-/// every component value stored in the prefab.  Reference-typed fields inside
-/// components (e.g. <c>Animation.Frames</c> arrays) are shallow-copied, which is safe
-/// because those fields are treated as immutable by the engine.
+/// every component value stored in the prefab. Reference-typed fields inside
+/// components are still copied by reference, so instantiated entities will share the
+/// same referenced object unless the component itself provides immutable data or
+/// performs its own defensive copy. Consumers should not mutate such shared
+/// referenced data after building a prefab unless the component explicitly documents
+/// that doing so is safe.
 /// </remarks>
 public sealed class Prefab
 {
