@@ -36,6 +36,7 @@ public sealed class PrefabBuilder
     /// </summary>
     internal PrefabBuilder WithAction(Action<World, Entity> adder)
     {
+        ArgumentNullException.ThrowIfNull(adder);
         _componentAdders.Add(adder);
         return this;
     }
