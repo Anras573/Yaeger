@@ -66,7 +66,8 @@ public sealed class PrefabLoader
     /// </exception>
     public Prefab Parse(string json)
     {
-        ArgumentException.ThrowIfNullOrEmpty(json);
+        if (string.IsNullOrEmpty(json))
+            throw new PrefabLoadException("Prefab JSON must be a non-empty string.");
 
         JsonDocument doc;
         try
