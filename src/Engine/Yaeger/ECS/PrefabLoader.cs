@@ -108,8 +108,11 @@ public sealed class PrefabLoader
                         "Each component entry must have a 'type' property."
                     );
 
+                if (typeEl.ValueKind != JsonValueKind.String)
+                    throw new PrefabLoadException("Component 'type' must be a non-empty string.");
+
                 var typeId = typeEl.GetString();
-                if (string.IsNullOrEmpty(typeId))
+                if (string.IsNullOrWhiteSpace(typeId))
                     throw new PrefabLoadException("Component 'type' must be a non-empty string.");
 
                 if (!_registry.TryGetSerializer(typeId, out var serializer))

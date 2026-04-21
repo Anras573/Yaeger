@@ -102,7 +102,7 @@ public class World
     {
         ArgumentNullException.ThrowIfNull(prefab);
         if (tag is not null)
-            ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+            ArgumentException.ThrowIfNullOrWhiteSpace(tag, nameof(tag));
         var entity = tag is not null ? CreateEntity(tag) : CreateEntity();
         prefab.Apply(this, entity);
         return entity;
