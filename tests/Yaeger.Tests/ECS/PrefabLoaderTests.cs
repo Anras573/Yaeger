@@ -388,6 +388,116 @@ public class PrefabLoaderTests
     }
 
     [Fact]
+    public void AnimationSerializer_NonObjectFrameEntry_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse("""{ "components": [ { "type": "Animation", "frames": [ 42 ] } ] }""")
+        );
+        Assert.Contains("frame 0", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationSerializer_MissingTexturePath_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Animation", "frames": [ { "duration": 0.1 } ] } ] }"""
+            )
+        );
+        Assert.Contains("texturePath", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationSerializer_NonStringTexturePath_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Animation", "frames": [ { "texturePath": 123, "duration": 0.1 } ] } ] }"""
+            )
+        );
+        Assert.Contains("texturePath", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationSerializer_EmptyTexturePath_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Animation", "frames": [ { "texturePath": "", "duration": 0.1 } ] } ] }"""
+            )
+        );
+        Assert.Contains("texturePath", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationSerializer_MissingDuration_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Animation", "frames": [ { "texturePath": "f.png" } ] } ] }"""
+            )
+        );
+        Assert.Contains("duration", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationSerializer_NonPositiveDuration_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Animation", "frames": [ { "texturePath": "f.png", "duration": 0.0 } ] } ] }"""
+            )
+        );
+        Assert.Contains("duration", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_WhitespaceTexturePath_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "   ", "columns": 4 } ] }"""
+            )
+        );
+        Assert.Contains("texturePath", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_FrameCountExceedsColumnsTimesRows_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 2, "rows": 2, "frameCount": 5 } ] }"""
+            )
+        );
+        Assert.Contains("frameCount", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void AnimationStateSerializer_RoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();

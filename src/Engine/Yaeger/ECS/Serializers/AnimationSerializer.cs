@@ -45,13 +45,37 @@ public sealed class AnimationSerializer : IComponentSerializer
         {
             var frameEl = framesArray[i];
 
-            var texturePath =
-                frameEl.GetProperty("texturePath").GetString()
-                ?? throw new PrefabLoadException(
-                    $"Animation frame {i} 'texturePath' must be a non-null string."
+            if (frameEl.ValueKind != JsonValueKind.Object)
+                throw new PrefabLoadException($"Animation frame {i} must be a JSON object.");
+
+            if (
+                !frameEl.TryGetProperty("texturePath", out var texturePathEl)
+                || texturePathEl.ValueKind != JsonValueKind.String
+            )
+                throw new PrefabLoadException(
+                    $"Animation frame {i} 'texturePath' must be a non-empty string."
                 );
 
-            var duration = frameEl.GetProperty("duration").GetSingle();
+            var texturePath = texturePathEl.GetString();
+            if (string.IsNullOrWhiteSpace(texturePath))
+                throw new PrefabLoadException(
+                    $"Animation frame {i} 'texturePath' must be a non-empty string."
+                );
+
+            if (
+                !frameEl.TryGetProperty("duration", out var durationEl)
+                || durationEl.ValueKind != JsonValueKind.Number
+                || !durationEl.TryGetSingle(out var duration)
+            )
+                throw new PrefabLoadException(
+                    $"Animation frame {i} 'duration' must be a positive number."
+                );
+
+            if (duration <= 0)
+                throw new PrefabLoadException(
+                    $"Animation frame {i} 'duration' must be a positive number."
+                );
+
             frames[i] = new AnimationFrame(texturePath, duration);
         }
 

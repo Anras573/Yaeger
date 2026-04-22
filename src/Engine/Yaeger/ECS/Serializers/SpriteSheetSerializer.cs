@@ -33,6 +33,11 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
         var rows = GetOptionalPositiveInt(element, "rows") ?? 1;
         var frameCount = GetOptionalPositiveInt(element, "frameCount");
 
+        if (frameCount.HasValue && frameCount.Value > columns * rows)
+            throw new PrefabLoadException(
+                $"SpriteSheet 'frameCount' ({frameCount.Value}) must not exceed columns * rows ({columns * rows})."
+            );
+
         var component = new SpriteSheet(texturePath, columns, rows, frameCount);
         return (world, entity) => world.AddComponent(entity, component);
     }
@@ -47,9 +52,10 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
         if (property.ValueKind != JsonValueKind.String)
             throw new PrefabLoadException($"SpriteSheet '{propertyName}' must be a string.");
 
-        return property.GetString()
-            ?? throw new PrefabLoadException(
-                $"SpriteSheet '{propertyName}' must be a non-null string."
+        return property.GetString() is { } value && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : throw new PrefabLoadException(
+                $"SpriteSheet '{propertyName}' must be a non-empty string."
             );
     }
 
