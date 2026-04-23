@@ -19,7 +19,6 @@ public class World
 
     public Entity CreateEntity(string tag)
     {
-        ArgumentNullException.ThrowIfNull(tag);
         ArgumentException.ThrowIfNullOrWhiteSpace(tag, nameof(tag));
         var entity = CreateEntity();
         // Clean up the previous entity's reverse mapping when a tag is reused so that

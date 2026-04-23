@@ -49,6 +49,8 @@ public sealed class PrefabLoader
     /// </exception>
     public Prefab Load(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
+
         if (!File.Exists(path))
             throw new FileNotFoundException($"Prefab file not found: {path}", path);
 
