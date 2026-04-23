@@ -8,13 +8,14 @@ namespace Yaeger.ECS.Serializers;
 /// Serializer for the <see cref="Transform2D"/> component.
 /// </summary>
 /// <remarks>
-/// JSON format (vectors as two-element arrays <c>[x, y]</c>):
+/// Vector2 values can be specified as a two-element array <c>[x, y]</c> or as an object
+/// <c>{ "x": number, "y": number }</c>. Both forms are accepted for <c>position</c> and <c>scale</c>.
 /// <code>
 /// {
 ///   "type": "Transform2D",
 ///   "position": [0.0, 0.0],
 ///   "rotation": 0.0,
-///   "scale": [1.0, 1.0]
+///   "scale": { "x": 1.0, "y": 1.0 }
 /// }
 /// </code>
 /// All properties are optional and default to their zero/identity values when absent.
