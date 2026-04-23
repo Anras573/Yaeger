@@ -33,11 +33,22 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
         var rows = GetOptionalPositiveInt(element, "rows") ?? 1;
         var frameCount = GetOptionalPositiveInt(element, "frameCount");
 
-        if (frameCount.HasValue && frameCount.Value > columns * rows)
+        int maxFrameCount;
+        try
+        {
+            maxFrameCount = checked(columns * rows);
+        }
+        catch (OverflowException)
+        {
             throw new PrefabLoadException(
-                $"SpriteSheet 'frameCount' ({frameCount.Value}) must not exceed columns * rows ({columns * rows})."
+                $"SpriteSheet 'columns' ({columns}) and 'rows' ({rows}) produce too many frames."
             );
+        }
 
+        if (frameCount.HasValue && frameCount.Value > maxFrameCount)
+            throw new PrefabLoadException(
+                $"SpriteSheet 'frameCount' ({frameCount.Value}) must not exceed columns * rows ({maxFrameCount})."
+            );
         var component = new SpriteSheet(texturePath, columns, rows, frameCount);
         return (world, entity) => world.AddComponent(entity, component);
     }
