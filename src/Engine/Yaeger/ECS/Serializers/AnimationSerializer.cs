@@ -53,12 +53,14 @@ public sealed class AnimationSerializer : IComponentSerializer
             if (frameEl.ValueKind != JsonValueKind.Object)
                 throw new PrefabLoadException($"Animation frame {i} must be a JSON object.");
 
-            if (
-                !frameEl.TryGetProperty("texturePath", out var texturePathEl)
-                || texturePathEl.ValueKind != JsonValueKind.String
-            )
+            if (!frameEl.TryGetProperty("texturePath", out var texturePathEl))
                 throw new PrefabLoadException(
-                    $"Animation frame {i} 'texturePath' must be a non-empty string."
+                    $"Animation frame {i} is missing required 'texturePath' property."
+                );
+
+            if (texturePathEl.ValueKind != JsonValueKind.String)
+                throw new PrefabLoadException(
+                    $"Animation frame {i} 'texturePath' must be a string."
                 );
 
             var texturePath = texturePathEl.GetString();
