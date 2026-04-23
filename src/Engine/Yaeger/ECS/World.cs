@@ -19,7 +19,12 @@ public class World
 
     public Entity CreateEntity(string tag)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag, nameof(tag));
         var entity = CreateEntity();
+        // Clean up the previous entity's reverse mapping when a tag is reused so that
+        // destroying the old entity does not accidentally remove the new entity's tag.
+        if (_taggedEntities.TryGetValue(tag, out var previousEntity))
+            _entitiesByTag.Remove(previousEntity);
         _taggedEntities[tag] = entity;
         _entitiesByTag[entity] = tag;
         return entity;
@@ -80,6 +85,29 @@ public class World
 
     public T GetComponent<T>(Entity entity)
         where T : struct => GetStore<T>().Get(entity);
+
+    /// <summary>
+    /// Instantiates a <see cref="Prefab"/> by creating a new entity and applying all of the
+    /// prefab's component values to it.
+    /// </summary>
+    /// <param name="prefab">The prefab template to instantiate.</param>
+    /// <param name="tag">
+    /// An optional tag for the new entity.  When provided the entity is registered under
+    /// this tag and can be looked up via <see cref="GetEntity"/> or <see cref="TryGetEntity"/>.
+    /// A tag can only be bound to one entity at a time; if the tag is already in use, it is
+    /// rebound to the new entity and the previous entity's reverse mapping is cleaned up.
+    /// The tag must not be empty or whitespace.
+    /// </param>
+    /// <returns>The newly created entity with all prefab components applied.</returns>
+    public Entity Instantiate(Prefab prefab, string? tag = null)
+    {
+        ArgumentNullException.ThrowIfNull(prefab);
+        if (tag is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(tag, nameof(tag));
+        var entity = tag is not null ? CreateEntity(tag) : CreateEntity();
+        prefab.Apply(this, entity);
+        return entity;
+    }
 
     public IEnumerable<Entity> Entities => _entities;
 
