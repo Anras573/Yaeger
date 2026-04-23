@@ -66,7 +66,7 @@ public sealed class PrefabLoader
     /// </exception>
     public Prefab Parse(string json)
     {
-        if (string.IsNullOrEmpty(json))
+        if (string.IsNullOrWhiteSpace(json))
             throw new PrefabLoadException("Prefab JSON must be a non-empty string.");
 
         JsonDocument doc;
@@ -109,7 +109,7 @@ public sealed class PrefabLoader
                     );
 
                 if (typeEl.ValueKind != JsonValueKind.String)
-                    throw new PrefabLoadException("Component 'type' must be a non-empty string.");
+                    throw new PrefabLoadException("Component 'type' must be a string.");
 
                 var typeId = typeEl.GetString();
                 if (string.IsNullOrWhiteSpace(typeId))
