@@ -28,14 +28,19 @@ public sealed class AnimationSerializer : IComponentSerializer
     /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
-        var loop = !element.TryGetProperty("loop", out var loopEl) || loopEl.GetBoolean();
+        var loop = true;
+        if (element.TryGetProperty("loop", out var loopEl))
+        {
+            if (loopEl.ValueKind != JsonValueKind.True && loopEl.ValueKind != JsonValueKind.False)
+                throw new PrefabLoadException("Animation 'loop' must be a JSON boolean.");
 
-        if (
-            !element.TryGetProperty("frames", out var framesEl)
-            || framesEl.ValueKind != JsonValueKind.Array
-        )
-            throw new PrefabLoadException("Animation 'frames' must be a non-empty JSON array.");
+            loop = loopEl.GetBoolean();
+        }
+        if (!element.TryGetProperty("frames", out var framesEl))
+            throw new PrefabLoadException("Animation is missing required 'frames' property.");
 
+        if (framesEl.ValueKind != JsonValueKind.Array)
+            throw new PrefabLoadException("Animation 'frames' must be a JSON array.");
         var framesArray = framesEl.EnumerateArray().ToArray();
         if (framesArray.Length == 0)
             throw new PrefabLoadException("Animation 'frames' must contain at least one entry.");

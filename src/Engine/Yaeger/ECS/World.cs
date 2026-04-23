@@ -93,8 +93,8 @@ public class World
     /// <param name="tag">
     /// An optional tag for the new entity.  When provided the entity is registered under
     /// this tag and can be looked up via <see cref="GetEntity"/> or <see cref="TryGetEntity"/>.
-    /// Tags must be unique within the world; if the tag is already in use the previous
-    /// entity's reverse mapping is cleaned up before the new mapping is created.
+    /// A tag can only be bound to one entity at a time; if the tag is already in use, it is
+    /// rebound to the new entity and the previous entity's reverse mapping is cleaned up.
     /// The tag must not be empty or whitespace.
     /// </param>
     /// <returns>The newly created entity with all prefab components applied.</returns>
