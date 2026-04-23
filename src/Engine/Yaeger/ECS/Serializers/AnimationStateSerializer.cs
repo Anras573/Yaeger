@@ -49,7 +49,11 @@ public sealed class AnimationStateSerializer : IComponentSerializer
         return value;
     }
 
-    private static float GetOptionalSingle(JsonElement element, string propertyName, float defaultValue)
+    private static float GetOptionalSingle(
+        JsonElement element,
+        string propertyName,
+        float defaultValue
+    )
     {
         if (!element.TryGetProperty(propertyName, out var property))
         {
@@ -64,7 +68,11 @@ public sealed class AnimationStateSerializer : IComponentSerializer
         return value;
     }
 
-    private static bool GetOptionalBoolean(JsonElement element, string propertyName, bool defaultValue)
+    private static bool GetOptionalBoolean(
+        JsonElement element,
+        string propertyName,
+        bool defaultValue
+    )
     {
         if (!element.TryGetProperty(propertyName, out var property))
         {

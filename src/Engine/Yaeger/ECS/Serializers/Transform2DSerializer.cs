@@ -57,26 +57,36 @@ public sealed class Transform2DSerializer : IComponentSerializer
         {
             var arr = el.EnumerateArray().ToArray();
             if (arr.Length != 2)
-                throw new PrefabLoadException($"Property '{propertyName}' must be a Vector2 array with exactly two numeric elements.");
+                throw new PrefabLoadException(
+                    $"Property '{propertyName}' must be a Vector2 array with exactly two numeric elements."
+                );
 
             return new Vector2(
                 ReadSingle(arr[0], $"{propertyName}[0]"),
-                ReadSingle(arr[1], $"{propertyName}[1]"));
+                ReadSingle(arr[1], $"{propertyName}[1]")
+            );
         }
 
         if (el.ValueKind == JsonValueKind.Object)
         {
             if (!el.TryGetProperty("x", out var xEl))
-                throw new PrefabLoadException($"Property '{propertyName}' must contain an 'x' number.");
+                throw new PrefabLoadException(
+                    $"Property '{propertyName}' must contain an 'x' number."
+                );
 
             if (!el.TryGetProperty("y", out var yEl))
-                throw new PrefabLoadException($"Property '{propertyName}' must contain a 'y' number.");
+                throw new PrefabLoadException(
+                    $"Property '{propertyName}' must contain a 'y' number."
+                );
 
             return new Vector2(
                 ReadSingle(xEl, $"{propertyName}.x"),
-                ReadSingle(yEl, $"{propertyName}.y"));
+                ReadSingle(yEl, $"{propertyName}.y")
+            );
         }
 
-        throw new PrefabLoadException($"Property '{propertyName}' must be a Vector2 represented as [x, y] or {{ \"x\": number, \"y\": number }}.");
+        throw new PrefabLoadException(
+            $"Property '{propertyName}' must be a Vector2 represented as [x, y] or {{ \"x\": number, \"y\": number }}."
+        );
     }
 }
