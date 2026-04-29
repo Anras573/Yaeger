@@ -13,23 +13,15 @@ public class ScoringSystem(World world) : IUpdateSystem
         var transform = world.GetComponent<Transform2D>(ballEntity);
         var bounds = world.GetComponent<Bounds>(ballEntity);
 
-        // Check for score
-        // Ball bounds
         var ballPos = transform.Position;
         var ballScale = transform.Scale;
         var ballHalf = ballScale / 2f;
 
-        // Left player scored
         if (ballPos.X + ballHalf.X > bounds.MaxX)
-        {
             HandleScore(EntityTags.LeftPaddle, Player.Right, ballEntity);
-        }
 
-        // Right player scored
         if (ballPos.X - ballHalf.X < bounds.MinX)
-        {
             HandleScore(EntityTags.RightPaddle, Player.Left, ballEntity);
-        }
     }
 
     private void HandleScore(string playerTag, Player server, Entity ballEntity)

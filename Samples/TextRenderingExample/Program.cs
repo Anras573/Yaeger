@@ -17,7 +17,7 @@ window.OnLoad += OnLoad;
 window.OnRender += OnRender;
 window.OnClosing += OnClosing;
 
-Keyboard.AddKeyDown(Keys.Escape, () => window.Close());
+Keyboard.AddKeyDown(Keys.Escape, window.Close);
 
 window.Run();
 
@@ -25,52 +25,35 @@ Console.WriteLine("Window closed");
 
 return;
 
+void AddTextOverlay(Font font, string content, Vector2 position, int fontSize, Color color)
+{
+    var entity = world.CreateEntity();
+    world.AddComponent(entity, new Text(content, font, fontSize, color));
+    world.AddComponent(
+        entity,
+        new Transform2D { Position = position, Scale = new Vector2(0.003f, 0.003f) }
+    );
+}
+
 void OnLoad()
 {
     Console.WriteLine("Text Rendering Example - Loading...");
 
     var defaultFont = fontManager.Load("Assets/Roboto-Regular.ttf");
 
-    var textEntity = world.CreateEntity();
-    world.AddComponent(textEntity, new Text("Hello, Yaeger!", defaultFont, 24, Color.White));
-    world.AddComponent(
-        textEntity,
-        new Transform2D
-        {
-            Position = new Vector2(-0.95f, 0),
-            Scale = new Vector2(0.003f, 0.003f), // Scale down for screen-space rendering
-        }
+    AddTextOverlay(defaultFont, "Hello, Yaeger!", new Vector2(-0.95f, 0), 24, Color.White);
+    AddTextOverlay(
+        defaultFont,
+        "The quick brown fox jumps over the lazy dog",
+        new Vector2(-0.95f, -0.2f),
+        16,
+        Color.Green
     );
-
-    var textEntity2 = world.CreateEntity();
-    world.AddComponent(
-        textEntity2,
-        new Text("The quick brown fox jumps over the lazy dog", defaultFont, 16, Color.Green)
-    );
-    world.AddComponent(
-        textEntity2,
-        new Transform2D
-        {
-            Position = new Vector2(-0.95f, -0.2f),
-            Scale = new Vector2(0.003f, 0.003f), // Scale down for screen-space rendering
-        }
-    );
-
-    var textEntity3 = world.CreateEntity();
-    world.AddComponent(textEntity3, new Text("Press ESC to exit", defaultFont, 8, Color.Blue));
-    world.AddComponent(
-        textEntity3,
-        new Transform2D
-        {
-            Position = new Vector2(-0.95f, -0.4f),
-            Scale = new Vector2(0.003f, 0.003f), // Scale down for screen-space rendering
-        }
-    );
+    AddTextOverlay(defaultFont, "Press ESC to exit", new Vector2(-0.95f, -0.4f), 8, Color.Blue);
 }
 
 void OnRender(double deltaTime)
 {
-    // Render all text entities
     textRenderSystem.Render();
 }
 

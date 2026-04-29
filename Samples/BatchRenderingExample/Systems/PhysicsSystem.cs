@@ -8,7 +8,6 @@ public class PhysicsSystem(World world)
 {
     public void Update(float deltaTime)
     {
-        // Update sprite positions and rotations
         foreach (
             (
                 Entity entity,
@@ -22,7 +21,6 @@ public class PhysicsSystem(World world)
             var rotation = transform2D.Rotation + rotationSpeed.Value * deltaTime;
             var newVelocity = velocity;
 
-            // Bounce off edges
             if (position.X is < -1f or > 1f)
             {
                 newVelocity = new Velocity(velocity.Value with { X = -velocity.Value.X });
@@ -42,7 +40,8 @@ public class PhysicsSystem(World world)
                     Rotation = rotation,
                 }
             );
-            world.AddComponent(entity, newVelocity);
+            if (newVelocity.Value != velocity.Value)
+                world.AddComponent(entity, newVelocity);
         }
     }
 }

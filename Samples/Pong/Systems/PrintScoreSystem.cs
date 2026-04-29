@@ -5,22 +5,39 @@ using Yaeger.Systems;
 
 namespace Pong.Systems;
 
-public class PrintScoreSystem(World world) : IUpdateSystem
+public class PrintScoreSystem : IUpdateSystem
 {
-    public void Update(float deltaTime)
+    private readonly World _world;
+    private readonly Entity _leftPaddle;
+    private readonly Entity _rightPaddle;
+    private readonly Entity _leftScore;
+    private readonly Entity _rightScore;
+    private int _lastLeftScore = -1;
+    private int _lastRightScore = -1;
+
+    public PrintScoreSystem(World world)
     {
-        UpdateScore(EntityTags.LeftPaddle, EntityTags.LeftScore);
-        UpdateScore(EntityTags.RightPaddle, EntityTags.RightScore);
+        _world = world;
+        _leftPaddle = world.GetEntity(EntityTags.LeftPaddle);
+        _rightPaddle = world.GetEntity(EntityTags.RightPaddle);
+        _leftScore = world.GetEntity(EntityTags.LeftScore);
+        _rightScore = world.GetEntity(EntityTags.RightScore);
     }
 
-    private void UpdateScore(string playerTag, string scoreTag)
+    public void Update(float deltaTime)
     {
-        var player = world.GetEntity(playerTag);
-        var playerScore = world.GetComponent<PlayerScore>(player);
+        UpdateScore(_leftPaddle, _leftScore, ref _lastLeftScore);
+        UpdateScore(_rightPaddle, _rightScore, ref _lastRightScore);
+    }
 
-        var scoreEntity = world.GetEntity(scoreTag);
-        var scoreText = world.GetComponent<Text>(scoreEntity);
+    private void UpdateScore(Entity playerEntity, Entity scoreEntity, ref int lastScore)
+    {
+        var score = _world.GetComponent<PlayerScore>(playerEntity).Score;
+        if (score == lastScore)
+            return;
 
-        world.AddComponent(scoreEntity, scoreText with { Content = playerScore.Score.ToString() });
+        lastScore = score;
+        var scoreText = _world.GetComponent<Text>(scoreEntity);
+        _world.AddComponent(scoreEntity, scoreText with { Content = score.ToString() });
     }
 }

@@ -6,23 +6,25 @@ using Yaeger.Systems;
 
 namespace Pong.Systems;
 
-public class ResetBallSystem(World world) : IUpdateSystem
+public class ResetBallSystem : IUpdateSystem
 {
+    private readonly World _world;
+    private readonly Entity _ballEntity;
+
+    public ResetBallSystem(World world)
+    {
+        _world = world;
+        _ballEntity = world.GetEntity(EntityTags.Ball);
+    }
+
     public void Update(float deltaTime)
     {
-        var ballEntity = world.GetEntity(EntityTags.Ball);
-
-        if (!world.TryGetComponent(ballEntity, out Ball ball) || ball.State != BallState.Scored)
-        {
+        if (!_world.TryGetComponent(_ballEntity, out Ball ball) || ball.State != BallState.Scored)
             return;
-        }
 
-        // Reset the ball position and velocity
-        var transform = world.GetComponent<Transform2D>(ballEntity);
-        world.AddComponent(ballEntity, transform with { Position = Vector2.Zero });
-        world.AddComponent(ballEntity, new Velocity(Vector2.Zero));
-
-        // Reset the ball state
-        world.AddComponent(ballEntity, ball with { State = BallState.Waiting });
+        var transform = _world.GetComponent<Transform2D>(_ballEntity);
+        _world.AddComponent(_ballEntity, transform with { Position = Vector2.Zero });
+        _world.AddComponent(_ballEntity, new Velocity(Vector2.Zero));
+        _world.AddComponent(_ballEntity, ball with { State = BallState.Waiting });
     }
 }

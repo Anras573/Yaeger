@@ -85,6 +85,7 @@ public class EntityFactory
     public void SpawnScoreBoard()
     {
         const int scoreFontSize = 48;
+        var scoreScale = new Vector2(0.005f, 0.005f);
         var fontManager = new FontManager();
         var defaultFont = fontManager.Load("Assets/Roboto-Regular.ttf");
 
@@ -92,22 +93,14 @@ public class EntityFactory
         _world.AddComponent(leftScore, new Text("0", defaultFont, scoreFontSize, Color.White));
         _world.AddComponent(
             leftScore,
-            new Transform2D
-            {
-                Position = new Vector2(-0.15f, 0.8f),
-                Scale = new Vector2(0.005f, 0.005f), // Scale down for screen-space rendering
-            }
+            new Transform2D { Position = new Vector2(-0.15f, 0.8f), Scale = scoreScale }
         );
 
         var rightScore = _world.CreateEntity(EntityTags.RightScore);
         _world.AddComponent(rightScore, new Text("0", defaultFont, scoreFontSize, Color.White));
         _world.AddComponent(
             rightScore,
-            new Transform2D
-            {
-                Position = new Vector2(0.075f, 0.8f),
-                Scale = new Vector2(0.005f, 0.005f), // Scale down for screen-space rendering
-            }
+            new Transform2D { Position = new Vector2(0.075f, 0.8f), Scale = scoreScale }
         );
     }
 }

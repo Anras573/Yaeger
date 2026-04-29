@@ -76,13 +76,7 @@ Keyboard.AddKeyDown(
     }
 );
 
-Keyboard.AddKeyDown(
-    Keys.Escape,
-    () =>
-    {
-        window.Close();
-    }
-);
+Keyboard.AddKeyDown(Keys.Escape, window.Close);
 
 window.OnUpdate += Update;
 window.OnRender += Render;

@@ -7,24 +7,29 @@ using Yaeger.Systems;
 
 namespace Pong.Systems;
 
-public class PhysicsSystem(World world) : IUpdateSystem
+public class PhysicsSystem : IUpdateSystem
 {
-    private long _lastBounce = Stopwatch.GetTimestamp();
-    const float BallVelocityIncrement = 1.1f; // Increment ball speed after each bounce
+    private readonly World _world;
+    private readonly Entity _ballEntity;
+    private long _lastBounce;
+    const float BallVelocityIncrement = 1.1f;
+
+    public PhysicsSystem(World world)
+    {
+        _world = world;
+        _ballEntity = world.GetEntity(EntityTags.Ball);
+        _lastBounce = Stopwatch.GetTimestamp();
+    }
 
     public void Update(float deltaTime)
     {
-        // Find the ball (assume only one ball, with Velocity and Transform2D)
-        (Entity ballEntity, _, Transform2D transform, Velocity velocity, Bounds bounds) = world
-            .Query<Ball, Transform2D, Velocity, Bounds>()
-            .First();
+        var transform = _world.GetComponent<Transform2D>(_ballEntity);
+        var velocity = _world.GetComponent<Velocity>(_ballEntity);
+        var bounds = _world.GetComponent<Bounds>(_ballEntity);
 
-        // Ball bounds
         var ballPos = transform.Position;
         var ballScale = transform.Scale;
         var ballHalf = ballScale / 2f;
-
-        // --- Pong-specific collision detection ---
 
         if (Stopwatch.GetTimestamp() - _lastBounce < Stopwatch.Frequency / 30)
             return;
@@ -32,8 +37,7 @@ public class PhysicsSystem(World world) : IUpdateSystem
         velocity = HandleWallCollisions(ballPos, ballHalf, velocity, bounds);
         velocity = HandlePaddleCollisions(ballPos, ballHalf, velocity);
 
-        // Write back ball velocity
-        world.AddComponent(ballEntity, velocity);
+        _world.AddComponent(_ballEntity, velocity);
     }
 
     private Velocity HandlePaddleCollisions(
@@ -42,8 +46,7 @@ public class PhysicsSystem(World world) : IUpdateSystem
         Velocity ballVelocity
     )
     {
-        // Check collision with paddles
-        foreach ((_, Transform2D paddle, _) in world.Query<Transform2D, PlayerControlled>())
+        foreach ((_, Transform2D paddle, _) in _world.Query<Transform2D, PlayerControlled>())
         {
             var paddlePos = paddle.Position;
             var paddleScale = paddle.Scale;
@@ -53,8 +56,6 @@ public class PhysicsSystem(World world) : IUpdateSystem
             var overlapY = MathF.Abs(ballPos.Y - paddlePos.Y) < ballHalf.Y + paddleHalf.Y;
             if (!overlapX || !overlapY)
                 continue;
-            // Reverse X velocity
-            // Update the ball's velocity
             ballVelocity = new Velocity(
                 ballVelocity.Value with
                 {
@@ -75,7 +76,6 @@ public class PhysicsSystem(World world) : IUpdateSystem
         Bounds bounds
     )
     {
-        // Check collision with top/bottom walls (assuming play area is -1 to 1 in Y)
         if (ballPos.Y + ballHalf.Y > bounds.MaxY)
         {
             ballVelocity = new Velocity(
