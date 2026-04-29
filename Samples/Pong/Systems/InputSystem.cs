@@ -27,32 +27,16 @@ public class InputSystem(World world) : IUpdateSystem
 
     private static Velocity HandlePaddleInput(Transform2D transform, Velocity velocity)
     {
-        var dir = 0f;
-        switch (transform.Position.X)
-        {
-            // Naive paddle detection based on x position
-            // Left paddle
-            case < 0f:
-            {
-                if (Keyboard.IsKeyPressed(Keys.W))
-                    dir += 1f;
-                if (Keyboard.IsKeyPressed(Keys.S))
-                    dir -= 1f;
-                velocity.Value = new Vector2(0, dir * 1.0f);
-                break;
-            }
-            // Right paddle
-            case > 0f:
-            {
-                if (Keyboard.IsKeyPressed(Keys.Up))
-                    dir += 1f;
-                if (Keyboard.IsKeyPressed(Keys.Down))
-                    dir -= 1f;
-                velocity.Value = new Vector2(0, dir * 1.0f);
-                break;
-            }
-        }
+        // Naive paddle detection based on x position
+        var (upKey, downKey) = transform.Position.X < 0f ? (Keys.W, Keys.S) : (Keys.Up, Keys.Down);
 
+        var dir = 0f;
+        if (Keyboard.IsKeyPressed(upKey))
+            dir += 1f;
+        if (Keyboard.IsKeyPressed(downKey))
+            dir -= 1f;
+
+        velocity.Value = new Vector2(0, dir);
         return velocity;
     }
 

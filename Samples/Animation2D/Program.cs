@@ -107,19 +107,17 @@ void ApplyCombatSequence()
 }
 
 // ------------------------------------------------------------------
-// Key bindings: switch animations at runtime.
-// ------------------------------------------------------------------
 Keyboard.AddKeyDown(Keys.W, () => ApplyAnimation("Walk"));
-Keyboard.AddKeyDown(Keys.R, () => ApplyAnimation("Run", frameDuration: 0.05f)); // Faster frame rate for running
-Keyboard.AddKeyDown(Keys.J, () => ApplyAnimation("Jump", loop: false)); // Don't loop the jump animation
+Keyboard.AddKeyDown(Keys.R, () => ApplyAnimation("Run", frameDuration: 0.05f));
+Keyboard.AddKeyDown(Keys.J, () => ApplyAnimation("Jump", loop: false));
 Keyboard.AddKeyDown(Keys.I, () => ApplyAnimation("Idle"));
-Keyboard.AddKeyDown(Keys.Num1, () => ApplyAnimation("Attack_1", loop: false)); // Don't loop attack animations
+Keyboard.AddKeyDown(Keys.Num1, () => ApplyAnimation("Attack_1", loop: false));
 Keyboard.AddKeyDown(Keys.Num2, () => ApplyAnimation("Attack_2", loop: false));
 Keyboard.AddKeyDown(Keys.Num3, () => ApplyAnimation("Attack_3", loop: false));
-Keyboard.AddKeyDown(Keys.C, ApplyCombatSequence); // Trigger the full combat sequence (for demonstration)
-Keyboard.AddKeyDown(Keys.H, () => ApplyAnimation("Hurt", frameDuration: 0.2f, loop: false)); // Slower frame rate for hurt animation
-Keyboard.AddKeyDown(Keys.S, () => ApplyAnimation("Shield", frameDuration: 0.2f)); // Slower frame rate for shield animation
-Keyboard.AddKeyDown(Keys.D, () => ApplyAnimation("Dead", loop: false)); // Don't loop the dead animation
+Keyboard.AddKeyDown(Keys.C, ApplyCombatSequence);
+Keyboard.AddKeyDown(Keys.H, () => ApplyAnimation("Hurt", frameDuration: 0.2f, loop: false));
+Keyboard.AddKeyDown(Keys.S, () => ApplyAnimation("Shield", frameDuration: 0.2f));
+Keyboard.AddKeyDown(Keys.D, () => ApplyAnimation("Dead", loop: false));
 
 var currentAnimationLabel = world.CreateEntity();
 world.AddComponent(
@@ -131,14 +129,17 @@ world.AddComponent(
     new Transform2D(new Vector2(-0.95f, -0.9f), 0f, new Vector2(0.003f, 0.003f))
 );
 
-window.OnUpdate += deltaTime => animationSystem.Update((float)deltaTime);
-window.OnUpdate += _ =>
-{
-    // Advance through the combat sequence automatically when each attack finishes
-    if (combatPhase < 0)
-        return;
+var lastLabelSheetName = currentSheetName;
 
-    if (world.TryGetComponent<AnimationState>(samurai, out var state) && state.IsFinished)
+window.OnUpdate += deltaTime =>
+{
+    animationSystem.Update((float)deltaTime);
+
+    if (
+        combatPhase >= 0
+        && world.TryGetComponent<AnimationState>(samurai, out var state)
+        && state.IsFinished
+    )
     {
         combatPhase++;
         if (combatPhase < combatSequence.Length)
@@ -149,13 +150,14 @@ window.OnUpdate += _ =>
             ApplyAnimation("Idle");
         }
     }
-};
-window.OnUpdate += _ =>
-{
-    // Update the current animation label text to reflect the active animation
-    var textComp = world.GetComponent<Text>(currentAnimationLabel);
-    textComp.Content = $"Current Animation: {currentSheetName}";
-    world.AddComponent(currentAnimationLabel, textComp); // Re-add to trigger the text system to update the rendering
+
+    if (currentSheetName != lastLabelSheetName)
+    {
+        lastLabelSheetName = currentSheetName;
+        var textComp = world.GetComponent<Text>(currentAnimationLabel);
+        textComp.Content = $"Current Animation: {currentSheetName}";
+        world.AddComponent(currentAnimationLabel, textComp); // Re-add to trigger the text system to update the rendering
+    }
 };
 window.OnRender += _ => renderSystem.Render();
 window.OnRender += _ => textRenderSystem.Render();

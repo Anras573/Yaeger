@@ -15,24 +15,6 @@ var renderSystem = new RenderSystem(renderer, world);
 var textRenderer = new TextRenderer(window);
 var textRenderSystem = new TextRenderSystem(textRenderer, world);
 
-// Example: How to use the sound system (requires .wav audio files)
-// Uncomment the following lines to play sounds:
-//
-// var soundBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/beep.wav");
-// var soundSource = SoundSource.Create(window.AudioContext);
-// soundSource.SetBuffer(soundBuffer);
-// soundSource.Play();
-//
-// To play a sound when the ball hits a paddle:
-// soundSource.Play();
-//
-// To loop background music:
-// var musicBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/music.wav");
-// var musicSource = SoundSource.Create(window.AudioContext);
-// musicSource.Looping = true;
-// musicSource.SetBuffer(musicBuffer);
-// musicSource.Play();
-
 var updateSystems = new List<IUpdateSystem>
 {
     new InputSystem(world),
@@ -44,7 +26,8 @@ var entityFactory = new EntityFactory(world);
 
 int fps = 0;
 double lastFpsCount = 0;
-Stack<int> fpsCounts = new();
+int fpsSum = 0;
+int fpsSnapshots = 0;
 
 entityFactory.SpawnLeftPaddle();
 entityFactory.SpawnRightPaddle();
@@ -56,15 +39,10 @@ window.OnLoad += OnLoad;
 window.OnResize += size => Console.WriteLine($"Window resized to {size.X}x{size.Y}");
 window.OnUpdate += Update;
 window.OnRender += Render;
-window.OnClosing += () => Console.WriteLine("Average FPS: " + fpsCounts.Average());
+window.OnClosing += () =>
+    Console.WriteLine("Average FPS: " + (fpsSnapshots > 0 ? (double)fpsSum / fpsSnapshots : 0));
 
-Keyboard.AddKeyDown(
-    Keys.Escape,
-    () =>
-    {
-        window.Close();
-    }
-);
+Keyboard.AddKeyDown(Keys.Escape, window.Close);
 
 window.Run();
 
@@ -95,7 +73,8 @@ void Render(double delta)
 
     if (lastFpsCount >= 1.0)
     {
-        fpsCounts.Push(fps);
+        fpsSum += fps;
+        fpsSnapshots++;
         Console.WriteLine($"FPS: {fps}");
         fps = 0;
         lastFpsCount = 0;
