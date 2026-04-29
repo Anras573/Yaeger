@@ -2,11 +2,13 @@
 
 ## Repository Overview
 
-Yaeger is a modular, experimental 2D game engine written in C# using Entity-Component-System (ECS) architecture. The engine leverages Silk.NET for graphics, input handling, and windowing capabilities. This is a small-to-medium sized project with 21 source files across engine and sample code.
+Yaeger is a modular, experimental 2D game engine written in C# using Entity-Component-System (ECS) architecture. The engine leverages Silk.NET for graphics, input handling, and windowing capabilities.
 
 **Key Technologies:**
 - **Language**: C# with .NET 10.0 target framework
 - **Graphics**: Silk.NET (version 2.22.0) for OpenGL rendering
+- **Audio**: Silk.NET.OpenAL for audio playback
+- **Text**: SkiaSharp + HarfBuzzSharp for glyph rasterisation
 - **Image Processing**: StbImageSharp (version 2.30.15)
 - **Architecture**: Entity-Component-System (ECS) pattern
 - **Platform**: Cross-platform (Windows, macOS, Linux)
@@ -14,175 +16,89 @@ Yaeger is a modular, experimental 2D game engine written in C# using Entity-Comp
 ## Build Instructions
 
 ### Prerequisites
-- **.NET 10.0 SDK** - Critical requirement! The project will NOT build with .NET 9.0 or earlier
-- Compatible OS (Windows, macOS, Linux)
+- **.NET 10.0 SDK** — the project will NOT build with .NET 9.0 or earlier
 
-### Installing .NET 10.0 (if not available)
+### Build Commands
 ```bash
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --version 10.0.100
-export PATH="$HOME/.dotnet:$PATH"
-```
-
-### Build Commands (Always run in order)
-```bash
-# 1. Navigate to repository root
-cd /path/to/Yaeger
-
-# 2. Restore dependencies (takes ~6-7 seconds)
 dotnet restore yaeger.sln
-
-# 3. Build solution (takes ~5-6 seconds)
+dotnet tool restore
 dotnet build yaeger.sln
 ```
 
-### Running the Sample
+### Running Samples
 ```bash
-# Run the Pong sample game (will fail in headless environments)
 dotnet run --project Samples/Pong/Pong.csproj
 ```
 
-**Note**: The sample requires a display/window system and will throw `System.PlatformNotSupportedException` in headless environments (expected behavior).
+Samples require a display. `System.PlatformNotSupportedException` in headless environments is expected.
 
-### Formatting and Code Quality
-The codebase has formatting issues. Before committing changes:
+### Formatting
+The project uses **CSharpier** — not `dotnet format`.
+
 ```bash
-# Fix code formatting (REQUIRED before commits)
-dotnet format
+# Fix formatting
+dotnet csharpier format .
 
-# Verify formatting compliance
-dotnet format --verify-no-changes
+# Verify (what CI runs)
+dotnet csharpier check .
 ```
 
-**Known Issues:**
-- Many whitespace formatting errors exist in the current codebase
-- Files missing final newlines
-- Inconsistent indentation in some files
-- Always run `dotnet format` before committing changes
+A Husky pre-commit hook automatically runs `csharpier format` on staged `.cs` files.
+
+### Testing
+```bash
+# Run all tests
+dotnet test
+
+# Run a single test by name
+dotnet test --filter "FullyQualifiedName~WorldTests.CreateEntity"
+```
+
+The test suite uses xUnit and covers ECS, physics, and graphics primitives (~45 tests). Rendering, windowing, input, and audio require a live platform context and are not unit-tested.
+
+## Architecture
+
+### ECS (`src/Engine/Yaeger/ECS/`)
+- **`World`** — central container; holds all entities and one `ComponentStorage<T>` per component type (created lazily).
+- **`Entity`** — value-type (`struct`) ID wrapper. Optionally registered under a string tag.
+- **`WorldExtensions`** — `Query<T1,T2>()` / `Query<T1,T2,T3>()` / `Query<T1,T2,T3,T4>()` extension methods that join stores.
+- **`ComponentRegistry` / `PrefabLoader` / `Prefab`** — JSON prefab pipeline. Files use `{"components": [{"type": "...", ...}]}`. Call `registry.RegisterEngineComponents()` then `world.Instantiate(prefab)`.
+
+**All components must be `struct`, never `class`.**
+
+### Systems Pattern
+Systems implement `IUpdateSystem` (`void Update(float deltaTime)`). They hold a `World` reference and call `world.Query<...>()`. The game loop calls them manually in order.
+
+### Rendering (`src/Engine/Yaeger/Rendering/`)
+- **`Renderer`** — one draw call per entity.
+- **`BatchRenderer`** — groups sprites by texture (up to 1 000 quads per flush).
+- **`TextRenderer` / `FontManager`** — text rendering via SkiaSharp glyph atlas.
+- **`RenderSystem` / `TextRenderSystem`** — ECS systems consuming `Sprite`/`Text` + `Transform2D`.
+
+### Physics (`src/Engine/Yaeger/Physics/`)
+**`PhysicsWorld2D`** is the public façade. Call `physicsWorld.Update(deltaTime)` each frame. Internal pipeline: Gravity → Movement → Collision Detection → Collision Resolution. Subscribe to `physicsWorld.OnCollision` for events.
+
+Components: `BoxCollider2D`, `CircleCollider2D`, `RigidBody2D`, `Velocity2D`, `PhysicsMaterial`.
+
+### Graphics Components (`src/Engine/Yaeger/Graphics/`)
+Value-type ECS components: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `SpriteSheet`, `Animation`, `AnimationState`, `Text`.
+
+### Windowing (`src/Engine/Yaeger/Windowing/`)
+Event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Always `using var window = Window.Create();`.
+
+### Audio (`src/Engine/Yaeger/Audio/`)
+`SoundBuffer.FromFile()` loads `.wav` files; `SoundSource` controls playback and looping.
 
 ## Project Structure
 
-### Solution Organization
-- **yaeger.sln** - Main solution file containing 2 projects
-- **src/Engine/Yaeger/** - Core engine library (Yaeger.csproj)
-- **Samples/Pong/** - Sample Pong game (Pong.csproj)
-
-### Core Engine Architecture (`src/Engine/Yaeger/`)
-
-#### ECS System (`ECS/`)
-- **World.cs** - Central ECS world manager, entity lifecycle
-- **Entity.cs** - Entity identifier and basic operations
-- **ComponentStorage.cs** - Component storage and retrieval
-- **WorldExtensions.cs** - Helper methods for world operations
-
-#### Graphics System (`Graphics/`)
-- **Sprite.cs** - 2D sprite representation and loading
-- **Transform2D.cs** - Position, rotation, scale transformations
-- **Camera2D.cs** - 2D camera and view management
-- **Color.cs** - Color representation and utilities
-
-#### Rendering System (`Rendering/`)
-- **Renderer.cs** - Main rendering pipeline and OpenGL operations
-- **Shader.cs** - Shader compilation and management
-- **Texture.cs** - Texture loading and binding
-- **TextureManager.cs** - Texture resource management
-- **Buffer.cs** - OpenGL buffer abstractions
-- **VertexArray.cs** - Vertex array object management
-
-#### Input System (`Input/`)
-- **Keyboard.cs** - Keyboard input handling via Silk.NET
-- **Keys.cs** - Key code definitions and mappings
-
-#### Windowing (`Windowing/`)
-- **Window.cs** - Window creation and lifecycle management
-
-#### Systems (`Systems/`)
-- **RenderSystem.cs** - ECS rendering system implementation
-
-### Sample Project (`Samples/Pong/`)
-
-#### Game Logic
-- **Program.cs** - Main game loop, system setup, and window management
-- **EntityFactory.cs** - Entity creation for paddles, ball, background
-
-#### Components (`Components/`)
-- **Ball.cs**, **BallState.cs** - Ball entity state management
-- **Player.cs**, **PlayerControlled.cs**, **PlayerScore.cs** - Player entities
-- **Velocity.cs** - Movement component
-- **Bounds.cs** - Collision boundary component
-
-#### Systems (`Systems/`)
-- **InputSystem.cs** - Player input processing
-- **MoveSystem.cs** - Entity movement updates
-- **PhysicsSystem.cs** - Collision detection and response
-- **ScoringSystem.cs** - Game scoring logic
-- **PrintScoreSystem.cs** - Score display
-- **ResetBallSystem.cs** - Ball reset mechanics
-- **IUpdateSystem.cs** - System interface definition
-
-#### Assets (`Assets/`)
-- **square.png** - Basic white square texture for sprites
-
-## Configuration Files
-
-### Build Configuration
-- **.editorconfig** - Extensive code style configuration (500+ lines)
-- **yaeger.sln** - Visual Studio solution with Debug/Release configurations
-- **Yaeger.csproj** - Engine project: library, .NET 10.0, unsafe blocks enabled
-- **Pong.csproj** - Sample project: executable, references engine project
-
-### Development Tools
-- **.gitignore** - Comprehensive ignore rules (Visual Studio, .NET, macOS, JetBrains)
-- **.idea/** - JetBrains IDE configuration (present)
+- `src/Engine/Yaeger/` — core engine library
+- `tests/Yaeger.Tests/` — xUnit test suite
+- `Samples/` — runnable example games and demos (Pong, BouncingBalls, Animation2D, BatchRenderingExample, TextRenderingExample)
+- `docs/` — documentation (animation, audio, physics, testing guides)
 
 ## Development Workflow
 
-### Making Changes
-1. **Always ensure .NET 10.0 is available** - Check with `dotnet --version`
-2. **Build first** - `dotnet build yaeger.sln` to verify current state
-3. **Make minimal changes** - This is an experimental project
-4. **Format before commit** - `dotnet format` is mandatory
-5. **Test build after changes** - Verify no build breaks
-
-### Testing
-- **No unit tests exist** - This is a sample/experimental project
-- **Manual testing** - Run Pong sample to verify functionality
-- **Build verification** - Ensure `dotnet build` succeeds
-
-### Common Issues and Workarounds
-
-#### .NET Version Issues
-- **Problem**: `NETSDK1045: The current .NET SDK does not support targeting .NET 10.0`
-- **Solution**: Install .NET 10.0 SDK using the curl command above
-
-#### Platform Issues
-- **Problem**: `System.PlatformNotSupportedException: Couldn't find a suitable window platform`
-- **Solution**: This is expected in headless environments; GUI samples won't run
-
-#### Formatting Issues
-- **Problem**: Many existing whitespace/newline formatting errors
-- **Solution**: Run `dotnet format` and commit the fixes as part of your changes
-
-### Key Dependencies
-- **Silk.NET 2.22.0** - Core graphics/windowing (large dependency)
-- **StbImageSharp 2.30.15** - Image loading
-- **System.Numerics** - Vector math (built-in)
-
-## Important Notes for Coding Agents
-
-1. **Trust these instructions** - Only search for additional information if these instructions are incomplete or incorrect
-
-2. **Always check .NET version first** - Many build failures stem from wrong SDK version
-
-3. **Format code before any commit** - The project has existing formatting issues that compound
-
-4. **Understand the ECS pattern** - Entities are IDs, Components are data, Systems process logic
-
-5. **Sample code shows usage** - Refer to Pong implementation for API patterns
-
-6. **No CI/CD exists** - No GitHub workflows or automated testing configured
-
-7. **Experimental nature** - Some APIs may be incomplete or subject to change
-
-8. **OpenGL dependency** - Rendering code uses OpenGL via Silk.NET bindings
-
-This is a focused, experimental project with clear architecture and minimal external dependencies beyond the graphics framework.
+1. Ensure .NET 10.0 is available: `dotnet --version`
+2. `dotnet build yaeger.sln` to verify current state
+3. `dotnet test` after changes
+4. Formatting is enforced by the pre-commit hook and CI — no manual step needed if hooks are installed
