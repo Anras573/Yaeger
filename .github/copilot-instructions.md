@@ -6,10 +6,10 @@ Yaeger is a modular, experimental 2D game engine written in C# using Entity-Comp
 
 **Key Technologies:**
 - **Language**: C# with .NET 10.0 target framework
-- **Graphics**: Silk.NET (version 2.22.0) for OpenGL rendering
+- **Graphics**: Silk.NET for OpenGL rendering
 - **Audio**: Silk.NET.OpenAL for audio playback
 - **Text**: SkiaSharp + HarfBuzzSharp for glyph rasterisation
-- **Image Processing**: StbImageSharp (version 2.30.15)
+- **Image Processing**: StbImageSharp
 - **Architecture**: Entity-Component-System (ECS) pattern
 - **Platform**: Cross-platform (Windows, macOS, Linux)
 
@@ -54,15 +54,16 @@ dotnet test
 dotnet test --filter "FullyQualifiedName~WorldTests.CreateEntity"
 ```
 
-The test suite uses xUnit and covers ECS, physics, and graphics primitives (~45 tests). Rendering, windowing, input, and audio require a live platform context and are not unit-tested.
+The test suite uses xUnit and covers ECS, physics, and graphics primitives. Rendering, windowing, input, and audio require a live platform context and are not unit-tested.
 
 ## Architecture
 
 ### ECS (`src/Engine/Yaeger/ECS/`)
 - **`World`** — central container; holds all entities and one `ComponentStorage<T>` per component type (created lazily).
 - **`Entity`** — value-type (`struct`) ID wrapper. Optionally registered under a string tag.
-- **`WorldExtensions`** — `Query<T1,T2>()` / `Query<T1,T2,T3>()` / `Query<T1,T2,T3,T4>()` extension methods that join stores.
-- **`ComponentRegistry` / `PrefabLoader` / `Prefab`** — JSON prefab pipeline. Files use `{"components": [{"type": "...", ...}]}`. Call `registry.RegisterEngineComponents()` then `world.Instantiate(prefab)`.
+- **`WorldExtensions`** — `Query<T1,T2>()` / `Query<T1,T2,T3>()` / `Query<T1,T2,T3,T4>()` extension methods. Iterates `T1`'s store and probes the rest — put the rarest type first.
+- **`ComponentStorage<T>`** — internal store per component type. Access only through `World` APIs, never directly.
+- **`ComponentRegistry` / `PrefabLoader` / `Prefab`** — JSON prefab pipeline. Files use `{"components": [{"type": "...", ...}]}`. Call `registry.RegisterEngineComponents()` then `world.Instantiate(prefab, optionalTag)`.
 
 **All components must be `struct`, never `class`.**
 
@@ -93,7 +94,7 @@ Event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Always `
 
 - `src/Engine/Yaeger/` — core engine library
 - `tests/Yaeger.Tests/` — xUnit test suite
-- `Samples/` — runnable example games and demos (Pong, BouncingBalls, Animation2D, BatchRenderingExample, TextRenderingExample)
+- `Samples/` — runnable example games and demos (one subdirectory per sample)
 - `docs/` — documentation (animation, audio, physics, testing guides)
 
 ## Development Workflow
