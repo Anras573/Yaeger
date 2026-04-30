@@ -142,8 +142,9 @@ public class GlyphAtlas : IDisposable
         if (pixmap != null)
         {
             var pixelSpan = pixmap.GetPixelSpan();
-            // Upload to texture atlas
-            _texture.SetData(pixelSpan, x, y, _fontSize, _fontSize);
+            // RowBytes (bytes per row) == row length in pixels for Alpha8 (1 byte per pixel).
+            // Pass it through so GL knows the actual stride if SkiaSharp padded rows internally.
+            _texture.SetData(pixelSpan, x, y, _fontSize, _fontSize, pixmap.RowBytes);
         }
 
         // Create atlas glyph with actual metrics
