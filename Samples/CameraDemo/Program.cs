@@ -49,12 +49,24 @@ var cameraEntity = world.CreateEntity(cameraTag);
 world.AddComponent(cameraEntity, new Camera2D());
 
 // HUD text — screen-space, stays fixed as camera moves.
+// Two stacked lines: a dynamic state readout on top, a static controls hint below.
 var font = fontManager.Load("Assets/Roboto-Regular.ttf");
-var hudEntity = world.CreateEntity("hud");
-world.AddComponent(hudEntity, new Text("", font, 18, Color.White));
+
+var hudStateEntity = world.CreateEntity("hud-state");
+world.AddComponent(hudStateEntity, new Text("", font, 16, Color.White));
 world.AddComponent(
-    hudEntity,
+    hudStateEntity,
     new Transform2D { Position = new Vector2(-0.95f, 0.9f), Scale = new Vector2(0.003f) }
+);
+
+var hudControlsEntity = world.CreateEntity("hud-controls");
+world.AddComponent(
+    hudControlsEntity,
+    new Text("WASD pan   Q/E zoom   arrows rotate   R reset", font, 16, Color.White)
+);
+world.AddComponent(
+    hudControlsEntity,
+    new Transform2D { Position = new Vector2(-0.95f, 0.82f), Scale = new Vector2(0.003f) }
 );
 
 const float panSpeed = 1.0f;
@@ -117,11 +129,11 @@ void Update(double deltaTime)
 
     world.AddComponent(cameraEntity, camera);
 
-    var hud = new Text(
-        $"pos ({camera.Position.X:F2}, {camera.Position.Y:F2})  zoom {camera.Zoom:F2}  rot {camera.Rotation:F2}  |  WASD pan, Q/E zoom, arrows rotate, R reset",
+    var state = new Text(
+        $"pos ({camera.Position.X:F2}, {camera.Position.Y:F2})   zoom {camera.Zoom:F2}   rot {camera.Rotation:F2}",
         font,
-        18,
+        16,
         Color.White
     );
-    world.AddComponent(hudEntity, hud);
+    world.AddComponent(hudStateEntity, state);
 }
