@@ -107,8 +107,8 @@ public class Renderer : IDisposable
 
     /// <summary>
     /// Sets the view-projection matrix applied to every quad. Call once per frame before
-    /// <see cref="EndFrame"/>. Resets to identity across construction; if never called, quads
-    /// are rendered in NDC directly (the pre-camera default).
+    /// <see cref="EndFrame"/>. Defaults to <see cref="Matrix4x4.Identity"/>, which renders
+    /// quads in NDC directly.
     /// </summary>
     public void SetCamera(Matrix4x4 viewProjection)
     {

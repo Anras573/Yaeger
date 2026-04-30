@@ -17,6 +17,21 @@ public class Camera2DTests
     }
 
     [Fact]
+    public void StructDefault_ViewProjection_StillRendersScene()
+    {
+        // Arrange — default(Camera2D) produces Zoom = 0, which would collapse the view matrix.
+        // ViewProjection must fall back to identity zoom so the scene is not invisible.
+        var camera = default(Camera2D);
+
+        // Act
+        var ndc = Project(camera, aspectRatio: 1f, world: new Vector2(0.5f, 0.5f));
+
+        // Assert
+        Assert.Equal(0.5f, ndc.X, Tolerance);
+        Assert.Equal(0.5f, ndc.Y, Tolerance);
+    }
+
+    [Fact]
     public void DefaultCamera_ViewProjection_MapsWorldToNdcAtUnitAspect()
     {
         // Arrange

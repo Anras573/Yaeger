@@ -1,3 +1,4 @@
+using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Rendering;
@@ -54,8 +55,7 @@ public class RenderSystem(Renderer renderer, World world, Window? window = null)
 
     private void UpdateCamera()
     {
-        // Without a Window we cannot compute aspect ratio, so skip camera projection — the renderer
-        // retains whatever view-projection it was last set to (Identity by default).
+        // Without a Window we can't derive aspect ratio; leave the renderer's view-projection alone.
         if (window is null)
         {
             return;
@@ -69,7 +69,6 @@ public class RenderSystem(Renderer renderer, World world, Window? window = null)
             return;
         }
 
-        // No camera entity present — fall back to identity so the scene renders in NDC directly.
-        renderer.SetCamera(System.Numerics.Matrix4x4.Identity);
+        renderer.SetCamera(Matrix4x4.Identity);
     }
 }

@@ -23,10 +23,14 @@ public record struct Camera2D(Vector2 Position, float Zoom = 1f, float Rotation 
     /// </summary>
     public Matrix4x4 ViewProjection(float aspectRatio)
     {
+        // Guard against Zoom = 0, which is what `default(Camera2D)` produces — a zero scale
+        // collapses the view matrix and nothing would render. Treat non-positive zoom as identity.
+        var zoom = Zoom > 0f ? Zoom : 1f;
+
         var view =
             Matrix4x4.CreateTranslation(-Position.X, -Position.Y, 0f)
             * Matrix4x4.CreateRotationZ(-Rotation)
-            * Matrix4x4.CreateScale(Zoom);
+            * Matrix4x4.CreateScale(zoom);
 
         var projection = Matrix4x4.CreateOrthographic(2f * aspectRatio, 2f, -1f, 1f);
 
