@@ -23,11 +23,13 @@ public class Renderer : IDisposable
         layout(location = 0) in vec3 aPosition;
         layout(location = 1) in vec2 aTexCoord;
 
+        uniform mat4 uViewProj;
+
         out vec2 vTexCoord;
 
         void main()
         {
-            gl_Position = vec4(aPosition, 1.0);
+            gl_Position = uViewProj * vec4(aPosition, 1.0);
             vTexCoord = aTexCoord;
         }
         """;
@@ -57,6 +59,8 @@ public class Renderer : IDisposable
     ];
 
     private readonly Dictionary<string, List<QuadSubmission>> _batchQueue = new();
+
+    private Matrix4x4 _viewProjection = Matrix4x4.Identity;
 
     public Renderer(Window window)
     {
@@ -101,6 +105,16 @@ public class Renderer : IDisposable
         CheckGlError();
     }
 
+    /// <summary>
+    /// Sets the view-projection matrix applied to every quad. Call once per frame before
+    /// <see cref="EndFrame"/>. Resets to identity across construction; if never called, quads
+    /// are rendered in NDC directly (the pre-camera default).
+    /// </summary>
+    public void SetCamera(Matrix4x4 viewProjection)
+    {
+        _viewProjection = viewProjection;
+    }
+
     /// <summary>Queues a quad drawn with the full texture (UV 0,0 → 1,1).</summary>
     public void SubmitQuad(Matrix4x4 model, string texturePath)
     {
@@ -136,6 +150,7 @@ public class Renderer : IDisposable
     {
         var texture = _textureManager.Get(texturePath);
         _textureShader.Bind();
+        _textureShader.SetUniformMatrix4("uViewProj", _viewProjection);
         texture.Bind();
         _vao.Bind();
         _vbo.Bind();
