@@ -28,6 +28,9 @@ public sealed class Window : IDisposable
         _innerWindow.Render += delta =>
         {
             Render?.Invoke(delta);
+            // EndFrame must run after Render so any consumer reading Mouse.PositionDelta or
+            // Mouse.ScrollDelta during Update/Render for this frame sees the live values; they
+            // reset only once the frame is fully consumed.
             Mouse.EndFrame();
         };
 

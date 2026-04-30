@@ -1,6 +1,5 @@
 using System.Numerics;
 using Silk.NET.Input;
-using SilkMouseButton = Silk.NET.Input.MouseButton;
 
 namespace Yaeger.Input;
 
@@ -27,17 +26,18 @@ public static class Mouse
     private static Vector2 _position;
     private static Vector2 _previousPosition;
     private static float _scrollAccumulator;
-    private static Vector2 _windowSize = new(1f, 1f);
+    private static Vector2 _windowSize = Vector2.Zero;
 
-    /// <summary>Current cursor position in client pixels (origin: top-left).</summary>
+    /// <summary>Current cursor position in client pixels.</summary>
     public static Vector2 Position => _position;
 
     /// <summary>Movement in pixels since the previous frame.</summary>
     public static Vector2 PositionDelta => _position - _previousPosition;
 
     /// <summary>
-    /// Current cursor position in OpenGL NDC (<c>-1..1</c>, origin centre, Y up). Requires the
-    /// window to have reported a size; returns <see cref="Vector2.Zero"/> before the first frame.
+    /// Current cursor position in OpenGL NDC. Returns <see cref="Vector2.Zero"/> before the
+    /// window has reported its size (i.e. during the very first event, before the seed in
+    /// <c>Window</c> runs).
     /// </summary>
     public static Vector2 PositionNdc
     {
@@ -81,11 +81,19 @@ public static class Mouse
         _scrollAccumulator = 0f;
     }
 
+    /// <summary>
+    /// Binds an action to be executed when the specified button is pressed down.
+    /// </summary>
+    /// <warning>This will overwrite any existing action for the specified button.</warning>
     public static void AddButtonDown(MouseButton button, Action action)
     {
         ButtonDownActions[button] = action;
     }
 
+    /// <summary>
+    /// Binds an action to be executed when the specified button is released.
+    /// </summary>
+    /// <warning>This will overwrite any existing action for the specified button.</warning>
     public static void AddButtonUp(MouseButton button, Action action)
     {
         ButtonUpActions[button] = action;
@@ -98,7 +106,7 @@ public static class Mouse
 
     public static bool IsButtonPressed(MouseButton button) => PressedButtons.Contains(button);
 
-    private static void OnButtonDown(IMouse _, SilkMouseButton button)
+    private static void OnButtonDown(IMouse _, Silk.NET.Input.MouseButton button)
     {
         if (!MouseButtonMapper.TryGetMappedButton(button, out var mapped))
             return;
@@ -110,7 +118,7 @@ public static class Mouse
         }
     }
 
-    private static void OnButtonUp(IMouse _, SilkMouseButton button)
+    private static void OnButtonUp(IMouse _, Silk.NET.Input.MouseButton button)
     {
         if (!MouseButtonMapper.TryGetMappedButton(button, out var mapped))
             return;
@@ -122,7 +130,7 @@ public static class Mouse
         }
     }
 
-    private static void OnMove(IMouse _, System.Numerics.Vector2 position)
+    private static void OnMove(IMouse _, Vector2 position)
     {
         _position = position;
     }
