@@ -238,6 +238,7 @@ public class Renderer : IDisposable
         _vbo.Dispose();
         _ebo.Dispose();
         _textureShader.Dispose();
+        _textureManager.Dispose();
     }
 
     private readonly record struct QuadSubmission(
