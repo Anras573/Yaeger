@@ -88,6 +88,11 @@ Value-type ECS components: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `Sprite
 ### Windowing (`src/Engine/Yaeger/Windowing/`)
 Event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Always `using var window = Window.Create();`.
 
+### Input (`src/Engine/Yaeger/Input/`)
+Two static classes initialised by the `Window`:
+- `Keyboard` — `IsKeyPressed(Keys)`, `AddKeyDown`/`AddKeyUp`. Extend `Keys` + `KeyMapper` together when new keys are needed.
+- `Mouse` — button state, `Position` (pixels) + `PositionNdc` (-1..1), `ScrollDelta`, and an `AddScroll` event.
+
 ### Audio (`src/Engine/Yaeger/Audio/`)
 `SoundBuffer.FromFile()` loads `.wav` files; `SoundSource` controls playback and looping.
 

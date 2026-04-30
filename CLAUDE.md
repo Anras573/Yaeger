@@ -88,6 +88,13 @@ Value-type ECS components: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `Sprite
 
 Wraps Silk.NET's `IWindow`. The public surface is event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Exposes `window.Gl` (the OpenGL context) and `window.AudioContext`. Always `using var window = Window.Create();` to ensure disposal.
 
+### Input (`Input/`)
+
+Two static classes initialised by `Window`:
+
+- **`Keyboard`** — `IsKeyPressed(Keys)` for polling, `AddKeyDown` / `AddKeyUp` for events. `Keys` enum is a curated subset; extend it plus `KeyMapper` when new keys are needed.
+- **`Mouse`** — `IsButtonPressed(MouseButton)`, `AddButtonDown` / `AddButtonUp`, plus `Position` (client pixels), `PositionNdc` (OpenGL NDC), `PositionDelta`, `ScrollDelta`, `AddScroll`. World-space mouse is the caller's job via an inverse `Camera2D.ViewProjection`.
+
 ### Audio (`Audio/`)
 
 `AudioContext` wraps OpenAL via Silk.NET.OpenAL. `SoundBuffer.FromFile()` loads `.wav` files; `SoundSource` controls playback and looping.

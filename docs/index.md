@@ -51,6 +51,7 @@ Samples/
 ├── BouncingBalls/           # Physics demo
 ├── Animation2D/             # Sprite-sheet animation demo
 ├── CameraDemo/              # Opt-in 2D camera demo
+├── MouseDemo/               # Mouse input demo
 ├── RenderingStressTest/     # Renderer stress test
 └── TextRenderingExample/    # Text rendering demo
 ```

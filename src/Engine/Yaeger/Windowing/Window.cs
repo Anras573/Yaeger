@@ -25,7 +25,14 @@ public sealed class Window : IDisposable
         _innerWindow.Resize += size => Resize?.Invoke(new Vector2(size.X, size.Y));
         _innerWindow.Update += delta => Update?.Invoke(delta);
         _innerWindow.Closing += Closing;
-        _innerWindow.Render += delta => Render?.Invoke(delta);
+        _innerWindow.Render += delta =>
+        {
+            Render?.Invoke(delta);
+            // EndFrame must run after Render so any consumer reading Mouse.PositionDelta or
+            // Mouse.ScrollDelta during Update/Render for this frame sees the live values; they
+            // reset only once the frame is fully consumed.
+            Mouse.EndFrame();
+        };
 
         _innerWindow.Initialize();
 
@@ -33,9 +40,13 @@ public sealed class Window : IDisposable
         Gl.Viewport(0, 0, (uint)_innerWindow.Size.X, (uint)_innerWindow.Size.Y);
         _innerWindow.Resize += size => Gl.Viewport(0, 0, (uint)size.X, (uint)size.Y);
 
-        // Initialize the keyboard
+        // Initialize keyboard and mouse. Mouse needs the window size to expose NDC coords;
+        // seed it now and update on resize.
         var inputContext = _innerWindow.CreateInput();
         Keyboard.Initialize(inputContext);
+        Mouse.Initialize(inputContext);
+        Mouse.SetWindowSize(new Vector2(_innerWindow.Size.X, _innerWindow.Size.Y));
+        _innerWindow.Resize += size => Mouse.SetWindowSize(new Vector2(size.X, size.Y));
         // Note: inputContext lifecycle is managed by _innerWindow, which will dispose it
 
         // Initialize audio - if this fails, we need to clean up resources
