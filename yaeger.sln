@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pong", "Samples\Pong\Pong.c
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BatchRenderingExample", "Samples\BatchRenderingExample\BatchRenderingExample.csproj", "{3FB699AE-F901-4862-A795-44E601EFD38B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenderingStressTest", "Samples\RenderingStressTest\RenderingStressTest.csproj", "{3FB699AE-F901-4862-A795-44E601EFD38B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TextRenderingExample", "Samples\TextRenderingExample\TextRenderingExample.csproj", "{4AC710BF-0912-4973-B906-54E612FC04B9}"
 EndProject

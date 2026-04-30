@@ -65,23 +65,7 @@ public class TextRenderer : IDisposable
         _textShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
         _vertexBuffer = new float[MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex];
-        uint[] indexBuffer = new uint[MaxQuadsPerBatch * IndicesPerQuad];
 
-        // Generate static indices
-        for (uint i = 0; i < MaxQuadsPerBatch; i++)
-        {
-            uint offset = i * VerticesPerQuad;
-            uint indexOffset = i * IndicesPerQuad;
-
-            indexBuffer[indexOffset + 0] = offset + 0;
-            indexBuffer[indexOffset + 1] = offset + 1;
-            indexBuffer[indexOffset + 2] = offset + 3;
-            indexBuffer[indexOffset + 3] = offset + 1;
-            indexBuffer[indexOffset + 4] = offset + 2;
-            indexBuffer[indexOffset + 5] = offset + 3;
-        }
-
-        // Create VBO
         _vbo = new Buffer<float>(
             _gl,
             _vertexBuffer,
@@ -89,8 +73,11 @@ public class TextRenderer : IDisposable
             BufferUsageARB.DynamicDraw
         );
 
-        // Create EBO
-        _ebo = new Buffer<uint>(_gl, indexBuffer, BufferTargetARB.ElementArrayBuffer);
+        _ebo = new Buffer<uint>(
+            _gl,
+            QuadIndexing.GenerateQuadIndices(MaxQuadsPerBatch),
+            BufferTargetARB.ElementArrayBuffer
+        );
 
         // Create VAO
         _vao = new FontVertexArray(_gl, _vbo, _ebo);

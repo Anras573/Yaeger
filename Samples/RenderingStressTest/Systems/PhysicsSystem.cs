@@ -1,8 +1,8 @@
-using BatchRenderingExample.Components;
+using RenderingStressTest.Components;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 
-namespace BatchRenderingExample.Systems;
+namespace RenderingStressTest.Systems;
 
 public class PhysicsSystem(World world)
 {

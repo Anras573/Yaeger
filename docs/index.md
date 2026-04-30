@@ -40,7 +40,7 @@ dotnet run --project Samples/Pong/Pong.csproj
 ```
 src/Engine/Yaeger/
 ├── ECS/        # Entity-Component-System framework
-├── Rendering/  # Rendering systems (including batch renderer)
+├── Rendering/  # Rendering systems (sprites, text)
 ├── Graphics/   # Graphics primitives and utilities
 ├── Audio/      # Audio system (OpenAL)
 ├── Input/      # Input handling
@@ -48,7 +48,7 @@ src/Engine/Yaeger/
 
 Samples/
 ├── Pong/                    # Classic Pong game
-├── BatchRenderingExample/   # Batch rendering demo
+├── RenderingStressTest/     # Renderer stress test
 └── TextRenderingExample/    # Text rendering demo
 ```
 

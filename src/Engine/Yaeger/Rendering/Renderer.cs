@@ -1,32 +1,37 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Silk.NET.OpenGL;
 using Yaeger.Windowing;
 
 namespace Yaeger.Rendering;
 
-public class Renderer
+/// <summary>
+/// Renders quads in batches grouped by texture to minimise OpenGL state changes.
+/// Submit quads with <see cref="SubmitQuad(Matrix4x4, string)"/> or its UV-aware
+/// overload; draw calls are issued during <see cref="EndFrame"/>.
+/// </summary>
+public class Renderer : IDisposable
 {
-    private const float UvComparisonEpsilon = 1e-6f;
-    private readonly GL _gl;
-    private readonly VertexArray _vao;
-    private readonly Buffer<float> _vbo;
+    private const int MaxQuadsPerBatch = 1000;
+    private const int VerticesPerQuad = QuadIndexing.VerticesPerQuad;
+    private const int IndicesPerQuad = QuadIndexing.IndicesPerQuad;
+    private const int FloatsPerVertex = 5; // 3 position + 2 texcoord
 
     private const string VertexShaderSource = """
         #version 330 core
         layout(location = 0) in vec3 aPosition;
         layout(location = 1) in vec2 aTexCoord;
 
-        uniform mat4 uTransform;
-
         out vec2 vTexCoord;
 
         void main()
         {
-            gl_Position = uTransform * vec4(aPosition, 1.0);
+            gl_Position = vec4(aPosition, 1.0);
             vTexCoord = aTexCoord;
         }
         """;
+
     private const string FragmentShaderSource = """
         #version 330 core
         in vec2 vTexCoord;
@@ -40,66 +45,181 @@ public class Renderer
         }
         """;
 
+    private readonly GL _gl;
     private readonly TextureManager _textureManager;
     private readonly Shader _textureShader;
+    private readonly VertexArray _vao;
+    private readonly Buffer<float> _vbo;
+    private readonly Buffer<uint> _ebo;
 
-    private static readonly float[] FullQuadVertices =
-    [
-        // Vertex 0: top-right
-        0.5f,
-        0.5f,
-        0f,
-        1f,
-        1f,
-        // Vertex 1: bottom-right
-        0.5f,
-        -0.5f,
-        0f,
-        1f,
-        0f,
-        // Vertex 2: bottom-left
-        -0.5f,
-        -0.5f,
-        0f,
-        0f,
-        0f,
-        // Vertex 3: top-left
-        -0.5f,
-        0.5f,
-        0f,
-        0f,
-        1f,
+    private readonly float[] _vertexBuffer = new float[
+        MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex
     ];
 
-    // Mutable vertex buffer: 4 vertices × 5 floats (x, y, z, u, v)
-    private readonly float[] _vertices = new float[20];
-    private bool _fullUvBufferLoaded = true;
-    private bool _hasLastCustomUv;
-    private Vector2 _lastCustomUvMin;
-    private Vector2 _lastCustomUvMax;
-
-    private static readonly uint[] Indices = [0, 1, 3, 1, 2, 3];
+    private readonly Dictionary<string, List<QuadSubmission>> _batchQueue = new();
 
     public Renderer(Window window)
     {
         _gl = window.Gl;
-
         _textureManager = new TextureManager(_gl);
         _textureShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
         _vbo = new Buffer<float>(
             _gl,
-            FullQuadVertices,
+            _vertexBuffer,
             BufferTargetARB.ArrayBuffer,
             BufferUsageARB.DynamicDraw
         );
-        var ebo = new Buffer<uint>(_gl, Indices, BufferTargetARB.ElementArrayBuffer);
-        _vao = new VertexArray(_gl, _vbo, ebo);
+        _ebo = new Buffer<uint>(
+            _gl,
+            QuadIndexing.GenerateQuadIndices(MaxQuadsPerBatch),
+            BufferTargetARB.ElementArrayBuffer
+        );
+        _vao = new VertexArray(_gl, _vbo, _ebo);
 
         CheckGlError();
 
         Console.WriteLine(
             $"GL initialized: {_gl.GetStringS(GLEnum.Version)}, {_gl.GetStringS(GLEnum.Renderer)}"
+        );
+    }
+
+    public void BeginFrame()
+    {
+        // Window owns the viewport — it syncs on resize, so the renderer doesn't touch it here.
+        _gl.Enable(GLEnum.Blend);
+        _gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
+
+        _gl.ClearColor(0f, 0f, 0f, 1f);
+        _gl.Clear((uint)ClearBufferMask.ColorBufferBit);
+
+        foreach (var submissions in _batchQueue.Values)
+        {
+            submissions.Clear();
+        }
+
+        CheckGlError();
+    }
+
+    /// <summary>Queues a quad drawn with the full texture (UV 0,0 → 1,1).</summary>
+    public void SubmitQuad(Matrix4x4 model, string texturePath)
+    {
+        SubmitQuad(model, texturePath, Vector2.Zero, Vector2.One);
+    }
+
+    /// <summary>Queues a quad drawn with a sub-region of the texture defined by UV coordinates.</summary>
+    public void SubmitQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
+    {
+        ref var submissions = ref CollectionsMarshal.GetValueRefOrAddDefault(
+            _batchQueue,
+            texturePath,
+            out _
+        );
+        submissions ??= [];
+        submissions.Add(new QuadSubmission(model, uvMin, uvMax));
+    }
+
+    /// <summary>Flushes all queued quads. One draw call per texture (split into batches of 1000).</summary>
+    public void EndFrame()
+    {
+        foreach (var (texturePath, submissions) in _batchQueue)
+        {
+            if (submissions.Count == 0)
+            {
+                continue;
+            }
+            RenderBatch(texturePath, submissions);
+        }
+    }
+
+    private void RenderBatch(string texturePath, List<QuadSubmission> submissions)
+    {
+        var texture = _textureManager.Get(texturePath);
+        _textureShader.Bind();
+        texture.Bind();
+        _vao.Bind();
+        _vbo.Bind();
+
+        for (var i = 0; i < submissions.Count; i += MaxQuadsPerBatch)
+        {
+            var batchSize = Math.Min(MaxQuadsPerBatch, submissions.Count - i);
+            FillVertexBuffer(submissions, i, batchSize);
+            DrawBatch(batchSize);
+        }
+
+        _vao.Unbind();
+        texture.Unbind();
+        _textureShader.Unbind();
+    }
+
+    private void FillVertexBuffer(List<QuadSubmission> submissions, int startIndex, int count)
+    {
+        // Corner order must match the quad winding baked into QuadIndexing: TR, BR, BL, TL.
+        ReadOnlySpan<Vector3> basePositions =
+        [
+            new Vector3(0.5f, 0.5f, 0f),
+            new Vector3(0.5f, -0.5f, 0f),
+            new Vector3(-0.5f, -0.5f, 0f),
+            new Vector3(-0.5f, 0.5f, 0f),
+        ];
+
+        for (var q = 0; q < count; q++)
+        {
+            var submission = submissions[startIndex + q];
+            var transform = submission.Transform;
+            var uvMin = submission.UvMin;
+            var uvMax = submission.UvMax;
+
+            ReadOnlySpan<Vector2> uvs =
+            [
+                new Vector2(uvMax.X, uvMax.Y),
+                new Vector2(uvMax.X, uvMin.Y),
+                new Vector2(uvMin.X, uvMin.Y),
+                new Vector2(uvMin.X, uvMax.Y),
+            ];
+
+            var vertexOffset = q * VerticesPerQuad * FloatsPerVertex;
+            for (var c = 0; c < VerticesPerQuad; c++)
+            {
+                WriteVertex(
+                    vertexOffset + c * FloatsPerVertex,
+                    basePositions[c],
+                    in transform,
+                    uvs[c]
+                );
+            }
+        }
+    }
+
+    private void WriteVertex(int offset, Vector3 basePosition, in Matrix4x4 transform, Vector2 uv)
+    {
+        var transformed = Vector3.Transform(basePosition, transform);
+        _vertexBuffer[offset + 0] = transformed.X;
+        _vertexBuffer[offset + 1] = transformed.Y;
+        _vertexBuffer[offset + 2] = transformed.Z;
+        _vertexBuffer[offset + 3] = uv.X;
+        _vertexBuffer[offset + 4] = uv.Y;
+    }
+
+    private unsafe void DrawBatch(int quadCount)
+    {
+        var vertexCount = quadCount * VerticesPerQuad * FloatsPerVertex;
+        fixed (float* vertices = _vertexBuffer)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.ArrayBuffer,
+                0,
+                (nuint)(vertexCount * sizeof(float)),
+                vertices
+            );
+        }
+
+        var indexCount = quadCount * IndicesPerQuad;
+        _gl.DrawElements(
+            PrimitiveType.Triangles,
+            (uint)indexCount,
+            DrawElementsType.UnsignedInt,
+            null
         );
     }
 
@@ -112,135 +232,18 @@ public class Renderer
         }
     }
 
-    public void BeginFrame()
+    public void Dispose()
     {
-        // Query the current framebuffer size
-        var viewport = new int[4];
-        _gl.GetInteger(GLEnum.Viewport, viewport);
-        var width = viewport[2];
-        var height = viewport[3];
-
-        // Always set the viewport to the current framebuffer size
-        _gl.Viewport(0, 0, (uint)width, (uint)height);
-
-        _gl.Enable(GLEnum.Blend);
-        _gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
-
-        _gl.ClearColor(0f, 0f, 0f, 1f);
-        _gl.Clear((uint)ClearBufferMask.ColorBufferBit);
-
-        CheckGlError();
+        _vao.Dispose();
+        _vbo.Dispose();
+        _ebo.Dispose();
+        _textureShader.Dispose();
+        _textureManager.Dispose();
     }
 
-    public void EndFrame() { /* No-op for now */
-    }
-
-    /// <summary>Draws a quad using the full texture (UV 0,0 → 1,1).</summary>
-    public void DrawQuad(Matrix4x4 model, string texturePath)
-    {
-        if (!_fullUvBufferLoaded)
-        {
-            UploadVertices(FullQuadVertices);
-            _fullUvBufferLoaded = true;
-        }
-
-        DrawQuadCore(model, texturePath);
-    }
-
-    /// <summary>Draws a quad using a sub-region of the texture defined by UV coordinates.</summary>
-    public void DrawQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
-    {
-        if (UvEquals(uvMin, Vector2.Zero) && UvEquals(uvMax, Vector2.One))
-        {
-            DrawQuad(model, texturePath);
-            return;
-        }
-
-        if (
-            !_fullUvBufferLoaded
-            && _hasLastCustomUv
-            && UvEquals(uvMin, _lastCustomUvMin)
-            && UvEquals(uvMax, _lastCustomUvMax)
-        )
-        {
-            DrawQuadCore(model, texturePath);
-            return;
-        }
-
-        // Vertex 0: top-right
-        _vertices[0] = 0.5f;
-        _vertices[1] = 0.5f;
-        _vertices[2] = 0f;
-        _vertices[3] = uvMax.X;
-        _vertices[4] = uvMax.Y;
-
-        // Vertex 1: bottom-right
-        _vertices[5] = 0.5f;
-        _vertices[6] = -0.5f;
-        _vertices[7] = 0f;
-        _vertices[8] = uvMax.X;
-        _vertices[9] = uvMin.Y;
-
-        // Vertex 2: bottom-left
-        _vertices[10] = -0.5f;
-        _vertices[11] = -0.5f;
-        _vertices[12] = 0f;
-        _vertices[13] = uvMin.X;
-        _vertices[14] = uvMin.Y;
-
-        // Vertex 3: top-left
-        _vertices[15] = -0.5f;
-        _vertices[16] = 0.5f;
-        _vertices[17] = 0f;
-        _vertices[18] = uvMin.X;
-        _vertices[19] = uvMax.Y;
-
-        UploadVertices(_vertices);
-        _fullUvBufferLoaded = false;
-        _hasLastCustomUv = true;
-        _lastCustomUvMin = uvMin;
-        _lastCustomUvMax = uvMax;
-        DrawQuadCore(model, texturePath);
-    }
-
-    private static bool UvEquals(Vector2 left, Vector2 right)
-    {
-        return MathF.Abs(left.X - right.X) <= UvComparisonEpsilon
-            && MathF.Abs(left.Y - right.Y) <= UvComparisonEpsilon;
-    }
-
-    private unsafe void UploadVertices(float[] vertices)
-    {
-        _vbo.Bind();
-        fixed (float* vertexPtr = vertices)
-        {
-            _gl.BufferSubData(
-                BufferTargetARB.ArrayBuffer,
-                0,
-                (nuint)(vertices.Length * sizeof(float)),
-                vertexPtr
-            );
-        }
-    }
-
-    private unsafe void DrawQuadCore(Matrix4x4 model, string texturePath)
-    {
-        var texture = _textureManager.Get(texturePath);
-        _textureShader.Bind();
-        _textureShader.SetUniformMatrix4("uTransform", model);
-
-        texture.Bind();
-        _vao.Bind();
-
-        _gl.DrawElements(
-            PrimitiveType.Triangles,
-            (uint)Indices.Length,
-            DrawElementsType.UnsignedInt,
-            null
-        );
-
-        _vao.Unbind();
-        texture.Unbind();
-        _textureShader.Unbind();
-    }
+    private readonly record struct QuadSubmission(
+        Matrix4x4 Transform,
+        Vector2 UvMin,
+        Vector2 UvMax
+    );
 }

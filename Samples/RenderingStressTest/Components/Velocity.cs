@@ -1,5 +1,5 @@
 using System.Numerics;
 
-namespace BatchRenderingExample.Components;
+namespace RenderingStressTest.Components;
 
 public record struct Velocity(Vector2 Value);

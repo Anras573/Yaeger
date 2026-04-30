@@ -56,11 +56,12 @@ Systems implement `IUpdateSystem` (a single `void Update(float deltaTime)` metho
 
 ### Rendering (`Rendering/`)
 
-- **`Renderer`** — per-entity sprite renderer (one draw call per entity).
-- **`BatchRenderer`** — groups sprites by texture to minimise OpenGL state changes. Supports up to 1 000 quads per batch flush.
+- **`Renderer`** — sprite renderer. Internally batches submitted quads by texture (up to 1 000 quads per flush) so a scene sharing a texture collapses into one draw call per frame. `SubmitQuad(...)` enqueues; `EndFrame()` flushes. CPU-side vertex transforms (no `uTransform` uniform), so per-quad UV sub-regions are packed into the vertex buffer — this is how sprite-sheet animation frames work through the same batched path.
 - **`TextRenderer` / `FontTexture` / `FontManager`** — text rendering using SkiaSharp/HarfBuzz for glyph rasterisation into an atlas.
 - **`RenderSystem` / `TextRenderSystem`** — ECS systems that consume `Sprite`/`Text` + `Transform2D` components and delegate to the renderer classes.
 - **`Shader`** — wraps vertex+fragment GLSL source; shaders are compiled inline (string literals) rather than loaded from files.
+
+> Draw order follows texture-group order, not entity insertion order. There's no depth-sort system yet, so if you need specific layering, use distinct textures per layer.
 
 ### Physics (`Physics/`)
 
