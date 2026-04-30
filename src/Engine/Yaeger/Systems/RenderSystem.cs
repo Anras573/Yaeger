@@ -1,13 +1,17 @@
+using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Rendering;
+using Yaeger.Windowing;
 
 namespace Yaeger.Systems;
 
-public class RenderSystem(Renderer renderer, World world)
+public class RenderSystem(Renderer renderer, World world, Window? window = null)
 {
     public void Render()
     {
+        UpdateCamera();
+
         renderer.BeginFrame();
         var spriteSheetStore = world.GetStore<SpriteSheet>();
         var animationStateStore = world.GetStore<AnimationState>();
@@ -47,5 +51,24 @@ public class RenderSystem(Renderer renderer, World world)
         }
 
         renderer.EndFrame();
+    }
+
+    private void UpdateCamera()
+    {
+        // Without a Window we can't derive aspect ratio; leave the renderer's view-projection alone.
+        if (window is null)
+        {
+            return;
+        }
+
+        foreach (var (_, camera) in world.GetStore<Camera2D>().All())
+        {
+            var size = window.Size;
+            var aspectRatio = size.Y > 0 ? size.X / size.Y : 1f;
+            renderer.SetCamera(camera.ViewProjection(aspectRatio));
+            return;
+        }
+
+        renderer.SetCamera(Matrix4x4.Identity);
     }
 }

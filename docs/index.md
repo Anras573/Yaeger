@@ -48,6 +48,9 @@ src/Engine/Yaeger/
 
 Samples/
 ├── Pong/                    # Classic Pong game
+├── BouncingBalls/           # Physics demo
+├── Animation2D/             # Sprite-sheet animation demo
+├── CameraDemo/              # Opt-in 2D camera demo
 ├── RenderingStressTest/     # Renderer stress test
 └── TextRenderingExample/    # Text rendering demo
 ```

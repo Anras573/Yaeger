@@ -82,6 +82,8 @@ Value-type ECS components: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `Sprite
 
 `SpriteSheet` calculates normalised UV rectangles per frame index via `GetFrameUv(int frameIndex)`.
 
+`Camera2D` is a `record struct` with `Position`, `Zoom`, `Rotation`. Attach it to an entity and construct `RenderSystem` with a `Window` (third arg) to activate camera-aware rendering. Without a `Window`, or without a `Camera2D` entity, the renderer falls back to identity view (NDC-direct — the pre-camera behaviour). `TextRenderer` is explicitly screen-space and does NOT honour the camera. See `docs/camera.md` and `Samples/CameraDemo`.
+
 ### Windowing (`Windowing/Window`)
 
 Wraps Silk.NET's `IWindow`. The public surface is event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Exposes `window.Gl` (the OpenGL context) and `window.AudioContext`. Always `using var window = Window.Create();` to ensure disposal.

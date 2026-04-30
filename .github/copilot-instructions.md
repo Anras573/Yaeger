@@ -83,6 +83,8 @@ Components: `BoxCollider2D`, `CircleCollider2D`, `RigidBody2D`, `Velocity2D`, `P
 ### Graphics Components (`src/Engine/Yaeger/Graphics/`)
 Value-type ECS components: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `SpriteSheet`, `Animation`, `AnimationState`, `Text`.
 
+`Camera2D` is opt-in. Attach one to an entity and pass `Window` as the third arg to `RenderSystem(...)` to activate camera-aware rendering; without either, the renderer uses identity view (NDC-direct). `TextRenderer` stays screen-space regardless.
+
 ### Windowing (`src/Engine/Yaeger/Windowing/`)
 Event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Always `using var window = Window.Create();`.
 
