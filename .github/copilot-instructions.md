@@ -71,8 +71,7 @@ The test suite uses xUnit and covers ECS, physics, and graphics primitives. Rend
 Systems implement `IUpdateSystem` (`void Update(float deltaTime)`). They hold a `World` reference and call `world.Query<...>()`. The game loop calls them manually in order.
 
 ### Rendering (`src/Engine/Yaeger/Rendering/`)
-- **`Renderer`** — one draw call per entity.
-- **`BatchRenderer`** — groups sprites by texture (up to 1 000 quads per flush).
+- **`Renderer`** — batches submitted quads by texture (up to 1 000 per flush). Use `SubmitQuad(...)` between `BeginFrame()` and `EndFrame()`. CPU-side vertex transforms; per-quad UV sub-regions are supported on the batched path.
 - **`TextRenderer` / `FontManager`** — text rendering via SkiaSharp glyph atlas.
 - **`RenderSystem` / `TextRenderSystem`** — ECS systems consuming `Sprite`/`Text` + `Transform2D`.
 

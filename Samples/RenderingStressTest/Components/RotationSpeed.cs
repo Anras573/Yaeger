@@ -1,3 +1,3 @@
-namespace BatchRenderingExample.Components;
+namespace RenderingStressTest.Components;
 
 public record struct RotationSpeed(float Value);
