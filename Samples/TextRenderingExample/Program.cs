@@ -41,15 +41,33 @@ void OnLoad()
 
     var defaultFont = fontManager.Load("Assets/Roboto-Regular.ttf");
 
-    AddTextOverlay(defaultFont, "Hello, Yaeger!", new Vector2(-0.95f, 0), 24, Color.White);
+    // The mix of sizes below is deliberate and doubles as a visual regression test:
+    //   - Multiple sizes of one font coexist — proves the atlas is keyed by (font, size)
+    //     rather than font alone (fix for a bug where the first size rendered became
+    //     permanent for the rest of the session).
+    //   - 22, 18, 14, 10 are NOT multiples of 4 — proves the glyph upload path respects
+    //     GL_UNPACK_ALIGNMENT = 1 (fix for a bug where sub-multiple-of-4 sizes produced
+    //     sheared/striped glyphs). If any of these lines render as stripes rather than
+    //     readable text, the alignment fix has regressed.
+
+    AddTextOverlay(defaultFont, "Hello, Yaeger!", new Vector2(-0.95f, 0.60f), 32, Color.White);
     AddTextOverlay(
         defaultFont,
         "The quick brown fox jumps over the lazy dog",
-        new Vector2(-0.95f, -0.2f),
-        16,
+        new Vector2(-0.95f, 0.35f),
+        22,
         Color.Green
     );
-    AddTextOverlay(defaultFont, "Press ESC to exit", new Vector2(-0.95f, -0.4f), 8, Color.Blue);
+    AddTextOverlay(
+        defaultFont,
+        "fontSize 18 renders cleanly (not a multiple of 4)",
+        new Vector2(-0.95f, 0.15f),
+        18,
+        Color.White
+    );
+    AddTextOverlay(defaultFont, "and 14 too", new Vector2(-0.95f, 0.00f), 14, Color.White);
+    AddTextOverlay(defaultFont, "even 10 pt", new Vector2(-0.95f, -0.12f), 10, Color.White);
+    AddTextOverlay(defaultFont, "Press ESC to exit", new Vector2(-0.95f, -0.30f), 16, Color.Blue);
 }
 
 void OnRender(double deltaTime)

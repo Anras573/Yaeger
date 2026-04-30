@@ -28,6 +28,18 @@ dotnet run --project Samples/TextRenderingExample/TextRenderingExample.csproj
 4. **Text Rendering**: Efficient rendering of text using batch rendering
 5. **Text Shaping**: Proper text layout with HarfBuzz
 
+## Visual regression test
+
+The sample's font-size mix is chosen to catch two bugs that previously broke
+text rendering for everything except powers of 2:
+
+- **Multiple sizes in one scene** (32, 22, 18, 14, 10, 16). Each must render at
+  its requested size. If they all render at one size, the glyph-atlas cache
+  has regressed to keying by `Font` alone.
+- **Non-multiple-of-4 sizes** (22, 18, 14, 10). Each must render as readable
+  glyphs. If any appear as sheared stripes, the glyph upload path has
+  regressed on OpenGL pixel-store state (`GL_UNPACK_ALIGNMENT`).
+
 ## Implementation Details
 
 The example demonstrates the complete text rendering pipeline:
