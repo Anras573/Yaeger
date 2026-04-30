@@ -14,7 +14,10 @@ public class TextRenderer : IDisposable
 {
     private readonly GL _gl;
     private readonly Shader _textShader;
-    private readonly Dictionary<Font.Font, GlyphAtlas> _glyphAtlases = new();
+
+    // Keyed by (font, fontSize) so the same font rendered at different sizes gets its own
+    // atlas. Previously keyed by Font alone, which silently reused the first size forever.
+    private readonly Dictionary<(Font.Font Font, int FontSize), GlyphAtlas> _glyphAtlases = new();
     private readonly FontVertexArray _vao;
     private readonly Buffer<float> _vbo;
     private readonly Buffer<uint> _ebo;
@@ -95,13 +98,14 @@ public class TextRenderer : IDisposable
     /// </summary>
     private GlyphAtlas GetOrCreateAtlas(Font.Font font, int fontSize = 48)
     {
-        if (_glyphAtlases.TryGetValue(font, out var atlas))
+        var key = (font, fontSize);
+        if (_glyphAtlases.TryGetValue(key, out var atlas))
         {
             return atlas;
         }
 
         atlas = new GlyphAtlas(_gl, font, fontSize);
-        _glyphAtlases[font] = atlas;
+        _glyphAtlases[key] = atlas;
         return atlas;
     }
 
