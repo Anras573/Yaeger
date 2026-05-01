@@ -104,45 +104,11 @@ public sealed class PrefabLoader
 
             foreach (var componentEl in componentsEl.EnumerateArray())
             {
-                if (componentEl.ValueKind != JsonValueKind.Object)
-                    throw new PrefabLoadException(
-                        "Each component entry in 'components' must be a JSON object."
-                    );
-
-                if (!componentEl.TryGetProperty("type", out var typeEl))
-                    throw new PrefabLoadException(
-                        "Each component entry must have a 'type' property."
-                    );
-
-                if (typeEl.ValueKind != JsonValueKind.String)
-                    throw new PrefabLoadException("Component 'type' must be a string.");
-
-                var typeId = typeEl.GetString();
-                if (string.IsNullOrWhiteSpace(typeId))
-                    throw new PrefabLoadException("Component 'type' must be a non-empty string.");
-
-                if (!_registry.TryGetSerializer(typeId, out var serializer))
-                {
-                    var registered = string.Join(", ", _registry.RegisteredTypeIds);
-                    throw new PrefabLoadException(
-                        $"No serializer is registered for component type '{typeId}'. "
-                            + $"Registered types: [{registered}]"
-                    );
-                }
-
-                Action<World, Entity> adder;
-                try
-                {
-                    adder = serializer.Deserialize(componentEl.Clone());
-                }
-                catch (Exception ex) when (ex is not PrefabLoadException)
-                {
-                    throw new PrefabLoadException(
-                        $"Failed to deserialize component '{typeId}'.",
-                        ex
-                    );
-                }
-
+                var adder = _registry.ParseComponent(
+                    componentEl,
+                    msg => new PrefabLoadException(msg),
+                    (msg, inner) => new PrefabLoadException(msg, inner)
+                );
                 builder.WithAction(adder);
             }
 
