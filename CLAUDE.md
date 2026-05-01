@@ -47,6 +47,7 @@ Yaeger is a 2D game engine library (`src/Engine/Yaeger/`) built around ECS. Game
 - **`ComponentStorage<T>`** — internal dictionary-backed store per component type. Never access it directly; use `World` APIs.
 - **`WorldExtensions`** — provides `Query<T1,T2>()` / `Query<T1,T2,T3>()` / `Query<T1,T2,T3,T4>()` LINQ-style extension methods. These iterate `T1`'s store and probe the remaining stores with `TryGet` — put the rarest component type first for best performance.
 - **`IComponentSerializer` / `ComponentRegistry` / `PrefabLoader` / `Prefab`** — the prefab pipeline. JSON files with a `"components": [{"type": "...", ...}]` structure are loaded via `PrefabLoader`, which looks up serializers in a `ComponentRegistry`. Call `registry.RegisterEngineComponents()` to register the built-in serializers, then add game-specific ones. Instantiate via `world.Instantiate(prefab, optionalTag)`.
+- **`SceneLoader` / `Scene`** — the scene pipeline. JSON files with a top-level `"entities"` array, each entry optionally carrying a `"tag"` plus its own `"components"` array. Loader reuses the same `ComponentRegistry` as prefabs. Instantiate via `world.Instantiate(scene)`, which returns `IReadOnlyList<Entity>`. Load-only for now — save direction deferred to the inspector work. See `docs/scenes.md` and `Samples/SceneDemo`.
 
 **Critical constraint**: All components must be `struct`, never `class`. `ComponentStorage<T>` has a `where T : struct` constraint.
 
