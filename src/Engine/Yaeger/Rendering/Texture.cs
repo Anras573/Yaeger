@@ -11,6 +11,10 @@ public class Texture : IDisposable
     public int Width { get; private set; }
     public int Height { get; private set; }
 
+    // Flip images vertically on load so that OpenGL's bottom-up texture
+    // coordinate convention (v=0 at the bottom) matches the uploaded data.
+    static Texture() => StbImage.stbi_set_flip_vertically_on_load(1);
+
     public unsafe Texture(GL gl, string path)
     {
         _gl = gl;
