@@ -46,9 +46,7 @@ var playerHome = world.GetComponent<Transform2D>(player).Position;
 var font = fontManager.Load("Assets/Roboto-Regular.ttf");
 var hudEntity = world.CreateEntity("hud");
 
-// HUD text is ASCII-only — Font.Shape has a pre-existing bug with multi-byte UTF-8
-// characters (see issue #38). An em dash or any non-ASCII glyph crashes with
-// IndexOutOfRangeException in Font.Shape. Avoid until the font pipeline is fixed.
+// ASCII-only: Font.Shape crashes on multi-byte UTF-8 (see issue #38).
 world.AddComponent(
     hudEntity,
     new Text(

@@ -35,11 +35,14 @@ public sealed class Scene
     /// applying each entity's components.
     /// </summary>
     /// <returns>The created entities in scene-file order.</returns>
-    /// <exception cref="ArgumentException">
-    /// When a scene entity's tag collides with a tag already present in the world.
-    /// Prefer catching this and reporting which scene file or entity was at fault; the
-    /// scene loader can't prevent collisions with entities the user created in code.
-    /// </exception>
+    /// <remarks>
+    /// Tag collisions are handled by <see cref="World.CreateEntity(string)"/>'s existing
+    /// rebind semantics: if a scene tag is already bound to an entity in the world, the tag
+    /// is silently transferred to the newly created entity and the previous entity loses its
+    /// reverse mapping. The scene loader doesn't try to prevent this — callers that need
+    /// collision detection should check for existing tags before calling
+    /// <c>world.Instantiate(scene)</c>.
+    /// </remarks>
     internal IReadOnlyList<Entity> Apply(World world)
     {
         var created = new List<Entity>(_entities.Count);
