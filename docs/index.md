@@ -52,6 +52,7 @@ Samples/
 ├── Animation2D/             # Sprite-sheet animation demo
 ├── CameraDemo/              # Opt-in 2D camera demo
 ├── MouseDemo/               # Mouse input demo
+├── SceneDemo/               # JSON scene loading demo
 ├── RenderingStressTest/     # Renderer stress test
 └── TextRenderingExample/    # Text rendering demo
 ```

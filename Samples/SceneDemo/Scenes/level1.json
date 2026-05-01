@@ -1,0 +1,49 @@
+{
+  "entities": [
+    {
+      "tag": "ground",
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/square.png" },
+        { "type": "Transform2D", "position": [0.0, -0.85], "scale": [2.0, 0.04] }
+      ]
+    },
+    {
+      "tag": "player",
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/square.png" },
+        { "type": "Transform2D", "position": [0.0, -0.2], "scale": [0.16, 0.16] }
+      ]
+    },
+    {
+      "tag": "sun",
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/square.png" },
+        { "type": "Transform2D", "position": [-0.75, 0.7], "scale": [0.12, 0.12] }
+      ]
+    },
+    {
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/square.png" },
+        { "type": "Transform2D", "position": [0.6, 0.55], "scale": [0.03, 0.03] }
+      ]
+    },
+    {
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/square.png" },
+        { "type": "Transform2D", "position": [0.4, 0.8], "scale": [0.025, 0.025] }
+      ]
+    },
+    {
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/square.png" },
+        { "type": "Transform2D", "position": [-0.35, 0.85], "scale": [0.04, 0.04] }
+      ]
+    },
+    {
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/square.png" },
+        { "type": "Transform2D", "position": [0.15, 0.6], "scale": [0.02, 0.02] }
+      ]
+    }
+  ]
+}

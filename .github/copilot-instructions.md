@@ -64,6 +64,7 @@ The test suite uses xUnit and covers ECS, physics, and graphics primitives. Rend
 - **`WorldExtensions`** — `Query<T1,T2>()` / `Query<T1,T2,T3>()` / `Query<T1,T2,T3,T4>()` extension methods. Iterates `T1`'s store and probes the rest — put the rarest type first.
 - **`ComponentStorage<T>`** — internal store per component type. Access only through `World` APIs, never directly.
 - **`ComponentRegistry` / `PrefabLoader` / `Prefab`** — JSON prefab pipeline. Files use `{"components": [{"type": "...", ...}]}`. Call `registry.RegisterEngineComponents()` then `world.Instantiate(prefab, optionalTag)`.
+- **`SceneLoader` / `Scene`** — JSON multi-entity scene pipeline. Files use `{"entities": [{"tag": "...", "components": [...]}, ...]}`. Reuses the prefab registry. `world.Instantiate(scene)` returns `IReadOnlyList<Entity>`. Load-only today.
 
 **All components must be `struct`, never `class`.**
 

@@ -51,10 +51,14 @@ public sealed class PrefabLoader
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
 
-        if (!File.Exists(path))
-            throw new FileNotFoundException($"Prefab file not found: {path}", path);
+        // Resolve against AppContext.BaseDirectory so the path works regardless of the
+        // working directory — matches Texture / FontManager / SceneLoader.
+        var resolved = AssetPath.Resolve(path);
 
-        var json = File.ReadAllText(path);
+        if (!File.Exists(resolved))
+            throw new FileNotFoundException($"Prefab file not found: {path}", resolved);
+
+        var json = File.ReadAllText(resolved);
         return Parse(json);
     }
 

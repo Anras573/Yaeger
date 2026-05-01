@@ -77,6 +77,7 @@ For more information about testing, see the [Testing Guide](docs/testing.md).
   - `Animation2D/` - Sprite-sheet animation demo
   - `CameraDemo/` - Opt-in 2D camera (pan / zoom / rotate)
   - `MouseDemo/` - Mouse input (paint trail + scroll resize)
+  - `SceneDemo/` - JSON scene loading
   - `RenderingStressTest/` - Renderer stress test (FPS vs sprite count)
 - `docs/` - Documentation
   - `TESTING.md` - Comprehensive testing guide

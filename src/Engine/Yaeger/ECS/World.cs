@@ -109,6 +109,17 @@ public class World
         return entity;
     }
 
+    /// <summary>
+    /// Spawns every entity described by <paramref name="scene"/> into the world, restoring
+    /// tags and applying each entity's components in scene-file order.
+    /// </summary>
+    /// <returns>The created entities in the same order as the scene file.</returns>
+    public IReadOnlyList<Entity> Instantiate(Scene scene)
+    {
+        ArgumentNullException.ThrowIfNull(scene);
+        return scene.Apply(this);
+    }
+
     public IEnumerable<Entity> Entities => _entities;
 
     public ComponentStorage<T> GetStore<T>()
