@@ -53,10 +53,15 @@ public sealed class SceneLoader
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
 
-        if (!File.Exists(path))
-            throw new FileNotFoundException($"Scene file not found: {path}", path);
+        // Resolve against AppContext.BaseDirectory so the path works regardless of the
+        // working directory — same convention used by Texture and FontManager. Without
+        // this, `dotnet run` from a parent directory loses the CopyToOutputDirectory path.
+        var resolved = AssetPath.Resolve(path);
 
-        var json = File.ReadAllText(path);
+        if (!File.Exists(resolved))
+            throw new FileNotFoundException($"Scene file not found: {path}", resolved);
+
+        var json = File.ReadAllText(resolved);
         return Parse(json);
     }
 
