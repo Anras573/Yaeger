@@ -45,10 +45,14 @@ var playerHome = world.GetComponent<Transform2D>(player).Position;
 // HUD text — screen-space, untouched by runtime animation of the world entities.
 var font = fontManager.Load("Assets/Roboto-Regular.ttf");
 var hudEntity = world.CreateEntity("hud");
+
+// HUD text is ASCII-only — Font.Shape has a pre-existing bug with multi-byte UTF-8
+// characters (see issue #38). An em dash or any non-ASCII glyph crashes with
+// IndexOutOfRangeException in Font.Shape. Avoid until the font pipeline is fixed.
 world.AddComponent(
     hudEntity,
     new Text(
-        $"Scene: Scenes/level1.json — {created.Count} entities loaded (tags: ground, player, sun)",
+        $"Scene: Scenes/level1.json, {created.Count} entities loaded (tags: ground, player, sun)",
         font,
         14,
         Color.White
