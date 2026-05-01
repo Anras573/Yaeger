@@ -146,60 +146,17 @@ public sealed class SceneLoader
 
         foreach (var componentEl in componentsEl.EnumerateArray())
         {
-            adders.Add(ParseComponent(componentEl, index, componentIndex));
+            var context = $"Entity {index}, component {componentIndex}: ";
+            var adder = _registry.ParseComponent(
+                componentEl,
+                msg => new SceneLoadException(msg),
+                (msg, inner) => new SceneLoadException(msg, inner),
+                context
+            );
+            adders.Add(adder);
             componentIndex++;
         }
 
         return new Scene.SceneEntityEntry(tag, adders);
-    }
-
-    private Action<World, Entity> ParseComponent(
-        JsonElement componentEl,
-        int entityIndex,
-        int componentIndex
-    )
-    {
-        if (componentEl.ValueKind != JsonValueKind.Object)
-            throw new SceneLoadException(
-                $"Entity {entityIndex}, component {componentIndex}: must be a JSON object."
-            );
-
-        if (!componentEl.TryGetProperty("type", out var typeEl))
-            throw new SceneLoadException(
-                $"Entity {entityIndex}, component {componentIndex}: must have a 'type' property."
-            );
-
-        if (typeEl.ValueKind != JsonValueKind.String)
-            throw new SceneLoadException(
-                $"Entity {entityIndex}, component {componentIndex}: 'type' must be a string."
-            );
-
-        var typeId = typeEl.GetString();
-        if (string.IsNullOrWhiteSpace(typeId))
-            throw new SceneLoadException(
-                $"Entity {entityIndex}, component {componentIndex}: 'type' must be a non-empty string."
-            );
-
-        if (!_registry.TryGetSerializer(typeId, out var serializer))
-        {
-            var registered = string.Join(", ", _registry.RegisteredTypeIds);
-            throw new SceneLoadException(
-                $"Entity {entityIndex}, component {componentIndex}: no serializer is registered "
-                    + $"for component type '{typeId}'. Registered types: [{registered}]"
-            );
-        }
-
-        try
-        {
-            return serializer.Deserialize(componentEl.Clone());
-        }
-        catch (Exception ex) when (ex is not SceneLoadException)
-        {
-            throw new SceneLoadException(
-                $"Entity {entityIndex}, component {componentIndex}: "
-                    + $"failed to deserialize component '{typeId}'.",
-                ex
-            );
-        }
     }
 }
