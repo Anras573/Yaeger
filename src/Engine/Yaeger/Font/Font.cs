@@ -31,7 +31,7 @@ public class Font : IDisposable
         }
 
         using var buffer = new Buffer();
-        buffer.AddUtf8(text);
+        buffer.AddUtf16(text);
         buffer.GuessSegmentProperties();
         buffer.Direction = Direction.LeftToRight;
 
@@ -41,15 +41,12 @@ public class Font : IDisposable
         var glyphPositions = buffer.GlyphPositions;
         var result = new GlyphInfo[glyphInfos.Length];
 
-        // Convert text to codepoints for lookup
-        var codepoints = text.EnumerateRunes().Select(r => (uint)r.Value).ToArray();
-
         for (int i = 0; i < glyphInfos.Length; i++)
         {
             result[i] = new GlyphInfo
             {
                 GlyphIndex = glyphInfos[i].Codepoint, // This is actually glyph index
-                Codepoint = codepoints[glyphInfos[i].Cluster], // Original character codepoint
+                Codepoint = (uint)char.ConvertToUtf32(text, (int)glyphInfos[i].Cluster), // Original character codepoint
                 Cluster = glyphInfos[i].Cluster,
                 XAdvance = glyphPositions[i].XAdvance,
                 YAdvance = glyphPositions[i].YAdvance,
