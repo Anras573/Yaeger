@@ -30,7 +30,8 @@ nav:
   - Getting Started:
       - Animation System: animation-system.md
       - Audio System: audio-system.md
-      - Batch Rendering: batch-rendering.md
+      - Camera: camera.md
+      - Scenes: scenes.md
   - Contributing:
       - Testing Guide: testing.md
 
