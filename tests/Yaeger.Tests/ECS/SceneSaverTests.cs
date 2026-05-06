@@ -18,7 +18,7 @@ public class SceneSaverTests
 
         var json = saver.Serialize(world);
 
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("entities").ValueKind);
         Assert.Equal(0, doc.RootElement.GetProperty("entities").GetArrayLength());
     }
@@ -221,7 +221,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_EntityOrder_IsPreserved()
+    public void Serialize_EntityOrder_IsSortedByEntityId()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -231,7 +231,7 @@ public class SceneSaverTests
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var entities = doc.RootElement.GetProperty("entities").EnumerateArray().ToArray();
         Assert.Equal(3, entities.Length);
         Assert.Equal("first", entities[0].GetProperty("tag").GetString());
@@ -366,7 +366,7 @@ public class SceneSaverTests
 
         registry.Register(new StubSerializer("B"));
 
-        Assert.Equal(1, snapshot.Count);
+        Assert.Single(snapshot);
         Assert.Equal(2, registry.Serializers.Count);
     }
 
@@ -454,13 +454,21 @@ public class SceneSaverTests
 
     private static JsonElement ParseFirstEntity(string json)
     {
-        var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("entities").EnumerateArray().First();
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("entities").EnumerateArray().First().Clone();
     }
 
     private static IEnumerable<JsonElement> ParseFirstEntityComponents(string json)
     {
-        return ParseFirstEntity(json).GetProperty("components").EnumerateArray();
+        using var doc = JsonDocument.Parse(json);
+        return doc
+            .RootElement.GetProperty("entities")
+            .EnumerateArray()
+            .First()
+            .GetProperty("components")
+            .EnumerateArray()
+            .Select(e => e.Clone())
+            .ToArray();
     }
 
     private sealed class StubSerializer(string typeId) : IComponentSerializer

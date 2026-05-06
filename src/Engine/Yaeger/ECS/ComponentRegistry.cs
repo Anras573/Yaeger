@@ -13,11 +13,12 @@ namespace Yaeger.ECS;
 public sealed class ComponentRegistry
 {
     private readonly Dictionary<string, IComponentSerializer> _serializers = new();
+    private readonly List<IComponentSerializer> _serializerList = [];
 
     /// <summary>
     /// Registers a component serializer.
     /// Re-registering the same <see cref="IComponentSerializer.TypeId"/> replaces the
-    /// existing entry.
+    /// existing entry while preserving its position in the registration list.
     /// </summary>
     /// <param name="serializer">The serializer to register.</param>
     public void Register(IComponentSerializer serializer)
@@ -33,6 +34,18 @@ public sealed class ComponentRegistry
             );
         }
 
+        if (_serializers.TryGetValue(typeId, out var existing))
+        {
+            // Replace in-place so the registration list order is stable on re-register.
+            var index = _serializerList.IndexOf(existing);
+            if (index >= 0)
+                _serializerList[index] = serializer;
+        }
+        else
+        {
+            _serializerList.Add(serializer);
+        }
+
         _serializers[typeId] = serializer;
     }
 
@@ -42,9 +55,10 @@ public sealed class ComponentRegistry
     public IReadOnlyCollection<string> RegisteredTypeIds => _serializers.Keys.ToArray();
 
     /// <summary>
-    /// Returns a read-only snapshot of all currently registered serializers.
+    /// Returns a read-only snapshot of all currently registered serializers in
+    /// registration order.
     /// </summary>
-    public IReadOnlyCollection<IComponentSerializer> Serializers => _serializers.Values.ToArray();
+    public IReadOnlyCollection<IComponentSerializer> Serializers => _serializerList.ToArray();
 
     internal bool TryGetSerializer(
         string typeId,

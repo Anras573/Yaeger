@@ -28,10 +28,9 @@ namespace Yaeger.ECS;
 /// </code>
 /// </para>
 /// <para>
-/// Entity order in the output file follows the iteration order of
-/// <see cref="World.Entities"/>, which is insertion order (entities created first appear
-/// first).  Component order within each entity follows the registration order of the
-/// serializers in the <see cref="ComponentRegistry"/>.
+/// Entity order in the output file is deterministic: entities are written in ascending
+/// <see cref="Entity.Id"/> order.  Component order within each entity follows the
+/// registration order of the serializers in the <see cref="ComponentRegistry"/>.
 /// </para>
 /// </remarks>
 public sealed class SceneSaver
@@ -54,10 +53,11 @@ public sealed class SceneSaver
     /// Serializes <paramref name="world"/> to a JSON scene file at <paramref name="path"/>.
     /// </summary>
     /// <remarks>
-    /// The write is atomic: the JSON is first written to a sibling <c>.tmp</c> file, then
-    /// renamed over the destination. This means a crash or disk-full error never corrupts an
-    /// existing save — the destination is only replaced once the new content is fully flushed.
-    /// The parent directory must already exist.
+    /// The path is resolved via <see cref="AssetPath.Resolve"/> (against
+    /// <see cref="AppContext.BaseDirectory"/>) so that relative paths behave the same way
+    /// as in <see cref="SceneLoader.Load"/>. The write is done via a sibling <c>.tmp</c>
+    /// file that is then renamed over the destination so a crash never leaves a partially
+    /// written file in place. The parent directory must already exist.
     /// </remarks>
     /// <param name="world">The world whose entities should be saved.</param>
     /// <param name="path">Destination file path.</param>
@@ -69,12 +69,13 @@ public sealed class SceneSaver
         ArgumentNullException.ThrowIfNull(world);
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
 
+        var resolved = AssetPath.Resolve(path);
         var json = Serialize(world);
-        var tmp = path + ".tmp";
+        var tmp = resolved + ".tmp";
         try
         {
             File.WriteAllText(tmp, json);
-            File.Move(tmp, path, overwrite: true);
+            File.Move(tmp, resolved, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -95,7 +96,7 @@ public sealed class SceneSaver
         var entities = new JsonArray();
         var serializers = _registry.Serializers;
 
-        foreach (var entity in world.Entities)
+        foreach (var entity in world.Entities.OrderBy(e => e.Id))
         {
             var entityObj = new JsonObject();
 
