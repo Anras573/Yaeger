@@ -68,8 +68,9 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
             ["rows"] = ss.Rows,
         };
 
-        // Only emit frameCount when it differs from the default (columns * rows)
-        if (ss.FrameCount != ss.Columns * ss.Rows)
+        // Only emit frameCount when it differs from the default (columns * rows).
+        // Use checked to stay symmetric with the Deserialize path.
+        if (ss.FrameCount != checked(ss.Columns * ss.Rows))
             obj["frameCount"] = ss.FrameCount;
 
         return obj;

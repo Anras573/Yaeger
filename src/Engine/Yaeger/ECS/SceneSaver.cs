@@ -54,18 +54,32 @@ public sealed class SceneSaver
     /// Serializes <paramref name="world"/> to a JSON scene file at <paramref name="path"/>.
     /// </summary>
     /// <remarks>
-    /// The path is used as-is (relative paths resolve against the process working directory).
+    /// The write is atomic: the JSON is first written to a sibling <c>.tmp</c> file, then
+    /// renamed over the destination. This means a crash or disk-full error never corrupts an
+    /// existing save — the destination is only replaced once the new content is fully flushed.
     /// The parent directory must already exist.
     /// </remarks>
     /// <param name="world">The world whose entities should be saved.</param>
     /// <param name="path">Destination file path.</param>
+    /// <exception cref="SceneSaveException">
+    /// Thrown when a serializer fails or the file cannot be written.
+    /// </exception>
     public void Save(World world, string path)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
 
         var json = Serialize(world);
-        File.WriteAllText(path, json);
+        var tmp = path + ".tmp";
+        try
+        {
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new SceneSaveException($"Failed to write scene to '{path}': {ex.Message}", ex);
+        }
     }
 
     /// <summary>
@@ -79,6 +93,7 @@ public sealed class SceneSaver
         ArgumentNullException.ThrowIfNull(world);
 
         var entities = new JsonArray();
+        var serializers = _registry.Serializers;
 
         foreach (var entity in world.Entities)
         {
@@ -88,9 +103,22 @@ public sealed class SceneSaver
                 entityObj["tag"] = tag;
 
             var components = new JsonArray();
-            foreach (var serializer in _registry.Serializers)
+            foreach (var serializer in serializers)
             {
-                var node = serializer.TrySerialize(world, entity);
+                JsonNode? node;
+                try
+                {
+                    node = serializer.TrySerialize(world, entity);
+                }
+                catch (Exception ex)
+                {
+                    var label = world.TryGetTag(entity, out var t) ? $"'{t}'" : $"id={entity}";
+                    throw new SceneSaveException(
+                        $"Serializer '{serializer.TypeId}' failed on entity {label}.",
+                        ex
+                    );
+                }
+
                 if (node is not null)
                     components.Add(node);
             }

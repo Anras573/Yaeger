@@ -1,6 +1,5 @@
 using System.Numerics;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Yaeger.ECS;
 using Yaeger.ECS.Serializers;
 using Yaeger.Graphics;
@@ -124,7 +123,7 @@ public class SceneSaverTests
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        var component = ParseFirstEntityComponents(json).Single();
+        var component = Assert.Single(ParseFirstEntityComponents(json));
         Assert.False(component.TryGetProperty("frameCount", out _));
     }
 
@@ -252,7 +251,7 @@ public class SceneSaverTests
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        var component = ParseFirstEntityComponents(json).Single();
+        var component = Assert.Single(ParseFirstEntityComponents(json));
         Assert.Equal("Sprite", component.GetProperty("type").GetString());
     }
 
@@ -267,6 +266,108 @@ public class SceneSaverTests
 
         var components = ParseFirstEntityComponents(json);
         Assert.Empty(components);
+    }
+
+    // ── SceneSaver.Save — filesystem ─────────────────────────────────────────
+
+    [Fact]
+    public void Save_WritesJsonMatchingSerialize_ToFile()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var world = new World();
+        var entity = world.CreateEntity("hero");
+        world.AddComponent(entity, new Sprite("Assets/hero.png"));
+        var saver = new SceneSaver(registry);
+        var path = Path.GetTempFileName();
+
+        try
+        {
+            saver.Save(world, path);
+
+            var written = File.ReadAllText(path);
+            Assert.Equal(saver.Serialize(world), written);
+        }
+        finally
+        {
+            File.Delete(path);
+            var tmp = path + ".tmp";
+            if (File.Exists(tmp))
+                File.Delete(tmp);
+        }
+    }
+
+    // ── SpriteSheet default-frameCount round-trip ─────────────────────────────
+
+    [Fact]
+    public void Serialize_SpriteSheet_DefaultFrameCount_RoundTrips()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new SpriteSheet("Assets/sheet.png", 4, 2));
+
+        var json = new SceneSaver(registry).Serialize(world);
+
+        var reloaded = new World();
+        reloaded.Instantiate(new SceneLoader(registry).Parse(json));
+
+        var reloadedEntity = reloaded.Entities.Single();
+        Assert.True(reloaded.TryGetComponent<SpriteSheet>(reloadedEntity, out var ss));
+        Assert.Equal(4, ss.Columns);
+        Assert.Equal(2, ss.Rows);
+        Assert.Equal(8, ss.FrameCount);
+    }
+
+    // ── Animation loop:true round-trip ───────────────────────────────────────
+
+    [Fact]
+    public void Serialize_AnimationLoopTrue_RoundTrips()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(
+            entity,
+            new Animation([new AnimationFrame("Assets/f0.png", 0.1f)], loop: true)
+        );
+
+        var json = new SceneSaver(registry).Serialize(world);
+
+        var reloaded = new World();
+        reloaded.Instantiate(new SceneLoader(registry).Parse(json));
+
+        var reloadedEntity = reloaded.Entities.Single();
+        Assert.True(reloaded.TryGetComponent<Animation>(reloadedEntity, out var anim));
+        Assert.True(anim.Loop);
+    }
+
+    // ── World.TryGetTag after DestroyEntity ──────────────────────────────────
+
+    [Fact]
+    public void TryGetTag_AfterDestroyEntity_ReturnsFalse()
+    {
+        var world = new World();
+        var entity = world.CreateEntity("hero");
+
+        world.DestroyEntity(entity);
+
+        Assert.False(world.TryGetTag(entity, out _));
+    }
+
+    // ── ComponentRegistry.Serializers snapshot immutability ──────────────────
+
+    [Fact]
+    public void Serializers_SnapshotIsImmutable_AfterSubsequentRegistration()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register(new StubSerializer("A"));
+
+        var snapshot = registry.Serializers;
+
+        registry.Register(new StubSerializer("B"));
+
+        Assert.Equal(1, snapshot.Count);
+        Assert.Equal(2, registry.Serializers.Count);
     }
 
     // ── SceneSaver — argument validation ────────────────────────────────────
@@ -320,9 +421,10 @@ public class SceneSaverTests
         registry.Register(new StubSerializer("A"));
         registry.Register(new StubSerializer("B"));
 
-        Assert.Equal(2, registry.Serializers.Count);
-        Assert.Contains(registry.Serializers, s => s.TypeId == "A");
-        Assert.Contains(registry.Serializers, s => s.TypeId == "B");
+        var serializers = registry.Serializers;
+        Assert.Equal(2, serializers.Count);
+        Assert.Contains(serializers, s => s.TypeId == "A");
+        Assert.Contains(serializers, s => s.TypeId == "B");
     }
 
     // ── World.TryGetTag ───────────────────────────────────────────────────────
