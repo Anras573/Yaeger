@@ -1,6 +1,6 @@
 namespace Yaeger.ECS;
 
-public class ComponentStorage<T>
+public class ComponentStorage<T> : IComponentStore
     where T : struct
 {
     private readonly Dictionary<Entity, T> _components = new();

@@ -173,6 +173,22 @@ public class WorldTests
         Assert.Contains(entity2, world.Entities);
     }
 
+    [Fact]
+    public void DestroyEntity_ShouldRemoveComponentsFromEntity()
+    {
+        // Arrange
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new TestComponent { Value = 42 });
+
+        // Act
+        world.DestroyEntity(entity);
+
+        // Assert
+        Assert.DoesNotContain(entity, world.Entities);
+        Assert.False(world.TryGetComponent<TestComponent>(entity, out _));
+    }
+
     // Helper test component
     private struct TestComponent
     {
