@@ -4,8 +4,7 @@ public class World
 {
     private int _nextEntityId = 1;
     private readonly HashSet<Entity> _entities = [];
-    private readonly Dictionary<Type, object> _componentStores = new();
-    private readonly Dictionary<Type, Action<int>> _removeDelegates = new();
+    private readonly Dictionary<Type, IComponentStore> _componentStores = new();
     private readonly Dictionary<string, Entity> _taggedEntities = new();
     private readonly Dictionary<Entity, string> _entitiesByTag = new();
 
@@ -45,18 +44,7 @@ public class World
 
         _entities.Remove(entity);
         foreach (var store in _componentStores.Values)
-        {
-            if (!_removeDelegates.TryGetValue(store.GetType(), out var removeDelegate))
-            {
-                var removeMethod =
-                    store.GetType().GetMethod("Remove")
-                    ?? throw new InvalidOperationException("Remove method not found");
-                removeDelegate =
-                    (Action<int>)Delegate.CreateDelegate(typeof(Action<int>), store, removeMethod);
-                _removeDelegates[store.GetType()] = removeDelegate;
-            }
-            removeDelegate(entity.Id);
-        }
+            store.Remove(entity);
     }
 
     public void AddComponent<T>(Entity entity, T component)
@@ -127,8 +115,8 @@ public class World
     {
         if (_componentStores.TryGetValue(typeof(T), out var store))
             return (ComponentStorage<T>)store;
-        store = new ComponentStorage<T>();
-        _componentStores[typeof(T)] = store;
-        return (ComponentStorage<T>)store;
+        var newStore = new ComponentStorage<T>();
+        _componentStores[typeof(T)] = newStore;
+        return newStore;
     }
 }
