@@ -221,22 +221,30 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_EntityOrder_IsSortedByEntityId()
+    public void Serialize_EntityOrder_IsSortedByEntityIdAscending()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
-        world.CreateEntity("first");
-        world.CreateEntity("second");
-        world.CreateEntity("third");
+
+        // Create entities with deliberately mismatched tag names vs. creation order so
+        // the test is not relying on tag alphabetical order or insertion coincidence.
+        var eA = world.CreateEntity("alpha"); // gets the lowest Id
+        var eC = world.CreateEntity("charlie"); // middle Id
+        var eB = world.CreateEntity("bravo"); // highest Id
 
         var json = new SceneSaver(registry).Serialize(world);
 
+        // Build the expected order: sort the captured entities by their actual Id values.
+        var expectedTags = new[] { (eA, "alpha"), (eC, "charlie"), (eB, "bravo") }
+            .OrderBy(x => x.Item1.Id)
+            .Select(x => x.Item2)
+            .ToArray();
+
         using var doc = JsonDocument.Parse(json);
-        var entities = doc.RootElement.GetProperty("entities").EnumerateArray().ToArray();
-        Assert.Equal(3, entities.Length);
-        Assert.Equal("first", entities[0].GetProperty("tag").GetString());
-        Assert.Equal("second", entities[1].GetProperty("tag").GetString());
-        Assert.Equal("third", entities[2].GetProperty("tag").GetString());
+        var serializedEntities = doc.RootElement.GetProperty("entities").EnumerateArray().ToArray();
+        Assert.Equal(3, serializedEntities.Length);
+        for (var i = 0; i < 3; i++)
+            Assert.Equal(expectedTags[i], serializedEntities[i].GetProperty("tag").GetString());
     }
 
     // ── SceneSaver.Serialize — JSON structure ────────────────────────────────

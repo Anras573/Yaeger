@@ -38,6 +38,11 @@ public sealed class ComponentRegistry
         {
             // Replace in-place so the registration list order is stable on re-register.
             var index = _serializerList.IndexOf(existing);
+            // The dictionary and list are always kept in sync; index < 0 is a bug.
+            System.Diagnostics.Debug.Assert(
+                index >= 0,
+                "Serializer found in dictionary but missing from list — internal state is corrupt."
+            );
             if (index >= 0)
                 _serializerList[index] = serializer;
         }
