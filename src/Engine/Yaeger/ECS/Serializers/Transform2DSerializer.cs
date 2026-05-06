@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Yaeger.Graphics;
 
 namespace Yaeger.ECS.Serializers;
@@ -42,6 +43,24 @@ public sealed class Transform2DSerializer : IComponentSerializer
 
         var component = new Transform2D(position, rotation, scale);
         return (world, entity) => world.AddComponent(entity, component);
+    }
+
+    /// <inheritdoc/>
+    public JsonNode? TrySerialize(World world, Entity entity)
+    {
+        if (!world.TryGetComponent<Transform2D>(entity, out var t))
+            return null;
+
+        return new JsonObject
+        {
+            ["type"] = TypeId,
+            ["position"] = new JsonArray(
+                JsonValue.Create(t.Position.X),
+                JsonValue.Create(t.Position.Y)
+            ),
+            ["rotation"] = t.Rotation,
+            ["scale"] = new JsonArray(JsonValue.Create(t.Scale.X), JsonValue.Create(t.Scale.Y)),
+        };
     }
 
     private static float ReadSingle(JsonElement el, string propertyName)

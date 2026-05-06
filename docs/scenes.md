@@ -34,6 +34,8 @@ Asset paths in `texturePath` (and similar fields) are resolved relative to the e
 
 ## API
 
+### Loading
+
 ```csharp
 var registry = new ComponentRegistry().RegisterEngineComponents();
 var loader = new SceneLoader(registry);
@@ -46,6 +48,32 @@ var player = world.GetEntity("player");
 ```
 
 `world.Instantiate(scene)` returns the created entities in the same order as the scene file.
+
+### Saving
+
+```csharp
+var registry = new ComponentRegistry().RegisterEngineComponents();
+var saver = new SceneSaver(registry);
+
+saver.Save(world, "Scenes/level1.json");   // writes an indented JSON scene file
+```
+
+`SceneSaver` iterates every entity in `world.Entities` and, for each entity, asks every registered `IComponentSerializer` to serialise its component via `TrySerialize(world, entity)`. Serialisers that return `null` (e.g. when the entity does not carry that component type) are silently skipped.
+
+All five engine-provided serialisers support the write direction. Custom serialisers opt in by overriding the default `TrySerialize` method on `IComponentSerializer`.
+
+### Round-trip
+
+```csharp
+var registry = new ComponentRegistry().RegisterEngineComponents();
+
+// Save the current world state
+new SceneSaver(registry).Save(world, "Scenes/checkpoint.json");
+
+// Later — reload it into a fresh world
+var fresh = new World();
+fresh.Instantiate(new SceneLoader(registry).Load("Scenes/checkpoint.json"));
+```
 
 ## Errors
 
@@ -61,7 +89,6 @@ Tag collisions are detected by `World.CreateEntity(string)` — if a scene uses 
 
 ## Not yet supported
 
-- **Saving scenes** — `Scene` is load-only today. Writing a world back out as JSON requires adding a symmetric write method to `IComponentSerializer` and a `SceneSaver`; this is planned for the inspector work (issue #36) where it has a caller.
 - **Cross-entity references** — if entity A should reference entity B, the reference has to be resolved in runtime code after the scene loads. The scene format doesn't support an `entityRef` style yet.
 - **Hot reload** — watching the scene file for changes and re-instantiating. Nothing stops you from calling `loader.Load(...)` again manually, but there's no built-in watcher.
 - **Scene composition / inheritance** — one scene extending or overriding another. Intentionally deferred.
@@ -69,6 +96,7 @@ Tag collisions are detected by `World.CreateEntity(string)` — if a scene uses 
 ## See also
 
 - `Samples/SceneDemo/` — end-to-end demo with a seven-entity scene and tag round-trip
+- `src/Engine/Yaeger/ECS/SceneSaver.cs` — save-direction implementation
 - `src/Engine/Yaeger/ECS/SceneLoader.cs` — implementation
 - `src/Engine/Yaeger/ECS/Scene.cs` — in-memory scene representation
 - `docs/` — the broader engine docs index

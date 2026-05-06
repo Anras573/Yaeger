@@ -41,6 +41,11 @@ public sealed class ComponentRegistry
     /// </summary>
     public IReadOnlyCollection<string> RegisteredTypeIds => _serializers.Keys.ToArray();
 
+    /// <summary>
+    /// Returns a read-only snapshot of all currently registered serializers.
+    /// </summary>
+    public IReadOnlyCollection<IComponentSerializer> Serializers => _serializers.Values.ToArray();
+
     internal bool TryGetSerializer(
         string typeId,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IComponentSerializer? serializer

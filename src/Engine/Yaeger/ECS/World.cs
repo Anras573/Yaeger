@@ -108,6 +108,9 @@ public class World
         return scene.Apply(this);
     }
 
+    public bool TryGetTag(Entity entity, out string? tag) =>
+        _entitiesByTag.TryGetValue(entity, out tag);
+
     public IEnumerable<Entity> Entities => _entities;
 
     public ComponentStorage<T> GetStore<T>()
