@@ -81,6 +81,11 @@ public sealed class SceneSaver
         {
             throw new SceneSaveException($"Failed to write scene to '{path}': {ex.Message}", ex);
         }
+        finally
+        {
+            if (File.Exists(tmp))
+                File.Delete(tmp);
+        }
     }
 
     /// <summary>
@@ -113,15 +118,31 @@ public sealed class SceneSaver
                 }
                 catch (Exception ex)
                 {
-                    var label = world.TryGetTag(entity, out var t) ? $"'{t}'" : $"id={entity}";
+                    var label = world.TryGetTag(entity, out var t) ? $"'{t}'" : $"id={entity.Id}";
                     throw new SceneSaveException(
                         $"Serializer '{serializer.TypeId}' failed on entity {label}.",
                         ex
                     );
                 }
 
-                if (node is not null)
-                    components.Add(node);
+                if (node is null)
+                    continue;
+
+                if (
+                    node is not JsonObject obj
+                    || obj["type"]?.GetValue<string?>() is not string typeStr
+                    || string.IsNullOrWhiteSpace(typeStr)
+                )
+                {
+                    var label = world.TryGetTag(entity, out var t) ? $"'{t}'" : $"id={entity.Id}";
+                    throw new SceneSaveException(
+                        $"Serializer '{serializer.TypeId}' returned a node for entity {label} "
+                            + "that is not a JSON object with a non-empty 'type' field. "
+                            + "Custom TrySerialize implementations must include a 'type' field."
+                    );
+                }
+
+                components.Add(node);
             }
 
             entityObj["components"] = components;

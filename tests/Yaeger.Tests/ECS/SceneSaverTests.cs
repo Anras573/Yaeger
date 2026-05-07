@@ -456,6 +456,53 @@ public class SceneSaverTests
         Assert.False(world.TryGetTag(entity, out _));
     }
 
+    // ── SceneSaver validation — TrySerialize contract ────────────────────────
+
+    [Fact]
+    public void Serialize_SerializerReturnsNodeWithoutTypeField_ThrowsSceneSaveException()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register(new MissingTypeSerializer());
+        var world = new World();
+        world.CreateEntity("hero");
+
+        Assert.Throws<SceneSaveException>(() => new SceneSaver(registry).Serialize(world));
+    }
+
+    [Fact]
+    public void Serialize_SerializerReturnsNonObjectNode_ThrowsSceneSaveException()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register(new NonObjectSerializer());
+        var world = new World();
+        world.CreateEntity();
+
+        Assert.Throws<SceneSaveException>(() => new SceneSaver(registry).Serialize(world));
+    }
+
+    [Fact]
+    public void Serialize_SerializerThrows_ErrorLabelUsesEntityId_ForAnonymousEntity()
+    {
+        var throwingSerializer = new ThrowingSerializer();
+        var registry = new ComponentRegistry();
+        registry.Register(throwingSerializer);
+        var world = new World();
+        var entity = world.CreateEntity(); // anonymous — no tag
+
+        var ex = Assert.Throws<SceneSaveException>(() => new SceneSaver(registry).Serialize(world));
+        Assert.Contains($"id={entity.Id}", ex.Message);
+    }
+
+    private sealed class ThrowingSerializer : IComponentSerializer
+    {
+        public string TypeId => "Thrower";
+
+        public Action<World, Entity> Deserialize(JsonElement element) => (_, _) => { };
+
+        public System.Text.Json.Nodes.JsonNode? TrySerialize(World world, Entity entity) =>
+            throw new InvalidOperationException("boom");
+    }
+
     // ── Test helpers ─────────────────────────────────────────────────────────
 
     private static SceneSaver MakeSaver() => new(new ComponentRegistry());
@@ -485,5 +532,27 @@ public class SceneSaverTests
 
         public Action<World, Entity> Deserialize(JsonElement element) => (_, _) => { };
         // TrySerialize intentionally NOT overridden — uses the default (returns null)
+    }
+
+    // Serializer that returns a valid-looking node but without a "type" field.
+    private sealed class MissingTypeSerializer : IComponentSerializer
+    {
+        public string TypeId => "MissingType";
+
+        public Action<World, Entity> Deserialize(JsonElement element) => (_, _) => { };
+
+        public System.Text.Json.Nodes.JsonNode? TrySerialize(World world, Entity entity) =>
+            new System.Text.Json.Nodes.JsonObject { ["texturePath"] = "x.png" };
+    }
+
+    // Serializer that returns a non-object node (e.g. a plain string).
+    private sealed class NonObjectSerializer : IComponentSerializer
+    {
+        public string TypeId => "NonObject";
+
+        public Action<World, Entity> Deserialize(JsonElement element) => (_, _) => { };
+
+        public System.Text.Json.Nodes.JsonNode? TrySerialize(World world, Entity entity) =>
+            System.Text.Json.Nodes.JsonValue.Create("oops");
     }
 }

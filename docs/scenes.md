@@ -58,9 +58,9 @@ var saver = new SceneSaver(registry);
 saver.Save(world, "Scenes/level1.json");   // writes an indented JSON scene file
 ```
 
-`SceneSaver` iterates every entity in `world.Entities` and, for each entity, asks every registered `IComponentSerializer` to serialise its component via `TrySerialize(world, entity)`. Serialisers that return `null` (e.g. when the entity does not carry that component type) are silently skipped.
+`SceneSaver` iterates every entity in `world.Entities` (in ascending `Entity.Id` order) and, for each entity, asks every registered `IComponentSerializer` to serialize its component via `TrySerialize(world, entity)`. Serializers that return `null` (e.g. when the entity does not carry that component type) are silently skipped. Paths passed to `Save` are resolved via `AssetPath.Resolve` (against `AppContext.BaseDirectory`), matching the `SceneLoader.Load` convention so a relative path like `"Scenes/level1.json"` targets the same file in both directions.
 
-All five engine-provided serialisers support the write direction. Custom serialisers opt in by overriding the default `TrySerialize` method on `IComponentSerializer`.
+All five engine-provided serializers support the write direction. Custom serializers opt in by overriding the default `TrySerialize` method on `IComponentSerializer`; they must return a `JsonObject` that includes a non-empty `"type"` field — `SceneSaver` throws `SceneSaveException` if that contract is violated.
 
 ### Round-trip
 
