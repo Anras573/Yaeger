@@ -63,7 +63,7 @@ public sealed class ComponentRegistry
     /// Returns a read-only snapshot of all currently registered serializers in
     /// registration order.
     /// </summary>
-    public IReadOnlyCollection<IComponentSerializer> Serializers => _serializerList.ToArray();
+    public IReadOnlyList<IComponentSerializer> Serializers => _serializerList.ToArray();
 
     internal bool TryGetSerializer(
         string typeId,
