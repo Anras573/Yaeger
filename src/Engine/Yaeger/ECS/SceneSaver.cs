@@ -130,7 +130,8 @@ public sealed class SceneSaver
 
                 if (
                     node is not JsonObject obj
-                    || obj["type"]?.GetValue<string?>() is not string typeStr
+                    || obj["type"] is not JsonValue typeNode
+                    || !typeNode.TryGetValue<string>(out var typeStr)
                     || string.IsNullOrWhiteSpace(typeStr)
                 )
                 {

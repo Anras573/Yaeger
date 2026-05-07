@@ -503,6 +503,17 @@ public class SceneSaverTests
             throw new InvalidOperationException("boom");
     }
 
+    [Fact]
+    public void Serialize_SerializerReturnsNodeWithNonStringTypeField_ThrowsSceneSaveException()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register(new NumericTypeSerializer());
+        var world = new World();
+        world.CreateEntity();
+
+        Assert.Throws<SceneSaveException>(() => new SceneSaver(registry).Serialize(world));
+    }
+
     // ── Test helpers ─────────────────────────────────────────────────────────
 
     private static SceneSaver MakeSaver() => new(new ComponentRegistry());
@@ -554,5 +565,16 @@ public class SceneSaverTests
 
         public System.Text.Json.Nodes.JsonNode? TrySerialize(World world, Entity entity) =>
             System.Text.Json.Nodes.JsonValue.Create("oops");
+    }
+
+    // Serializer that returns a JsonObject whose "type" field is a number, not a string.
+    private sealed class NumericTypeSerializer : IComponentSerializer
+    {
+        public string TypeId => "NumericType";
+
+        public Action<World, Entity> Deserialize(JsonElement element) => (_, _) => { };
+
+        public System.Text.Json.Nodes.JsonNode? TrySerialize(World world, Entity entity) =>
+            new System.Text.Json.Nodes.JsonObject { ["type"] = 123 };
     }
 }
