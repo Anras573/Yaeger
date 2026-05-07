@@ -142,6 +142,15 @@ public sealed class SceneSaver
                     );
                 }
 
+                if (typeStr != serializer.TypeId)
+                {
+                    throw new SceneSaveException(
+                        $"Serializer '{serializer.TypeId}' returned a node for entity {entityLabel} "
+                            + $"with a mismatched 'type' field ('{typeStr}'). "
+                            + "The 'type' field must match the serializer's TypeId."
+                    );
+                }
+
                 components.Add(node);
             }
 

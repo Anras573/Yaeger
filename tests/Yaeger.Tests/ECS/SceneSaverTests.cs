@@ -226,16 +226,28 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // Create entities with deliberately mismatched tag names vs. creation order so
-        // the test is not relying on tag alphabetical order or insertion coincidence.
-        var eA = world.CreateEntity("alpha"); // gets the lowest Id
-        var eC = world.CreateEntity("charlie"); // middle Id
-        var eB = world.CreateEntity("bravo"); // highest Id
+        // Step 1: populate the HashSet with three entities so _entries slots 0,1,2 are used.
+        var eAlpha = world.CreateEntity("alpha"); // Id=1, _entries slot 0
+        var eCharlie = world.CreateEntity("charlie"); // Id=2, _entries slot 1
+        world.CreateEntity("bravo"); // Id=3, _entries slot 2
+
+        // Step 2: destroy the first entity so its _entries slot 0 becomes free.
+        world.DestroyEntity(eAlpha);
+
+        // Step 3: create a new entity — it reuses freed _entries slot 0.
+        // Without sorting by Id, enumeration order would be: delta(Id=4), charlie(Id=2), bravo(Id=3).
+        // With sorting, the correct order is: charlie(Id=2), bravo(Id=3), delta(Id=4).
+        var eDelta = world.CreateEntity("delta"); // Id=4, reuses slot 0
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        // Build the expected order: sort the captured entities by their actual Id values.
-        var expectedTags = new[] { (eA, "alpha"), (eC, "charlie"), (eB, "bravo") }
+        // Expected order is ascending by Entity.Id: charlie(2) < bravo(3) < delta(4).
+        var expectedTags = new[]
+        {
+            (eCharlie, "charlie"),
+            (world.GetEntity("bravo"), "bravo"),
+            (eDelta, "delta"),
+        }
             .OrderBy(x => x.Item1.Id)
             .Select(x => x.Item2)
             .ToArray();
@@ -514,6 +526,17 @@ public class SceneSaverTests
         Assert.Throws<SceneSaveException>(() => new SceneSaver(registry).Serialize(world));
     }
 
+    [Fact]
+    public void Serialize_SerializerReturnsMismatchedTypeId_ThrowsSceneSaveException()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register(new MismatchedTypeIdSerializer());
+        var world = new World();
+        world.CreateEntity();
+
+        Assert.Throws<SceneSaveException>(() => new SceneSaver(registry).Serialize(world));
+    }
+
     // ── Test helpers ─────────────────────────────────────────────────────────
 
     private static SceneSaver MakeSaver() => new(new ComponentRegistry());
@@ -576,5 +599,16 @@ public class SceneSaverTests
 
         public System.Text.Json.Nodes.JsonNode? TrySerialize(World world, Entity entity) =>
             new System.Text.Json.Nodes.JsonObject { ["type"] = 123 };
+    }
+
+    // Serializer that returns a JsonObject whose "type" field doesn't match TypeId.
+    private sealed class MismatchedTypeIdSerializer : IComponentSerializer
+    {
+        public string TypeId => "RegisteredType";
+
+        public Action<World, Entity> Deserialize(JsonElement element) => (_, _) => { };
+
+        public System.Text.Json.Nodes.JsonNode? TrySerialize(World world, Entity entity) =>
+            new System.Text.Json.Nodes.JsonObject { ["type"] = "WrongType" };
     }
 }
