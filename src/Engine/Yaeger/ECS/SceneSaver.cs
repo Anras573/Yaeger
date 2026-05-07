@@ -108,6 +108,7 @@ public sealed class SceneSaver
             if (world.TryGetTag(entity, out var tag))
                 entityObj["tag"] = tag;
 
+            var entityLabel = tag is not null ? $"'{tag}'" : $"id={entity.Id}";
             var components = new JsonArray();
             foreach (var serializer in serializers)
             {
@@ -118,9 +119,8 @@ public sealed class SceneSaver
                 }
                 catch (Exception ex)
                 {
-                    var label = world.TryGetTag(entity, out var t) ? $"'{t}'" : $"id={entity.Id}";
                     throw new SceneSaveException(
-                        $"Serializer '{serializer.TypeId}' failed on entity {label}.",
+                        $"Serializer '{serializer.TypeId}' failed on entity {entityLabel}.",
                         ex
                     );
                 }
@@ -134,9 +134,8 @@ public sealed class SceneSaver
                     || string.IsNullOrWhiteSpace(typeStr)
                 )
                 {
-                    var label = world.TryGetTag(entity, out var t) ? $"'{t}'" : $"id={entity.Id}";
                     throw new SceneSaveException(
-                        $"Serializer '{serializer.TypeId}' returned a node for entity {label} "
+                        $"Serializer '{serializer.TypeId}' returned a node for entity {entityLabel} "
                             + "that is not a JSON object with a non-empty 'type' field. "
                             + "Custom TrySerialize implementations must include a 'type' field."
                     );
