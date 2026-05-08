@@ -226,11 +226,20 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        var eAlpha = world.CreateEntity("alpha"); // Id=1 — will be destroyed
-        world.CreateEntity("charlie"); // Id=2
-        world.CreateEntity("bravo"); // Id=3
+        // World assigns Ids sequentially from _nextEntityId (no recycling).
+        // Ids are therefore deterministic: charlie=2, bravo=3, delta=4.
+        // The expected tag order is hardcoded from those known Ids and does not
+        // depend on how World.Entities (a HashSet) happens to enumerate.
+        var eAlpha = world.CreateEntity("alpha"); // Id=1 — destroyed; next entity gets Id=4
+        var eCharlie = world.CreateEntity("charlie"); // Id=2
+        var eBravo = world.CreateEntity("bravo"); // Id=3
         world.DestroyEntity(eAlpha);
-        world.CreateEntity("delta"); // Id=4
+        var eDelta = world.CreateEntity("delta"); // Id=4
+
+        // Verify Ids are as expected — guards against World Id-assignment changes.
+        Assert.Equal(2, eCharlie.Id);
+        Assert.Equal(3, eBravo.Id);
+        Assert.Equal(4, eDelta.Id);
 
         var json = new SceneSaver(registry).Serialize(world);
 
@@ -241,16 +250,8 @@ public class SceneSaverTests
             .Select(e => e.GetProperty("tag").GetString())
             .ToArray();
 
-        // Output must be Id-ascending regardless of how World.Entities enumerates.
-        var sortedByEntityId = world
-            .Entities.OrderBy(e => e.Id)
-            .Select(e =>
-            {
-                world.TryGetTag(e, out var t);
-                return t;
-            })
-            .ToArray();
-        Assert.Equal(sortedByEntityId, serializedTags);
+        // Id-ascending order: charlie(2), bravo(3), delta(4)
+        Assert.Equal(new[] { "charlie", "bravo", "delta" }, serializedTags);
     }
 
     // ── SceneSaver.Serialize — JSON structure ────────────────────────────────
