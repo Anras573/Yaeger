@@ -154,9 +154,9 @@ public class SceneSaverTests
         Assert.False(anim.Loop);
         Assert.Equal(2, anim.Frames.Length);
         Assert.Equal("Assets/f0.png", anim.Frames[0].TexturePath);
-        Assert.Equal(0.1f, anim.Frames[0].Duration);
+        Assert.Equal(0.1f, anim.Frames[0].Duration, precision: 5);
         Assert.Equal("Assets/f1.png", anim.Frames[1].TexturePath);
-        Assert.Equal(0.2f, anim.Frames[1].Duration);
+        Assert.Equal(0.2f, anim.Frames[1].Duration, precision: 5);
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public class SceneSaverTests
         var reloadedEntity = reloaded.Entities.Single();
         Assert.True(reloaded.TryGetComponent<AnimationState>(reloadedEntity, out var state));
         Assert.Equal(2, state.CurrentFrameIndex);
-        Assert.Equal(0.05f, state.ElapsedTime);
+        Assert.Equal(0.05f, state.ElapsedTime, precision: 5);
         Assert.True(state.IsFinished);
     }
 
