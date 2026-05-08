@@ -80,7 +80,7 @@ public sealed class SceneSaver
             File.WriteAllText(tmp, json);
             File.Move(tmp, resolved, overwrite: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
             throw new SceneSaveException($"Failed to write scene to '{path}': {ex.Message}", ex);
         }
