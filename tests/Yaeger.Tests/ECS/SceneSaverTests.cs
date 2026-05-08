@@ -226,22 +226,25 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // Step 1: populate the HashSet with three entities so _entries slots 0,1,2 are used.
-        var eAlpha = world.CreateEntity("alpha"); // Id=1, _entries slot 0
-        var eCharlie = world.CreateEntity("charlie"); // Id=2, _entries slot 1
-        world.CreateEntity("bravo"); // Id=3, _entries slot 2
+        // Create three entities, then destroy the first and create a fourth so that the new
+        // entity gets a higher Id than the survivors but is placed earlier in whatever order
+        // World.Entities happens to enumerate — triggering the sorting path in Serialize.
+        var eFirst = world.CreateEntity("alpha"); // Id=1 (will be destroyed)
+        var eCharlie = world.CreateEntity("charlie"); // Id=2
+        world.CreateEntity("bravo"); // Id=3
+        world.DestroyEntity(eFirst); // remove Id=1 from the world
+        var eDelta = world.CreateEntity("delta"); // Id=4
 
-        // Step 2: destroy the first entity so its _entries slot 0 becomes free.
-        world.DestroyEntity(eAlpha);
-
-        // Step 3: create a new entity — it reuses freed _entries slot 0.
-        // Without sorting by Id, enumeration order would be: delta(Id=4), charlie(Id=2), bravo(Id=3).
-        // With sorting, the correct order is: charlie(Id=2), bravo(Id=3), delta(Id=4).
-        var eDelta = world.CreateEntity("delta"); // Id=4, reuses slot 0
+        // Precondition: verify that world.Entities does NOT already enumerate in Id-ascending
+        // order.  If this assertion fails the test setup needs to be revised so that the raw
+        // enumeration is provably unsorted, making the sorting done by Serialize detectable.
+        var rawIds = world.Entities.Select(e => e.Id).ToList();
+        Assert.NotEqual(rawIds.OrderBy(x => x).ToList(), rawIds);
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        // Expected order is ascending by Entity.Id: charlie(2) < bravo(3) < delta(4).
+        // Serialize must produce entities in ascending Entity.Id order regardless of the
+        // raw enumeration order.
         var expectedTags = new[]
         {
             (eCharlie, "charlie"),
