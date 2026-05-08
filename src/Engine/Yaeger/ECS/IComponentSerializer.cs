@@ -8,8 +8,9 @@ namespace Yaeger.ECS;
 /// </summary>
 /// <remarks>
 /// Implement this interface and register the implementation with a
-/// <see cref="ComponentRegistry"/> so that <see cref="PrefabLoader"/> and
-/// <see cref="SceneSaver"/> can recognise, deserialize, and serialize your component type.
+/// <see cref="ComponentRegistry"/> so that <see cref="PrefabLoader"/>,
+/// <see cref="SceneLoader"/>, and <see cref="SceneSaver"/> can recognise, deserialize,
+/// and serialize your component type.
 /// </remarks>
 public interface IComponentSerializer
 {

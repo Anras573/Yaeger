@@ -59,8 +59,8 @@ public sealed class SceneSaver
     /// The path is resolved via <see cref="AssetPath.Resolve"/> (against
     /// <see cref="AppContext.BaseDirectory"/>) so that relative paths behave the same way
     /// as in <see cref="SceneLoader.Load"/>. The write is done via a sibling <c>.tmp</c>
-    /// file that is then renamed over the destination so a crash never leaves a partially
-    /// written file in place. The parent directory must already exist.
+    /// file that is then renamed over the destination to reduce the risk of leaving a
+    /// partially written file in place. The parent directory must already exist.
     /// </remarks>
     /// <param name="world">The world whose entities should be saved.</param>
     /// <param name="path">Destination file path.</param>

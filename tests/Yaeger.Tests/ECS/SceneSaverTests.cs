@@ -226,27 +226,24 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // World.Entities is a HashSet<Entity> whose enumeration order is unspecified.
-        // We need it to enumerate in a non-Id-ascending order so a missing sort is detectable.
-        // World uses monotonically increasing Ids (no recycling), so the only way to get a
-        // higher-Id entity inserted before a lower-Id entity in the HashSet is to keep an
-        // early entity alive while adding later ones — then destroy the later ones and keep
-        // a newly created entity.  The destroy/create pattern below achieves this on the
-        // current HashSet implementation: entity Id=4 lands in the slot freed by Id=1, so
-        // World.Entities enumerates as [4, 2, 3] instead of [2, 3, 4].
-        // If this precondition fails, the HashSet internals changed; adjust the setup.
+        // World uses monotonically increasing Ids with no recycling, so a later-created
+        // entity always has a higher Id. The HashSet slot freed by destroying Id=1 is reused
+        // by the next entity (Id=4), which causes World.Entities to enumerate as [4,2,3] —
+        // a non-Id-ascending order that lets us detect a missing sort in Serialize.
+        // The precondition assert below confirms the setup still achieves this; if it ever
+        // fails, the HashSet implementation changed and the setup needs to be revised.
         var eFirst = world.CreateEntity("alpha"); // Id=1 — will be destroyed
         var eCharlie = world.CreateEntity("charlie"); // Id=2
         var eBravo = world.CreateEntity("bravo"); // Id=3
         world.DestroyEntity(eFirst);
-        var eDelta = world.CreateEntity("delta"); // Id=4 — lands in freed slot → [4,2,3]
+        var eDelta = world.CreateEntity("delta"); // Id=4 — reuses freed slot → enumerates as [4,2,3]
 
         var rawIds = world.Entities.Select(e => e.Id).ToList();
         Assert.NotEqual(rawIds.OrderBy(x => x).ToList(), rawIds);
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        // Expected: ascending by Id → charlie(2), bravo(3), delta(4)
+        // Ascending by Id: charlie(2), bravo(3), delta(4)
         var expectedTags = new[] { (eCharlie, "charlie"), (eBravo, "bravo"), (eDelta, "delta") }
             .OrderBy(x => x.Item1.Id)
             .Select(x => x.Item2)
