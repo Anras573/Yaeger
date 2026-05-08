@@ -226,7 +226,9 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // Create three entities with gaps in Id sequence so sorting is non-trivial.
+        // Entities are created with non-contiguous Ids (2, 3, 4 after destroying Id=1).
+        // expectedTags is built by sorting those Ids ascending, so if Serialize stops
+        // sorting the output will differ regardless of what order World.Entities enumerates.
         var eFirst = world.CreateEntity("alpha"); // Id=1 — will be destroyed
         var eCharlie = world.CreateEntity("charlie"); // Id=2
         var eBravo = world.CreateEntity("bravo"); // Id=3
@@ -235,7 +237,6 @@ public class SceneSaverTests
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        // Serialize must produce entities in ascending Entity.Id order.
         var expectedTags = new[] { (eCharlie, "charlie"), (eBravo, "bravo"), (eDelta, "delta") }
             .OrderBy(x => x.Item1.Id)
             .Select(x => x.Item2)
