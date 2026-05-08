@@ -30,7 +30,7 @@ Scenes extend the existing prefab pipeline — they reuse `ComponentRegistry` an
 - `tag` (optional, per entity) — a string; the runtime tag the entity is created with. If omitted, the entity is anonymous.
 - `components` (required, per entity) — an array of component objects. Each component has a `type` field matching an `IComponentSerializer.TypeId` registered on the `ComponentRegistry`.
 
-Asset paths in `texturePath` (and similar fields) are resolved relative to the executable's working directory, matching the existing `Prefab` and `Texture` conventions.
+Asset paths in `texturePath` (and similar fields) are resolved relative to `AppContext.BaseDirectory` (the directory that contains the application's executable), matching the convention used by `AssetPath.Resolve`, `SceneLoader.Load`, and `SceneSaver.Save`.
 
 ## API
 

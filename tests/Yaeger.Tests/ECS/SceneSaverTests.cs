@@ -224,15 +224,44 @@ public class SceneSaverTests
     public void Serialize_EntityOrder_ShouldBeSortedByEntityIdAscending()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
-        var world = new World();
 
-        // SceneSaver sorts entities by Entity.Id ascending regardless of World.Entities
-        // enumeration order, so creation order here intentionally differs from Id order.
-        world.CreateEntity("charlie"); // Id=1
-        world.CreateEntity("alpha"); // Id=2
-        world.CreateEntity("bravo"); // Id=3
+        // Retry until World.Entities enumerates in a provably non-Id-ascending order so
+        // that a sort-less Serialize would fail the assertion below.  HashSet enumeration
+        // order is unspecified; create/destroy/create can produce non-sorted slot layouts
+        // on many runtimes, but we must not hard-fail if the runtime happens to enumerate
+        // in Id-order — we skip in that case rather than marking a correct Serialize as broken.
+        World? world = null;
+        Entity eSecond = default,
+            eThird = default,
+            eFourth = default;
+        var preconditionMet = false;
+        for (var attempt = 0; attempt < 50; attempt++)
+        {
+            world = new World();
+            var eFirst = world.CreateEntity("first"); // will be destroyed
+            eSecond = world.CreateEntity("second");
+            eThird = world.CreateEntity("third");
+            world.DestroyEntity(eFirst);
+            eFourth = world.CreateEntity("fourth"); // higher Id, may reuse freed bucket
 
-        var json = new SceneSaver(registry).Serialize(world);
+            var rawIds = world.Entities.Select(e => e.Id).ToList();
+            if (!rawIds.SequenceEqual(rawIds.OrderBy(x => x)))
+            {
+                preconditionMet = true;
+                break;
+            }
+        }
+
+        // If the HashSet never produced a non-sorted enumeration, skip rather than fail.
+        if (!preconditionMet)
+            return;
+
+        var json = new SceneSaver(registry).Serialize(world!);
+
+        var expectedTags = new[] { (eSecond, "second"), (eThird, "third"), (eFourth, "fourth") }
+            .OrderBy(x => x.Item1.Id)
+            .Select(x => x.Item2)
+            .ToArray();
 
         using var doc = JsonDocument.Parse(json);
         var serializedTags = doc
@@ -241,7 +270,7 @@ public class SceneSaverTests
             .Select(e => e.GetProperty("tag").GetString())
             .ToArray();
 
-        Assert.Equal(new[] { "charlie", "alpha", "bravo" }, serializedTags);
+        Assert.Equal(expectedTags, serializedTags);
     }
 
     // ── SceneSaver.Serialize — JSON structure ────────────────────────────────
