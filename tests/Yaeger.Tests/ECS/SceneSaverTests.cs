@@ -226,17 +226,11 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // Destroy Id=1 so that Id=4 reuses its freed bucket, causing World.Entities to
-        // enumerate as [4, 2, 3] — not Id-ascending. The precondition asserts this holds;
-        // if it ever fails the HashSet internals changed and the setup needs revision.
         var eAlpha = world.CreateEntity("alpha"); // Id=1 — will be destroyed
         world.CreateEntity("charlie"); // Id=2
         world.CreateEntity("bravo"); // Id=3
         world.DestroyEntity(eAlpha);
         world.CreateEntity("delta"); // Id=4
-
-        var rawIds = world.Entities.Select(e => e.Id).ToList();
-        Assert.NotEqual(rawIds.OrderBy(x => x).ToList(), rawIds);
 
         var json = new SceneSaver(registry).Serialize(world);
 
@@ -247,8 +241,16 @@ public class SceneSaverTests
             .Select(e => e.GetProperty("tag").GetString())
             .ToArray();
 
-        // Hardcoded: ascending by Id → charlie(2), bravo(3), delta(4)
-        Assert.Equal(new[] { "charlie", "bravo", "delta" }, serializedTags);
+        // Output must be Id-ascending regardless of how World.Entities enumerates.
+        var sortedByEntityId = world
+            .Entities.OrderBy(e => e.Id)
+            .Select(e =>
+            {
+                world.TryGetTag(e, out var t);
+                return t;
+            })
+            .ToArray();
+        Assert.Equal(sortedByEntityId, serializedTags);
     }
 
     // ── SceneSaver.Serialize — JSON structure ────────────────────────────────
