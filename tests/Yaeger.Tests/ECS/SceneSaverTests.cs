@@ -226,26 +226,17 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        var eFirst = world.CreateEntity("alpha"); // Id=1 — will be destroyed
+        // Create 4 entities, destroy Id=1. On .NET's HashSet implementation Id=4 reuses
+        // the freed bucket, causing World.Entities to enumerate as [4, 2, 3] — not ascending.
+        // The expected output is hardcoded to the known Id-ascending order so this assertion
+        // always runs and catches a missing sort on any runtime where the enumeration differs.
+        world.CreateEntity("alpha"); // Id=1 — will be destroyed
         var eCharlie = world.CreateEntity("charlie"); // Id=2
         var eBravo = world.CreateEntity("bravo"); // Id=3
-        world.DestroyEntity(eFirst);
+        world.DestroyEntity(world.Entities.First(e => e.Id == 1));
         var eDelta = world.CreateEntity("delta"); // Id=4
 
-        // Only assert when World.Entities enumerates in a non-Id-ascending order; otherwise
-        // the test cannot distinguish a missing sort from coincidentally correct output.
-        // Return early (pass) rather than failing — CI stability trumps a false negative here.
-        var rawIds = world.Entities.Select(e => e.Id).ToList();
-        if (rawIds.SequenceEqual(rawIds.OrderBy(x => x)))
-            return;
-
         var json = new SceneSaver(registry).Serialize(world);
-
-        // Expected order: ascending by Id → charlie(2), bravo(3), delta(4)
-        var expectedTags = new[] { (eCharlie, "charlie"), (eBravo, "bravo"), (eDelta, "delta") }
-            .OrderBy(x => x.Item1.Id)
-            .Select(x => x.Item2)
-            .ToArray();
 
         using var doc = JsonDocument.Parse(json);
         var serializedTags = doc
@@ -254,7 +245,8 @@ public class SceneSaverTests
             .Select(e => e.GetProperty("tag").GetString())
             .ToArray();
 
-        Assert.Equal(expectedTags, serializedTags);
+        // Hardcoded: ascending by Id → charlie(2), bravo(3), delta(4)
+        Assert.Equal(new[] { "charlie", "bravo", "delta" }, serializedTags);
     }
 
     // ── SceneSaver.Serialize — JSON structure ────────────────────────────────
