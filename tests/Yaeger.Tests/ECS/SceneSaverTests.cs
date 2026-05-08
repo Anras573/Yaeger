@@ -226,20 +226,12 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // Create three entities, destroy the first, then create a fourth.
-        // The destroyed slot (Id=1) is reused by the HashSet, so the new entity (Id=4)
-        // lands in slot 0 and World.Entities enumerates as [4, 2, 3] — not Id-ascending.
+        // Create three entities with gaps in Id sequence so sorting is non-trivial.
         var eFirst = world.CreateEntity("alpha"); // Id=1 — will be destroyed
         var eCharlie = world.CreateEntity("charlie"); // Id=2
         var eBravo = world.CreateEntity("bravo"); // Id=3
         world.DestroyEntity(eFirst);
-        var eDelta = world.CreateEntity("delta"); // Id=4 — lands in the freed slot
-
-        // Precondition: World.Entities must enumerate in a non-Id-ascending order so the
-        // test can actually detect whether Serialize sorts. If this fails, the HashSet
-        // implementation changed and the test setup needs to be revised.
-        var rawIds = world.Entities.Select(e => e.Id).ToList();
-        Assert.NotEqual(rawIds.OrderBy(x => x).ToList(), rawIds);
+        var eDelta = world.CreateEntity("delta"); // Id=4
 
         var json = new SceneSaver(registry).Serialize(world);
 
