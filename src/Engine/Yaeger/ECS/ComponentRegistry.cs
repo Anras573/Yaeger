@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace Yaeger.ECS;
 
 /// <summary>
@@ -14,6 +16,7 @@ public sealed class ComponentRegistry
 {
     private readonly Dictionary<string, IComponentSerializer> _serializers = new();
     private readonly List<IComponentSerializer> _serializerList = [];
+    private ReadOnlyCollection<IComponentSerializer>? _serializersReadOnly;
 
     /// <summary>
     /// Registers a component serializer.
@@ -60,7 +63,8 @@ public sealed class ComponentRegistry
     /// <summary>
     /// Returns all currently registered serializers in registration order.
     /// </summary>
-    public IReadOnlyList<IComponentSerializer> Serializers => _serializerList;
+    public IReadOnlyList<IComponentSerializer> Serializers =>
+        _serializersReadOnly ??= _serializerList.AsReadOnly();
 
     internal bool TryGetSerializer(
         string typeId,
