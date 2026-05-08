@@ -31,10 +31,10 @@ namespace Yaeger.ECS;
 /// </code>
 /// </para>
 /// <para>
-/// Entity order in the output file is deterministic: entities are written in ascending
-/// <see cref="Entity.Id"/> order because <see cref="World.Entities"/> enumerates in
-/// that order.  Component order within each entity follows the registration order of
-/// the serializers in the <see cref="ComponentRegistry"/>.
+/// Entity order in the output file is deterministic: <see cref="SceneSaver"/> sorts
+/// entities by ascending <see cref="Entity.Id"/> regardless of the enumeration order
+/// of <see cref="World.Entities"/>.  Component order within each entity follows the
+/// registration order of the serializers in the <see cref="ComponentRegistry"/>.
 /// </para>
 /// </remarks>
 public sealed class SceneSaver
@@ -110,7 +110,7 @@ public sealed class SceneSaver
         var entities = new JsonArray();
         var serializers = _registry.Serializers;
 
-        foreach (var entity in world.Entities)
+        foreach (var entity in world.Entities.OrderBy(e => e.Id))
         {
             var entityObj = new JsonObject();
 

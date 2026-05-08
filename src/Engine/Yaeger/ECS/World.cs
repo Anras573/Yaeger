@@ -3,7 +3,7 @@ namespace Yaeger.ECS;
 public class World
 {
     private int _nextEntityId = 1;
-    private readonly SortedSet<Entity> _entities = [];
+    private readonly HashSet<Entity> _entities = [];
     private readonly Dictionary<Type, IComponentStore> _componentStores = new();
     private readonly Dictionary<string, Entity> _taggedEntities = new();
     private readonly Dictionary<Entity, string> _entitiesByTag = new();
@@ -113,6 +113,10 @@ public class World
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? tag
     ) => _entitiesByTag.TryGetValue(entity, out tag);
 
+    /// <summary>
+    /// Returns all live entities. Enumeration order is unspecified; callers that need a
+    /// deterministic order (e.g. for serialization) must sort explicitly.
+    /// </summary>
     public IEnumerable<Entity> Entities => _entities;
 
     public ComponentStorage<T> GetStore<T>()

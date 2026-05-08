@@ -226,8 +226,8 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // World.Entities is a SortedSet<Entity> ordered by Entity.Id, so entities always
-        // enumerate Id-ascending regardless of creation or destruction order.
+        // SceneSaver sorts entities by Entity.Id ascending regardless of World.Entities
+        // enumeration order, so creation order here intentionally differs from Id order.
         world.CreateEntity("charlie"); // Id=1
         world.CreateEntity("alpha"); // Id=2
         world.CreateEntity("bravo"); // Id=3
