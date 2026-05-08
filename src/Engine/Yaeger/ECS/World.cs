@@ -3,7 +3,7 @@ namespace Yaeger.ECS;
 public class World
 {
     private int _nextEntityId = 1;
-    private readonly HashSet<Entity> _entities = [];
+    private readonly SortedSet<Entity> _entities = [];
     private readonly Dictionary<Type, IComponentStore> _componentStores = new();
     private readonly Dictionary<string, Entity> _taggedEntities = new();
     private readonly Dictionary<Entity, string> _entitiesByTag = new();
