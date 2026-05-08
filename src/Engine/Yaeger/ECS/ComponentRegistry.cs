@@ -36,15 +36,13 @@ public sealed class ComponentRegistry
 
         if (_serializers.TryGetValue(typeId, out var existing))
         {
-            // Replace in-place so the registration list order is stable on re-register.
             var index = _serializerList.IndexOf(existing);
-            // The dictionary and list are always kept in sync; index < 0 is a bug.
+            // Dictionary and list are always kept in sync; index < 0 is a bug.
             System.Diagnostics.Debug.Assert(
                 index >= 0,
                 "Serializer found in dictionary but missing from list — internal state is corrupt."
             );
-            if (index >= 0)
-                _serializerList[index] = serializer;
+            _serializerList[index] = serializer;
         }
         else
         {
@@ -60,10 +58,9 @@ public sealed class ComponentRegistry
     public IReadOnlyCollection<string> RegisteredTypeIds => _serializers.Keys.ToArray();
 
     /// <summary>
-    /// Returns a read-only snapshot of all currently registered serializers in
-    /// registration order.
+    /// Returns all currently registered serializers in registration order.
     /// </summary>
-    public IReadOnlyList<IComponentSerializer> Serializers => _serializerList.ToArray();
+    public IReadOnlyList<IComponentSerializer> Serializers => _serializerList;
 
     internal bool TryGetSerializer(
         string typeId,

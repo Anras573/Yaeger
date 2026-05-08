@@ -16,8 +16,11 @@ namespace Yaeger.ECS;
 /// <c>TrySerialize</c> method.
 /// </para>
 /// <para>
-/// The output format is identical to the format consumed by <see cref="SceneLoader"/>, so a
-/// save/load round-trip always produces an equivalent world:
+/// The output format is identical to the format consumed by <see cref="SceneLoader"/>.
+/// A save/load round-trip produces an equivalent world for all entities whose components
+/// are covered by serializers registered in the <see cref="ComponentRegistry"/>; components
+/// whose serializers return <c>null</c> from <see cref="IComponentSerializer.TrySerialize"/>
+/// are silently omitted and will not be present after reloading:
 /// <code>
 /// var saver = new SceneSaver(registry);
 /// saver.Save(world, "Scenes/level1.json");
@@ -83,8 +86,13 @@ public sealed class SceneSaver
         }
         finally
         {
-            if (File.Exists(tmp))
+            try
+            {
                 File.Delete(tmp);
+            }
+            catch
+            { /* best-effort cleanup — don't mask the original exception */
+            }
         }
     }
 

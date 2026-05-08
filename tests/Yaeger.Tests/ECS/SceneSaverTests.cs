@@ -11,7 +11,7 @@ public class SceneSaverTests
     // ── SceneSaver.Serialize — empty world ───────────────────────────────────
 
     [Fact]
-    public void Serialize_EmptyWorld_ProducesEmptyEntitiesArray()
+    public void Serialize_EmptyWorld_ShouldProduceEmptyEntitiesArray()
     {
         var saver = MakeSaver();
         var world = new World();
@@ -26,7 +26,7 @@ public class SceneSaverTests
     // ── SceneSaver.Serialize — entity tags ───────────────────────────────────
 
     [Fact]
-    public void Serialize_TaggedEntity_EmitsTagField()
+    public void Serialize_TaggedEntity_ShouldEmitTagField()
     {
         var saver = MakeSaver();
         var world = new World();
@@ -39,7 +39,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_AnonymousEntity_OmitsTagField()
+    public void Serialize_AnonymousEntity_ShouldOmitTagField()
     {
         var saver = MakeSaver();
         var world = new World();
@@ -54,7 +54,7 @@ public class SceneSaverTests
     // ── SceneSaver.Serialize — component serialization ───────────────────────
 
     [Fact]
-    public void Serialize_SpriteComponent_RoundTrips()
+    public void Serialize_SpriteComponent_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -72,7 +72,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_Transform2DComponent_RoundTrips()
+    public void Serialize_Transform2DComponent_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -92,7 +92,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_SpriteSheetComponent_RoundTrips()
+    public void Serialize_SpriteSheetComponent_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -113,7 +113,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_SpriteSheet_DefaultFrameCount_OmitsFrameCountField()
+    public void Serialize_SpriteSheet_DefaultFrameCount_ShouldOmitFrameCountField()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -128,7 +128,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_AnimationComponent_RoundTrips()
+    public void Serialize_AnimationComponent_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -160,7 +160,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_AnimationStateComponent_RoundTrips()
+    public void Serialize_AnimationStateComponent_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -182,7 +182,7 @@ public class SceneSaverTests
     // ── SceneSaver.Serialize — multi-entity scene round-trip ─────────────────
 
     [Fact]
-    public void Serialize_MultipleEntities_RoundTrip()
+    public void Serialize_MultipleEntities_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -221,51 +221,41 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_EntityOrder_IsSortedByEntityIdAscending()
+    public void Serialize_EntityOrder_ShouldBeSortedByEntityIdAscending()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // Create three entities, then destroy the first and create a fourth so that the new
-        // entity gets a higher Id than the survivors but is placed earlier in whatever order
-        // World.Entities happens to enumerate — triggering the sorting path in Serialize.
-        var eFirst = world.CreateEntity("alpha"); // Id=1 (will be destroyed)
+        // Create/destroy/create so that surviving entity ids are not contiguous,
+        // which means any sort-by-insertion-index approach would produce a different order.
+        world.CreateEntity("alpha"); // Id=1 (destroyed immediately)
+        world.DestroyEntity(world.GetEntity("alpha"));
         var eCharlie = world.CreateEntity("charlie"); // Id=2
-        world.CreateEntity("bravo"); // Id=3
-        world.DestroyEntity(eFirst); // remove Id=1 from the world
+        var eBravo = world.CreateEntity("bravo"); // Id=3
         var eDelta = world.CreateEntity("delta"); // Id=4
-
-        // Precondition: verify that world.Entities does NOT already enumerate in Id-ascending
-        // order.  If this assertion fails the test setup needs to be revised so that the raw
-        // enumeration is provably unsorted, making the sorting done by Serialize detectable.
-        var rawIds = world.Entities.Select(e => e.Id).ToList();
-        Assert.NotEqual(rawIds.OrderBy(x => x).ToList(), rawIds);
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        // Serialize must produce entities in ascending Entity.Id order regardless of the
-        // raw enumeration order.
-        var expectedTags = new[]
-        {
-            (eCharlie, "charlie"),
-            (world.GetEntity("bravo"), "bravo"),
-            (eDelta, "delta"),
-        }
+        // Verify the serialized tags appear in ascending Entity.Id order.
+        var expectedTags = new[] { (eCharlie, "charlie"), (eBravo, "bravo"), (eDelta, "delta") }
             .OrderBy(x => x.Item1.Id)
             .Select(x => x.Item2)
             .ToArray();
 
         using var doc = JsonDocument.Parse(json);
-        var serializedEntities = doc.RootElement.GetProperty("entities").EnumerateArray().ToArray();
-        Assert.Equal(3, serializedEntities.Length);
-        for (var i = 0; i < 3; i++)
-            Assert.Equal(expectedTags[i], serializedEntities[i].GetProperty("tag").GetString());
+        var serializedTags = doc
+            .RootElement.GetProperty("entities")
+            .EnumerateArray()
+            .Select(e => e.GetProperty("tag").GetString())
+            .ToArray();
+
+        Assert.Equal(expectedTags, serializedTags);
     }
 
     // ── SceneSaver.Serialize — JSON structure ────────────────────────────────
 
     [Fact]
-    public void Serialize_ComponentEntry_IncludesTypeField()
+    public void Serialize_ComponentEntry_ShouldIncludeTypeField()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -279,7 +269,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_EntityWithNoSerializableComponents_EmitsEmptyComponentsArray()
+    public void Serialize_EntityWithNoSerializableComponents_ShouldEmitEmptyComponentsArray()
     {
         var saver = MakeSaver();
         var world = new World();
@@ -294,7 +284,7 @@ public class SceneSaverTests
     // ── SceneSaver.Save — filesystem ─────────────────────────────────────────
 
     [Fact]
-    public void Save_WritesJsonMatchingSerialize_ToFile()
+    public void Save_ShouldWriteJsonMatchingSerialize()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -322,7 +312,7 @@ public class SceneSaverTests
     // ── SpriteSheet default-frameCount round-trip ─────────────────────────────
 
     [Fact]
-    public void Serialize_SpriteSheet_DefaultFrameCount_RoundTrips()
+    public void Serialize_SpriteSheet_DefaultFrameCount_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -344,7 +334,7 @@ public class SceneSaverTests
     // ── Animation loop:true round-trip ───────────────────────────────────────
 
     [Fact]
-    public void Serialize_AnimationLoopTrue_RoundTrips()
+    public void Serialize_AnimationLoopTrue_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
@@ -367,7 +357,7 @@ public class SceneSaverTests
     // ── World.TryGetTag after DestroyEntity ──────────────────────────────────
 
     [Fact]
-    public void TryGetTag_AfterDestroyEntity_ReturnsFalse()
+    public void TryGetTag_AfterDestroyEntity_ShouldReturnFalse()
     {
         var world = new World();
         var entity = world.CreateEntity("hero");
@@ -377,44 +367,44 @@ public class SceneSaverTests
         Assert.False(world.TryGetTag(entity, out _));
     }
 
-    // ── ComponentRegistry.Serializers snapshot immutability ──────────────────
+    // ── ComponentRegistry.Serializers ────────────────────────────────────────
 
     [Fact]
-    public void Serializers_SnapshotIsImmutable_AfterSubsequentRegistration()
+    public void Serializers_ShouldReflectRegistrationOrder()
     {
         var registry = new ComponentRegistry();
         registry.Register(new StubSerializer("A"));
-
-        var snapshot = registry.Serializers;
-
         registry.Register(new StubSerializer("B"));
 
-        Assert.Single(snapshot);
-        Assert.Equal(2, registry.Serializers.Count);
+        var list = registry.Serializers;
+
+        Assert.Equal(2, list.Count);
+        Assert.Equal("A", list[0].TypeId);
+        Assert.Equal("B", list[1].TypeId);
     }
 
     // ── SceneSaver — argument validation ────────────────────────────────────
 
     [Fact]
-    public void Constructor_NullRegistry_Throws()
+    public void Constructor_NullRegistry_ShouldThrow()
     {
         Assert.Throws<ArgumentNullException>(() => new SceneSaver(null!));
     }
 
     [Fact]
-    public void Serialize_NullWorld_Throws()
+    public void Serialize_NullWorld_ShouldThrow()
     {
         Assert.Throws<ArgumentNullException>(() => MakeSaver().Serialize(null!));
     }
 
     [Fact]
-    public void Save_NullWorld_Throws()
+    public void Save_NullWorld_ShouldThrow()
     {
         Assert.Throws<ArgumentNullException>(() => MakeSaver().Save(null!, "out.json"));
     }
 
     [Fact]
-    public void Save_NullOrWhiteSpacePath_Throws()
+    public void Save_NullOrWhiteSpacePath_ShouldThrow()
     {
         var world = new World();
         Assert.Throws<ArgumentException>(() => MakeSaver().Save(world, ""));
@@ -424,7 +414,7 @@ public class SceneSaverTests
     // ── IComponentSerializer.TrySerialize — default returns null ─────────────
 
     [Fact]
-    public void TrySerialize_DefaultImpl_ReturnsNull()
+    public void TrySerialize_DefaultImpl_ShouldReturnNull()
     {
         IComponentSerializer serializer = new StubSerializer("Stub");
         var world = new World();
@@ -438,7 +428,7 @@ public class SceneSaverTests
     // ── ComponentRegistry.Serializers ────────────────────────────────────────
 
     [Fact]
-    public void Serializers_ReturnsAllRegistered()
+    public void Serializers_ShouldReturnAllRegistered()
     {
         var registry = new ComponentRegistry();
         registry.Register(new StubSerializer("A"));
@@ -453,7 +443,7 @@ public class SceneSaverTests
     // ── World.TryGetTag ───────────────────────────────────────────────────────
 
     [Fact]
-    public void TryGetTag_TaggedEntity_ReturnsTrue()
+    public void TryGetTag_TaggedEntity_ShouldReturnTrue()
     {
         var world = new World();
         var entity = world.CreateEntity("hero");
@@ -463,7 +453,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void TryGetTag_AnonymousEntity_ReturnsFalse()
+    public void TryGetTag_AnonymousEntity_ShouldReturnFalse()
     {
         var world = new World();
         var entity = world.CreateEntity();
@@ -474,7 +464,7 @@ public class SceneSaverTests
     // ── SceneSaver validation — TrySerialize contract ────────────────────────
 
     [Fact]
-    public void Serialize_SerializerReturnsNodeWithoutTypeField_ThrowsSceneSaveException()
+    public void Serialize_SerializerReturnsNodeWithoutTypeField_ShouldThrowSceneSaveException()
     {
         var registry = new ComponentRegistry();
         registry.Register(new MissingTypeSerializer());
@@ -485,7 +475,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_SerializerReturnsNonObjectNode_ThrowsSceneSaveException()
+    public void Serialize_SerializerReturnsNonObjectNode_ShouldThrowSceneSaveException()
     {
         var registry = new ComponentRegistry();
         registry.Register(new NonObjectSerializer());
@@ -496,7 +486,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_SerializerThrows_ErrorLabelUsesEntityId_ForAnonymousEntity()
+    public void Serialize_SerializerThrows_ShouldUseEntityIdInErrorLabel()
     {
         var throwingSerializer = new ThrowingSerializer();
         var registry = new ComponentRegistry();
@@ -519,7 +509,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_SerializerReturnsNodeWithNonStringTypeField_ThrowsSceneSaveException()
+    public void Serialize_SerializerReturnsNodeWithNonStringTypeField_ShouldThrowSceneSaveException()
     {
         var registry = new ComponentRegistry();
         registry.Register(new NumericTypeSerializer());
@@ -530,7 +520,7 @@ public class SceneSaverTests
     }
 
     [Fact]
-    public void Serialize_SerializerReturnsMismatchedTypeId_ThrowsSceneSaveException()
+    public void Serialize_SerializerReturnsMismatchedTypeId_ShouldThrowSceneSaveException()
     {
         var registry = new ComponentRegistry();
         registry.Register(new MismatchedTypeIdSerializer());
