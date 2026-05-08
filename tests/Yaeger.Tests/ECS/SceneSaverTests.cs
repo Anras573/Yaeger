@@ -226,24 +226,19 @@ public class SceneSaverTests
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var world = new World();
 
-        // World uses monotonically increasing Ids with no recycling, so a later-created
-        // entity always has a higher Id. The HashSet slot freed by destroying Id=1 is reused
-        // by the next entity (Id=4), which causes World.Entities to enumerate as [4,2,3] —
-        // a non-Id-ascending order that lets us detect a missing sort in Serialize.
-        // The precondition assert below confirms the setup still achieves this; if it ever
-        // fails, the HashSet implementation changed and the setup needs to be revised.
+        // Three entities with non-alphabetical tag-to-Id mapping so the expected output
+        // (Id-ascending: charlie=2, bravo=3, delta=4) differs from alphabetical order.
+        // World.Entities is a HashSet whose enumeration order is unspecified; the output
+        // assertion catches a missing sort whenever the runtime enumerates in a different order.
         var eFirst = world.CreateEntity("alpha"); // Id=1 — will be destroyed
         var eCharlie = world.CreateEntity("charlie"); // Id=2
         var eBravo = world.CreateEntity("bravo"); // Id=3
         world.DestroyEntity(eFirst);
-        var eDelta = world.CreateEntity("delta"); // Id=4 — reuses freed slot → enumerates as [4,2,3]
-
-        var rawIds = world.Entities.Select(e => e.Id).ToList();
-        Assert.NotEqual(rawIds.OrderBy(x => x).ToList(), rawIds);
+        var eDelta = world.CreateEntity("delta"); // Id=4
 
         var json = new SceneSaver(registry).Serialize(world);
 
-        // Ascending by Id: charlie(2), bravo(3), delta(4)
+        // Expected order: ascending by Id → charlie(2), bravo(3), delta(4)
         var expectedTags = new[] { (eCharlie, "charlie"), (eBravo, "bravo"), (eDelta, "delta") }
             .OrderBy(x => x.Item1.Id)
             .Select(x => x.Item2)

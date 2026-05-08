@@ -40,11 +40,10 @@ public sealed class ComponentRegistry
         if (_serializers.TryGetValue(typeId, out var existing))
         {
             var index = _serializerList.IndexOf(existing);
-            // Dictionary and list are always kept in sync; index < 0 is a bug.
-            System.Diagnostics.Debug.Assert(
-                index >= 0,
-                "Serializer found in dictionary but missing from list — internal state is corrupt."
-            );
+            if (index < 0)
+                throw new InvalidOperationException(
+                    $"Internal state is corrupt: serializer for '{typeId}' is in the dictionary but missing from the list."
+                );
             _serializerList[index] = serializer;
         }
         else

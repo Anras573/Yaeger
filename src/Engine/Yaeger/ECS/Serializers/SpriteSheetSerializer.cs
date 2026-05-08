@@ -69,8 +69,8 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
         };
 
         // Only emit frameCount when it differs from the default (columns * rows).
-        // Use checked to stay symmetric with the Deserialize path.
-        if (ss.FrameCount != checked(ss.Columns * ss.Rows))
+        // Use long arithmetic to avoid overflow for large column/row values.
+        if (ss.FrameCount != (long)ss.Columns * ss.Rows)
             obj["frameCount"] = ss.FrameCount;
 
         return obj;

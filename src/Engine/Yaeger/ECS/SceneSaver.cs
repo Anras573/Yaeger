@@ -73,14 +73,14 @@ public sealed class SceneSaver
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
 
         var resolved = AssetPath.Resolve(path);
-        var json = Serialize(world);
+        var json = Serialize(world); // SceneSaveException bubbles as-is if serialization fails
         var tmp = resolved + ".tmp";
         try
         {
             File.WriteAllText(tmp, json);
             File.Move(tmp, resolved, overwrite: true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not SceneSaveException)
         {
             throw new SceneSaveException($"Failed to write scene to '{path}': {ex.Message}", ex);
         }
