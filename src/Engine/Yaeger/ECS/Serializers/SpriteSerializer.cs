@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Yaeger.Graphics;
 
 namespace Yaeger.ECS.Serializers;
@@ -34,5 +35,14 @@ public sealed class SpriteSerializer : IComponentSerializer
 
         var component = new Sprite(texturePath);
         return (world, entity) => world.AddComponent(entity, component);
+    }
+
+    /// <inheritdoc/>
+    public JsonNode? TrySerialize(World world, Entity entity)
+    {
+        if (!world.TryGetComponent<Sprite>(entity, out var sprite))
+            return null;
+
+        return new JsonObject { ["type"] = TypeId, ["texturePath"] = sprite.TexturePath };
     }
 }

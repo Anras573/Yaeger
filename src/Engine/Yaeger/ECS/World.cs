@@ -108,6 +108,15 @@ public class World
         return scene.Apply(this);
     }
 
+    public bool TryGetTag(
+        Entity entity,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? tag
+    ) => _entitiesByTag.TryGetValue(entity, out tag);
+
+    /// <summary>
+    /// Returns all live entities. Enumeration order is unspecified; callers that need a
+    /// deterministic order (e.g. for serialization) must sort explicitly.
+    /// </summary>
     public IEnumerable<Entity> Entities => _entities;
 
     public ComponentStorage<T> GetStore<T>()

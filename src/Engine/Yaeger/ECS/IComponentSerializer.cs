@@ -1,14 +1,16 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Yaeger.ECS;
 
 /// <summary>
-/// Defines a serializer for a single component type, enabling JSON-backed prefabs.
+/// Defines a serializer for a single component type, enabling JSON-backed prefabs and scenes.
 /// </summary>
 /// <remarks>
 /// Implement this interface and register the implementation with a
-/// <see cref="ComponentRegistry"/> so that <see cref="PrefabLoader"/> can recognise
-/// and deserialize your component type from JSON prefab files.
+/// <see cref="ComponentRegistry"/> so that <see cref="PrefabLoader"/>,
+/// <see cref="SceneLoader"/>, and <see cref="SceneSaver"/> can recognise, deserialize,
+/// and serialize your component type.
 /// </remarks>
 public interface IComponentSerializer
 {
@@ -32,4 +34,17 @@ public interface IComponentSerializer
     /// adds the deserialized component to that entity.
     /// </returns>
     Action<World, Entity> Deserialize(JsonElement element);
+
+    /// <summary>
+    /// Serializes the component of this type from the given entity into a
+    /// <see cref="JsonNode"/>, ready to be written into a scene file.
+    /// </summary>
+    /// <param name="world">The world that owns the entity.</param>
+    /// <param name="entity">The entity whose component should be serialized.</param>
+    /// <returns>
+    /// A <see cref="JsonNode"/> representing the component (including its <c>"type"</c>
+    /// field), or <c>null</c> if the entity does not carry a component of this type or
+    /// if this serializer does not support the write direction.
+    /// </returns>
+    JsonNode? TrySerialize(World world, Entity entity) => null;
 }

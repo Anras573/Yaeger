@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Yaeger.Graphics;
 
 namespace Yaeger.ECS.Serializers;
@@ -94,5 +95,31 @@ public sealed class AnimationSerializer : IComponentSerializer
 
         var component = new Animation(frames, loop);
         return (world, entity) => world.AddComponent(entity, component);
+    }
+
+    /// <inheritdoc/>
+    public JsonNode? TrySerialize(World world, Entity entity)
+    {
+        if (!world.TryGetComponent<Animation>(entity, out var anim))
+            return null;
+
+        var frames = new JsonArray();
+        foreach (var frame in anim.Frames)
+        {
+            frames.Add(
+                new JsonObject
+                {
+                    ["texturePath"] = frame.TexturePath,
+                    ["duration"] = frame.Duration,
+                }
+            );
+        }
+
+        return new JsonObject
+        {
+            ["type"] = TypeId,
+            ["loop"] = anim.Loop,
+            ["frames"] = frames,
+        };
     }
 }

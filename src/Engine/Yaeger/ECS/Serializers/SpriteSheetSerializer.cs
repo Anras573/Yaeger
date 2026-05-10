@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Yaeger.Graphics;
 
 namespace Yaeger.ECS.Serializers;
@@ -51,6 +52,28 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
             );
         var component = new SpriteSheet(texturePath, columns, rows, frameCount);
         return (world, entity) => world.AddComponent(entity, component);
+    }
+
+    /// <inheritdoc/>
+    public JsonNode? TrySerialize(World world, Entity entity)
+    {
+        if (!world.TryGetComponent<SpriteSheet>(entity, out var ss))
+            return null;
+
+        var obj = new JsonObject
+        {
+            ["type"] = TypeId,
+            ["texturePath"] = ss.TexturePath,
+            ["columns"] = ss.Columns,
+            ["rows"] = ss.Rows,
+        };
+
+        // Only emit frameCount when it differs from the default (columns * rows).
+        // Use long arithmetic to avoid overflow for large column/row values.
+        if (ss.FrameCount != (long)ss.Columns * ss.Rows)
+            obj["frameCount"] = ss.FrameCount;
+
+        return obj;
     }
 
     private static string GetRequiredString(JsonElement element, string propertyName)

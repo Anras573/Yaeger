@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Yaeger.Graphics;
 
 namespace Yaeger.ECS.Serializers;
@@ -32,6 +33,21 @@ public sealed class AnimationStateSerializer : IComponentSerializer
 
         var component = new AnimationState(frameIndex, elapsedTime, isFinished);
         return (world, entity) => world.AddComponent(entity, component);
+    }
+
+    /// <inheritdoc/>
+    public JsonNode? TrySerialize(World world, Entity entity)
+    {
+        if (!world.TryGetComponent<AnimationState>(entity, out var state))
+            return null;
+
+        return new JsonObject
+        {
+            ["type"] = TypeId,
+            ["currentFrameIndex"] = state.CurrentFrameIndex,
+            ["elapsedTime"] = state.ElapsedTime,
+            ["isFinished"] = state.IsFinished,
+        };
     }
 
     private static int GetOptionalInt32(JsonElement element, string propertyName, int defaultValue)

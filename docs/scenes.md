@@ -30,9 +30,11 @@ Scenes extend the existing prefab pipeline — they reuse `ComponentRegistry` an
 - `tag` (optional, per entity) — a string; the runtime tag the entity is created with. If omitted, the entity is anonymous.
 - `components` (required, per entity) — an array of component objects. Each component has a `type` field matching an `IComponentSerializer.TypeId` registered on the `ComponentRegistry`.
 
-Asset paths in `texturePath` (and similar fields) are resolved relative to the executable's working directory, matching the existing `Prefab` and `Texture` conventions.
+Asset paths in `texturePath` (and similar fields) are resolved relative to `AppContext.BaseDirectory` (the directory that contains the application's executable), matching the convention used by `AssetPath.Resolve`, `SceneLoader.Load`, and `SceneSaver.Save`.
 
 ## API
+
+### Loading
 
 ```csharp
 var registry = new ComponentRegistry().RegisterEngineComponents();
@@ -46,6 +48,32 @@ var player = world.GetEntity("player");
 ```
 
 `world.Instantiate(scene)` returns the created entities in the same order as the scene file.
+
+### Saving
+
+```csharp
+var registry = new ComponentRegistry().RegisterEngineComponents();
+var saver = new SceneSaver(registry);
+
+saver.Save(world, "Scenes/level1.json");   // writes an indented JSON scene file
+```
+
+`SceneSaver` iterates every entity in `world.Entities` (in ascending `Entity.Id` order) and, for each entity, asks every registered `IComponentSerializer` to serialize its component via `TrySerialize(world, entity)`. Serializers that return `null` (e.g. when the entity does not carry that component type) are silently skipped. Paths passed to `Save` are resolved via `AssetPath.Resolve` (against `AppContext.BaseDirectory`), matching the `SceneLoader.Load` convention so a relative path like `"Scenes/level1.json"` targets the same file in both directions.
+
+All five engine-provided serializers support the write direction. Custom serializers opt in by overriding the default `TrySerialize` method on `IComponentSerializer`; they must return a `JsonObject` that includes a non-empty `"type"` field — `SceneSaver` throws `SceneSaveException` if that contract is violated.
+
+### Round-trip
+
+```csharp
+var registry = new ComponentRegistry().RegisterEngineComponents();
+
+// Save the current world state
+new SceneSaver(registry).Save(world, "Scenes/checkpoint.json");
+
+// Later — reload it into a fresh world
+var fresh = new World();
+fresh.Instantiate(new SceneLoader(registry).Load("Scenes/checkpoint.json"));
+```
 
 ## Errors
 
@@ -61,7 +89,6 @@ Tag collisions are detected by `World.CreateEntity(string)` — if a scene uses 
 
 ## Not yet supported
 
-- **Saving scenes** — `Scene` is load-only today. Writing a world back out as JSON requires adding a symmetric write method to `IComponentSerializer` and a `SceneSaver`; this is planned for the inspector work (issue #36) where it has a caller.
 - **Cross-entity references** — if entity A should reference entity B, the reference has to be resolved in runtime code after the scene loads. The scene format doesn't support an `entityRef` style yet.
 - **Hot reload** — watching the scene file for changes and re-instantiating. Nothing stops you from calling `loader.Load(...)` again manually, but there's no built-in watcher.
 - **Scene composition / inheritance** — one scene extending or overriding another. Intentionally deferred.
@@ -69,6 +96,7 @@ Tag collisions are detected by `World.CreateEntity(string)` — if a scene uses 
 ## See also
 
 - `Samples/SceneDemo/` — end-to-end demo with a seven-entity scene and tag round-trip
+- `src/Engine/Yaeger/ECS/SceneSaver.cs` — save-direction implementation
 - `src/Engine/Yaeger/ECS/SceneLoader.cs` — implementation
 - `src/Engine/Yaeger/ECS/Scene.cs` — in-memory scene representation
 - `docs/` — the broader engine docs index
