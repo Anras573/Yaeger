@@ -220,7 +220,7 @@ public class SceneSaverTests
         Assert.Equal(new Vector2(0f, -0.9f), rGroundT.Position);
     }
 
-    [Fact]
+    [SkippableFact]
     public void Serialize_EntityOrder_ShouldBeSortedByEntityIdAscending()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
@@ -229,7 +229,7 @@ public class SceneSaverTests
         // that a sort-less Serialize would fail the assertion below.  HashSet enumeration
         // order is unspecified; create/destroy/create can produce non-sorted slot layouts
         // on many runtimes, but we must not hard-fail if the runtime happens to enumerate
-        // in Id-order — we skip in that case rather than marking a correct Serialize as broken.
+        // in Id-order — we mark as Skip so the result is visible in the test report.
         World? world = null;
         Entity eSecond = default,
             eThird = default,
@@ -252,9 +252,13 @@ public class SceneSaverTests
             }
         }
 
-        // If the HashSet never produced a non-sorted enumeration, skip rather than fail.
-        if (!preconditionMet)
-            return;
+        // Skip explicitly (visible in the test report) rather than silently passing
+        // with no assertions when the HashSet happened to enumerate in Id-order.
+        Skip.If(
+            !preconditionMet,
+            "HashSet<Entity> enumerated in Id-ascending order for all 50 attempts; "
+                + "skipping sorting regression check on this runtime."
+        );
 
         var json = new SceneSaver(registry).Serialize(world!);
 
