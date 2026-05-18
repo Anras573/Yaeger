@@ -1,3 +1,4 @@
+using System.Numerics;
 using Yaeger.Graphics;
 
 namespace Yaeger.Tests.Graphics;
@@ -136,5 +137,85 @@ public class ColorTests
 
         // Assert
         Assert.Equal(0, fullyTransparent.A);
+    }
+
+    [Fact]
+    public void ToVector4_ConvertsWhiteColorCorrectly()
+    {
+        // Arrange
+        var color = Color.White;
+
+        // Act
+        var vector = color.ToVector4();
+
+        // Assert
+        Assert.Equal(1f, vector.X, precision: 5);
+        Assert.Equal(1f, vector.Y, precision: 5);
+        Assert.Equal(1f, vector.Z, precision: 5);
+        Assert.Equal(1f, vector.W, precision: 5);
+    }
+
+    [Fact]
+    public void ToVector4_ConvertsBlackColorCorrectly()
+    {
+        // Arrange
+        var color = Color.Black;
+
+        // Act
+        var vector = color.ToVector4();
+
+        // Assert
+        Assert.Equal(0f, vector.X, precision: 5);
+        Assert.Equal(0f, vector.Y, precision: 5);
+        Assert.Equal(0f, vector.Z, precision: 5);
+        Assert.Equal(1f, vector.W, precision: 5);
+    }
+
+    [Fact]
+    public void ToVector4_ConvertsRedColorCorrectly()
+    {
+        // Arrange
+        var color = Color.Red;
+
+        // Act
+        var vector = color.ToVector4();
+
+        // Assert
+        Assert.Equal(1f, vector.X, precision: 5);
+        Assert.Equal(0f, vector.Y, precision: 5);
+        Assert.Equal(0f, vector.Z, precision: 5);
+        Assert.Equal(1f, vector.W, precision: 5);
+    }
+
+    [Fact]
+    public void ToVector4_ConvertsHalfAlphaCorrectly()
+    {
+        // Arrange
+        var color = new Color(255, 255, 255, 128);
+
+        // Act
+        var vector = color.ToVector4();
+
+        // Assert
+        Assert.Equal(1f, vector.X, precision: 5);
+        Assert.Equal(1f, vector.Y, precision: 5);
+        Assert.Equal(1f, vector.Z, precision: 5);
+        Assert.Equal(0.50196f, vector.W, precision: 5);
+    }
+
+    [Fact]
+    public void ToVector4_ConvertsCustomColorCorrectly()
+    {
+        // Arrange
+        var color = new Color(64, 128, 192, 255);
+
+        // Act
+        var vector = color.ToVector4();
+
+        // Assert
+        Assert.Equal(0.25098f, vector.X, precision: 5);
+        Assert.Equal(0.50196f, vector.Y, precision: 5);
+        Assert.Equal(0.75294f, vector.Z, precision: 5);
+        Assert.Equal(1f, vector.W, precision: 5);
     }
 }

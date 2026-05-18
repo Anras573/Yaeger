@@ -186,6 +186,107 @@ public class PrefabLoaderTests
     }
 
     [Fact]
+    public void SpriteSerializer_WithTintRGB_DeserializesCorrectly()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0, 0] } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<Sprite>(entity, out var sprite));
+        Assert.Equal("Assets/ball.png", sprite.TexturePath);
+        Assert.Equal(255, sprite.Tint.R);
+        Assert.Equal(0, sprite.Tint.G);
+        Assert.Equal(0, sprite.Tint.B);
+        Assert.Equal(255, sprite.Tint.A); // Alpha defaults to 255
+    }
+
+    [Fact]
+    public void SpriteSerializer_WithTintRGBA_DeserializesCorrectly()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0, 0, 128] } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<Sprite>(entity, out var sprite));
+        Assert.Equal(255, sprite.Tint.R);
+        Assert.Equal(0, sprite.Tint.G);
+        Assert.Equal(0, sprite.Tint.B);
+        Assert.Equal(128, sprite.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSerializer_WithoutTint_DefaultsToWhite()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png" } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<Sprite>(entity, out var sprite));
+        Assert.Equal(255, sprite.Tint.R);
+        Assert.Equal(255, sprite.Tint.G);
+        Assert.Equal(255, sprite.Tint.B);
+        Assert.Equal(255, sprite.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintNotArray_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": "red" } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("array", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintTooFewElements_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0] } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintTooManyElements_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0, 0, 128, 64] } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void SpriteSheetSerializer_MissingTexturePath_ThrowsPrefabLoadException()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();

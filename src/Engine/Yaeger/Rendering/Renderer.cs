@@ -16,34 +16,38 @@ public class Renderer : IDisposable
     private const int MaxQuadsPerBatch = 1000;
     private const int VerticesPerQuad = QuadIndexing.VerticesPerQuad;
     private const int IndicesPerQuad = QuadIndexing.IndicesPerQuad;
-    private const int FloatsPerVertex = 5; // 3 position + 2 texcoord
+    private const int FloatsPerVertex = 9; // 3 position + 2 texcoord + 4 color
 
     private const string VertexShaderSource = """
         #version 330 core
         layout(location = 0) in vec3 aPosition;
         layout(location = 1) in vec2 aTexCoord;
+        layout(location = 2) in vec4 aColor;
 
         uniform mat4 uViewProj;
 
         out vec2 vTexCoord;
+        out vec4 vColor;
 
         void main()
         {
             gl_Position = uViewProj * vec4(aPosition, 1.0);
             vTexCoord = aTexCoord;
+            vColor = aColor;
         }
         """;
 
     private const string FragmentShaderSource = """
         #version 330 core
         in vec2 vTexCoord;
+        in vec4 vColor;
         out vec4 FragColor;
 
         uniform sampler2D uTexture;
 
         void main()
         {
-            FragColor = texture(uTexture, vTexCoord);
+            FragColor = texture(uTexture, vTexCoord) * vColor;
         }
         """;
 
@@ -116,13 +120,19 @@ public class Renderer : IDisposable
     }
 
     /// <summary>Queues a quad drawn with the full texture (UV 0,0 → 1,1).</summary>
-    public void SubmitQuad(Matrix4x4 model, string texturePath)
+    public void SubmitQuad(Matrix4x4 model, string texturePath, Vector4 color)
     {
-        SubmitQuad(model, texturePath, Vector2.Zero, Vector2.One);
+        SubmitQuad(model, texturePath, Vector2.Zero, Vector2.One, color);
     }
 
     /// <summary>Queues a quad drawn with a sub-region of the texture defined by UV coordinates.</summary>
-    public void SubmitQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
+    public void SubmitQuad(
+        Matrix4x4 model,
+        string texturePath,
+        Vector2 uvMin,
+        Vector2 uvMax,
+        Vector4 color
+    )
     {
         ref var submissions = ref CollectionsMarshal.GetValueRefOrAddDefault(
             _batchQueue,
@@ -130,7 +140,7 @@ public class Renderer : IDisposable
             out _
         );
         submissions ??= [];
-        submissions.Add(new QuadSubmission(model, uvMin, uvMax));
+        submissions.Add(new QuadSubmission(model, uvMin, uvMax, color));
     }
 
     /// <summary>Flushes all queued quads. One draw call per texture (split into batches of 1000).</summary>
@@ -184,6 +194,7 @@ public class Renderer : IDisposable
             var transform = submission.Transform;
             var uvMin = submission.UvMin;
             var uvMax = submission.UvMax;
+            var color = submission.Color;
 
             ReadOnlySpan<Vector2> uvs =
             [
@@ -200,13 +211,20 @@ public class Renderer : IDisposable
                     vertexOffset + c * FloatsPerVertex,
                     basePositions[c],
                     in transform,
-                    uvs[c]
+                    uvs[c],
+                    color
                 );
             }
         }
     }
 
-    private void WriteVertex(int offset, Vector3 basePosition, in Matrix4x4 transform, Vector2 uv)
+    private void WriteVertex(
+        int offset,
+        Vector3 basePosition,
+        in Matrix4x4 transform,
+        Vector2 uv,
+        Vector4 color
+    )
     {
         var transformed = Vector3.Transform(basePosition, transform);
         _vertexBuffer[offset + 0] = transformed.X;
@@ -214,6 +232,10 @@ public class Renderer : IDisposable
         _vertexBuffer[offset + 2] = transformed.Z;
         _vertexBuffer[offset + 3] = uv.X;
         _vertexBuffer[offset + 4] = uv.Y;
+        _vertexBuffer[offset + 5] = color.X;
+        _vertexBuffer[offset + 6] = color.Y;
+        _vertexBuffer[offset + 7] = color.Z;
+        _vertexBuffer[offset + 8] = color.W;
     }
 
     private unsafe void DrawBatch(int quadCount)
@@ -259,6 +281,7 @@ public class Renderer : IDisposable
     private readonly record struct QuadSubmission(
         Matrix4x4 Transform,
         Vector2 UvMin,
-        Vector2 UvMax
+        Vector2 UvMax,
+        Vector4 Color
     );
 }

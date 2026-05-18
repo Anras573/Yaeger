@@ -28,13 +28,17 @@ public class RenderSystem(Renderer renderer, World world, Window? window = null)
             {
                 continue;
             }
-            renderer.SubmitQuad(transform.TransformMatrix, sprite.TexturePath);
+            renderer.SubmitQuad(
+                transform.TransformMatrix,
+                sprite.TexturePath,
+                sprite.Tint.ToVector4()
+            );
         }
 
         // Submit sprite-sheet entities: UV sub-region is derived from the current animation frame.
         foreach (
             (
-                Entity _,
+                Entity entity,
                 SpriteSheet sheet,
                 AnimationState state,
                 Transform2D transform
@@ -47,7 +51,19 @@ public class RenderSystem(Renderer renderer, World world, Window? window = null)
             }
             var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
             var (uvMin, uvMax) = sheet.GetFrameUv(frameIndex);
-            renderer.SubmitQuad(transform.TransformMatrix, sheet.TexturePath, uvMin, uvMax);
+
+            // Check if there's a Sprite component with tint information
+            var tint = world.TryGetComponent<Sprite>(entity, out var sprite)
+                ? sprite.Tint
+                : Color.White;
+
+            renderer.SubmitQuad(
+                transform.TransformMatrix,
+                sheet.TexturePath,
+                uvMin,
+                uvMax,
+                tint.ToVector4()
+            );
         }
 
         renderer.EndFrame();

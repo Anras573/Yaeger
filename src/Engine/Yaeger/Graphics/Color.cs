@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace Yaeger.Graphics;
 
 public readonly struct Color(byte r, byte g, byte b, byte a = 255)
@@ -12,5 +14,11 @@ public readonly struct Color(byte r, byte g, byte b, byte a = 255)
     public static readonly Color Red = new(255, 0, 0);
     public static readonly Color Green = new(0, 255, 0);
     public static readonly Color Blue = new(0, 0, 255);
+
     // Add more as needed
+
+    /// <summary>
+    /// Converts this color to a normalized Vector4 (0-1 range) suitable for shaders.
+    /// </summary>
+    public Vector4 ToVector4() => new(R / 255f, G / 255f, B / 255f, A / 255f);
 }
