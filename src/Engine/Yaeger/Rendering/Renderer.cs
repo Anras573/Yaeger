@@ -8,8 +8,8 @@ namespace Yaeger.Rendering;
 
 /// <summary>
 /// Renders quads in batches grouped by texture to minimise OpenGL state changes.
-/// Submit quads with <see cref="SubmitQuad(Matrix4x4, string, Vector4)"/> or its UV-aware
-/// overload; draw calls are issued during <see cref="EndFrame"/>.
+/// Submit quads with <see cref="SubmitQuad(Matrix4x4, string)"/> or its UV-aware overload;
+/// draw calls are issued during <see cref="EndFrame"/>.
 /// </summary>
 public class Renderer : IDisposable
 {
@@ -119,10 +119,24 @@ public class Renderer : IDisposable
         _viewProjection = viewProjection;
     }
 
+    /// <summary>Queues a quad drawn with the full texture and default white tint.</summary>
+    public void SubmitQuad(Matrix4x4 model, string texturePath)
+    {
+        SubmitQuad(model, texturePath, Vector4.One);
+    }
+
     /// <summary>Queues a quad drawn with the full texture (UV 0,0 → 1,1).</summary>
     public void SubmitQuad(Matrix4x4 model, string texturePath, Vector4 color)
     {
         SubmitQuad(model, texturePath, Vector2.Zero, Vector2.One, color);
+    }
+
+    /// <summary>
+    /// Queues a quad drawn with a sub-region of the texture and default white tint.
+    /// </summary>
+    public void SubmitQuad(Matrix4x4 model, string texturePath, Vector2 uvMin, Vector2 uvMax)
+    {
+        SubmitQuad(model, texturePath, uvMin, uvMax, Vector4.One);
     }
 
     /// <summary>Queues a quad drawn with a sub-region of the texture defined by UV coordinates.</summary>
