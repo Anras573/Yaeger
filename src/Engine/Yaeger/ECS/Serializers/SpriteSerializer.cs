@@ -41,26 +41,38 @@ public sealed class SpriteSerializer : IComponentSerializer
             if (tintEl.ValueKind != JsonValueKind.Array)
                 throw new PrefabLoadException("Sprite 'tint' must be an array of 3 or 4 numbers.");
 
-            var tintArray = tintEl.EnumerateArray().ToArray();
-            if (tintArray.Length < 3 || tintArray.Length > 4)
+            var channels = new int[4];
+            var channelCount = 0;
+            foreach (var channelEl in tintEl.EnumerateArray())
+            {
+                if (channelCount == channels.Length)
+                {
+                    throw new PrefabLoadException(
+                        "Sprite 'tint' array must contain 3 (RGB) or 4 (RGBA) elements."
+                    );
+                }
+
+                if (
+                    !channelEl.TryGetInt32(out var channelValue)
+                    || channelValue < 0
+                    || channelValue > 255
+                )
+                {
+                    throw new PrefabLoadException(
+                        "Sprite 'tint' array elements must be integers between 0 and 255."
+                    );
+                }
+
+                channels[channelCount++] = channelValue;
+            }
+
+            if (channelCount < 3)
                 throw new PrefabLoadException(
                     "Sprite 'tint' array must contain 3 (RGB) or 4 (RGBA) elements."
                 );
 
-            try
-            {
-                var r = (byte)tintArray[0].GetInt32();
-                var g = (byte)tintArray[1].GetInt32();
-                var b = (byte)tintArray[2].GetInt32();
-                var a = tintArray.Length == 4 ? (byte)tintArray[3].GetInt32() : (byte)255;
-                tint = new Color(r, g, b, a);
-            }
-            catch
-            {
-                throw new PrefabLoadException(
-                    "Sprite 'tint' array elements must be integers between 0 and 255."
-                );
-            }
+            var alpha = channelCount == 4 ? channels[3] : 255;
+            tint = new Color((byte)channels[0], (byte)channels[1], (byte)channels[2], (byte)alpha);
         }
 
         var component = new Sprite(texturePath, tint);

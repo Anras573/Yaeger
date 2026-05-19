@@ -8,7 +8,7 @@ namespace Yaeger.Rendering;
 
 /// <summary>
 /// Renders quads in batches grouped by texture to minimise OpenGL state changes.
-/// Submit quads with <see cref="SubmitQuad(Matrix4x4, string)"/> or its UV-aware
+/// Submit quads with <see cref="SubmitQuad(Matrix4x4, string, Vector4)"/> or its UV-aware
 /// overload; draw calls are issued during <see cref="EndFrame"/>.
 /// </summary>
 public class Renderer : IDisposable

@@ -7,9 +7,10 @@ public class VertexArray : IDisposable
     private readonly GL _gl;
     private readonly uint _handle;
 
-    private const uint VertexSize = 5; // 3 for position, 2 for texture coordinates
+    private const uint VertexSize = 9; // 3 for position, 2 for texture coordinates, 4 for color
     private const int PositionCount = 3; // x, y, z
     private const int TexCoordCount = 2; // u, v
+    private const int ColorCount = 4; // r, g, b, a
 
     public VertexArray(GL gl, Buffer<float> vbo, Buffer<uint> ebo)
     {
@@ -21,6 +22,7 @@ public class VertexArray : IDisposable
 
         VertexAttributeFloatPointer(0, PositionCount, VertexSize, 0);
         VertexAttributeFloatPointer(1, TexCoordCount, VertexSize, 3);
+        VertexAttributeFloatPointer(2, ColorCount, VertexSize, 5);
     }
 
     private unsafe void VertexAttributeFloatPointer(
