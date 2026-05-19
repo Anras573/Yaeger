@@ -73,7 +73,7 @@ var sheets = new Dictionary<string, SpriteSheet>
     ["Attack_1"] = new SpriteSheet("Assets/Attack_1.png", columns: 6),
     ["Attack_2"] = new SpriteSheet("Assets/Attack_2.png", columns: 4),
     ["Attack_3"] = new SpriteSheet("Assets/Attack_3.png", columns: 3),
-    ["Hurt"] = new SpriteSheet("Assets/Hurt.png", columns: 2),
+    ["Hurt"] = new SpriteSheet("Assets/Hurt.png", columns: 2, tint: new Color(255, 140, 140)),
     ["Shield"] = new SpriteSheet("Assets/Shield.png", columns: 2),
     ["Dead"] = new SpriteSheet("Assets/Dead.png", columns: 3),
 };
