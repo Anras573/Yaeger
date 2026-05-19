@@ -21,8 +21,8 @@ public class VertexArray : IDisposable
         ebo.Bind();
 
         VertexAttributeFloatPointer(0, PositionCount, VertexSize, 0);
-        VertexAttributeFloatPointer(1, TexCoordCount, VertexSize, 3);
-        VertexAttributeFloatPointer(2, ColorCount, VertexSize, 5);
+        VertexAttributeFloatPointer(1, TexCoordCount, VertexSize, PositionCount);
+        VertexAttributeFloatPointer(2, ColorCount, VertexSize, PositionCount + TexCoordCount);
     }
 
     private unsafe void VertexAttributeFloatPointer(

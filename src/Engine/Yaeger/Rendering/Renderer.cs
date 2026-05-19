@@ -125,7 +125,7 @@ public class Renderer : IDisposable
         SubmitQuad(model, texturePath, Vector4.One);
     }
 
-    /// <summary>Queues a quad drawn with the full texture (UV 0,0 → 1,1).</summary>
+    /// <summary>Queues a quad drawn with the full texture (UV 0,0 → 1,1), tinted by <paramref name="color"/>.</summary>
     public void SubmitQuad(Matrix4x4 model, string texturePath, Vector4 color)
     {
         SubmitQuad(model, texturePath, Vector2.Zero, Vector2.One, color);
