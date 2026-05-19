@@ -641,6 +641,105 @@ public class PrefabLoaderTests
     }
 
     [Fact]
+    public void SpriteSheetSerializer_WithTint_RoundTrips()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": [255, 128, 0, 200] } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<SpriteSheet>(entity, out var sheet));
+        Assert.Equal(255, sheet.Tint.R);
+        Assert.Equal(128, sheet.Tint.G);
+        Assert.Equal(0, sheet.Tint.B);
+        Assert.Equal(200, sheet.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_WithRgbTint_DefaultsAlphaTo255()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": [100, 150, 200] } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<SpriteSheet>(entity, out var sheet));
+        Assert.Equal(100, sheet.Tint.R);
+        Assert.Equal(150, sheet.Tint.G);
+        Assert.Equal(200, sheet.Tint.B);
+        Assert.Equal(255, sheet.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_WithoutTint_DefaultsToWhite()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4 } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<SpriteSheet>(entity, out var sheet));
+        Assert.Equal(255, sheet.Tint.R);
+        Assert.Equal(255, sheet.Tint.G);
+        Assert.Equal(255, sheet.Tint.B);
+        Assert.Equal(255, sheet.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_InvalidTintChannelBelowZero_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": [-1, 0, 0, 255] } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_InvalidTintChannelAbove255_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": [256, 0, 0, 255] } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_TintNotAnArray_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": "red" } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void AnimationStateSerializer_RoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();

@@ -1,4 +1,3 @@
-using System.Numerics;
 using Yaeger.Graphics;
 
 namespace Yaeger.Tests.Graphics;

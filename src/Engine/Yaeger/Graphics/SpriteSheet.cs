@@ -29,6 +29,9 @@ public readonly struct SpriteSheet
     /// </summary>
     public int FrameCount { get; }
 
+    /// <summary>Gets the tint colour applied when rendering this sprite sheet. Defaults to white (no tint).</summary>
+    public Color Tint { get; }
+
     /// <summary>
     /// Initializes a new <see cref="SpriteSheet"/>.
     /// </summary>
@@ -39,7 +42,16 @@ public readonly struct SpriteSheet
     /// Total number of valid frames. Defaults to <paramref name="columns"/> ×
     /// <paramref name="rows"/> when not specified.
     /// </param>
-    public SpriteSheet(string texturePath, int columns, int rows = 1, int? frameCount = null)
+    /// <param name="tint">
+    /// Tint colour applied during rendering. Defaults to <see cref="Color.White"/> (no tint).
+    /// </param>
+    public SpriteSheet(
+        string texturePath,
+        int columns,
+        int rows = 1,
+        int? frameCount = null,
+        Color? tint = null
+    )
     {
         ArgumentException.ThrowIfNullOrEmpty(texturePath);
         ArgumentOutOfRangeException.ThrowIfLessThan(columns, 1);
@@ -54,6 +66,7 @@ public readonly struct SpriteSheet
         Columns = columns;
         Rows = rows;
         FrameCount = resolvedFrameCount;
+        Tint = tint ?? Color.White;
     }
 
     /// <summary>

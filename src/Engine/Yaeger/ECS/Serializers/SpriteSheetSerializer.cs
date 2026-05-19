@@ -15,11 +15,12 @@ namespace Yaeger.ECS.Serializers;
 ///   "texturePath": "Assets/sheet.png",
 ///   "columns": 4,
 ///   "rows": 2,
-///   "frameCount": 7
+///   "frameCount": 7,
+///   "tint": [255, 0, 0, 255]
 /// }
 /// </code>
-/// <c>rows</c> defaults to <c>1</c> and <c>frameCount</c> defaults to
-/// <c>columns * rows</c> when absent.
+/// <c>rows</c> defaults to <c>1</c>, <c>frameCount</c> defaults to
+/// <c>columns * rows</c>, and <c>tint</c> defaults to white when absent.
 /// </remarks>
 public sealed class SpriteSheetSerializer : IComponentSerializer
 {
@@ -50,7 +51,46 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
             throw new PrefabLoadException(
                 $"SpriteSheet 'frameCount' ({frameCount.Value}) must not exceed columns * rows ({maxFrameCount})."
             );
-        var component = new SpriteSheet(texturePath, columns, rows, frameCount);
+
+        Color? tint = null;
+        if (element.TryGetProperty("tint", out var tintEl))
+        {
+            if (tintEl.ValueKind != JsonValueKind.Array)
+                throw new PrefabLoadException(
+                    "SpriteSheet 'tint' must be an array of 3 or 4 numbers."
+                );
+
+            var channels = new int[4];
+            var channelCount = 0;
+            foreach (var channelEl in tintEl.EnumerateArray())
+            {
+                if (channelCount == channels.Length)
+                    throw new PrefabLoadException(
+                        "SpriteSheet 'tint' array must contain 3 (RGB) or 4 (RGBA) elements."
+                    );
+
+                if (
+                    !channelEl.TryGetInt32(out var channelValue)
+                    || channelValue < 0
+                    || channelValue > 255
+                )
+                    throw new PrefabLoadException(
+                        "SpriteSheet 'tint' array elements must be integers between 0 and 255."
+                    );
+
+                channels[channelCount++] = channelValue;
+            }
+
+            if (channelCount < 3)
+                throw new PrefabLoadException(
+                    "SpriteSheet 'tint' array must contain 3 (RGB) or 4 (RGBA) elements."
+                );
+
+            var alpha = channelCount == 4 ? channels[3] : 255;
+            tint = new Color((byte)channels[0], (byte)channels[1], (byte)channels[2], (byte)alpha);
+        }
+
+        var component = new SpriteSheet(texturePath, columns, rows, frameCount, tint);
         return (world, entity) => world.AddComponent(entity, component);
     }
 
@@ -72,6 +112,11 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
         // Use long arithmetic to avoid overflow for large column/row values.
         if (ss.FrameCount != (long)ss.Columns * ss.Rows)
             obj["frameCount"] = ss.FrameCount;
+
+        if (ss.Tint.R != 255 || ss.Tint.G != 255 || ss.Tint.B != 255 || ss.Tint.A != 255)
+        {
+            obj["tint"] = new JsonArray(ss.Tint.R, ss.Tint.G, ss.Tint.B, ss.Tint.A);
+        }
 
         return obj;
     }

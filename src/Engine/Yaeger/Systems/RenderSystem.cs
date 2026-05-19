@@ -52,17 +52,12 @@ public class RenderSystem(Renderer renderer, World world, Window? window = null)
             var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
             var (uvMin, uvMax) = sheet.GetFrameUv(frameIndex);
 
-            // Check if there's a Sprite component with tint information
-            var tint = world.TryGetComponent<Sprite>(entity, out var sprite)
-                ? sprite.Tint
-                : Color.White;
-
             renderer.SubmitQuad(
                 transform.TransformMatrix,
                 sheet.TexturePath,
                 uvMin,
                 uvMax,
-                tint.ToVector4()
+                sheet.Tint.ToVector4()
             );
         }
 
