@@ -186,6 +186,149 @@ public class PrefabLoaderTests
     }
 
     [Fact]
+    public void SpriteSerializer_WithTintRGB_DeserializesCorrectly()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0, 0] } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<Sprite>(entity, out var sprite));
+        Assert.Equal("Assets/ball.png", sprite.TexturePath);
+        Assert.Equal(255, sprite.Tint.R);
+        Assert.Equal(0, sprite.Tint.G);
+        Assert.Equal(0, sprite.Tint.B);
+        Assert.Equal(255, sprite.Tint.A); // Alpha defaults to 255
+    }
+
+    [Fact]
+    public void SpriteSerializer_WithTintRGBA_DeserializesCorrectly()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0, 0, 128] } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<Sprite>(entity, out var sprite));
+        Assert.Equal(255, sprite.Tint.R);
+        Assert.Equal(0, sprite.Tint.G);
+        Assert.Equal(0, sprite.Tint.B);
+        Assert.Equal(128, sprite.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSerializer_WithoutTint_DefaultsToWhite()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png" } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<Sprite>(entity, out var sprite));
+        Assert.Equal(255, sprite.Tint.R);
+        Assert.Equal(255, sprite.Tint.G);
+        Assert.Equal(255, sprite.Tint.B);
+        Assert.Equal(255, sprite.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintNotArray_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": "red" } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("array", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintTooFewElements_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0] } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintTooManyElements_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0, 0, 128, 64] } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintChannelBelowZero_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [-1, 0, 0] } ] }"""
+            )
+        );
+        Assert.Contains("between 0 and 255", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintChannelAbove255_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [300, 0, 0] } ] }"""
+            )
+        );
+        Assert.Contains("between 0 and 255", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSerializer_InvalidTintChannelNotInteger_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [1.5, 0, 0] } ] }"""
+            )
+        );
+        Assert.Contains("between 0 and 255", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void SpriteSheetSerializer_MissingTexturePath_ThrowsPrefabLoadException()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
@@ -495,6 +638,105 @@ public class PrefabLoaderTests
             )
         );
         Assert.Contains("frameCount", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_WithTint_RoundTrips()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": [255, 128, 0, 200] } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<SpriteSheet>(entity, out var sheet));
+        Assert.Equal(255, sheet.Tint.R);
+        Assert.Equal(128, sheet.Tint.G);
+        Assert.Equal(0, sheet.Tint.B);
+        Assert.Equal(200, sheet.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_WithRgbTint_DefaultsAlphaTo255()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": [100, 150, 200] } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<SpriteSheet>(entity, out var sheet));
+        Assert.Equal(100, sheet.Tint.R);
+        Assert.Equal(150, sheet.Tint.G);
+        Assert.Equal(200, sheet.Tint.B);
+        Assert.Equal(255, sheet.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_WithoutTint_DefaultsToWhite()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4 } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<SpriteSheet>(entity, out var sheet));
+        Assert.Equal(255, sheet.Tint.R);
+        Assert.Equal(255, sheet.Tint.G);
+        Assert.Equal(255, sheet.Tint.B);
+        Assert.Equal(255, sheet.Tint.A);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_InvalidTintChannelBelowZero_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": [-1, 0, 0, 255] } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_InvalidTintChannelAbove255_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": [256, 0, 0, 255] } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SpriteSheetSerializer_TintNotAnArray_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "sheet.png", "columns": 4, "tint": "red" } ] }"""
+            )
+        );
+        Assert.Contains("tint", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
