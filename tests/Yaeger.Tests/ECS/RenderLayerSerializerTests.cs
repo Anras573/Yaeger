@@ -7,7 +7,7 @@ namespace Yaeger.Tests.ECS;
 public class RenderLayerSerializerTests
 {
     [Fact]
-    public void RenderLayerSerializer_RoundTrip_ThroughPrefabLoader()
+    public void RenderLayerSerializer_Deserializes_ThroughPrefabLoader()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
         var loader = new PrefabLoader(registry);
