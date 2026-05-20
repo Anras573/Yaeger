@@ -787,7 +787,7 @@ public class PrefabLoaderTests
     // ── RegisterEngineComponents convenience extension ────────────────────────
 
     [Fact]
-    public void RegisterEngineComponents_RegistersAllFiveBuiltInTypes()
+    public void RegisterEngineComponents_RegistersAllSixBuiltInTypes()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
 
@@ -796,6 +796,7 @@ public class PrefabLoaderTests
         Assert.Contains("SpriteSheet", registry.RegisteredTypeIds);
         Assert.Contains("Animation", registry.RegisteredTypeIds);
         Assert.Contains("AnimationState", registry.RegisteredTypeIds);
+        Assert.Contains("RenderLayer", registry.RegisteredTypeIds);
     }
 
     // ── PrefabLoader.Load – file-not-found ────────────────────────────────────
