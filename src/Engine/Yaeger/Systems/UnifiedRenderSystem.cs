@@ -8,7 +8,7 @@ namespace Yaeger.Systems;
 
 /// <summary>
 /// Renders sprites, sprite sheets, and text in a shared deterministic order using
-/// <see cref="RenderLayer"/> and <see cref="Entity.Id"/> as sort keys.
+/// <see cref="RenderLayer"/>, <see cref="Entity.Id"/>, and command kind as sort keys.
 /// </summary>
 public class UnifiedRenderSystem(
     Renderer renderer,
