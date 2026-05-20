@@ -9,7 +9,8 @@ namespace Yaeger.Rendering;
 /// Renders quads in deterministic submission order, batching contiguous quads that
 /// share a texture to minimise OpenGL state changes.
 /// Submit quads with <see cref="SubmitQuad(Matrix4x4, string)"/> or its UV-aware overload;
-/// draw calls are issued during <see cref="EndFrame"/>.
+/// draw calls are issued when queued quads are flushed via
+/// <see cref="FlushQueuedQuads"/> or <see cref="EndFrame"/>.
 /// </summary>
 public class Renderer : IDisposable
 {
@@ -150,7 +151,8 @@ public class Renderer : IDisposable
 
     /// <summary>
     /// Flushes all queued quads, preserving submission order and batching contiguous
-    /// quads that share a texture (up to 1000 quads per draw call).
+    /// quads that share a texture (up to 1000 quads per draw call), by delegating to
+    /// <see cref="FlushQueuedQuads"/>.
     /// </summary>
     public void EndFrame()
     {
