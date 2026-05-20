@@ -14,6 +14,7 @@ public static class EngineComponentRegistryExtensions
     ///   <item><see cref="Yaeger.Graphics.SpriteSheet"/> – type id <c>"SpriteSheet"</c></item>
     ///   <item><see cref="Yaeger.Graphics.Animation"/> – type id <c>"Animation"</c></item>
     ///   <item><see cref="Yaeger.Graphics.AnimationState"/> – type id <c>"AnimationState"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.RenderLayer"/> – type id <c>"RenderLayer"</c></item>
     /// </list>
     /// </summary>
     /// <returns>The same <paramref name="registry"/> for method chaining.</returns>
@@ -24,6 +25,7 @@ public static class EngineComponentRegistryExtensions
         registry.Register(new SpriteSheetSerializer());
         registry.Register(new AnimationSerializer());
         registry.Register(new AnimationStateSerializer());
+        registry.Register(new RenderLayerSerializer());
         return registry;
     }
 }

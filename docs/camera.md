@@ -39,6 +39,6 @@ If you need world-anchored labels (e.g., a name floating above a sprite), positi
 
 ## Known limitations
 
-- No depth sorting — draw order is texture-group order, as before.
+- Legacy `RenderSystem` and `TextRenderSystem` run in separate passes, so they cannot provide deterministic mixed sprite/text ordering. Use `UnifiedRenderSystem` + `RenderLayer` when you need explicit layering.
 - No camera shake / follow systems yet — they'd be separate systems that mutate `Camera2D.Position` before `RenderSystem.Render()` runs.
 - No viewport sub-regions (split-screen).
