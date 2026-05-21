@@ -20,5 +20,9 @@ public readonly record struct FontHandle : IFontHandle
         _id = id;
     }
 
-    public string Id => _id ?? string.Empty;
+    public string Id =>
+        _id
+        ?? throw new InvalidOperationException(
+            "Font handle is uninitialized. Construct FontHandle with a non-empty id."
+        );
 }
