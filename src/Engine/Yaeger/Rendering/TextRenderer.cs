@@ -155,6 +155,8 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         Color color
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(fontSize);
+
         if (string.IsNullOrEmpty(text))
             return;
 
