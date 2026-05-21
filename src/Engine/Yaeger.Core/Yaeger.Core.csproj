@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Yaeger\AssetPath.cs" Link="AssetPath.cs" />
+    <Compile Include="..\Yaeger\ECS\**\*.cs" Link="ECS\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile
+      Include="..\Yaeger\Graphics\**\*.cs"
+      Link="Graphics\%(RecursiveDir)%(Filename)%(Extension)"
+    />
+    <Compile
+      Include="..\Yaeger\Physics\**\*.cs"
+      Exclude="..\Yaeger\Physics\PhysicsDebugRenderer.cs"
+      Link="Physics\%(RecursiveDir)%(Filename)%(Extension)"
+    />
+    <Compile Include="..\Yaeger\Systems\AnimationSystem.cs" Link="Systems\AnimationSystem.cs" />
+    <Compile Include="..\Yaeger\Systems\IUpdateSystem.cs" Link="Systems\IUpdateSystem.cs" />
+    <Compile Include="..\Yaeger\Input\Keys.cs" Link="Input\Keys.cs" />
+    <Compile Include="..\Yaeger\Input\MouseButton.cs" Link="Input\MouseButton.cs" />
+  </ItemGroup>
+</Project>

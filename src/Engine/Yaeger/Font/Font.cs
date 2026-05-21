@@ -1,9 +1,10 @@
 using HarfBuzzSharp;
+using Yaeger.Graphics;
 using Buffer = HarfBuzzSharp.Buffer;
 
 namespace Yaeger.Font;
 
-public class Font : IDisposable
+public class Font : IFontHandle, IDisposable
 {
     private readonly Blob _blob;
     private readonly Face _face;
@@ -17,11 +18,14 @@ public class Font : IDisposable
             throw new FileNotFoundException($"Font file not found: {fontPath}");
         }
 
+        Id = fontPath;
         FontBytes = File.ReadAllBytes(fontPath);
         _blob = Blob.FromStream(new MemoryStream(FontBytes));
         _face = new Face(_blob, 0);
         _font = new HarfBuzzSharp.Font(_face);
     }
+
+    public string Id { get; }
 
     public GlyphInfo[] Shape(string text)
     {

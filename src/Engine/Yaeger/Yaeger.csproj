@@ -25,6 +25,22 @@
   </Target>
 
   <ItemGroup>
+    <ProjectReference Include="..\Yaeger.Core\Yaeger.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="AssetPath.cs" />
+    <Compile Remove="ECS\**\*.cs" />
+    <Compile Remove="Graphics\**\*.cs" />
+    <Compile Remove="Physics\**\*.cs" />
+    <Compile Remove="Systems\AnimationSystem.cs" />
+    <Compile Remove="Systems\IUpdateSystem.cs" />
+    <Compile Remove="Input\Keys.cs" />
+    <Compile Remove="Input\MouseButton.cs" />
+    <Compile Include="Physics\PhysicsDebugRenderer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="HarfBuzzSharp" Version="8.3.1.2" />
     <PackageReference Include="Silk.NET" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenAL" Version="2.22.0" />

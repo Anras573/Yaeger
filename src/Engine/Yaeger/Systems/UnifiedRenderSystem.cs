@@ -1,7 +1,7 @@
 using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
-using Yaeger.Rendering;
+using Yaeger.Platform;
 using Yaeger.Windowing;
 
 namespace Yaeger.Systems;
@@ -11,8 +11,8 @@ namespace Yaeger.Systems;
 /// <see cref="RenderLayer"/>, <see cref="Entity.Id"/>, and command kind as sort keys.
 /// </summary>
 public class UnifiedRenderSystem(
-    Renderer renderer,
-    TextRenderer textRenderer,
+    IRenderSurface renderer,
+    ITextRenderSurface textRenderer,
     World world,
     Window? window = null
 )

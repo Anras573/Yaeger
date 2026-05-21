@@ -1,12 +1,12 @@
 using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
-using Yaeger.Rendering;
+using Yaeger.Platform;
 using Yaeger.Windowing;
 
 namespace Yaeger.Systems;
 
-public class RenderSystem(Renderer renderer, World world, Window? window = null)
+public class RenderSystem(IRenderSurface renderer, World world, Window? window = null)
 {
     public void Render()
     {

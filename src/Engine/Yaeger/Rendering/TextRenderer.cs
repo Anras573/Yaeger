@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Silk.NET.OpenGL;
 using Yaeger.Font;
 using Yaeger.Graphics;
+using Yaeger.Platform;
 using Yaeger.Windowing;
 
 namespace Yaeger.Rendering;
@@ -10,10 +11,11 @@ namespace Yaeger.Rendering;
 /// <summary>
 /// Specialized renderer for text using glyph atlases and batch rendering.
 /// </summary>
-public class TextRenderer : IDisposable
+public class TextRenderer : ITextRenderSurface, IDisposable
 {
     private readonly GL _gl;
     private readonly Shader _textShader;
+    private readonly FontManager _fontManager = new();
 
     // Keyed by (font, fontSize) so the same font rendered at different sizes gets its own
     // atlas. Previously keyed by Font alone, which silently reused the first size forever.
@@ -115,7 +117,7 @@ public class TextRenderer : IDisposable
     public void DrawText(
         string text,
         Matrix4x4 transform,
-        Font.Font font,
+        IFontHandle font,
         int fontSize,
         Color color
     )
@@ -123,10 +125,11 @@ public class TextRenderer : IDisposable
         if (string.IsNullOrEmpty(text))
             return;
 
-        var atlas = GetOrCreateAtlas(font, fontSize);
+        var nativeFont = ResolveNativeFont(font);
+        var atlas = GetOrCreateAtlas(nativeFont, fontSize);
         atlas.AddGlyphsForText(text);
 
-        var glyphs = font.Shape(text);
+        var glyphs = nativeFont.Shape(text);
 
         _quadCount = 0;
         float x = 0;
@@ -166,6 +169,23 @@ public class TextRenderer : IDisposable
         {
             RenderBatch(atlas);
         }
+    }
+
+    private Font.Font ResolveNativeFont(IFontHandle handle)
+    {
+        if (handle is Font.Font nativeFont)
+        {
+            return nativeFont;
+        }
+
+        if (string.IsNullOrWhiteSpace(handle.Id))
+        {
+            throw new InvalidOperationException(
+                "Text font handle must provide a non-empty identifier."
+            );
+        }
+
+        return _fontManager.Load(handle.Id);
     }
 
     private void AddGlyphQuad(
@@ -279,6 +299,7 @@ public class TextRenderer : IDisposable
         _vbo.Dispose();
         _ebo.Dispose();
         _textShader.Dispose();
+        _fontManager.Dispose();
 
         GC.SuppressFinalize(this);
     }

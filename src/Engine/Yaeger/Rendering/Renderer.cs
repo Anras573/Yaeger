@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Silk.NET.OpenGL;
+using Yaeger.Platform;
 using Yaeger.Windowing;
 
 namespace Yaeger.Rendering;
@@ -12,7 +13,7 @@ namespace Yaeger.Rendering;
 /// draw calls are issued when queued quads are flushed via
 /// <see cref="FlushQueuedQuads"/> or <see cref="EndFrame"/>.
 /// </summary>
-public class Renderer : IDisposable
+public class Renderer : IRenderSurface, IDisposable
 {
     private const int MaxQuadsPerBatch = 1000;
     private const int VerticesPerQuad = QuadIndexing.VerticesPerQuad;

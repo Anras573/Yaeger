@@ -4,7 +4,7 @@ YAEGER - **Y**et **A**nother **E**xperimental **G**ame **E**ngine **R**epository
 
 ## Overview
 
-Yaeger is a modular, experimental 2D game engine written in C#. It aims to provide a flexible and extensible platform for rapid prototyping and development of games and interactive applications. The engine is designed with an Entity-Component-System (ECS) architecture and leverages Silk.NET for graphics, input, and windowing.
+Yaeger is a modular, experimental 2D game engine written in C#. It aims to provide a flexible and extensible platform for rapid prototyping and development of games and interactive applications. The engine is designed with an Entity-Component-System (ECS) architecture and is split into a platform-agnostic core (`Yaeger.Core`) plus a native runtime (`Yaeger`) for Silk.NET/OpenGL/OpenAL integration.
 
 ## Features
 
@@ -63,12 +63,8 @@ For more information about testing, see the [Testing Guide](docs/testing.md).
 
 ## Project Structure
 
-- `src/Engine/Yaeger/` - Core engine source code
-  - `ECS/` - Entity-Component-System framework
-  - `Rendering/` - Rendering systems (sprites, text)
-  - `Graphics/` - Graphics primitives and utilities
-  - `Input/` - Input handling
-  - `Windowing/` - Window management
+- `src/Engine/Yaeger.Core/` - Platform-agnostic engine core (ECS, scenes, animation, transforms, physics, gameplay logic)
+- `src/Engine/Yaeger/` - Native runtime (windowing, rendering, input bindings, audio, font runtime)
 - `tests/Yaeger.Tests/` - Unit test suite
   - `ECS/` - Tests for ECS components
   - `Graphics/` - Tests for graphics primitives
@@ -85,7 +81,9 @@ For more information about testing, see the [Testing Guide](docs/testing.md).
 
 ## Usage
 
-To create your own game, use the ECS framework provided in `src/Engine/Yaeger/ECS/`. See the Pong sample for a minimal implementation.
+For headless/platform-agnostic simulation and gameplay logic, reference `Yaeger.Core`.
+For desktop/native runtime behavior (window, rendering, input, audio), reference `Yaeger`.
+See the Pong sample for a minimal end-to-end native implementation.
 
 ## Contributing
 

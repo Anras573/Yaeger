@@ -1,13 +1,13 @@
 using Yaeger.ECS;
 using Yaeger.Graphics;
-using Yaeger.Rendering;
+using Yaeger.Platform;
 
 namespace Yaeger.Systems;
 
 /// <summary>
 /// System responsible for rendering text entities in the ECS world.
 /// </summary>
-public class TextRenderSystem(TextRenderer textRenderer, World world)
+public class TextRenderSystem(ITextRenderSurface textRenderer, World world)
 {
     /// <summary>
     /// Renders all entities that have both Text and Transform2D components.
