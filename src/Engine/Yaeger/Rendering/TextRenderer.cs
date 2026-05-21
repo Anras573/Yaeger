@@ -207,14 +207,8 @@ public class TextRenderer : ITextRenderSurface, IDisposable
 
     private Font.Font ResolveNativeFont(FontHandle handle)
     {
-        if (string.IsNullOrWhiteSpace(handle.Id))
-        {
-            throw new InvalidOperationException(
-                "Text font handle must provide a non-empty identifier."
-            );
-        }
-
-        return _fontManager.Load(handle.Id);
+        var fontId = handle.Id;
+        return _fontManager.Load(fontId);
     }
 
     private Font.Font ResolveNativeFont(IFontHandle handle)
@@ -226,14 +220,15 @@ public class TextRenderer : ITextRenderSurface, IDisposable
             return nativeFont;
         }
 
-        if (string.IsNullOrWhiteSpace(handle.Id))
+        var fontId = handle.Id;
+        if (string.IsNullOrWhiteSpace(fontId))
         {
             throw new InvalidOperationException(
                 "Text font handle must provide a non-empty identifier."
             );
         }
 
-        return _fontManager.Load(handle.Id);
+        return _fontManager.Load(fontId);
     }
 
     private void AddGlyphQuad(
