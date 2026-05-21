@@ -70,7 +70,12 @@ public class TextRenderer : ITextRenderSurface, IDisposable
 
     public TextRenderer(Window window, FontManager? fontManager)
     {
-        _gl = window.Gl ?? throw new ArgumentNullException(nameof(window));
+        ArgumentNullException.ThrowIfNull(window);
+        _gl =
+            window.Gl
+            ?? throw new InvalidOperationException(
+                "Window must have an initialized GL context before creating TextRenderer."
+            );
         _fontManager = fontManager ?? new FontManager();
         _ownsFontManager = fontManager is null;
         _textShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
@@ -179,6 +184,8 @@ public class TextRenderer : ITextRenderSurface, IDisposable
 
     private Font.Font ResolveNativeFont(IFontHandle handle)
     {
+        ArgumentNullException.ThrowIfNull(handle);
+
         if (handle is Font.Font nativeFont)
         {
             return nativeFont;
