@@ -7,27 +7,30 @@ public class FontManager : IDisposable
 
     public Font Load(string fontPath)
     {
-        if (_fonts.TryGetValue(fontPath, out var existingFont))
+        var resolvedPath = AssetPath.Resolve(fontPath);
+        if (_fonts.TryGetValue(resolvedPath, out var existingFont))
         {
             return existingFont;
         }
 
-        var font = new Font(AssetPath.Resolve(fontPath));
-        _fonts[fontPath] = font;
+        var font = new Font(resolvedPath);
+        _fonts[resolvedPath] = font;
         return font;
     }
 
     public Font? Get(string fontPath)
     {
-        return _fonts.TryGetValue(fontPath, out var font) ? font : null;
+        var resolvedPath = AssetPath.Resolve(fontPath);
+        return _fonts.TryGetValue(resolvedPath, out var font) ? font : null;
     }
 
     public void Unload(string fontPath)
     {
-        if (_fonts.TryGetValue(fontPath, out var font))
+        var resolvedPath = AssetPath.Resolve(fontPath);
+        if (_fonts.TryGetValue(resolvedPath, out var font))
         {
             font.Dispose();
-            _fonts.Remove(fontPath);
+            _fonts.Remove(resolvedPath);
         }
     }
 

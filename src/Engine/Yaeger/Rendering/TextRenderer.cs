@@ -128,7 +128,29 @@ public class TextRenderer : ITextRenderSurface, IDisposable
     public void DrawText(
         string text,
         Matrix4x4 transform,
+        FontHandle font,
+        int fontSize,
+        Color color
+    )
+    {
+        DrawTextCore(text, transform, ResolveNativeFont(font), fontSize, color);
+    }
+
+    public void DrawText(
+        string text,
+        Matrix4x4 transform,
         IFontHandle font,
+        int fontSize,
+        Color color
+    )
+    {
+        DrawTextCore(text, transform, ResolveNativeFont(font), fontSize, color);
+    }
+
+    private void DrawTextCore(
+        string text,
+        Matrix4x4 transform,
+        Font.Font nativeFont,
         int fontSize,
         Color color
     )
@@ -136,7 +158,6 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         if (string.IsNullOrEmpty(text))
             return;
 
-        var nativeFont = ResolveNativeFont(font);
         var atlas = GetOrCreateAtlas(nativeFont, fontSize);
         atlas.AddGlyphsForText(text);
 
@@ -180,6 +201,18 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         {
             RenderBatch(atlas);
         }
+    }
+
+    private Font.Font ResolveNativeFont(FontHandle handle)
+    {
+        if (string.IsNullOrWhiteSpace(handle.Id))
+        {
+            throw new InvalidOperationException(
+                "Text font handle must provide a non-empty identifier."
+            );
+        }
+
+        return _fontManager.Load(handle.Id);
     }
 
     private Font.Font ResolveNativeFont(IFontHandle handle)
