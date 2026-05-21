@@ -15,7 +15,8 @@ public class TextRenderer : ITextRenderSurface, IDisposable
 {
     private readonly GL _gl;
     private readonly Shader _textShader;
-    private readonly FontManager _fontManager = new();
+    private readonly FontManager _fontManager;
+    private readonly bool _ownsFontManager;
 
     // Keyed by (font, fontSize) so the same font rendered at different sizes gets its own
     // atlas. Previously keyed by Font alone, which silently reused the first size forever.
@@ -65,8 +66,13 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         """;
 
     public TextRenderer(Window window)
+        : this(window, fontManager: null) { }
+
+    public TextRenderer(Window window, FontManager? fontManager)
     {
         _gl = window.Gl ?? throw new ArgumentNullException(nameof(window));
+        _fontManager = fontManager ?? new FontManager();
+        _ownsFontManager = fontManager is null;
         _textShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
         _vertexBuffer = new float[MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex];
@@ -299,7 +305,10 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         _vbo.Dispose();
         _ebo.Dispose();
         _textShader.Dispose();
-        _fontManager.Dispose();
+        if (_ownsFontManager)
+        {
+            _fontManager.Dispose();
+        }
 
         GC.SuppressFinalize(this);
     }
