@@ -3,17 +3,89 @@ namespace Yaeger.Graphics;
 /// <summary>
 /// Represents a text component that can be attached to an entity for rendering.
 /// </summary>
-public record struct Text(string Content, Font.Font Font, int FontSize, Color Color)
+public record struct Text
 {
-    public Text(string content, IFontHandle font, int fontSize, Color color)
-        : this(content, ToNativeFont(font), fontSize, color) { }
+    private Font.Font? _nativeFont;
+    private FontHandle _fontHandle;
 
-    private static Font.Font ToNativeFont(IFontHandle font)
+    public string Content { get; set; }
+
+    public FontHandle FontHandle
+    {
+        get => _fontHandle;
+        set
+        {
+            _ = value.Id;
+            _fontHandle = value;
+            _nativeFont = null;
+        }
+    }
+
+    public int FontSize { get; set; }
+    public Color Color { get; set; }
+
+    public Font.Font Font
+    {
+        get =>
+            _nativeFont
+            ?? throw new InvalidOperationException(
+                "Text does not have a native Yaeger.Font.Font instance. Use FontHandle for rendering."
+            );
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _nativeFont = value;
+            _fontHandle = new FontHandle(value.Id);
+        }
+    }
+
+    public Text(string content, Font.Font font, int fontSize, Color color)
     {
         ArgumentNullException.ThrowIfNull(font);
-        return font as Font.Font
-            ?? throw new InvalidOperationException(
-                "Yaeger.Graphics.Text requires a native Yaeger.Font.Font when used from Yaeger."
-            );
+
+        Content = content;
+        _fontHandle = new FontHandle(font.Id);
+        FontSize = fontSize;
+        Color = color;
+        _nativeFont = font;
     }
+
+    public Text(string content, FontHandle font, int fontSize, Color color)
+    {
+        _ = font.Id;
+        Content = content;
+        _fontHandle = font;
+        FontSize = fontSize;
+        Color = color;
+        _nativeFont = null;
+    }
+
+    public Text(string content, IFontHandle font, int fontSize, Color color)
+    {
+        ArgumentNullException.ThrowIfNull(font);
+        var handle = ToFontHandle(font);
+        _ = handle.Id;
+
+        Content = content;
+        _fontHandle = handle;
+        FontSize = fontSize;
+        Color = color;
+        _nativeFont = font as Font.Font;
+    }
+
+    public void Deconstruct(
+        out string content,
+        out Font.Font font,
+        out int fontSize,
+        out Color color
+    )
+    {
+        content = Content;
+        font = Font;
+        fontSize = FontSize;
+        color = Color;
+    }
+
+    private static FontHandle ToFontHandle(IFontHandle font) =>
+        font is FontHandle handle ? handle : new FontHandle(font.Id);
 }

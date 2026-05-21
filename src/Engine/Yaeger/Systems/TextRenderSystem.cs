@@ -19,7 +19,7 @@ public class TextRenderSystem(ITextRenderSurface textRenderer, World world)
             textRenderer.DrawText(
                 text.Content,
                 transform.TransformMatrix,
-                text.Font,
+                text.FontHandle,
                 text.FontSize,
                 text.Color
             );

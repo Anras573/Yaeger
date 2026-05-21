@@ -47,7 +47,7 @@ public class UnifiedRenderSystem(
                     textRenderer.DrawText(
                         command.TextComponent.Content,
                         command.Transform,
-                        command.TextComponent.Font,
+                        command.TextComponent.FontHandle,
                         command.TextComponent.FontSize,
                         command.TextComponent.Color
                     );
