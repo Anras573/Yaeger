@@ -5,6 +5,8 @@ public class ComponentStorage<T> : IComponentStore
 {
     private readonly Dictionary<Entity, T> _components = new();
 
+    public int Count => _components.Count;
+
     public void Add(Entity entity, T component) => _components[entity] = component;
 
     public bool Remove(Entity entity) => _components.Remove(entity);
