@@ -190,6 +190,10 @@ public class WorldExtensionsTests
             results,
             r => r.Item1.Equals(entity1) && r.Item2.Value == 1 && r.Item3.Name == "A"
         );
+        Assert.Contains(
+            results,
+            r => r.Item1.Equals(entity2) && r.Item2.Value == 2 && r.Item3.Name == "B"
+        );
     }
 
     [Fact]
