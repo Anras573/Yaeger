@@ -168,6 +168,43 @@ public class WorldExtensionsTests
     }
 
     [Fact]
+    public void Query_WithTwoComponents_UsingOverride_ShouldReturnCorrectResults()
+    {
+        // Arrange
+        var world = new World();
+        var entity1 = world.CreateEntity();
+        var entity2 = world.CreateEntity();
+
+        world.AddComponent(entity1, new ComponentA { Value = 1 });
+        world.AddComponent(entity1, new ComponentB { Name = "A" });
+
+        world.AddComponent(entity2, new ComponentA { Value = 2 });
+        world.AddComponent(entity2, new ComponentB { Name = "B" });
+
+        // Act - Force iteration to start with ComponentB (index 1)
+        var results = world.Query<ComponentA, ComponentB>(forceIndex: 1).ToList();
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.Contains(
+            results,
+            r => r.Item1.Equals(entity1) && r.Item2.Value == 1 && r.Item3.Name == "A"
+        );
+    }
+
+    [Fact]
+    public void Query_WithTwoComponents_OverrideInvalidIndex_ShouldThrow()
+    {
+        // Arrange
+        var world = new World();
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            world.Query<ComponentA, ComponentB>(forceIndex: 2).ToList()
+        );
+    }
+
+    [Fact]
     public void Query_WithThreeComponents_UsingOverride_ShouldReturnCorrectResults()
     {
         // Arrange

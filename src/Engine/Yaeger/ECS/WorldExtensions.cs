@@ -37,6 +37,51 @@ public static class WorldExtensions
     }
 
     /// <summary>
+    /// Queries entities with two components, forcing iteration of a specific component type.
+    /// </summary>
+    /// <param name="forceIndex">The index of the component type to iterate first (0 for T1, 1 for T2).</param>
+    public static IEnumerable<(Entity, T1, T2)> Query<T1, T2>(this World world, int forceIndex)
+        where T1 : struct
+        where T2 : struct
+    {
+        if (forceIndex < 0 || forceIndex > 1)
+            throw new ArgumentOutOfRangeException(nameof(forceIndex), "Must be 0 or 1");
+
+        var store1 = world.GetStore<T1>();
+        var store2 = world.GetStore<T2>();
+
+        return forceIndex == 0 ? QueryFirstStore(store1, store2) : QuerySecondStore(store1, store2);
+
+        static IEnumerable<(Entity, T1, T2)> QueryFirstStore(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2
+        )
+        {
+            foreach ((Entity entity, T1 c1) in s1.All())
+            {
+                if (s2.TryGet(entity, out var c2))
+                {
+                    yield return (entity, c1, c2);
+                }
+            }
+        }
+
+        static IEnumerable<(Entity, T1, T2)> QuerySecondStore(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2
+        )
+        {
+            foreach ((Entity entity, T2 c2) in s2.All())
+            {
+                if (s1.TryGet(entity, out var c1))
+                {
+                    yield return (entity, c1, c2);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Queries entities with three components.
     /// Automatically iterates the smallest component store for better performance.
     /// Use the override method to force iteration of a specific component type.
