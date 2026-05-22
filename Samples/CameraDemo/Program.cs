@@ -22,11 +22,9 @@ using var window = Window.Create();
 var world = new World();
 
 var renderer = new Renderer(window);
-var renderSystem = new RenderSystem(renderer, world, window);
-
 var fontManager = new FontManager();
 var textRenderer = new TextRenderer(window);
-var textRenderSystem = new TextRenderSystem(textRenderer, world);
+var renderSystem = new UnifiedRenderSystem(renderer, textRenderer, world, window);
 
 // World sprites: 3x3 grid, visibly spread in world space so camera movement reads clearly.
 const string sprite = "Assets/square.png";
@@ -86,7 +84,6 @@ window.OnUpdate += Update;
 window.OnRender += _ =>
 {
     renderSystem.Render();
-    textRenderSystem.Render();
 };
 window.OnClosing += () =>
 {

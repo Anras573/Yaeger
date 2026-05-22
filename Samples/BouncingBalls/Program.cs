@@ -11,7 +11,7 @@ using Yaeger.Windowing;
 using var window = Window.Create();
 var world = new World();
 var renderer = new Renderer(window);
-var renderSystem = new RenderSystem(renderer, world);
+var renderSystem = new UnifiedRenderSystem(renderer, null, world);
 
 // Physics world with downward gravity (positive Y is up in NDC)
 var physics = new PhysicsWorld2D(world, new Vector2(0, -2.0f));

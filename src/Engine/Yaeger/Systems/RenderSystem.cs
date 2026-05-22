@@ -6,6 +6,7 @@ using Yaeger.Windowing;
 
 namespace Yaeger.Systems;
 
+[Obsolete("Use UnifiedRenderSystem instead.")]
 public class RenderSystem(IRenderSurface renderer, World world, Window? window = null)
 {
     public void Render()
