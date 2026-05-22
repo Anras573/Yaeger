@@ -11,8 +11,8 @@ namespace Yaeger.Systems;
 /// <see cref="RenderLayer"/>, <see cref="Entity.Id"/>, and command kind as sort keys.
 /// </summary>
 public class UnifiedRenderSystem(
-    IRenderSurface renderer,
-    ITextRenderSurface textRenderer,
+    IRenderSurface? renderer,
+    ITextRenderSurface? textRenderer,
     World world,
     Window? window = null
 )
@@ -24,17 +24,17 @@ public class UnifiedRenderSystem(
         UpdateCamera();
         BuildCommandQueue();
 
-        renderer.BeginFrame();
+        renderer?.BeginFrame();
 
         foreach (var command in _commands)
         {
             switch (command.Kind)
             {
                 case RenderCommandKind.Sprite:
-                    renderer.SubmitQuad(command.Transform, command.TexturePath!, command.Color);
+                    renderer!.SubmitQuad(command.Transform, command.TexturePath!, command.Color);
                     break;
                 case RenderCommandKind.SpriteSheet:
-                    renderer.SubmitQuad(
+                    renderer!.SubmitQuad(
                         command.Transform,
                         command.TexturePath!,
                         command.UvMin,
@@ -43,10 +43,10 @@ public class UnifiedRenderSystem(
                     );
                     break;
                 case RenderCommandKind.Text:
-                    renderer.FlushQueuedQuads();
+                    renderer?.FlushQueuedQuads();
                     if (command.TextComponent.TryGetNativeFont(out var nativeFont))
                     {
-                        textRenderer.DrawText(
+                        textRenderer!.DrawText(
                             command.TextComponent.Content,
                             command.Transform,
                             nativeFont,
@@ -56,7 +56,7 @@ public class UnifiedRenderSystem(
                     }
                     else
                     {
-                        textRenderer.DrawText(
+                        textRenderer!.DrawText(
                             command.TextComponent.Content,
                             command.Transform,
                             command.TextComponent.FontHandle,
@@ -72,77 +72,91 @@ public class UnifiedRenderSystem(
             }
         }
 
-        renderer.EndFrame();
+        renderer?.EndFrame();
     }
 
     private void BuildCommandQueue()
     {
         _commands.Clear();
 
-        var renderLayerStore = world.GetStore<RenderLayer>();
-        var spriteSheetStore = world.GetStore<SpriteSheet>();
-        var animationStateStore = world.GetStore<AnimationState>();
-
-        foreach (
-            (Entity entity, Sprite sprite, Transform2D transform) in world.Query<
-                Sprite,
-                Transform2D
-            >()
-        )
+        if (renderer != null)
         {
-            if (spriteSheetStore.TryGet(entity, out _) && animationStateStore.TryGet(entity, out _))
-                continue;
+            var spriteSheetStore = world.GetStore<SpriteSheet>();
+            var animationStateStore = world.GetStore<AnimationState>();
+            var renderLayerStore = world.GetStore<RenderLayer>();
 
-            _commands.Add(
-                RenderCommand.ForSprite(
-                    entity,
-                    GetRenderLayerValue(renderLayerStore, entity),
-                    transform.TransformMatrix,
-                    sprite
+            foreach (
+                (Entity entity, Sprite sprite, Transform2D transform) in world.Query<
+                    Sprite,
+                    Transform2D
+                >()
+            )
+            {
+                if (
+                    spriteSheetStore.TryGet(entity, out _)
+                    && animationStateStore.TryGet(entity, out _)
                 )
-            );
+                    continue;
+
+                _commands.Add(
+                    RenderCommand.ForSprite(
+                        entity,
+                        GetRenderLayerValue(renderLayerStore, entity),
+                        transform.TransformMatrix,
+                        sprite
+                    )
+                );
+            }
+
+            foreach (
+                (
+                    Entity entity,
+                    SpriteSheet sheet,
+                    AnimationState state,
+                    Transform2D transform
+                ) in world.Query<SpriteSheet, AnimationState, Transform2D>()
+            )
+            {
+                if (sheet.FrameCount <= 0)
+                    continue;
+
+                var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
+                var (uvMin, uvMax) = sheet.GetFrameUv(frameIndex);
+
+                _commands.Add(
+                    RenderCommand.ForSpriteSheet(
+                        entity,
+                        GetRenderLayerValue(renderLayerStore, entity),
+                        transform.TransformMatrix,
+                        sheet.TexturePath,
+                        uvMin,
+                        uvMax,
+                        sheet.Tint.ToVector4()
+                    )
+                );
+            }
         }
 
-        foreach (
-            (
-                Entity entity,
-                SpriteSheet sheet,
-                AnimationState state,
-                Transform2D transform
-            ) in world.Query<SpriteSheet, AnimationState, Transform2D>()
-        )
+        if (textRenderer != null)
         {
-            if (sheet.FrameCount <= 0)
-                continue;
+            var renderLayerStore = world.GetStore<RenderLayer>();
 
-            var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
-            var (uvMin, uvMax) = sheet.GetFrameUv(frameIndex);
-
-            _commands.Add(
-                RenderCommand.ForSpriteSheet(
-                    entity,
-                    GetRenderLayerValue(renderLayerStore, entity),
-                    transform.TransformMatrix,
-                    sheet.TexturePath,
-                    uvMin,
-                    uvMax,
-                    sheet.Tint.ToVector4()
-                )
-            );
-        }
-
-        foreach (
-            (Entity entity, Text text, Transform2D transform) in world.Query<Text, Transform2D>()
-        )
-        {
-            _commands.Add(
-                RenderCommand.ForText(
-                    entity,
-                    GetRenderLayerValue(renderLayerStore, entity),
-                    transform.TransformMatrix,
-                    text
-                )
-            );
+            foreach (
+                (Entity entity, Text text, Transform2D transform) in world.Query<
+                    Text,
+                    Transform2D
+                >()
+            )
+            {
+                _commands.Add(
+                    RenderCommand.ForText(
+                        entity,
+                        GetRenderLayerValue(renderLayerStore, entity),
+                        transform.TransformMatrix,
+                        text
+                    )
+                );
+            }
         }
 
         _commands.Sort(
@@ -168,8 +182,7 @@ public class UnifiedRenderSystem(
 
     private void UpdateCamera()
     {
-        // Without a Window we can't derive aspect ratio; leave the renderer's view-projection alone.
-        if (window is null)
+        if (renderer is null || window is null)
             return;
 
         foreach (var (_, camera) in world.GetStore<Camera2D>().All())

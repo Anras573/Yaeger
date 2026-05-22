@@ -21,11 +21,9 @@ using var window = Window.Create();
 var world = new World();
 
 var renderer = new Renderer(window);
-var renderSystem = new RenderSystem(renderer, world, window);
-
 var fontManager = new FontManager();
 var textRenderer = new TextRenderer(window);
-var textRenderSystem = new TextRenderSystem(textRenderer, world);
+var renderSystem = new UnifiedRenderSystem(renderer, textRenderer, world, window);
 
 const string spriteTexture = "Assets/square.png";
 var font = fontManager.Load("Assets/Roboto-Regular.ttf");
@@ -95,7 +93,6 @@ window.OnUpdate += _ =>
 window.OnRender += _ =>
 {
     renderSystem.Render();
-    textRenderSystem.Render();
 };
 
 window.OnClosing += () =>

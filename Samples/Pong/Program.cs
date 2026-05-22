@@ -11,9 +11,8 @@ using Yaeger.Windowing;
 using var window = Window.Create();
 var world = new World();
 var renderer = new Renderer(window);
-var renderSystem = new RenderSystem(renderer, world);
 var textRenderer = new TextRenderer(window);
-var textRenderSystem = new TextRenderSystem(textRenderer, world);
+var renderSystem = new UnifiedRenderSystem(renderer, textRenderer, world);
 
 var updateSystems = new List<IUpdateSystem>
 {
@@ -81,5 +80,4 @@ void Render(double delta)
     }
 
     renderSystem.Render();
-    textRenderSystem.Render();
 }

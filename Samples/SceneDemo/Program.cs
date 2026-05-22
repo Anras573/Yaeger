@@ -25,11 +25,9 @@ using var window = Window.Create();
 var world = new World();
 
 var renderer = new Renderer(window);
-var renderSystem = new RenderSystem(renderer, world, window);
-
 var fontManager = new FontManager();
 var textRenderer = new TextRenderer(window);
-var textRenderSystem = new TextRenderSystem(textRenderer, world);
+var renderSystem = new UnifiedRenderSystem(renderer, textRenderer, world, window);
 
 var registry = new ComponentRegistry().RegisterEngineComponents();
 var sceneLoader = new SceneLoader(registry);
@@ -82,7 +80,6 @@ window.OnUpdate += dt =>
 window.OnRender += _ =>
 {
     renderSystem.Render();
-    textRenderSystem.Render();
 };
 
 window.OnClosing += () =>

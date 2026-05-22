@@ -11,7 +11,7 @@ using var window = Window.Create();
 var world = new World();
 var fontManager = new FontManager();
 var textRenderer = new TextRenderer(window);
-var textRenderSystem = new TextRenderSystem(textRenderer, world);
+var renderSystem = new UnifiedRenderSystem(null, textRenderer, world);
 
 window.OnLoad += OnLoad;
 window.OnRender += OnRender;
@@ -72,7 +72,7 @@ void OnLoad()
 
 void OnRender(double deltaTime)
 {
-    textRenderSystem.Render();
+    renderSystem.Render();
 }
 
 void OnClosing()

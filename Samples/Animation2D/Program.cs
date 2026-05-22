@@ -11,9 +11,8 @@ using var window = Window.Create();
 var world = new World();
 var fontManager = new FontManager();
 var textRenderer = new TextRenderer(window);
-var textRenderSystem = new TextRenderSystem(textRenderer, world);
 var renderer = new Renderer(window);
-var renderSystem = new RenderSystem(renderer, world);
+var renderSystem = new UnifiedRenderSystem(renderer, textRenderer, world);
 var animationSystem = new AnimationSystem(world);
 
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
@@ -160,7 +159,6 @@ window.OnUpdate += deltaTime =>
     }
 };
 window.OnRender += _ => renderSystem.Render();
-window.OnRender += _ => textRenderSystem.Render();
 window.OnClosing += () =>
 {
     textRenderer.Dispose();

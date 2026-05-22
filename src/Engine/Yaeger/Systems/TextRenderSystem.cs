@@ -7,6 +7,7 @@ namespace Yaeger.Systems;
 /// <summary>
 /// System responsible for rendering text entities in the ECS world.
 /// </summary>
+[Obsolete("Use UnifiedRenderSystem instead.")]
 public class TextRenderSystem(ITextRenderSurface textRenderer, World world)
 {
     /// <summary>

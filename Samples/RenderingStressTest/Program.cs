@@ -22,7 +22,7 @@ using var window = Window.Create();
 var world = new World();
 
 var renderer = new Renderer(window);
-var renderSystem = new RenderSystem(renderer, world);
+var renderSystem = new UnifiedRenderSystem(renderer, null, world);
 var physicsSystem = new PhysicsSystem(world);
 
 var random = new Random(42);
