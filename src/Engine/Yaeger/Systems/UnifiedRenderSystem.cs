@@ -17,7 +17,19 @@ public class UnifiedRenderSystem(
     Window? window = null
 )
 {
-    private readonly List<RenderCommand> _commands = [];
+    private readonly List<RenderCommand> _commands = Validate(renderer, textRenderer);
+
+    private static List<RenderCommand> Validate(
+        IRenderSurface? renderer,
+        ITextRenderSurface? textRenderer
+    )
+    {
+        if (renderer is null && textRenderer is null)
+            throw new ArgumentException(
+                "At least one of renderer or textRenderer must be non-null."
+            );
+        return [];
+    }
 
     public void Render()
     {
