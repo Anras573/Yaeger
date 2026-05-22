@@ -2,7 +2,7 @@
 
 **Y**et **A**nother **E**xperimental **G**ame **E**ngine **R**epository
 
-Yaeger is a modular, experimental 2D game engine written in C#. It provides a flexible and extensible platform for rapid prototyping and development of games and interactive applications.
+Yaeger is a modular, experimental 2D game engine written in C#. It provides a flexible and extensible platform for rapid prototyping and development of games and interactive applications, with a split between platform-agnostic core logic and native runtime integrations.
 
 ## Features
 
@@ -38,13 +38,14 @@ dotnet run --project Samples/Pong/Pong.csproj
 ## Project Structure
 
 ```
-src/Engine/Yaeger/
-├── ECS/        # Entity-Component-System framework
-├── Rendering/  # Rendering systems (sprites, text)
-├── Graphics/   # Graphics primitives and utilities
-├── Audio/      # Audio system (OpenAL)
-├── Input/      # Input handling
-└── Windowing/  # Window management
+src/Engine/Yaeger.Core/        # Platform-agnostic core (ECS/scenes/animation/transforms/physics/gameplay logic)
+
+src/Engine/Yaeger/             # Native runtime integrations
+├── Rendering/                 # OpenGL rendering systems (sprites, text)
+├── Audio/                     # OpenAL audio runtime
+├── Input/                     # Silk.NET input bindings
+├── Font/                      # HarfBuzz/Skia text runtime
+└── Windowing/                 # Window and context management
 
 Samples/
 ├── Pong/                    # Classic Pong game

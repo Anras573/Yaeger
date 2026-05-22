@@ -1,7 +1,7 @@
 using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
-using Yaeger.Rendering;
+using Yaeger.Platform;
 using Yaeger.Windowing;
 
 namespace Yaeger.Systems;
@@ -11,8 +11,8 @@ namespace Yaeger.Systems;
 /// <see cref="RenderLayer"/>, <see cref="Entity.Id"/>, and command kind as sort keys.
 /// </summary>
 public class UnifiedRenderSystem(
-    Renderer renderer,
-    TextRenderer textRenderer,
+    IRenderSurface renderer,
+    ITextRenderSurface textRenderer,
     World world,
     Window? window = null
 )
@@ -44,13 +44,26 @@ public class UnifiedRenderSystem(
                     break;
                 case RenderCommandKind.Text:
                     renderer.FlushQueuedQuads();
-                    textRenderer.DrawText(
-                        command.TextComponent.Content,
-                        command.Transform,
-                        command.TextComponent.Font,
-                        command.TextComponent.FontSize,
-                        command.TextComponent.Color
-                    );
+                    if (command.TextComponent.TryGetNativeFont(out var nativeFont))
+                    {
+                        textRenderer.DrawText(
+                            command.TextComponent.Content,
+                            command.Transform,
+                            nativeFont,
+                            command.TextComponent.FontSize,
+                            command.TextComponent.Color
+                        );
+                    }
+                    else
+                    {
+                        textRenderer.DrawText(
+                            command.TextComponent.Content,
+                            command.Transform,
+                            command.TextComponent.FontHandle,
+                            command.TextComponent.FontSize,
+                            command.TextComponent.Color
+                        );
+                    }
                     break;
                 default:
                     throw new InvalidOperationException(

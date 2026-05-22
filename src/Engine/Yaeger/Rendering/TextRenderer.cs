@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Silk.NET.OpenGL;
 using Yaeger.Font;
 using Yaeger.Graphics;
+using Yaeger.Platform;
 using Yaeger.Windowing;
 
 namespace Yaeger.Rendering;
@@ -10,10 +11,12 @@ namespace Yaeger.Rendering;
 /// <summary>
 /// Specialized renderer for text using glyph atlases and batch rendering.
 /// </summary>
-public class TextRenderer : IDisposable
+public class TextRenderer : ITextRenderSurface, IDisposable
 {
     private readonly GL _gl;
     private readonly Shader _textShader;
+    private readonly FontManager _fontManager;
+    private readonly bool _ownsFontManager;
 
     // Keyed by (font, fontSize) so the same font rendered at different sizes gets its own
     // atlas. Previously keyed by Font alone, which silently reused the first size forever.
@@ -63,8 +66,18 @@ public class TextRenderer : IDisposable
         """;
 
     public TextRenderer(Window window)
+        : this(window, fontManager: null) { }
+
+    public TextRenderer(Window window, FontManager? fontManager)
     {
-        _gl = window.Gl ?? throw new ArgumentNullException(nameof(window));
+        ArgumentNullException.ThrowIfNull(window);
+        _gl =
+            window.Gl
+            ?? throw new InvalidOperationException(
+                "Window must have an initialized GL context before creating TextRenderer."
+            );
+        _fontManager = fontManager ?? new FontManager();
+        _ownsFontManager = fontManager is null;
         _textShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
 
         _vertexBuffer = new float[MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex];
@@ -115,18 +128,42 @@ public class TextRenderer : IDisposable
     public void DrawText(
         string text,
         Matrix4x4 transform,
-        Font.Font font,
+        FontHandle font,
         int fontSize,
         Color color
     )
     {
+        DrawTextCore(text, transform, ResolveNativeFont(font), fontSize, color);
+    }
+
+    public void DrawText(
+        string text,
+        Matrix4x4 transform,
+        IFontHandle font,
+        int fontSize,
+        Color color
+    )
+    {
+        DrawTextCore(text, transform, ResolveNativeFont(font), fontSize, color);
+    }
+
+    private void DrawTextCore(
+        string text,
+        Matrix4x4 transform,
+        Font.Font nativeFont,
+        int fontSize,
+        Color color
+    )
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(fontSize);
+
         if (string.IsNullOrEmpty(text))
             return;
 
-        var atlas = GetOrCreateAtlas(font, fontSize);
+        var atlas = GetOrCreateAtlas(nativeFont, fontSize);
         atlas.AddGlyphsForText(text);
 
-        var glyphs = font.Shape(text);
+        var glyphs = nativeFont.Shape(text);
 
         _quadCount = 0;
         float x = 0;
@@ -166,6 +203,32 @@ public class TextRenderer : IDisposable
         {
             RenderBatch(atlas);
         }
+    }
+
+    private Font.Font ResolveNativeFont(FontHandle handle)
+    {
+        var fontId = handle.Id;
+        return _fontManager.Load(fontId);
+    }
+
+    private Font.Font ResolveNativeFont(IFontHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        if (handle is Font.Font nativeFont)
+        {
+            return nativeFont;
+        }
+
+        var fontId = handle.Id;
+        if (string.IsNullOrWhiteSpace(fontId))
+        {
+            throw new InvalidOperationException(
+                "Text font handle must provide a non-empty identifier."
+            );
+        }
+
+        return _fontManager.Load(fontId);
     }
 
     private void AddGlyphQuad(
@@ -279,6 +342,10 @@ public class TextRenderer : IDisposable
         _vbo.Dispose();
         _ebo.Dispose();
         _textShader.Dispose();
+        if (_ownsFontManager)
+        {
+            _fontManager.Dispose();
+        }
 
         GC.SuppressFinalize(this);
     }
