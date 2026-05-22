@@ -37,9 +37,9 @@ public class CollisionDetectionSystem(World world)
 
         // Collect all collidable entities with their world positions
         foreach (
-            (Entity entity, Transform2D transform, BoxCollider2D collider) in world.Query<
-                Transform2D,
-                BoxCollider2D
+            (Entity entity, BoxCollider2D collider, Transform2D transform) in world.Query<
+                BoxCollider2D,
+                Transform2D
             >()
         )
         {
@@ -48,9 +48,9 @@ public class CollisionDetectionSystem(World world)
         }
 
         foreach (
-            (Entity entity, Transform2D transform, CircleCollider2D collider) in world.Query<
-                Transform2D,
-                CircleCollider2D
+            (Entity entity, CircleCollider2D collider, Transform2D transform) in world.Query<
+                CircleCollider2D,
+                Transform2D
             >()
         )
         {
