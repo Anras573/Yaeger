@@ -13,27 +13,8 @@ public static class WorldExtensions
     {
         var store1 = world.GetStore<T1>();
         var store2 = world.GetStore<T2>();
-
-        if (store1.Count <= store2.Count)
-        {
-            foreach ((Entity entity, T1 component1) in store1.All())
-            {
-                if (store2.TryGet(entity, out var component2))
-                {
-                    yield return (entity, component1, component2);
-                }
-            }
-        }
-        else
-        {
-            foreach ((Entity entity, T2 component2) in store2.All())
-            {
-                if (store1.TryGet(entity, out var component1))
-                {
-                    yield return (entity, component1, component2);
-                }
-            }
-        }
+        var minStoreIdx = store1.Count <= store2.Count ? 0 : 1;
+        return Query2Helper<T1, T2>.Execute(minStoreIdx, store1, store2);
     }
 
     /// <summary>
@@ -49,36 +30,7 @@ public static class WorldExtensions
 
         var store1 = world.GetStore<T1>();
         var store2 = world.GetStore<T2>();
-
-        return forceIndex == 0 ? QueryFirstStore(store1, store2) : QuerySecondStore(store1, store2);
-
-        static IEnumerable<(Entity, T1, T2)> QueryFirstStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2
-        )
-        {
-            foreach ((Entity entity, T1 c1) in s1.All())
-            {
-                if (s2.TryGet(entity, out var c2))
-                {
-                    yield return (entity, c1, c2);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2)> QuerySecondStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2
-        )
-        {
-            foreach ((Entity entity, T2 c2) in s2.All())
-            {
-                if (s1.TryGet(entity, out var c1))
-                {
-                    yield return (entity, c1, c2);
-                }
-            }
-        }
+        return Query2Helper<T1, T2>.Execute(forceIndex, store1, store2);
     }
 
     /// <summary>
@@ -94,60 +46,8 @@ public static class WorldExtensions
         var store1 = world.GetStore<T1>();
         var store2 = world.GetStore<T2>();
         var store3 = world.GetStore<T3>();
-
-        var minStore = MinStoreIndex(store1.Count, store2.Count, store3.Count);
-
-        return minStore switch
-        {
-            0 => QueryFirstStore(store1, store2, store3),
-            1 => QuerySecondStore(store1, store2, store3),
-            _ => QueryThirdStore(store1, store2, store3),
-        };
-
-        static IEnumerable<(Entity, T1, T2, T3)> QueryFirstStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3
-        )
-        {
-            foreach ((Entity entity, T1 c1) in s1.All())
-            {
-                if (s2.TryGet(entity, out var c2) && s3.TryGet(entity, out var c3))
-                {
-                    yield return (entity, c1, c2, c3);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3)> QuerySecondStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3
-        )
-        {
-            foreach ((Entity entity, T2 c2) in s2.All())
-            {
-                if (s1.TryGet(entity, out var c1) && s3.TryGet(entity, out var c3))
-                {
-                    yield return (entity, c1, c2, c3);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3)> QueryThirdStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3
-        )
-        {
-            foreach ((Entity entity, T3 c3) in s3.All())
-            {
-                if (s1.TryGet(entity, out var c1) && s2.TryGet(entity, out var c2))
-                {
-                    yield return (entity, c1, c2, c3);
-                }
-            }
-        }
+        var minStoreIdx = MinStoreIndex(store1.Count, store2.Count, store3.Count);
+        return Query3Helper<T1, T2, T3>.Execute(minStoreIdx, store1, store2, store3);
     }
 
     /// <summary>
@@ -168,58 +68,7 @@ public static class WorldExtensions
         var store1 = world.GetStore<T1>();
         var store2 = world.GetStore<T2>();
         var store3 = world.GetStore<T3>();
-
-        return forceIndex switch
-        {
-            0 => QueryFirstStore(store1, store2, store3),
-            1 => QuerySecondStore(store1, store2, store3),
-            _ => QueryThirdStore(store1, store2, store3),
-        };
-
-        static IEnumerable<(Entity, T1, T2, T3)> QueryFirstStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3
-        )
-        {
-            foreach ((Entity entity, T1 c1) in s1.All())
-            {
-                if (s2.TryGet(entity, out var c2) && s3.TryGet(entity, out var c3))
-                {
-                    yield return (entity, c1, c2, c3);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3)> QuerySecondStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3
-        )
-        {
-            foreach ((Entity entity, T2 c2) in s2.All())
-            {
-                if (s1.TryGet(entity, out var c1) && s3.TryGet(entity, out var c3))
-                {
-                    yield return (entity, c1, c2, c3);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3)> QueryThirdStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3
-        )
-        {
-            foreach ((Entity entity, T3 c3) in s3.All())
-            {
-                if (s1.TryGet(entity, out var c1) && s2.TryGet(entity, out var c2))
-                {
-                    yield return (entity, c1, c2, c3);
-                }
-            }
-        }
+        return Query3Helper<T1, T2, T3>.Execute(forceIndex, store1, store2, store3);
     }
 
     /// <summary>
@@ -237,96 +86,8 @@ public static class WorldExtensions
         var store2 = world.GetStore<T2>();
         var store3 = world.GetStore<T3>();
         var store4 = world.GetStore<T4>();
-
-        var minStore = MinStoreIndex(store1.Count, store2.Count, store3.Count, store4.Count);
-
-        return minStore switch
-        {
-            0 => QueryFirstStore(store1, store2, store3, store4),
-            1 => QuerySecondStore(store1, store2, store3, store4),
-            2 => QueryThirdStore(store1, store2, store3, store4),
-            _ => QueryFourthStore(store1, store2, store3, store4),
-        };
-
-        static IEnumerable<(Entity, T1, T2, T3, T4)> QueryFirstStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3,
-            ComponentStorage<T4> s4
-        )
-        {
-            foreach ((Entity entity, T1 c1) in s1.All())
-            {
-                if (
-                    s2.TryGet(entity, out var c2)
-                    && s3.TryGet(entity, out var c3)
-                    && s4.TryGet(entity, out var c4)
-                )
-                {
-                    yield return (entity, c1, c2, c3, c4);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3, T4)> QuerySecondStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3,
-            ComponentStorage<T4> s4
-        )
-        {
-            foreach ((Entity entity, T2 c2) in s2.All())
-            {
-                if (
-                    s1.TryGet(entity, out var c1)
-                    && s3.TryGet(entity, out var c3)
-                    && s4.TryGet(entity, out var c4)
-                )
-                {
-                    yield return (entity, c1, c2, c3, c4);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3, T4)> QueryThirdStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3,
-            ComponentStorage<T4> s4
-        )
-        {
-            foreach ((Entity entity, T3 c3) in s3.All())
-            {
-                if (
-                    s1.TryGet(entity, out var c1)
-                    && s2.TryGet(entity, out var c2)
-                    && s4.TryGet(entity, out var c4)
-                )
-                {
-                    yield return (entity, c1, c2, c3, c4);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3, T4)> QueryFourthStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3,
-            ComponentStorage<T4> s4
-        )
-        {
-            foreach ((Entity entity, T4 c4) in s4.All())
-            {
-                if (
-                    s1.TryGet(entity, out var c1)
-                    && s2.TryGet(entity, out var c2)
-                    && s3.TryGet(entity, out var c3)
-                )
-                {
-                    yield return (entity, c1, c2, c3, c4);
-                }
-            }
-        }
+        var minStoreIdx = MinStoreIndex(store1.Count, store2.Count, store3.Count, store4.Count);
+        return Query4Helper<T1, T2, T3, T4>.Execute(minStoreIdx, store1, store2, store3, store4);
     }
 
     /// <summary>
@@ -349,99 +110,7 @@ public static class WorldExtensions
         var store2 = world.GetStore<T2>();
         var store3 = world.GetStore<T3>();
         var store4 = world.GetStore<T4>();
-
-        return forceIndex switch
-        {
-            0 => QueryFirstStore(store1, store2, store3, store4),
-            1 => QuerySecondStore(store1, store2, store3, store4),
-            2 => QueryThirdStore(store1, store2, store3, store4),
-            _ => QueryFourthStore(store1, store2, store3, store4),
-        };
-
-        static IEnumerable<(Entity, T1, T2, T3, T4)> QueryFirstStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3,
-            ComponentStorage<T4> s4
-        )
-        {
-            foreach ((Entity entity, T1 c1) in s1.All())
-            {
-                if (
-                    s2.TryGet(entity, out var c2)
-                    && s3.TryGet(entity, out var c3)
-                    && s4.TryGet(entity, out var c4)
-                )
-                {
-                    yield return (entity, c1, c2, c3, c4);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3, T4)> QuerySecondStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3,
-            ComponentStorage<T4> s4
-        )
-        {
-            foreach ((Entity entity, T2 c2) in s2.All())
-            {
-                if (
-                    s1.TryGet(entity, out var c1)
-                    && s3.TryGet(entity, out var c3)
-                    && s4.TryGet(entity, out var c4)
-                )
-                {
-                    yield return (entity, c1, c2, c3, c4);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3, T4)> QueryThirdStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3,
-            ComponentStorage<T4> s4
-        )
-        {
-            foreach ((Entity entity, T3 c3) in s3.All())
-            {
-                if (
-                    s1.TryGet(entity, out var c1)
-                    && s2.TryGet(entity, out var c2)
-                    && s4.TryGet(entity, out var c4)
-                )
-                {
-                    yield return (entity, c1, c2, c3, c4);
-                }
-            }
-        }
-
-        static IEnumerable<(Entity, T1, T2, T3, T4)> QueryFourthStore(
-            ComponentStorage<T1> s1,
-            ComponentStorage<T2> s2,
-            ComponentStorage<T3> s3,
-            ComponentStorage<T4> s4
-        )
-        {
-            foreach ((Entity entity, T4 c4) in s4.All())
-            {
-                if (
-                    s1.TryGet(entity, out var c1)
-                    && s2.TryGet(entity, out var c2)
-                    && s3.TryGet(entity, out var c3)
-                )
-                {
-                    yield return (entity, c1, c2, c3, c4);
-                }
-            }
-        }
-    }
-
-    private static int MinStoreIndex(int count1, int count2)
-    {
-        return count1 <= count2 ? 0 : 1;
+        return Query4Helper<T1, T2, T3, T4>.Execute(forceIndex, store1, store2, store3, store4);
     }
 
     private static int MinStoreIndex(int count1, int count2, int count3)
@@ -462,5 +131,217 @@ public static class WorldExtensions
         if (count3 <= count1 && count3 <= count2 && count3 <= count4)
             return 2;
         return 3;
+    }
+
+    private static class Query2Helper<T1, T2>
+        where T1 : struct
+        where T2 : struct
+    {
+        internal static IEnumerable<(Entity, T1, T2)> Execute(
+            int storeIndex,
+            ComponentStorage<T1> store1,
+            ComponentStorage<T2> store2
+        )
+        {
+            return storeIndex == 0 ? IterateFirst(store1, store2) : IterateSecond(store1, store2);
+        }
+
+        private static IEnumerable<(Entity, T1, T2)> IterateFirst(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2
+        )
+        {
+            foreach ((Entity entity, T1 c1) in s1.All())
+            {
+                if (s2.TryGet(entity, out var c2))
+                {
+                    yield return (entity, c1, c2);
+                }
+            }
+        }
+
+        private static IEnumerable<(Entity, T1, T2)> IterateSecond(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2
+        )
+        {
+            foreach ((Entity entity, T2 c2) in s2.All())
+            {
+                if (s1.TryGet(entity, out var c1))
+                {
+                    yield return (entity, c1, c2);
+                }
+            }
+        }
+    }
+
+    private static class Query3Helper<T1, T2, T3>
+        where T1 : struct
+        where T2 : struct
+        where T3 : struct
+    {
+        internal static IEnumerable<(Entity, T1, T2, T3)> Execute(
+            int storeIndex,
+            ComponentStorage<T1> store1,
+            ComponentStorage<T2> store2,
+            ComponentStorage<T3> store3
+        )
+        {
+            return storeIndex switch
+            {
+                0 => IterateFirst(store1, store2, store3),
+                1 => IterateSecond(store1, store2, store3),
+                _ => IterateThird(store1, store2, store3),
+            };
+        }
+
+        private static IEnumerable<(Entity, T1, T2, T3)> IterateFirst(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2,
+            ComponentStorage<T3> s3
+        )
+        {
+            foreach ((Entity entity, T1 c1) in s1.All())
+            {
+                if (s2.TryGet(entity, out var c2) && s3.TryGet(entity, out var c3))
+                {
+                    yield return (entity, c1, c2, c3);
+                }
+            }
+        }
+
+        private static IEnumerable<(Entity, T1, T2, T3)> IterateSecond(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2,
+            ComponentStorage<T3> s3
+        )
+        {
+            foreach ((Entity entity, T2 c2) in s2.All())
+            {
+                if (s1.TryGet(entity, out var c1) && s3.TryGet(entity, out var c3))
+                {
+                    yield return (entity, c1, c2, c3);
+                }
+            }
+        }
+
+        private static IEnumerable<(Entity, T1, T2, T3)> IterateThird(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2,
+            ComponentStorage<T3> s3
+        )
+        {
+            foreach ((Entity entity, T3 c3) in s3.All())
+            {
+                if (s1.TryGet(entity, out var c1) && s2.TryGet(entity, out var c2))
+                {
+                    yield return (entity, c1, c2, c3);
+                }
+            }
+        }
+    }
+
+    private static class Query4Helper<T1, T2, T3, T4>
+        where T1 : struct
+        where T2 : struct
+        where T3 : struct
+        where T4 : struct
+    {
+        internal static IEnumerable<(Entity, T1, T2, T3, T4)> Execute(
+            int storeIndex,
+            ComponentStorage<T1> store1,
+            ComponentStorage<T2> store2,
+            ComponentStorage<T3> store3,
+            ComponentStorage<T4> store4
+        )
+        {
+            return storeIndex switch
+            {
+                0 => IterateFirst(store1, store2, store3, store4),
+                1 => IterateSecond(store1, store2, store3, store4),
+                2 => IterateThird(store1, store2, store3, store4),
+                _ => IterateFourth(store1, store2, store3, store4),
+            };
+        }
+
+        private static IEnumerable<(Entity, T1, T2, T3, T4)> IterateFirst(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2,
+            ComponentStorage<T3> s3,
+            ComponentStorage<T4> s4
+        )
+        {
+            foreach ((Entity entity, T1 c1) in s1.All())
+            {
+                if (
+                    s2.TryGet(entity, out var c2)
+                    && s3.TryGet(entity, out var c3)
+                    && s4.TryGet(entity, out var c4)
+                )
+                {
+                    yield return (entity, c1, c2, c3, c4);
+                }
+            }
+        }
+
+        private static IEnumerable<(Entity, T1, T2, T3, T4)> IterateSecond(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2,
+            ComponentStorage<T3> s3,
+            ComponentStorage<T4> s4
+        )
+        {
+            foreach ((Entity entity, T2 c2) in s2.All())
+            {
+                if (
+                    s1.TryGet(entity, out var c1)
+                    && s3.TryGet(entity, out var c3)
+                    && s4.TryGet(entity, out var c4)
+                )
+                {
+                    yield return (entity, c1, c2, c3, c4);
+                }
+            }
+        }
+
+        private static IEnumerable<(Entity, T1, T2, T3, T4)> IterateThird(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2,
+            ComponentStorage<T3> s3,
+            ComponentStorage<T4> s4
+        )
+        {
+            foreach ((Entity entity, T3 c3) in s3.All())
+            {
+                if (
+                    s1.TryGet(entity, out var c1)
+                    && s2.TryGet(entity, out var c2)
+                    && s4.TryGet(entity, out var c4)
+                )
+                {
+                    yield return (entity, c1, c2, c3, c4);
+                }
+            }
+        }
+
+        private static IEnumerable<(Entity, T1, T2, T3, T4)> IterateFourth(
+            ComponentStorage<T1> s1,
+            ComponentStorage<T2> s2,
+            ComponentStorage<T3> s3,
+            ComponentStorage<T4> s4
+        )
+        {
+            foreach ((Entity entity, T4 c4) in s4.All())
+            {
+                if (
+                    s1.TryGet(entity, out var c1)
+                    && s2.TryGet(entity, out var c2)
+                    && s3.TryGet(entity, out var c3)
+                )
+                {
+                    yield return (entity, c1, c2, c3, c4);
+                }
+            }
+        }
     }
 }
