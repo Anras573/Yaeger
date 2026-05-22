@@ -44,13 +44,26 @@ public class UnifiedRenderSystem(
                     break;
                 case RenderCommandKind.Text:
                     renderer.FlushQueuedQuads();
-                    textRenderer.DrawText(
-                        command.TextComponent.Content,
-                        command.Transform,
-                        command.TextComponent.FontHandle,
-                        command.TextComponent.FontSize,
-                        command.TextComponent.Color
-                    );
+                    if (command.TextComponent.TryGetNativeFont(out var nativeFont))
+                    {
+                        textRenderer.DrawText(
+                            command.TextComponent.Content,
+                            command.Transform,
+                            nativeFont,
+                            command.TextComponent.FontSize,
+                            command.TextComponent.Color
+                        );
+                    }
+                    else
+                    {
+                        textRenderer.DrawText(
+                            command.TextComponent.Content,
+                            command.Transform,
+                            command.TextComponent.FontHandle,
+                            command.TextComponent.FontSize,
+                            command.TextComponent.Color
+                        );
+                    }
                     break;
                 default:
                     throw new InvalidOperationException(

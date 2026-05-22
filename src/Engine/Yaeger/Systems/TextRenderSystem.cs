@@ -16,13 +16,26 @@ public class TextRenderSystem(ITextRenderSurface textRenderer, World world)
     {
         foreach ((Entity _, Text text, Transform2D transform) in world.Query<Text, Transform2D>())
         {
-            textRenderer.DrawText(
-                text.Content,
-                transform.TransformMatrix,
-                text.FontHandle,
-                text.FontSize,
-                text.Color
-            );
+            if (text.TryGetNativeFont(out var nativeFont))
+            {
+                textRenderer.DrawText(
+                    text.Content,
+                    transform.TransformMatrix,
+                    nativeFont,
+                    text.FontSize,
+                    text.Color
+                );
+            }
+            else
+            {
+                textRenderer.DrawText(
+                    text.Content,
+                    transform.TransformMatrix,
+                    text.FontHandle,
+                    text.FontSize,
+                    text.Color
+                );
+            }
         }
     }
 }

@@ -39,6 +39,21 @@ public record struct Text
         }
     }
 
+    /// <summary>
+    /// Returns the native font instance when this component was created from one.
+    /// </summary>
+    public bool TryGetNativeFont(out Font.Font nativeFont)
+    {
+        if (_nativeFont is null)
+        {
+            nativeFont = default!;
+            return false;
+        }
+
+        nativeFont = _nativeFont;
+        return true;
+    }
+
     public Text(string content, Font.Font font, int fontSize, Color color)
     {
         ArgumentNullException.ThrowIfNull(font);
@@ -75,13 +90,13 @@ public record struct Text
 
     public void Deconstruct(
         out string content,
-        out Font.Font font,
+        out FontHandle font,
         out int fontSize,
         out Color color
     )
     {
         content = Content;
-        font = Font;
+        font = _fontHandle;
         fontSize = FontSize;
         color = Color;
     }
