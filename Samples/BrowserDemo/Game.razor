@@ -1,0 +1,25 @@
+@inject IJSRuntime JS
+
+<canvas id="yaeger-canvas"></canvas>
+
+@code {
+    private DotNetObjectReference<GameController>? _controllerRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        // Load the Yaeger interop ES module so all [JSImport] functions become available.
+        await JSHost.ImportAsync("yaeger-browser", "./yaeger-browser.js");
+
+        var renderSurface = new BrowserRenderSurface("yaeger-canvas");
+        renderSurface.Initialize();
+
+        var controller = new GameController(renderSurface);
+        _controllerRef = DotNetObjectReference.Create(controller);
+
+        // Hand a reference to the controller to the JS game loop pump.
+        await JS.InvokeVoidAsync("startGameLoop", _controllerRef);
+    }
+}
