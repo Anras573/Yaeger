@@ -45,6 +45,10 @@ public sealed class GameController
     {
         _timeSource.Advance(timestampMs);
 
+        // Snapshot scroll input at the tick boundary so all game systems within this tick
+        // see a stable ScrollDelta value, matching native input behavior.
+        BrowserInputState.BeginFrame();
+
         _movementSystem.Update(_timeSource.DeltaTime);
         Render();
     }

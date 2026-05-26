@@ -18,11 +18,13 @@ public sealed class BrowserInputState : IInputState
 
     /// <summary>
     /// Snapshots the JS scroll accumulator for the current frame and resets it.
-    /// Must be called once per frame at the frame boundary, before any game code reads
-    /// <see cref="ScrollDelta"/>. <see cref="BrowserRenderSurface.BeginFrame"/> calls this
-    /// automatically.
+    /// Must be called once per tick at the tick boundary, before any game code reads
+    /// <see cref="ScrollDelta"/>. This ensures all systems and gameplay code within a single
+    /// tick see the same stable scroll value, matching the native <c>Mouse.ScrollDelta</c> behavior.
+    /// Callers should invoke this before running update systems (e.g., at the start of
+    /// <see cref="GameController.Tick"/>), not during rendering.
     /// </summary>
-    internal static void BeginFrame()
+    public static void BeginFrame()
     {
         _scrollDelta = (float)JsInterop.GetAndResetScrollDelta();
     }

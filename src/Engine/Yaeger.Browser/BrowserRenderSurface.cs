@@ -23,9 +23,10 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface
 
     public void BeginFrame()
     {
-        // Snapshot and reset the JS scroll accumulator once per frame so that every
-        // IInputState.ScrollDelta read within this tick returns the same stable value,
-        // matching the native Mouse.EndFrame() pattern in Window.cs.
+        // Note: BrowserInputState.BeginFrame() is now called at the tick boundary
+        // (before update systems run) in GameController.Tick(), so the scroll accumulator
+        // is snapshotted before Update runs. This call is kept as a safety measure and no-op,
+        // but gameplay code should read ScrollDelta during Update, not during rendering.
         BrowserInputState.BeginFrame();
         JsInterop.ClearFrame();
     }
