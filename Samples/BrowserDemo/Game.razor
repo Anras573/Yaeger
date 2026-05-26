@@ -1,4 +1,5 @@
 @inject IJSRuntime JS
+@implements IDisposable
 
 <canvas id="yaeger-canvas"></canvas>
 
@@ -22,4 +23,6 @@
         // Hand a reference to the controller to the JS game loop pump.
         await JS.InvokeVoidAsync("startGameLoop", _controllerRef);
     }
+
+    public void Dispose() => _controllerRef?.Dispose();
 }

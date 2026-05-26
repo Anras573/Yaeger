@@ -21,7 +21,15 @@ public sealed class BrowserInputState : IInputState
     public Vector2 MousePositionNdc =>
         new((float)JsInterop.GetMouseXNdc(), (float)JsInterop.GetMouseYNdc());
 
-    public float ScrollDelta => (float)JsInterop.GetScrollDelta();
+    public float ScrollDelta
+    {
+        get
+        {
+            var delta = (float)JsInterop.GetScrollDelta();
+            JsInterop.ResetScrollDelta();
+            return delta;
+        }
+    }
 
     private static string ToJsKey(Keys key) =>
         key switch
