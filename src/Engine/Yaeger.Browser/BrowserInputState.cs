@@ -32,13 +32,7 @@ public sealed class BrowserInputState : IInputState
     public Vector2 MousePositionNdc =>
         new((float)JsInterop.GetMouseXNdc(), (float)JsInterop.GetMouseYNdc());
 
-    public float ScrollDelta => (float)JsInterop.GetScrollDelta();
-
-    /// <summary>
-    /// Resets the per-frame scroll accumulator. Call once at the end of each game tick,
-    /// mirroring the desktop <c>Mouse.EndFrame()</c> contract.
-    /// </summary>
-    public void EndFrame() => JsInterop.ResetScrollDelta();
+    public float ScrollDelta => (float)JsInterop.GetAndResetScrollDelta();
 
     private static string ToJsKey(Keys key) =>
         key switch

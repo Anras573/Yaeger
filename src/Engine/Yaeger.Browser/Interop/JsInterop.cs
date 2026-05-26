@@ -51,9 +51,6 @@ internal static partial class JsInterop
     [JSImport("getMouseYNdc", "yaeger-browser")]
     public static partial double GetMouseYNdc();
 
-    [JSImport("getScrollDelta", "yaeger-browser")]
-    public static partial double GetScrollDelta();
-
-    [JSImport("resetScrollDelta", "yaeger-browser")]
-    public static partial void ResetScrollDelta();
+    [JSImport("getAndResetScrollDelta", "yaeger-browser")]
+    public static partial double GetAndResetScrollDelta();
 }

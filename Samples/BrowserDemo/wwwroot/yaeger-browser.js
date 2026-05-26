@@ -107,10 +107,8 @@ export function getMouseYNdc() {
     return 1 - (mouseY / canvas.height) * 2;
 }
 
-export function getScrollDelta() {
-    return scrollDelta;
-}
-
-export function resetScrollDelta() {
+export function getAndResetScrollDelta() {
+    const delta = scrollDelta;
     scrollDelta = 0;
+    return delta;
 }
