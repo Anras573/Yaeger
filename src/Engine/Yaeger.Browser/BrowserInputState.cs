@@ -11,6 +11,22 @@ namespace Yaeger.Browser;
 /// </summary>
 public sealed class BrowserInputState : IInputState
 {
+    // Cached scroll delta, snapshotted once per frame at BeginFrame so every reader within
+    // a single tick sees the same value — matching the native Mouse.ScrollDelta behavior
+    // where Mouse.EndFrame() resets the accumulator once after Render (see Window.cs).
+    private static float _scrollDelta;
+
+    /// <summary>
+    /// Snapshots the JS scroll accumulator for the current frame and resets it.
+    /// Must be called once per frame at the frame boundary, before any game code reads
+    /// <see cref="ScrollDelta"/>. <see cref="BrowserRenderSurface.BeginFrame"/> calls this
+    /// automatically.
+    /// </summary>
+    internal static void BeginFrame()
+    {
+        _scrollDelta = (float)JsInterop.GetAndResetScrollDelta();
+    }
+
     public bool IsKeyPressed(Keys key) => JsInterop.IsKeyPressed(ToJsKey(key));
 
     public bool IsMouseButtonPressed(MouseButton button) =>
@@ -32,7 +48,13 @@ public sealed class BrowserInputState : IInputState
     public Vector2 MousePositionNdc =>
         new((float)JsInterop.GetMouseXNdc(), (float)JsInterop.GetMouseYNdc());
 
-    public float ScrollDelta => (float)JsInterop.GetAndResetScrollDelta();
+    /// <summary>
+    /// Accumulated vertical scroll wheel delta for the current frame.
+    /// The value is stable for the entire frame — all reads within a single tick return
+    /// the same value, matching the native <c>Mouse.ScrollDelta</c> behavior.
+    /// The accumulator is snapshotted and reset once per frame by <see cref="BeginFrame"/>.
+    /// </summary>
+    public float ScrollDelta => _scrollDelta;
 
     private static string ToJsKey(Keys key) =>
         key switch

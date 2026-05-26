@@ -21,7 +21,14 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface
     /// </summary>
     public void Initialize() => JsInterop.InitCanvas(canvasId);
 
-    public void BeginFrame() => JsInterop.ClearFrame();
+    public void BeginFrame()
+    {
+        // Snapshot and reset the JS scroll accumulator once per frame so that every
+        // IInputState.ScrollDelta read within this tick returns the same stable value,
+        // matching the native Mouse.EndFrame() pattern in Window.cs.
+        BrowserInputState.BeginFrame();
+        JsInterop.ClearFrame();
+    }
 
     public void EndFrame() { }
 
