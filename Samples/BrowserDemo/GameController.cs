@@ -4,6 +4,7 @@ using Yaeger.Browser;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Physics.Components;
+using Yaeger.Systems;
 
 namespace BrowserDemo;
 
@@ -15,12 +16,14 @@ public sealed class GameController
 {
     private readonly World _world;
     private readonly BrowserRenderSurface _renderSurface;
+    private readonly BallMovementSystem _movementSystem;
     private double _lastTimestampMs;
 
     public GameController(BrowserRenderSurface renderSurface)
     {
         _renderSurface = renderSurface;
         _world = new World();
+        _movementSystem = new BallMovementSystem(_world);
         BuildScene();
     }
 
@@ -44,13 +47,34 @@ public sealed class GameController
             _lastTimestampMs > 0 ? (float)((timestampMs - _lastTimestampMs) / 1000.0) : 0.0f;
         _lastTimestampMs = timestampMs;
 
-        Update(deltaTime);
+        _movementSystem.Update(deltaTime);
         Render();
     }
 
-    private void Update(float deltaTime)
+    private void Render()
     {
-        foreach (var (entity, transform, velocity) in _world.Query<Transform2D, Velocity2D>())
+        _renderSurface.BeginFrame();
+
+        foreach (var (_, sprite, transform) in _world.Query<Sprite, Transform2D>())
+            _renderSurface.SubmitQuad(
+                transform.TransformMatrix,
+                sprite.TexturePath,
+                sprite.Tint.ToVector4()
+            );
+
+        _renderSurface.EndFrame();
+    }
+}
+
+/// <summary>
+/// Moves entities with <see cref="Velocity2D"/> and <see cref="Transform2D"/>, reflecting off
+/// the NDC edges (±1) to keep the entity on screen.
+/// </summary>
+internal sealed class BallMovementSystem(World world) : IUpdateSystem
+{
+    public void Update(float deltaTime)
+    {
+        foreach (var (entity, velocity, transform) in world.Query<Velocity2D, Transform2D>())
         {
             var pos = transform.Position;
             var vel = velocity.Linear;
@@ -73,25 +97,11 @@ public sealed class GameController
 
             var newTransform = transform;
             newTransform.Position = pos;
-            _world.AddComponent(entity, newTransform);
+            world.AddComponent(entity, newTransform);
 
             var newVelocity = velocity;
             newVelocity.Linear = vel;
-            _world.AddComponent(entity, newVelocity);
+            world.AddComponent(entity, newVelocity);
         }
-    }
-
-    private void Render()
-    {
-        _renderSurface.BeginFrame();
-
-        foreach (var (_, sprite, transform) in _world.Query<Sprite, Transform2D>())
-            _renderSurface.SubmitQuad(
-                transform.TransformMatrix,
-                sprite.TexturePath,
-                sprite.Tint.ToVector4()
-            );
-
-        _renderSurface.EndFrame();
     }
 }
