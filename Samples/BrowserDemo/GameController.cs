@@ -18,6 +18,7 @@ public sealed class GameController
     private readonly BrowserRenderSurface _renderSurface;
     private readonly BallMovementSystem _movementSystem;
     private double _lastTimestampMs;
+    private bool _initialized;
 
     public GameController(BrowserRenderSurface renderSurface)
     {
@@ -43,8 +44,8 @@ public sealed class GameController
     [JSInvokable]
     public void Tick(double timestampMs)
     {
-        var deltaTime =
-            _lastTimestampMs > 0 ? (float)((timestampMs - _lastTimestampMs) / 1000.0) : 0.0f;
+        var deltaTime = _initialized ? (float)((timestampMs - _lastTimestampMs) / 1000.0) : 0.0f;
+        _initialized = true;
         _lastTimestampMs = timestampMs;
 
         _movementSystem.Update(deltaTime);

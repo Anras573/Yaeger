@@ -14,7 +14,18 @@ public sealed class BrowserInputState : IInputState
     public bool IsKeyPressed(Keys key) => JsInterop.IsKeyPressed(ToJsKey(key));
 
     public bool IsMouseButtonPressed(MouseButton button) =>
-        JsInterop.IsMouseButtonPressed((int)button);
+        JsInterop.IsMouseButtonPressed(ToDomButton(button));
+
+    private static int ToDomButton(MouseButton button) =>
+        button switch
+        {
+            MouseButton.Left => 0,
+            MouseButton.Middle => 1,
+            MouseButton.Right => 2,
+            MouseButton.Side1 => 3,
+            MouseButton.Side2 => 4,
+            _ => (int)button,
+        };
 
     public Vector2 MousePosition => new((float)JsInterop.GetMouseX(), (float)JsInterop.GetMouseY());
 

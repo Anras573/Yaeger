@@ -8,9 +8,13 @@ namespace Yaeger.Browser;
 /// <see cref="IRenderSurface"/> implementation that draws colored quads onto an HTML5
 /// Canvas 2D context via JavaScript interop.
 /// Texture paths are ignored; the quad's <c>color</c> tint is used instead.
+/// When <see cref="SetCamera"/> has been called with a non-identity matrix, that
+/// view-projection is incorporated into every quad's transform before submission.
 /// </summary>
 public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface
 {
+    private Matrix4x4 _viewProjection = Matrix4x4.Identity;
+
     /// <summary>
     /// Initialises the canvas 2D context. Must be called once, after
     /// <c>JSHost.ImportAsync("yaeger-browser", …)</c> has completed.
@@ -23,27 +27,36 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface
 
     public void FlushQueuedQuads() { }
 
-    public void SetCamera(Matrix4x4 viewProjection) { }
+    /// <summary>
+    /// Stores the view-projection matrix that will be combined with every subsequent
+    /// quad transform.  Uses row-major (System.Numerics) convention:
+    /// <c>combined = model * viewProjection</c>.
+    /// </summary>
+    public void SetCamera(Matrix4x4 viewProjection) => _viewProjection = viewProjection;
 
     /// <inheritdoc/>
     /// <remarks>
-    /// The model <paramref name="transform"/> is passed as its six 2-D affine components
-    /// (m11, m12, m21, m22, tx, ty) directly to the Canvas 2D <c>ctx.transform()</c> call.
-    /// The NDC-to-pixel mapping is established once per frame inside <see cref="BeginFrame"/>.
+    /// The model <paramref name="transform"/> is multiplied by the stored view-projection
+    /// matrix (row-major: <c>combined = transform * _viewProjection</c>) and the six 2-D
+    /// affine components (m11, m12, m21, m22, tx, ty) of the result are passed to the
+    /// Canvas 2D <c>ctx.transform()</c> call.
     /// </remarks>
-    public void SubmitQuad(Matrix4x4 transform, string texturePath, Vector4 color) =>
+    public void SubmitQuad(Matrix4x4 transform, string texturePath, Vector4 color)
+    {
+        var combined = transform * _viewProjection;
         JsInterop.DrawQuad(
-            transform.M11,
-            transform.M12,
-            transform.M21,
-            transform.M22,
-            transform.M41,
-            transform.M42,
+            combined.M11,
+            combined.M12,
+            combined.M21,
+            combined.M22,
+            combined.M41,
+            combined.M42,
             color.X,
             color.Y,
             color.Z,
             color.W
         );
+    }
 
     public void SubmitQuad(
         Matrix4x4 transform,

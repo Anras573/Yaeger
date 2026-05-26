@@ -19,7 +19,13 @@ const mouseButtons = new Set();
  */
 export function initCanvas(canvasId) {
     canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        throw new Error(`[Yaeger] Canvas element '#${canvasId}' not found.`);
+    }
     ctx = canvas.getContext('2d');
+    if (!ctx) {
+        throw new Error(`[Yaeger] Failed to acquire 2D context for canvas '#${canvasId}'.`);
+    }
 
     function resizeCanvas() {
         canvas.width = canvas.clientWidth;
@@ -28,8 +34,8 @@ export function initCanvas(canvasId) {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    window.addEventListener('keydown', (e) => pressedKeys.add(e.key));
-    window.addEventListener('keyup', (e) => pressedKeys.delete(e.key));
+    window.addEventListener('keydown', (e) => pressedKeys.add(e.key.length === 1 ? e.key.toLowerCase() : e.key));
+    window.addEventListener('keyup', (e) => pressedKeys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
 
     canvas.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
@@ -37,7 +43,7 @@ export function initCanvas(canvasId) {
         mouseY = e.clientY - rect.top;
     });
     canvas.addEventListener('mousedown', (e) => mouseButtons.add(e.button));
-    canvas.addEventListener('mouseup', (e) => mouseButtons.delete(e.button));
+    window.addEventListener('mouseup', (e) => mouseButtons.delete(e.button));
     canvas.addEventListener('wheel', (e) => {
         scrollDelta += e.deltaY;
         e.preventDefault();
@@ -92,11 +98,13 @@ export function getMouseY() {
 }
 
 export function getMouseXNdc() {
-    return canvas ? (mouseX / canvas.width) * 2 - 1 : 0;
+    if (!canvas || canvas.width === 0) return 0;
+    return (mouseX / canvas.width) * 2 - 1;
 }
 
 export function getMouseYNdc() {
-    return canvas ? 1 - (mouseY / canvas.height) * 2 : 0;
+    if (!canvas || canvas.height === 0) return 0;
+    return 1 - (mouseY / canvas.height) * 2;
 }
 
 export function getScrollDelta() {
