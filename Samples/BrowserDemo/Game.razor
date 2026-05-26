@@ -1,5 +1,5 @@
 @inject IJSRuntime JS
-@implements IDisposable
+@implements IAsyncDisposable
 
 <canvas id="yaeger-canvas"></canvas>
 
@@ -24,5 +24,9 @@
         await JS.InvokeVoidAsync("startGameLoop", _controllerRef);
     }
 
-    public void Dispose() => _controllerRef?.Dispose();
+    public async ValueTask DisposeAsync()
+    {
+        await JS.InvokeVoidAsync("stopGameLoop");
+        _controllerRef?.Dispose();
+    }
 }

@@ -28,13 +28,20 @@
 
     <script>
         // Drives the requestAnimationFrame game loop by invoking the C# Tick method.
+        let _rafRunning = false;
+
         function startGameLoop(dotnetRef) {
+            _rafRunning = true;
             function loop(timestamp) {
                 dotnetRef.invokeMethodAsync('Tick', timestamp)
-                    .then(() => requestAnimationFrame(loop))
+                    .then(() => { if (_rafRunning) requestAnimationFrame(loop); })
                     .catch((err) => console.error('[Yaeger] Game loop error:', err));
             }
             requestAnimationFrame(loop);
+        }
+
+        function stopGameLoop() {
+            _rafRunning = false;
         }
     </script>
 
