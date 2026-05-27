@@ -14,6 +14,9 @@ internal static partial class JsInterop
     [JSImport("clearFrame", "yaeger-browser")]
     public static partial void ClearFrame();
 
+    [JSImport("disposeCanvas", "yaeger-browser")]
+    public static partial void DisposeCanvas();
+
     /// <summary>
     /// Draws a unit quad [-0.5, 0.5]^2.
     /// m11/m12/m21/m22 are the 2-D linear part of the model matrix (row-major .NET convention).

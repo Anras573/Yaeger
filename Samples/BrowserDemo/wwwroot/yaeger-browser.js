@@ -13,6 +13,15 @@ let mouseY = 0;
 let scrollDelta = 0;
 const mouseButtons = new Set();
 const PIXELS_PER_LINE = 16;
+const WHEEL_EVENT_OPTIONS = { passive: false };
+
+let resizeCanvasHandler;
+let keyDownHandler;
+let keyUpHandler;
+let mouseMoveHandler;
+let mouseDownHandler;
+let mouseUpHandler;
+let wheelHandler;
 
 function normalizeWheelDeltaToPixels(e) {
     if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
@@ -30,6 +39,8 @@ function normalizeWheelDeltaToPixels(e) {
  * Must be called once before any other export.
  */
 export function initCanvas(canvasId) {
+    disposeCanvas();
+
     canvas = document.getElementById(canvasId);
     if (!canvas) {
         throw new Error(`[Yaeger] Canvas element '#${canvasId}' not found.`);
@@ -39,27 +50,91 @@ export function initCanvas(canvasId) {
         throw new Error(`[Yaeger] Failed to acquire 2D context for canvas '#${canvasId}'.`);
     }
 
-    function resizeCanvas() {
+    resizeCanvasHandler = () => {
+        if (!canvas) {
+            return;
+        }
+
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    };
 
-    window.addEventListener('keydown', (e) => pressedKeys.add(e.key.length === 1 ? e.key.toLowerCase() : e.key));
-    window.addEventListener('keyup', (e) => pressedKeys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key));
+    keyDownHandler = (e) => pressedKeys.add(e.key.length === 1 ? e.key.toLowerCase() : e.key);
+    keyUpHandler = (e) => pressedKeys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key);
 
-    canvas.addEventListener('mousemove', (e) => {
+    mouseMoveHandler = (e) => {
+        if (!canvas) {
+            return;
+        }
+
         const rect = canvas.getBoundingClientRect();
         mouseX = e.clientX - rect.left;
         mouseY = e.clientY - rect.top;
-    });
-    canvas.addEventListener('mousedown', (e) => mouseButtons.add(e.button));
-    window.addEventListener('mouseup', (e) => mouseButtons.delete(e.button));
-    canvas.addEventListener('wheel', (e) => {
+    };
+
+    mouseDownHandler = (e) => mouseButtons.add(e.button);
+    mouseUpHandler = (e) => mouseButtons.delete(e.button);
+    wheelHandler = (e) => {
         scrollDelta += normalizeWheelDeltaToPixels(e);
         e.preventDefault();
-    }, { passive: false });
+    };
+
+    resizeCanvasHandler();
+    window.addEventListener('resize', resizeCanvasHandler);
+    window.addEventListener('keydown', keyDownHandler);
+    window.addEventListener('keyup', keyUpHandler);
+    canvas.addEventListener('mousemove', mouseMoveHandler);
+    canvas.addEventListener('mousedown', mouseDownHandler);
+    window.addEventListener('mouseup', mouseUpHandler);
+    canvas.addEventListener('wheel', wheelHandler, WHEEL_EVENT_OPTIONS);
+}
+
+/**
+ * Removes canvas/input event listeners and clears browser-side input state.
+ */
+export function disposeCanvas() {
+    if (resizeCanvasHandler) {
+        window.removeEventListener('resize', resizeCanvasHandler);
+        resizeCanvasHandler = undefined;
+    }
+
+    if (keyDownHandler) {
+        window.removeEventListener('keydown', keyDownHandler);
+        keyDownHandler = undefined;
+    }
+
+    if (keyUpHandler) {
+        window.removeEventListener('keyup', keyUpHandler);
+        keyUpHandler = undefined;
+    }
+
+    if (mouseMoveHandler && canvas) {
+        canvas.removeEventListener('mousemove', mouseMoveHandler);
+        mouseMoveHandler = undefined;
+    }
+
+    if (mouseDownHandler && canvas) {
+        canvas.removeEventListener('mousedown', mouseDownHandler);
+        mouseDownHandler = undefined;
+    }
+
+    if (mouseUpHandler) {
+        window.removeEventListener('mouseup', mouseUpHandler);
+        mouseUpHandler = undefined;
+    }
+
+    if (wheelHandler && canvas) {
+        canvas.removeEventListener('wheel', wheelHandler, WHEEL_EVENT_OPTIONS);
+        wheelHandler = undefined;
+    }
+
+    pressedKeys.clear();
+    mouseButtons.clear();
+    mouseX = 0;
+    mouseY = 0;
+    scrollDelta = 0;
+    ctx = undefined;
+    canvas = undefined;
 }
 
 /**

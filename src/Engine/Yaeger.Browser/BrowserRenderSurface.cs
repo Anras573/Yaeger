@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using Yaeger.Browser.Interop;
 using Yaeger.Platform;
@@ -11,7 +12,7 @@ namespace Yaeger.Browser;
 /// When <see cref="SetCamera"/> has been called with a non-identity matrix, that
 /// view-projection is incorporated into every quad's transform before submission.
 /// </summary>
-public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface
+public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDisposable
 {
     private Matrix4x4 _viewProjection = Matrix4x4.Identity;
 
@@ -21,12 +22,14 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface
     /// </summary>
     public void Initialize() => JsInterop.InitCanvas(canvasId);
 
+    public void Dispose() => JsInterop.DisposeCanvas();
+
     public void BeginFrame()
     {
-        // Note: BrowserInputState.BeginFrame() is now called at the tick boundary
-        // (before update systems run) in GameController.Tick(), so the scroll accumulator
-        // is snapshotted before Update runs. This call is kept as a safety measure and no-op,
-        // but gameplay code should read ScrollDelta during Update, not during rendering.
+        // Primary path: BrowserInputState.BeginFrame() is called at the tick boundary
+        // (before update systems run) in GameController.Tick(), so scroll is snapshotted
+        // before Update runs. This call is a defensive fallback if a host misses the
+        // tick-boundary call; gameplay code should still read ScrollDelta during Update.
         BrowserInputState.BeginFrame();
         JsInterop.ClearFrame();
     }
