@@ -23,7 +23,7 @@ public sealed class BrowserInputState : IInputState
     /// <see cref="ScrollDelta"/>. This ensures all systems and gameplay code within a single
     /// tick see the same stable scroll value, matching the native <c>Mouse.ScrollDelta</c> behavior.
     /// Callers should invoke this before running update systems (e.g., at the start of
-    /// <see cref="GameController.Tick"/>), not during rendering.
+    /// the host tick method), not during rendering.
     /// </summary>
     public static void BeginFrame()
     {

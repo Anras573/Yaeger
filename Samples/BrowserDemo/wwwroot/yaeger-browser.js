@@ -12,6 +12,18 @@ let mouseX = 0;
 let mouseY = 0;
 let scrollDelta = 0;
 const mouseButtons = new Set();
+const PIXELS_PER_LINE = 16;
+
+function normalizeWheelDeltaToPixels(e) {
+    if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        return e.deltaY * PIXELS_PER_LINE;
+    }
+    if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        const pageHeight = canvas?.clientHeight || window.innerHeight || 0;
+        return e.deltaY * pageHeight;
+    }
+    return e.deltaY;
+}
 
 /**
  * Initialises the 2D rendering context and input listeners for the given canvas element.
@@ -45,7 +57,7 @@ export function initCanvas(canvasId) {
     canvas.addEventListener('mousedown', (e) => mouseButtons.add(e.button));
     window.addEventListener('mouseup', (e) => mouseButtons.delete(e.button));
     canvas.addEventListener('wheel', (e) => {
-        scrollDelta += e.deltaY;
+        scrollDelta += normalizeWheelDeltaToPixels(e);
         e.preventDefault();
     }, { passive: false });
 }
