@@ -31,7 +31,7 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface
         JsInterop.ClearFrame();
     }
 
-    public void EndFrame() { }
+    public void EndFrame() => BrowserInputState.EndFrame();
 
     public void FlushQueuedQuads() { }
 

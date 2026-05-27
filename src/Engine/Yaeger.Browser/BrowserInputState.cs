@@ -15,6 +15,7 @@ public sealed class BrowserInputState : IInputState
     // a single tick sees the same value — matching the native Mouse.ScrollDelta behavior
     // where Mouse.EndFrame() resets the accumulator once after Render (see Window.cs).
     private static float _scrollDelta;
+    private static bool _frameStarted;
 
     /// <summary>
     /// Snapshots the JS scroll accumulator for the current frame and resets it.
@@ -26,8 +27,18 @@ public sealed class BrowserInputState : IInputState
     /// </summary>
     public static void BeginFrame()
     {
+        if (_frameStarted)
+            return;
+
         _scrollDelta = (float)JsInterop.GetAndResetScrollDelta();
+        _frameStarted = true;
     }
+
+    /// <summary>
+    /// Marks the current frame complete so the next <see cref="BeginFrame"/> call can
+    /// snapshot fresh browser input.
+    /// </summary>
+    public static void EndFrame() => _frameStarted = false;
 
     public bool IsKeyPressed(Keys key) => JsInterop.IsKeyPressed(ToJsKey(key));
 
@@ -54,7 +65,8 @@ public sealed class BrowserInputState : IInputState
     /// Accumulated vertical scroll wheel delta for the current frame.
     /// The value is stable for the entire frame — all reads within a single tick return
     /// the same value, matching the native <c>Mouse.ScrollDelta</c> behavior.
-    /// The accumulator is snapshotted and reset once per frame by <see cref="BeginFrame"/>.
+    /// The accumulator is snapshotted and reset once per frame by <see cref="BeginFrame"/>;
+    /// <see cref="EndFrame"/> allows the next frame to snapshot again.
     /// </summary>
     public float ScrollDelta => _scrollDelta;
 
