@@ -55,8 +55,9 @@ export function initCanvas(canvasId) {
             return;
         }
 
-        canvas.width = canvas.clientWidth;
-        canvas.height = canvas.clientHeight;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(canvas.clientWidth * dpr);
+        canvas.height = Math.round(canvas.clientHeight * dpr);
     };
 
     keyDownHandler = (e) => pressedKeys.add(e.key.length === 1 ? e.key.toLowerCase() : e.key);
@@ -185,13 +186,13 @@ export function getMouseY() {
 }
 
 export function getMouseXNdc() {
-    if (!canvas || canvas.width === 0) return 0;
-    return (mouseX / canvas.width) * 2 - 1;
+    if (!canvas || canvas.clientWidth === 0) return 0;
+    return (mouseX / canvas.clientWidth) * 2 - 1;
 }
 
 export function getMouseYNdc() {
-    if (!canvas || canvas.height === 0) return 0;
-    return 1 - (mouseY / canvas.height) * 2;
+    if (!canvas || canvas.clientHeight === 0) return 0;
+    return 1 - (mouseY / canvas.clientHeight) * 2;
 }
 
 export function getAndResetScrollDelta() {
