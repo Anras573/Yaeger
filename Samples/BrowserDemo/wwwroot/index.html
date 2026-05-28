@@ -33,6 +33,7 @@
         function startGameLoop(dotnetRef) {
             _rafRunning = true;
             function loop(timestamp) {
+                if (!_rafRunning) return;
                 dotnetRef.invokeMethodAsync('Tick', timestamp)
                     .then(() => { if (_rafRunning) requestAnimationFrame(loop); })
                     .catch((err) => console.error('[Yaeger] Game loop error:', err));
