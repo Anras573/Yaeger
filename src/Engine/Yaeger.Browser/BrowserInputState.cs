@@ -12,8 +12,8 @@ namespace Yaeger.Browser;
 public sealed class BrowserInputState : IInputState
 {
     // Cached scroll delta, snapshotted once per frame at BeginFrame so every reader within
-    // a single tick sees the same value — matching the native Mouse.ScrollDelta behavior
-    // where Mouse.EndFrame() resets the accumulator once after Render (see Window.cs).
+    // a single tick sees the same value. In the browser host, the JS accumulator is reset
+    // during BeginFrame snapshot; EndFrame only clears this cached frame value.
     private static float _scrollDelta;
     private static bool _frameStarted;
 
@@ -21,7 +21,8 @@ public sealed class BrowserInputState : IInputState
     /// Snapshots the JS scroll accumulator for the current frame and resets it.
     /// Must be called once per tick at the tick boundary, before any game code reads
     /// <see cref="ScrollDelta"/>. This ensures all systems and gameplay code within a single
-    /// tick see the same stable scroll value, matching the native <c>Mouse.ScrollDelta</c> behavior.
+    /// tick see the same stable scroll value, consistent with native <c>Mouse.ScrollDelta</c>
+    /// read behavior (without implying identical reset timing).
     /// Callers should invoke this before running update systems (e.g., at the start of
     /// the host tick method), not during rendering.
     /// </summary>
