@@ -22,6 +22,13 @@ let mouseMoveHandler;
 let mouseDownHandler;
 let mouseUpHandler;
 let wheelHandler;
+let blurHandler;
+
+function clearInputState() {
+    pressedKeys.clear();
+    mouseButtons.clear();
+    scrollDelta = 0;
+}
 
 function normalizeWheelDeltaToPixels(e) {
     if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
@@ -87,6 +94,7 @@ export function initCanvas(canvasId) {
         scrollDelta += normalizeWheelDeltaToPixels(e);
         e.preventDefault();
     };
+    blurHandler = () => clearInputState();
 
     resizeCanvasHandler();
     window.addEventListener('resize', resizeCanvasHandler);
@@ -96,6 +104,7 @@ export function initCanvas(canvasId) {
     canvas.addEventListener('mousedown', mouseDownHandler);
     window.addEventListener('mouseup', mouseUpHandler);
     canvas.addEventListener('wheel', wheelHandler, WHEEL_EVENT_OPTIONS);
+    window.addEventListener('blur', blurHandler);
 }
 
 /**
@@ -137,11 +146,14 @@ export function disposeCanvas() {
         wheelHandler = undefined;
     }
 
-    pressedKeys.clear();
-    mouseButtons.clear();
+    if (blurHandler) {
+        window.removeEventListener('blur', blurHandler);
+        blurHandler = undefined;
+    }
+
+    clearInputState();
     mouseX = 0;
     mouseY = 0;
-    scrollDelta = 0;
     ctx = undefined;
     canvas = undefined;
 }
