@@ -26,10 +26,10 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
 
     public void BeginFrame()
     {
-        // Primary path: BrowserInputState.BeginFrame() is called at the tick boundary
-        // (before update systems run) in GameController.Tick(), so scroll is snapshotted
-        // before Update runs. This call is a defensive fallback if a host misses the
-        // tick-boundary call; gameplay code should still read ScrollDelta during Update.
+        // Primary path: BrowserInputState.BeginFrame() is called at the host tick boundary
+        // (before update systems run), so scroll is snapshotted before Update runs.
+        // This call is a defensive fallback if a host misses that boundary call; gameplay
+        // code should still read ScrollDelta during Update.
         BrowserInputState.BeginFrame();
         JsInterop.ClearFrame();
     }

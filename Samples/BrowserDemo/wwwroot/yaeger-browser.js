@@ -60,8 +60,16 @@ export function initCanvas(canvasId) {
         canvas.height = Math.round(canvas.clientHeight * dpr);
     };
 
-    keyDownHandler = (e) => pressedKeys.add(e.key.length === 1 ? e.key.toLowerCase() : e.key);
-    keyUpHandler = (e) => pressedKeys.delete(e.key.length === 1 ? e.key.toLowerCase() : e.key);
+    keyDownHandler = (e) => {
+        if (e.code) {
+            pressedKeys.add(e.code);
+        }
+    };
+    keyUpHandler = (e) => {
+        if (e.code) {
+            pressedKeys.delete(e.code);
+        }
+    };
 
     mouseMoveHandler = (e) => {
         if (!canvas) {
