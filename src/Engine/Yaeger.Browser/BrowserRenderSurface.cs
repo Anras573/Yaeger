@@ -22,7 +22,11 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
     /// </summary>
     public void Initialize() => JsInterop.InitCanvas(canvasId);
 
-    public void Dispose() => JsInterop.DisposeCanvas();
+    public void Dispose()
+    {
+        BrowserInputState.EndFrame();
+        JsInterop.DisposeCanvas();
+    }
 
     public void BeginFrame()
     {

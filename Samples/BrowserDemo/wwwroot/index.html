@@ -31,6 +31,7 @@
         let _rafRunning = false;
 
         function startGameLoop(dotnetRef) {
+            if (_rafRunning) return;
             _rafRunning = true;
             function loop(timestamp) {
                 if (!_rafRunning) return;
