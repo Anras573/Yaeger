@@ -8,7 +8,7 @@ namespace Yaeger.Browser;
 /// <summary>
 /// <see cref="IRenderSurface"/> implementation that draws colored quads onto an HTML5
 /// Canvas 2D context via JavaScript interop.
-/// Texture paths are ignored; the quad's <c>color</c> tint is used instead.
+/// Texture paths and UV coordinates are ignored; the quad's <c>color</c> tint is used instead.
 /// When <see cref="SetCamera"/> has been called with a non-identity matrix, that
 /// view-projection is incorporated into every quad's transform before submission.
 /// </summary>

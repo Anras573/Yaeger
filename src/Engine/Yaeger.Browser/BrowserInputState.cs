@@ -38,7 +38,11 @@ public sealed class BrowserInputState : IInputState
     /// Marks the current frame complete so the next <see cref="BeginFrame"/> call can
     /// snapshot fresh browser input.
     /// </summary>
-    public static void EndFrame() => _frameStarted = false;
+    public static void EndFrame()
+    {
+        _scrollDelta = 0f;
+        _frameStarted = false;
+    }
 
     public bool IsKeyPressed(Keys key) => JsInterop.IsKeyPressed(ToJsKey(key));
 
