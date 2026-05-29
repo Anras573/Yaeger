@@ -15,7 +15,7 @@ Yaeger is a modular, experimental 2D game engine written in C#. It aims to provi
 - Input handling (keyboard, mouse; browser runtime maps single-touch/pen to mouse-style input)
 - Sample games (see `Samples/Pong`, `Samples/BouncingBalls`, `Samples/Animation2D`, `Samples/CameraDemo`)
 - Extensible component and system design
-- Comprehensive test suite with 45 unit tests
+- Comprehensive unit test suite
 
 ## Getting Started
 
