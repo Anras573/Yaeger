@@ -107,11 +107,10 @@ export function initCanvas(canvasId) {
             return;
         }
 
-        const rect = canvas.getBoundingClientRect();
-        mouseX = e.clientX - rect.left;
-        mouseY = e.clientY - rect.top;
-
         if (e.pointerType === 'mouse') {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
             mouseButtons.add(e.button);
             return;
         }
@@ -124,6 +123,9 @@ export function initCanvas(canvasId) {
             return;
         }
 
+        const rect = canvas.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
         mouseButtons.add(0);
         if (canvas.setPointerCapture) {
             canvas.setPointerCapture(e.pointerId);
