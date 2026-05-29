@@ -16,11 +16,11 @@ public sealed class BrowserTimeSource : ITimeSource
 
     public BrowserTimeSource(float maxDeltaTimeSeconds = DefaultMaxDeltaTimeSeconds)
     {
-        if (maxDeltaTimeSeconds <= 0f)
+        if (!float.IsFinite(maxDeltaTimeSeconds) || maxDeltaTimeSeconds <= 0f)
             throw new ArgumentOutOfRangeException(
                 nameof(maxDeltaTimeSeconds),
                 maxDeltaTimeSeconds,
-                "Maximum delta time must be greater than zero."
+                "Maximum delta time must be finite and greater than zero."
             );
 
         _maxDeltaTimeSeconds = maxDeltaTimeSeconds;
@@ -45,6 +45,12 @@ public sealed class BrowserTimeSource : ITimeSource
     /// </summary>
     public void Advance(double timestampMs)
     {
+        if (!double.IsFinite(timestampMs))
+        {
+            DeltaTime = 0.0f;
+            return;
+        }
+
         if (!_initialized)
         {
             _initialized = true;
