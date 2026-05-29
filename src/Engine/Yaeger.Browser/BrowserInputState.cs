@@ -6,8 +6,9 @@ using Yaeger.Platform;
 namespace Yaeger.Browser;
 
 /// <summary>
-/// <see cref="IInputState"/> implementation for the browser, backed by keyboard and mouse
+/// <see cref="IInputState"/> implementation for the browser, backed by keyboard and pointer
 /// event listeners registered by the "yaeger-browser" JavaScript module.
+/// Touch and pen input are mapped into existing mouse-style semantics by the JS layer.
 /// </summary>
 public sealed class BrowserInputState : IInputState
 {
