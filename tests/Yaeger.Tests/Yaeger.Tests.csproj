@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Engine\Yaeger.Browser\Yaeger.Browser.csproj" />
     <ProjectReference Include="..\..\src\Engine\Yaeger.Core\Yaeger.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -12,10 +12,10 @@ Yaeger is a modular, experimental 2D game engine written in C#. It aims to provi
 - 2D rendering with Silk.NET (texture-batched sprites with deterministic ordering)
 - Deterministic layered draw ordering via `RenderLayer` and `UnifiedRenderSystem`
 - Opt-in 2D camera (pan / zoom / rotate; world-space sprites + screen-space text)
-- Input handling (keyboard, mouse)
+- Input handling (keyboard, mouse; browser runtime maps single-touch/pen to mouse-style input)
 - Sample games (see `Samples/Pong`, `Samples/BouncingBalls`, `Samples/Animation2D`, `Samples/CameraDemo`)
 - Extensible component and system design
-- Comprehensive test suite with 45 unit tests
+- Comprehensive unit test suite
 
 ## Getting Started
 
@@ -65,10 +65,12 @@ For more information about testing, see the [Testing Guide](docs/testing.md).
 
 - `src/Engine/Yaeger.Core/` - Platform-agnostic engine core (ECS, scenes, animation, transforms, physics, gameplay logic)
 - `src/Engine/Yaeger/` - Native runtime (windowing, rendering, input bindings, audio, font runtime)
+- `src/Engine/Yaeger.Browser/` - Browser runtime adapters (Canvas2D render surface, browser input/time sources)
 - `tests/Yaeger.Tests/` - Unit test suite
   - `ECS/` - Tests for ECS components
   - `Graphics/` - Tests for graphics primitives
 - `Samples/` - Example games and demos
+  - `BrowserDemo/` - Blazor/WebAssembly browser loop + browser input/runtime integration
   - `Pong/` - Classic Pong game implementation
   - `BouncingBalls/` - Physics demo
   - `Animation2D/` - Sprite-sheet animation demo
@@ -83,6 +85,7 @@ For more information about testing, see the [Testing Guide](docs/testing.md).
 
 For headless/platform-agnostic simulation and gameplay logic, reference `Yaeger.Core`.
 For desktop/native runtime behavior (window, rendering, input, audio), reference `Yaeger`.
+For browser/WebAssembly behavior (Canvas2D rendering, browser input/frame timing), reference `Yaeger.Browser`.
 See the Pong sample for a minimal end-to-end native implementation.
 
 ## Contributing

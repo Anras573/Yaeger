@@ -12,22 +12,27 @@ let mouseX = 0;
 let mouseY = 0;
 let scrollDelta = 0;
 const mouseButtons = new Set();
+let activePrimaryPointerId;
 const PIXELS_PER_LINE = 16;
 const WHEEL_EVENT_OPTIONS = { passive: false };
+const POINTER_EVENT_OPTIONS = { passive: false };
 
 let resizeCanvasHandler;
 let keyDownHandler;
 let keyUpHandler;
-let mouseMoveHandler;
-let mouseDownHandler;
-let mouseUpHandler;
+let pointerDownHandler;
+let pointerMoveHandler;
+let pointerUpHandler;
+let pointerCancelHandler;
 let wheelHandler;
 let blurHandler;
+let contextMenuHandler;
 
 function clearInputState() {
     pressedKeys.clear();
     mouseButtons.clear();
     scrollDelta = 0;
+    activePrimaryPointerId = undefined;
 }
 
 function normalizeWheelDeltaToPixels(e) {
@@ -56,6 +61,7 @@ export function initCanvas(canvasId) {
     if (!ctx) {
         throw new Error(`[Yaeger] Failed to acquire 2D context for canvas '#${canvasId}'.`);
     }
+    canvas.style.touchAction = 'none';
 
     resizeCanvasHandler = () => {
         if (!canvas) {
@@ -78,33 +84,108 @@ export function initCanvas(canvasId) {
         }
     };
 
-    mouseMoveHandler = (e) => {
+    pointerMoveHandler = (e) => {
         if (!canvas) {
+            return;
+        }
+
+        if (e.pointerType !== 'mouse' && e.pointerId !== activePrimaryPointerId) {
             return;
         }
 
         const rect = canvas.getBoundingClientRect();
         mouseX = e.clientX - rect.left;
         mouseY = e.clientY - rect.top;
+
+        if (e.pointerType !== 'mouse') {
+            e.preventDefault();
+        }
     };
 
-    mouseDownHandler = (e) => mouseButtons.add(e.button);
-    mouseUpHandler = (e) => mouseButtons.delete(e.button);
+    pointerDownHandler = (e) => {
+        if (!canvas) {
+            return;
+        }
+
+        if (e.pointerType === 'mouse') {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            mouseButtons.add(e.button);
+            return;
+        }
+
+        if (activePrimaryPointerId === undefined) {
+            activePrimaryPointerId = e.pointerId;
+        }
+
+        if (e.pointerId !== activePrimaryPointerId) {
+            return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        mouseX = e.clientX - rect.left;
+        mouseY = e.clientY - rect.top;
+        mouseButtons.add(0);
+        if (canvas.setPointerCapture) {
+            canvas.setPointerCapture(e.pointerId);
+        }
+        e.preventDefault();
+    };
+
+    pointerUpHandler = (e) => {
+        if (!canvas) {
+            return;
+        }
+
+        if (e.pointerType === 'mouse') {
+            mouseButtons.delete(e.button);
+            return;
+        }
+
+        if (e.pointerId !== activePrimaryPointerId) {
+            return;
+        }
+
+        mouseButtons.delete(0);
+        activePrimaryPointerId = undefined;
+        if (canvas.hasPointerCapture?.(e.pointerId)) {
+            canvas.releasePointerCapture(e.pointerId);
+        }
+        e.preventDefault();
+    };
+
+    pointerCancelHandler = (e) => {
+        if (!canvas || e.pointerType === 'mouse' || e.pointerId !== activePrimaryPointerId) {
+            return;
+        }
+
+        mouseButtons.delete(0);
+        activePrimaryPointerId = undefined;
+        if (canvas.hasPointerCapture?.(e.pointerId)) {
+            canvas.releasePointerCapture(e.pointerId);
+        }
+        e.preventDefault();
+    };
+
     wheelHandler = (e) => {
         scrollDelta += normalizeWheelDeltaToPixels(e);
         e.preventDefault();
     };
     blurHandler = () => clearInputState();
+    contextMenuHandler = (e) => e.preventDefault();
 
     resizeCanvasHandler();
     window.addEventListener('resize', resizeCanvasHandler);
     window.addEventListener('keydown', keyDownHandler);
     window.addEventListener('keyup', keyUpHandler);
-    canvas.addEventListener('mousemove', mouseMoveHandler);
-    canvas.addEventListener('mousedown', mouseDownHandler);
-    window.addEventListener('mouseup', mouseUpHandler);
+    canvas.addEventListener('pointermove', pointerMoveHandler, POINTER_EVENT_OPTIONS);
+    canvas.addEventListener('pointerdown', pointerDownHandler, POINTER_EVENT_OPTIONS);
+    window.addEventListener('pointerup', pointerUpHandler, POINTER_EVENT_OPTIONS);
+    window.addEventListener('pointercancel', pointerCancelHandler, POINTER_EVENT_OPTIONS);
     canvas.addEventListener('wheel', wheelHandler, WHEEL_EVENT_OPTIONS);
     window.addEventListener('blur', blurHandler);
+    canvas.addEventListener('contextmenu', contextMenuHandler);
 }
 
 /**
@@ -126,19 +207,24 @@ export function disposeCanvas() {
         keyUpHandler = undefined;
     }
 
-    if (mouseMoveHandler && canvas) {
-        canvas.removeEventListener('mousemove', mouseMoveHandler);
-        mouseMoveHandler = undefined;
+    if (pointerMoveHandler && canvas) {
+        canvas.removeEventListener('pointermove', pointerMoveHandler, POINTER_EVENT_OPTIONS);
+        pointerMoveHandler = undefined;
     }
 
-    if (mouseDownHandler && canvas) {
-        canvas.removeEventListener('mousedown', mouseDownHandler);
-        mouseDownHandler = undefined;
+    if (pointerDownHandler && canvas) {
+        canvas.removeEventListener('pointerdown', pointerDownHandler, POINTER_EVENT_OPTIONS);
+        pointerDownHandler = undefined;
     }
 
-    if (mouseUpHandler) {
-        window.removeEventListener('mouseup', mouseUpHandler);
-        mouseUpHandler = undefined;
+    if (pointerUpHandler) {
+        window.removeEventListener('pointerup', pointerUpHandler, POINTER_EVENT_OPTIONS);
+        pointerUpHandler = undefined;
+    }
+
+    if (pointerCancelHandler) {
+        window.removeEventListener('pointercancel', pointerCancelHandler, POINTER_EVENT_OPTIONS);
+        pointerCancelHandler = undefined;
     }
 
     if (wheelHandler && canvas) {
@@ -149,6 +235,11 @@ export function disposeCanvas() {
     if (blurHandler) {
         window.removeEventListener('blur', blurHandler);
         blurHandler = undefined;
+    }
+
+    if (contextMenuHandler && canvas) {
+        canvas.removeEventListener('contextmenu', contextMenuHandler);
+        contextMenuHandler = undefined;
     }
 
     clearInputState();
