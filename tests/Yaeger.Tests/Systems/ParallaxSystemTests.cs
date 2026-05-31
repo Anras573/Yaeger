@@ -18,10 +18,7 @@ public class ParallaxSystemTests
 
         var layerEntity = world.CreateEntity();
         world.AddComponent(layerEntity, new Transform2D(Vector2.Zero));
-        world.AddComponent(
-            layerEntity,
-            new ParallaxLayer(scrollFactorX: 0f, scrollFactorY: 0f)
-        );
+        world.AddComponent(layerEntity, new ParallaxLayer(scrollFactorX: 0f, scrollFactorY: 0f));
 
         new ParallaxSystem(world).Update(0f);
 
@@ -43,10 +40,7 @@ public class ParallaxSystemTests
 
         var layerEntity = world.CreateEntity();
         world.AddComponent(layerEntity, new Transform2D(Vector2.Zero));
-        world.AddComponent(
-            layerEntity,
-            new ParallaxLayer(scrollFactorX: 1f, scrollFactorY: 1f)
-        );
+        world.AddComponent(layerEntity, new ParallaxLayer(scrollFactorX: 1f, scrollFactorY: 1f));
 
         new ParallaxSystem(world).Update(0f);
 
@@ -65,10 +59,7 @@ public class ParallaxSystemTests
 
         var layerEntity = world.CreateEntity();
         world.AddComponent(layerEntity, new Transform2D(Vector2.Zero));
-        world.AddComponent(
-            layerEntity,
-            new ParallaxLayer(scrollFactorX: 0.5f, scrollFactorY: 0f)
-        );
+        world.AddComponent(layerEntity, new ParallaxLayer(scrollFactorX: 0.5f, scrollFactorY: 0f));
 
         new ParallaxSystem(world).Update(0f);
 
