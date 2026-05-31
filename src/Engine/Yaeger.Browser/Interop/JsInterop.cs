@@ -8,8 +8,8 @@ namespace Yaeger.Browser.Interop;
 /// </summary>
 internal static partial class JsInterop
 {
-    [JSImport("initCanvas", "yaeger-browser")]
-    public static partial void InitCanvas(string canvasId);
+    [JSImport("initWebGL", "yaeger-browser")]
+    public static partial void InitWebGL(string canvasId);
 
     [JSImport("clearFrame", "yaeger-browser")]
     public static partial void ClearFrame();
@@ -18,23 +18,21 @@ internal static partial class JsInterop
     public static partial void DisposeCanvas();
 
     /// <summary>
-    /// Draws a unit quad [-0.5, 0.5]^2.
-    /// m11/m12/m21/m22 are the 2-D linear part of the model matrix (row-major .NET convention).
-    /// tx/ty are the translation.  r/g/b/a are the fill color (0–1 each).
+    /// Sets the view-projection matrix uniform used by all subsequent draw calls.
+    /// <paramref name="matrix16"/> is the 16 elements of a System.Numerics.Matrix4x4 in
+    /// row-major order (M11…M44). WebGL reads it as column-major (transpose=false), which
+    /// matches the convention used by the desktop OpenGL renderer.
     /// </summary>
-    [JSImport("drawQuad", "yaeger-browser")]
-    public static partial void DrawQuad(
-        double m11,
-        double m12,
-        double m21,
-        double m22,
-        double tx,
-        double ty,
-        double r,
-        double g,
-        double b,
-        double a
-    );
+    [JSImport("setViewProjection", "yaeger-browser")]
+    public static partial void SetViewProjection(float[] matrix16);
+
+    /// <summary>
+    /// Draws one texture batch. <paramref name="vertices"/> is the full vertex scratch buffer
+    /// (9 floats per vertex, 4 vertices per quad); only the first
+    /// <c>quadCount * 4 * 9</c> floats are uploaded to the GPU.
+    /// </summary>
+    [JSImport("drawBatch", "yaeger-browser")]
+    public static partial void DrawBatch(string textureUrl, float[] vertices, int quadCount);
 
     [JSImport("isKeyPressed", "yaeger-browser")]
     public static partial bool IsKeyPressed(string key);
