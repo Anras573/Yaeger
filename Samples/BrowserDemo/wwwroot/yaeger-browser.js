@@ -330,6 +330,8 @@ export function initWebGL(canvasId) {
     gl = canvas.getContext('webgl2');
     if (!gl) throw new Error('[Yaeger] WebGL 2.0 is not supported in this browser.');
 
+    canvas.style.touchAction = 'none';
+
     // Shaders
     shaderProgram = createShaderProgram(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
     viewProjUniformLocation = gl.getUniformLocation(shaderProgram, 'uViewProj');
