@@ -35,6 +35,7 @@
     <Compile Remove="Physics\**\*.cs" />
     <Compile Remove="Systems\AnimationSystem.cs" />
     <Compile Remove="Systems\IUpdateSystem.cs" />
+    <Compile Remove="Systems\ParallaxSystem.cs" />
     <Compile Remove="Input\Keys.cs" />
     <Compile Remove="Input\MouseButton.cs" />
     <Compile Include="Physics\PhysicsDebugRenderer.cs" />
