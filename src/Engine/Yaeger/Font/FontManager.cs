@@ -5,6 +5,56 @@ public class FontManager : IDisposable
     private readonly Dictionary<string, Font> _fonts = new();
     private bool _disposed;
 
+    /// <summary>
+    /// Loads a font from a URL over HTTP, caching the result by URL.
+    /// Works in desktop and WASM environments.
+    /// </summary>
+    /// <param name="url">Absolute HTTP/HTTPS URL of the font file.</param>
+    /// <param name="httpClient">The <see cref="HttpClient"/> to use for the request.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <exception cref="FontLoadException">
+    /// When the request fails or returns a non-success HTTP status.
+    /// </exception>
+    public async Task<Font> LoadAsync(
+        string url,
+        HttpClient httpClient,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
+        ArgumentNullException.ThrowIfNull(httpClient);
+
+        if (_fonts.TryGetValue(url, out var cached))
+            return cached;
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await httpClient
+                .GetAsync(url, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new FontLoadException(
+                $"Failed to fetch font from '{url}': {ex.Message}",
+                ex
+            );
+        }
+
+        if (!response.IsSuccessStatusCode)
+            throw new FontLoadException(
+                $"HTTP {(int)response.StatusCode} fetching font from '{url}'."
+            );
+
+        var bytes = await response
+            .Content.ReadAsByteArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var font = new Font(url, bytes);
+        _fonts[url] = font;
+        return font;
+    }
+
     public Font Load(string fontPath)
     {
         var resolvedPath = AssetPath.Resolve(fontPath);

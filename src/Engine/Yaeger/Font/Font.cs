@@ -25,6 +25,25 @@ public class Font : IFontHandle, IDisposable
         _font = new HarfBuzzSharp.Font(_face);
     }
 
+    /// <summary>
+    /// Initialises a font from pre-loaded bytes (e.g. fetched over HTTP).
+    /// </summary>
+    /// <param name="id">Logical identifier for this font (typically the source URL or path).</param>
+    /// <param name="fontBytes">Raw font file bytes (TTF, OTF, etc.).</param>
+    public Font(string id, byte[] fontBytes)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id, nameof(id));
+        ArgumentNullException.ThrowIfNull(fontBytes);
+        if (fontBytes.Length == 0)
+            throw new ArgumentException("Font bytes must not be empty.", nameof(fontBytes));
+
+        Id = id;
+        FontBytes = fontBytes;
+        _blob = Blob.FromStream(new MemoryStream(FontBytes));
+        _face = new Face(_blob, 0);
+        _font = new HarfBuzzSharp.Font(_face);
+    }
+
     public string Id { get; }
 
     public GlyphInfo[] Shape(string text)

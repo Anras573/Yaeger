@@ -47,6 +47,52 @@ public sealed class SceneLoader
     }
 
     /// <summary>
+    /// Loads a <see cref="Scene"/> from a URL over HTTP.
+    /// Works in desktop and WASM environments (the WASM HttpClient routes through the
+    /// browser Fetch API, making this call async-safe with no blocking I/O).
+    /// </summary>
+    /// <param name="url">Absolute HTTP/HTTPS URL of the <c>.scene.json</c> resource.</param>
+    /// <param name="httpClient">The <see cref="HttpClient"/> to use for the request.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <exception cref="SceneLoadException">
+    /// When the request fails, returns a non-success HTTP status, or the JSON is invalid.
+    /// </exception>
+    public async Task<Scene> LoadAsync(
+        string url,
+        HttpClient httpClient,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
+        ArgumentNullException.ThrowIfNull(httpClient);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await httpClient
+                .GetAsync(url, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new SceneLoadException(
+                $"Failed to fetch scene from '{url}': {ex.Message}",
+                ex
+            );
+        }
+
+        if (!response.IsSuccessStatusCode)
+            throw new SceneLoadException(
+                $"HTTP {(int)response.StatusCode} fetching scene from '{url}'."
+            );
+
+        var json = await response
+            .Content.ReadAsStringAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return Parse(json);
+    }
+
+    /// <summary>
     /// Loads a <see cref="Scene"/> from a JSON file on disk.
     /// </summary>
     public Scene Load(string path)

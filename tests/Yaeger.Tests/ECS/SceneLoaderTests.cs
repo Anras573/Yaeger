@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Yaeger.ECS;
 using Yaeger.ECS.Serializers;
@@ -238,6 +239,87 @@ public class SceneLoaderTests
         Assert.Throws<FileNotFoundException>(() => MakeLoader().Load("does/not/exist.json"));
     }
 
+    // ── SceneLoader.LoadAsync – HTTP loading ──────────────────────────────────
+
+    [Fact]
+    public async Task LoadAsync_ValidUrl_ReturnsParsedScene()
+    {
+        var loader = MakeLoader();
+        var json = """{ "entities": [ { "components": [ { "type": "Stub" } ] } ] }""";
+        using var httpClient = MakeFakeClient(HttpStatusCode.OK, json);
+
+        var scene = await loader.LoadAsync("http://example.com/level1.scene.json", httpClient);
+
+        Assert.Equal(1, scene.EntityCount);
+    }
+
+    [Fact]
+    public async Task LoadAsync_NotFoundResponse_ThrowsSceneLoadExceptionWithStatusCode()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeFakeClient(HttpStatusCode.NotFound, "");
+
+        var ex = await Assert.ThrowsAsync<SceneLoadException>(() =>
+            loader.LoadAsync("http://example.com/missing.scene.json", httpClient)
+        );
+        Assert.Contains("404", ex.Message);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ServerError_ThrowsSceneLoadExceptionWithStatusCode()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeFakeClient(HttpStatusCode.InternalServerError, "");
+
+        var ex = await Assert.ThrowsAsync<SceneLoadException>(() =>
+            loader.LoadAsync("http://example.com/error.scene.json", httpClient)
+        );
+        Assert.Contains("500", ex.Message);
+    }
+
+    [Fact]
+    public async Task LoadAsync_NetworkFailure_ThrowsSceneLoadException()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeThrowingClient();
+
+        await Assert.ThrowsAsync<SceneLoadException>(() =>
+            loader.LoadAsync("http://example.com/level1.scene.json", httpClient)
+        );
+    }
+
+    [Fact]
+    public async Task LoadAsync_NullHttpClient_ThrowsArgumentNullException()
+    {
+        var loader = MakeLoader();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            loader.LoadAsync("http://example.com/level1.scene.json", null!)
+        );
+    }
+
+    [Fact]
+    public async Task LoadAsync_EmptyUrl_ThrowsArgumentException()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeFakeClient(HttpStatusCode.OK, "{}");
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            loader.LoadAsync("", httpClient)
+        );
+    }
+
+    [Fact]
+    public async Task LoadAsync_InvalidJson_ThrowsSceneLoadException()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeFakeClient(HttpStatusCode.OK, "NOT JSON");
+
+        await Assert.ThrowsAsync<SceneLoadException>(() =>
+            loader.LoadAsync("http://example.com/bad.scene.json", httpClient)
+        );
+    }
+
     // ── Test helpers ─────────────────────────────────────────────────────────
 
     private static SceneLoader MakeLoader()
@@ -245,6 +327,35 @@ public class SceneLoaderTests
         var registry = new ComponentRegistry();
         registry.Register(new StubSerializer("Stub"));
         return new SceneLoader(registry);
+    }
+
+    private static HttpClient MakeFakeClient(HttpStatusCode statusCode, string content) =>
+        new(new FakeHttpMessageHandler(statusCode, content));
+
+    private static HttpClient MakeThrowingClient() =>
+        new(new ThrowingHttpMessageHandler());
+
+    private sealed class FakeHttpMessageHandler(HttpStatusCode statusCode, string content)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) =>
+            Task.FromResult(
+                new HttpResponseMessage(statusCode)
+                {
+                    Content = new StringContent(content),
+                }
+            );
+    }
+
+    private sealed class ThrowingHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) => throw new HttpRequestException("Simulated network failure.");
     }
 
     private sealed class StubSerializer : IComponentSerializer
