@@ -869,9 +869,7 @@ public class PrefabLoaderTests
         var loader = MakeLoader();
         using var httpClient = MakeFakeClient(HttpStatusCode.OK, "{}");
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            loader.LoadAsync("", httpClient)
-        );
+        await Assert.ThrowsAsync<ArgumentException>(() => loader.LoadAsync("", httpClient));
     }
 
     [Fact]

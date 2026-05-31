@@ -66,12 +66,21 @@ public sealed class SceneLoader
         ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
         ArgumentNullException.ThrowIfNull(httpClient);
 
-        HttpResponseMessage response;
         try
         {
-            response = await httpClient
+            using var response = await httpClient
                 .GetAsync(url, cancellationToken)
                 .ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+                throw new SceneLoadException(
+                    $"HTTP {(int)response.StatusCode} fetching scene from '{url}'."
+                );
+
+            var json = await response
+                .Content.ReadAsStringAsync(cancellationToken)
+                .ConfigureAwait(false);
+            return Parse(json);
         }
         catch (HttpRequestException ex)
         {
@@ -80,16 +89,6 @@ public sealed class SceneLoader
                 ex
             );
         }
-
-        if (!response.IsSuccessStatusCode)
-            throw new SceneLoadException(
-                $"HTTP {(int)response.StatusCode} fetching scene from '{url}'."
-            );
-
-        var json = await response
-            .Content.ReadAsStringAsync(cancellationToken)
-            .ConfigureAwait(false);
-        return Parse(json);
     }
 
     /// <summary>

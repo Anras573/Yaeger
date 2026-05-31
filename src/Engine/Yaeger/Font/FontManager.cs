@@ -7,7 +7,6 @@ public class FontManager : IDisposable
 
     /// <summary>
     /// Loads a font from a URL over HTTP, caching the result by URL.
-    /// Works in desktop and WASM environments.
     /// </summary>
     /// <param name="url">Absolute HTTP/HTTPS URL of the font file.</param>
     /// <param name="httpClient">The <see cref="HttpClient"/> to use for the request.</param>
@@ -27,12 +26,23 @@ public class FontManager : IDisposable
         if (_fonts.TryGetValue(url, out var cached))
             return cached;
 
-        HttpResponseMessage response;
         try
         {
-            response = await httpClient
+            using var response = await httpClient
                 .GetAsync(url, cancellationToken)
                 .ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+                throw new FontLoadException(
+                    $"HTTP {(int)response.StatusCode} fetching font from '{url}'."
+                );
+
+            var bytes = await response
+                .Content.ReadAsByteArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var font = new Font(url, bytes);
+            _fonts[url] = font;
+            return font;
         }
         catch (HttpRequestException ex)
         {
@@ -41,18 +51,6 @@ public class FontManager : IDisposable
                 ex
             );
         }
-
-        if (!response.IsSuccessStatusCode)
-            throw new FontLoadException(
-                $"HTTP {(int)response.StatusCode} fetching font from '{url}'."
-            );
-
-        var bytes = await response
-            .Content.ReadAsByteArrayAsync(cancellationToken)
-            .ConfigureAwait(false);
-        var font = new Font(url, bytes);
-        _fonts[url] = font;
-        return font;
     }
 
     public Font Load(string fontPath)

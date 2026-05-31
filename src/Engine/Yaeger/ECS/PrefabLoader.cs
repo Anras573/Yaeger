@@ -82,12 +82,21 @@ public sealed class PrefabLoader
         ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
         ArgumentNullException.ThrowIfNull(httpClient);
 
-        HttpResponseMessage response;
         try
         {
-            response = await httpClient
+            using var response = await httpClient
                 .GetAsync(url, cancellationToken)
                 .ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+                throw new PrefabLoadException(
+                    $"HTTP {(int)response.StatusCode} fetching prefab from '{url}'."
+                );
+
+            var json = await response
+                .Content.ReadAsStringAsync(cancellationToken)
+                .ConfigureAwait(false);
+            return Parse(json);
         }
         catch (HttpRequestException ex)
         {
@@ -96,16 +105,6 @@ public sealed class PrefabLoader
                 ex
             );
         }
-
-        if (!response.IsSuccessStatusCode)
-            throw new PrefabLoadException(
-                $"HTTP {(int)response.StatusCode} fetching prefab from '{url}'."
-            );
-
-        var json = await response
-            .Content.ReadAsStringAsync(cancellationToken)
-            .ConfigureAwait(false);
-        return Parse(json);
     }
 
     /// <summary>
