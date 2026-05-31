@@ -81,9 +81,9 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
 
     public void SetCamera(Matrix4x4 viewProjection)
     {
-        // Reinterpret the 64-byte struct as a byte[] for the JSImport byte[] marshal path.
+        var span = MemoryMarshal.CreateReadOnlySpan(ref viewProjection, 1);
         var bytes = new byte[64];
-        MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref viewProjection, 1)).CopyTo(bytes);
+        MemoryMarshal.AsBytes(span).CopyTo(bytes);
         JsInterop.SetViewProjection(bytes);
     }
 
@@ -101,7 +101,8 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
     private void RenderBatch(string texturePath, int startIndex, int batchSize)
     {
         FillVertexBuffer(startIndex, batchSize);
-        Buffer.BlockCopy(_vertexBuffer, 0, _vertexBytes, 0, batchSize * VerticesPerQuad * FloatsPerVertex * 4);
+        var byteCount = batchSize * VerticesPerQuad * FloatsPerVertex * 4;
+        Buffer.BlockCopy(_vertexBuffer, 0, _vertexBytes, 0, byteCount);
         JsInterop.DrawBatch(texturePath, _vertexBytes, batchSize);
     }
 
