@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Yaeger.Browser.Interop;
 using Yaeger.Platform;
 
@@ -19,9 +20,12 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
 
     private readonly List<QuadSubmission> _submissionQueue = [];
 
-    // Scratch buffer large enough for one full batch; reused every flush.
+    // Scratch float buffer, filled per batch; _vertexBytes is its raw-byte view passed to JS.
     private readonly float[] _vertexBuffer = new float[
         MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex
+    ];
+    private readonly byte[] _vertexBytes = new byte[
+        MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex * 4
     ];
 
     /// <summary>
@@ -75,8 +79,13 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
         _submissionQueue.Clear();
     }
 
-    public void SetCamera(Matrix4x4 viewProjection) =>
-        JsInterop.SetViewProjection(MatrixToFloats(viewProjection));
+    public void SetCamera(Matrix4x4 viewProjection)
+    {
+        // Reinterpret the 64-byte struct as a byte[] for the JSImport byte[] marshal path.
+        var bytes = new byte[64];
+        MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref viewProjection, 1)).CopyTo(bytes);
+        JsInterop.SetViewProjection(bytes);
+    }
 
     public void SubmitQuad(Matrix4x4 transform, string texturePath, Vector4 color) =>
         SubmitQuad(transform, texturePath, Vector2.Zero, Vector2.One, color);
@@ -92,7 +101,8 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
     private void RenderBatch(string texturePath, int startIndex, int batchSize)
     {
         FillVertexBuffer(startIndex, batchSize);
-        JsInterop.DrawBatch(texturePath, _vertexBuffer, batchSize);
+        Buffer.BlockCopy(_vertexBuffer, 0, _vertexBytes, 0, batchSize * VerticesPerQuad * FloatsPerVertex * 4);
+        JsInterop.DrawBatch(texturePath, _vertexBytes, batchSize);
     }
 
     private void FillVertexBuffer(int startIndex, int count)
@@ -135,26 +145,6 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
             }
         }
     }
-
-    private static float[] MatrixToFloats(in Matrix4x4 m) =>
-        [
-            m.M11,
-            m.M12,
-            m.M13,
-            m.M14,
-            m.M21,
-            m.M22,
-            m.M23,
-            m.M24,
-            m.M31,
-            m.M32,
-            m.M33,
-            m.M34,
-            m.M41,
-            m.M42,
-            m.M43,
-            m.M44,
-        ];
 
     private readonly record struct QuadSubmission(
         string TexturePath,

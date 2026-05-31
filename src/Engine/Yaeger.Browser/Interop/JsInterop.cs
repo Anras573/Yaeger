@@ -19,20 +19,21 @@ internal static partial class JsInterop
 
     /// <summary>
     /// Sets the view-projection matrix uniform used by all subsequent draw calls.
-    /// <paramref name="matrix16"/> is the 16 elements of a System.Numerics.Matrix4x4 in
-    /// row-major order (M11…M44). WebGL reads it as column-major (transpose=false), which
-    /// matches the convention used by the desktop OpenGL renderer.
+    /// <paramref name="matrix64bytes"/> is the 64 raw bytes of a System.Numerics.Matrix4x4
+    /// (16 × IEEE 754 single-precision floats, row-major). The JS side reinterprets the
+    /// Uint8Array as a Float32Array before passing it to uniformMatrix4fv(transpose=false),
+    /// matching the convention used by the desktop OpenGL renderer.
     /// </summary>
     [JSImport("setViewProjection", "yaeger-browser")]
-    public static partial void SetViewProjection(float[] matrix16);
+    public static partial void SetViewProjection(byte[] matrix64bytes);
 
     /// <summary>
-    /// Draws one texture batch. <paramref name="vertices"/> is the full vertex scratch buffer
-    /// (9 floats per vertex, 4 vertices per quad); only the first
-    /// <c>quadCount * 4 * 9</c> floats are uploaded to the GPU.
+    /// Draws one texture batch. <paramref name="vertexBytes"/> contains the raw bytes of the
+    /// float vertex scratch buffer (9 floats × 4 bytes per vertex, 4 vertices per quad);
+    /// only the first <c>quadCount * 4 * 9 * 4</c> bytes are uploaded to the GPU.
     /// </summary>
     [JSImport("drawBatch", "yaeger-browser")]
-    public static partial void DrawBatch(string textureUrl, float[] vertices, int quadCount);
+    public static partial void DrawBatch(string textureUrl, byte[] vertexBytes, int quadCount);
 
     [JSImport("isKeyPressed", "yaeger-browser")]
     public static partial bool IsKeyPressed(string key);

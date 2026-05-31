@@ -130,7 +130,11 @@ function getOrLoadTexture(url) {
         if (!gl) return;
         const tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
+        // Flip Y so row 0 is at the bottom, matching StbImageSharp FlipVerticallyOnLoad
+        // used by the desktop Texture loader. Without this, sprites render upside-down.
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -401,35 +405,39 @@ export function clearFrame() {
 
 /**
  * Updates the view-projection matrix uniform used for all subsequent draw calls.
- * <paramref name="matrix"/> is a Float32Array of 16 elements in row-major order
- * (System.Numerics.Matrix4x4 layout). Passing it with transpose=false to
- * uniformMatrix4fv matches the convention used by the desktop OpenGL renderer.
+ * <paramref name="matrixBytes"/> is a Uint8Array of 64 bytes — the raw memory of a
+ * System.Numerics.Matrix4x4 (16 × IEEE 754 float, row-major). The bytes are
+ * reinterpreted as a Float32Array and passed with transpose=false, matching the
+ * convention used by the desktop OpenGL renderer.
  */
-export function setViewProjection(matrix) {
+export function setViewProjection(matrixBytes) {
     if (!gl || !shaderProgram) return;
     gl.useProgram(shaderProgram);
-    gl.uniformMatrix4fv(viewProjUniformLocation, false, matrix);
+    // Copy to a fresh aligned buffer so Float32Array view is always valid.
+    const aligned = new Uint8Array(64);
+    aligned.set(matrixBytes.subarray(0, 64));
+    gl.uniformMatrix4fv(viewProjUniformLocation, false, new Float32Array(aligned.buffer));
 }
 
 /**
- * Renders one texture batch.  <paramref name="vertices"/> is the C# vertex scratch buffer
- * (Float32Array, 9 floats per vertex, 4 vertices per quad); only the first
- * <c>quadCount * 4 * 9</c> floats are uploaded.  The texture for
- * <paramref name="textureUrl"/> is loaded asynchronously on first use; a 1×1 white
- * fallback is used while it is in flight so the tint colour still renders correctly.
+ * Renders one texture batch.  <paramref name="vertexBytes"/> is a Uint8Array containing
+ * the raw bytes of the C# float vertex scratch buffer (9 floats × 4 bytes per vertex,
+ * 4 vertices per quad); only the first <c>quadCount * 4 * 9 * 4</c> bytes are uploaded.
+ * The texture for <paramref name="textureUrl"/> is loaded asynchronously on first use;
+ * a 1×1 white fallback is used while it is in flight so tint colour still renders.
  */
-export function drawBatch(textureUrl, vertices, quadCount) {
+export function drawBatch(textureUrl, vertexBytes, quadCount) {
     if (!gl || quadCount <= 0) return;
 
     const texture = getOrLoadTexture(textureUrl);
-    const floatCount = quadCount * VERTICES_PER_QUAD * FLOATS_PER_VERTEX;
+    const byteCount = quadCount * VERTICES_PER_QUAD * FLOATS_PER_VERTEX * 4;
 
     gl.useProgram(shaderProgram);
     gl.bindVertexArray(vao);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    // Upload only the live portion of the scratch buffer (element-count form of bufferSubData).
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vertices, 0, floatCount);
+    // Upload only the live portion. bufferSubData with a Uint8Array uses byte counts.
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, vertexBytes, 0, byteCount);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
