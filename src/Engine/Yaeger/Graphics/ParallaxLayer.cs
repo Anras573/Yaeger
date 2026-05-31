@@ -13,6 +13,9 @@ namespace Yaeger.Graphics;
 /// </summary>
 public struct ParallaxLayer(float scrollFactorX = 0.5f, float scrollFactorY = 0f)
 {
+    public ParallaxLayer()
+        : this(0.5f, 0f) { }
+
     /// <summary>Horizontal parallax factor. 0 = screen-fixed, 1 = world-fixed.</summary>
     public float ScrollFactorX = scrollFactorX;
 
