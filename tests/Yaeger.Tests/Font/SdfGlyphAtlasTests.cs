@@ -124,7 +124,7 @@ public class SdfGlyphAtlasTests
     [Fact]
     public void SdfPipeline_SolidSquare_CenterIsInside_CornersAreOutside()
     {
-        // Build a 6×6 binary mask with a 4×4 solid square in the centre.
+        // Build an 8×8 binary mask with a 4×4 solid square in the centre.
         int w = 8,
             h = 8;
         var mask = new bool[w * h];
