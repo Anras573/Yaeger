@@ -100,10 +100,7 @@ public sealed class PrefabLoader
         }
         catch (HttpRequestException ex)
         {
-            throw new PrefabLoadException(
-                $"Failed to fetch prefab from '{url}': {ex.Message}",
-                ex
-            );
+            throw new PrefabLoadException($"Failed to fetch prefab from '{url}': {ex.Message}", ex);
         }
     }
 

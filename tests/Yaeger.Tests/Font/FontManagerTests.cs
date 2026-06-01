@@ -80,8 +80,7 @@ public class FontManagerTests : IDisposable
     private static HttpClient MakeFakeClient(HttpStatusCode statusCode, byte[] content) =>
         new(new FakeHttpMessageHandler(statusCode, content));
 
-    private static HttpClient MakeThrowingClient() =>
-        new(new ThrowingHttpMessageHandler());
+    private static HttpClient MakeThrowingClient() => new(new ThrowingHttpMessageHandler());
 
     private sealed class FakeHttpMessageHandler(HttpStatusCode statusCode, byte[] content)
         : HttpMessageHandler

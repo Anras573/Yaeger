@@ -84,10 +84,7 @@ public sealed class SceneLoader
         }
         catch (HttpRequestException ex)
         {
-            throw new SceneLoadException(
-                $"Failed to fetch scene from '{url}': {ex.Message}",
-                ex
-            );
+            throw new SceneLoadException($"Failed to fetch scene from '{url}': {ex.Message}", ex);
         }
     }
 

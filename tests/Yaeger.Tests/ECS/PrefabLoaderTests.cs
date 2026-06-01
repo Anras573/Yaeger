@@ -964,8 +964,7 @@ public class PrefabLoaderTests
     private static HttpClient MakeFakeClient(HttpStatusCode statusCode, string content) =>
         new(new FakeHttpMessageHandler(statusCode, content));
 
-    private static HttpClient MakeThrowingClient() =>
-        new(new ThrowingHttpMessageHandler());
+    private static HttpClient MakeThrowingClient() => new(new ThrowingHttpMessageHandler());
 
     private sealed class FakeHttpMessageHandler(HttpStatusCode statusCode, string content)
         : HttpMessageHandler

@@ -46,17 +46,11 @@ public class FontManager : IDisposable
         }
         catch (HttpRequestException ex)
         {
-            throw new FontLoadException(
-                $"Failed to fetch font from '{url}': {ex.Message}",
-                ex
-            );
+            throw new FontLoadException($"Failed to fetch font from '{url}': {ex.Message}", ex);
         }
         catch (Exception ex) when (ex is not (OperationCanceledException or FontLoadException))
         {
-            throw new FontLoadException(
-                $"Failed to load font from '{url}': {ex.Message}",
-                ex
-            );
+            throw new FontLoadException($"Failed to load font from '{url}': {ex.Message}", ex);
         }
     }
 
