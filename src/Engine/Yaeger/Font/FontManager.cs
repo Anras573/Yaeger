@@ -23,10 +23,14 @@ public class FontManager : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
         ArgumentNullException.ThrowIfNull(httpClient);
 
-        if (!IsAbsoluteUrl(url))
+        if (
+            !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || uri.Scheme is not ("http" or "https")
+        )
             throw new ArgumentException("Must be an absolute http or https URL.", nameof(url));
 
-        if (_fonts.TryGetValue(url, out var cached))
+        var cacheKey = uri.AbsoluteUri;
+        if (_fonts.TryGetValue(cacheKey, out var cached))
             return cached;
 
         try
@@ -43,8 +47,13 @@ public class FontManager : IDisposable
             var bytes = await response
                 .Content.ReadAsByteArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
-            var font = new Font(url, bytes);
-            _fonts[url] = font;
+            var font = new Font(cacheKey, bytes);
+            if (_fonts.TryGetValue(cacheKey, out var existing))
+            {
+                font.Dispose();
+                return existing;
+            }
+            _fonts[cacheKey] = font;
             return font;
         }
         catch (HttpRequestException ex)
@@ -103,7 +112,9 @@ public class FontManager : IDisposable
     private static string NormalizeKey(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        return IsAbsoluteUrl(path) ? path : AssetPath.Resolve(path);
+        if (Uri.TryCreate(path, UriKind.Absolute, out var uri) && uri.Scheme is ("http" or "https"))
+            return uri.AbsoluteUri;
+        return AssetPath.Resolve(path);
     }
 
     public void Dispose()

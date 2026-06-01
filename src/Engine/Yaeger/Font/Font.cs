@@ -38,7 +38,7 @@ public class Font : IFontHandle, IDisposable
             throw new ArgumentException("Font bytes must not be empty.", nameof(fontBytes));
 
         Id = id;
-        FontBytes = fontBytes;
+        FontBytes = (byte[])fontBytes.Clone();
         _blob = Blob.FromStream(new MemoryStream(FontBytes));
         _face = new Face(_blob, 0);
         _font = new HarfBuzzSharp.Font(_face);
