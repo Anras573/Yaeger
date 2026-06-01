@@ -48,6 +48,10 @@ public class FontManager : IDisposable
         {
             throw new FontLoadException($"Failed to fetch font from '{url}': {ex.Message}", ex);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new FontLoadException($"Request timed out fetching font from '{url}'.", ex);
+        }
         catch (Exception ex) when (ex is not (OperationCanceledException or FontLoadException))
         {
             throw new FontLoadException($"Failed to load font from '{url}': {ex.Message}", ex);
@@ -56,32 +60,39 @@ public class FontManager : IDisposable
 
     public Font Load(string fontPath)
     {
-        var resolvedPath = AssetPath.Resolve(fontPath);
-        if (_fonts.TryGetValue(resolvedPath, out var existingFont))
+        var key = NormalizeKey(fontPath);
+        if (_fonts.TryGetValue(key, out var existingFont))
         {
             return existingFont;
         }
 
-        var font = new Font(resolvedPath);
-        _fonts[resolvedPath] = font;
+        var font = new Font(key);
+        _fonts[key] = font;
         return font;
     }
 
     public Font? Get(string fontPath)
     {
-        var resolvedPath = AssetPath.Resolve(fontPath);
-        return _fonts.TryGetValue(resolvedPath, out var font) ? font : null;
+        var key = NormalizeKey(fontPath);
+        return _fonts.TryGetValue(key, out var font) ? font : null;
     }
 
     public void Unload(string fontPath)
     {
-        var resolvedPath = AssetPath.Resolve(fontPath);
-        if (_fonts.TryGetValue(resolvedPath, out var font))
+        var key = NormalizeKey(fontPath);
+        if (_fonts.TryGetValue(key, out var font))
         {
             font.Dispose();
-            _fonts.Remove(resolvedPath);
+            _fonts.Remove(key);
         }
     }
+
+    private static bool IsAbsoluteUrl(string path) =>
+        path.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeKey(string path) =>
+        IsAbsoluteUrl(path) ? path : AssetPath.Resolve(path);
 
     public void Dispose()
     {

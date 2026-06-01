@@ -23,4 +23,12 @@
     <ProjectReference Include="..\..\src\Engine\Yaeger.Core\Yaeger.Core.csproj" />
     <ProjectReference Include="..\..\src\Engine\Yaeger\Yaeger.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None
+      Include="..\..\Samples\Pong\Assets\Roboto-Regular.ttf"
+      CopyToOutputDirectory="PreserveNewest"
+      Link="TestAssets\Roboto-Regular.ttf"
+    />
+  </ItemGroup>
 </Project>

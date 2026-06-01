@@ -63,6 +63,36 @@ public class FontManagerTests : IDisposable
         );
     }
 
+    // ── Success and caching ───────────────────────────────────────────────────
+
+    [SkippableFact]
+    public async Task LoadAsync_ValidFontBytes_ReturnsFontAndCaches()
+    {
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "TestAssets", "Roboto-Regular.ttf");
+        Skip.IfNot(File.Exists(fontPath), "Roboto-Regular.ttf test asset is missing.");
+        Skip.IfNot(IsHarfBuzzAvailable(), "HarfBuzz native library not available.");
+
+        var fontBytes = File.ReadAllBytes(fontPath);
+        using var manager = new FontManager();
+        using var firstClient = MakeFakeClient(HttpStatusCode.OK, fontBytes);
+        using var secondClient = MakeThrowingClient();
+
+        var font1 = await manager.LoadAsync("http://example.com/font.ttf", firstClient);
+        var font2 = await manager.LoadAsync("http://example.com/font.ttf", secondClient);
+
+        Assert.NotNull(font1);
+        Assert.Same(font1, font2);
+    }
+
+    private static bool IsHarfBuzzAvailable()
+    {
+        var dir = AppContext.BaseDirectory;
+        return File.Exists(Path.Combine(dir, "libHarfBuzzSharp.so"))
+            || File.Exists(
+                Path.Combine(dir, "runtimes", "linux-x64", "native", "libHarfBuzzSharp.so")
+            );
+    }
+
     // ── Invalid/empty payload ─────────────────────────────────────────────────
 
     [Fact]

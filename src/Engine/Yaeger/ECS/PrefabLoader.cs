@@ -102,6 +102,10 @@ public sealed class PrefabLoader
         {
             throw new PrefabLoadException($"Failed to fetch prefab from '{url}': {ex.Message}", ex);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new PrefabLoadException($"Request timed out fetching prefab from '{url}'.", ex);
+        }
     }
 
     /// <summary>

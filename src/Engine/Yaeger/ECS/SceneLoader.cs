@@ -86,6 +86,10 @@ public sealed class SceneLoader
         {
             throw new SceneLoadException($"Failed to fetch scene from '{url}': {ex.Message}", ex);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new SceneLoadException($"Request timed out fetching scene from '{url}'.", ex);
+        }
     }
 
     /// <summary>
