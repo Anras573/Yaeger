@@ -9,7 +9,7 @@ namespace Yaeger.Font;
 /// Manages a texture atlas of rendered glyphs for efficient text rendering.
 /// Uses SkiaSharp for glyph rasterization and OpenGL for texture storage.
 /// </summary>
-public class GlyphAtlas : IDisposable
+public class GlyphAtlas : IGlyphAtlas
 {
     private readonly Font _font;
     private readonly int _fontSize;
