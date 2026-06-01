@@ -44,8 +44,9 @@ public sealed class ImGuiInspector : IDisposable
         ["RenderLayer"] = static (w, e) => w.AddComponent(e, default(RenderLayer)),
     };
 
-    private static readonly MethodInfo WorldRemoveMethod = typeof(World)
-        .GetMethod(nameof(World.RemoveComponent))!;
+    private static readonly MethodInfo WorldRemoveMethod = typeof(World).GetMethod(
+        nameof(World.RemoveComponent)
+    )!;
 
     public ImGuiInspector(Window window, World world, ComponentRegistry? registry = null)
     {
