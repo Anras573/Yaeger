@@ -17,10 +17,11 @@ public class TextRenderer : ITextRenderSurface, IDisposable
     private readonly Shader _textShader;
     private readonly FontManager _fontManager;
     private readonly bool _ownsFontManager;
+    private readonly TextRenderMode _mode;
 
     // Keyed by (font, fontSize) so the same font rendered at different sizes gets its own
     // atlas. Previously keyed by Font alone, which silently reused the first size forever.
-    private readonly Dictionary<(Font.Font Font, int FontSize), GlyphAtlas> _glyphAtlases = new();
+    private readonly Dictionary<(Font.Font Font, int FontSize), IGlyphAtlas> _glyphAtlases = new();
     private readonly FontVertexArray _vao;
     private readonly Buffer<float> _vbo;
     private readonly Buffer<uint> _ebo;
@@ -65,10 +66,33 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         }
         """;
 
+    // SDF shader: the atlas stores a signed distance field where 0.5 == the glyph edge.
+    // fwidth() gives the screen-space derivative of the distance value, yielding an AA
+    // band that is exactly one pixel wide regardless of zoom level.
+    private const string SdfFragmentShaderSource = """
+        #version 330 core
+        in vec2 vTexCoord;
+        in vec4 vColor;
+        out vec4 FragColor;
+
+        uniform sampler2D uTexture;
+
+        void main()
+        {
+            float dist  = texture(uTexture, vTexCoord).r;
+            float width = fwidth(dist);
+            float alpha = smoothstep(0.5 - width, 0.5 + width, dist);
+            FragColor = vec4(vColor.rgb, vColor.a * alpha);
+        }
+        """;
+
     public TextRenderer(Window window)
-        : this(window, fontManager: null) { }
+        : this(window, fontManager: null, TextRenderMode.Standard) { }
 
     public TextRenderer(Window window, FontManager? fontManager)
+        : this(window, fontManager, TextRenderMode.Standard) { }
+
+    public TextRenderer(Window window, FontManager? fontManager, TextRenderMode mode)
     {
         ArgumentNullException.ThrowIfNull(window);
         _gl =
@@ -78,7 +102,10 @@ public class TextRenderer : ITextRenderSurface, IDisposable
             );
         _fontManager = fontManager ?? new FontManager();
         _ownsFontManager = fontManager is null;
-        _textShader = new Shader(_gl, VertexShaderSource, FragmentShaderSource);
+        _mode = mode;
+        var fragmentSource =
+            mode == TextRenderMode.Sdf ? SdfFragmentShaderSource : FragmentShaderSource;
+        _textShader = new Shader(_gl, VertexShaderSource, fragmentSource);
 
         _vertexBuffer = new float[MaxQuadsPerBatch * VerticesPerQuad * FloatsPerVertex];
 
@@ -103,21 +130,22 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
-        Console.WriteLine($"TextRenderer initialized with max {MaxQuadsPerBatch} glyphs per batch");
+        Console.WriteLine(
+            $"TextRenderer initialized with max {MaxQuadsPerBatch} glyphs per batch (mode: {_mode})"
+        );
     }
 
-    /// <summary>
-    /// Gets or creates a glyph atlas for the specified font.
-    /// </summary>
-    private GlyphAtlas GetOrCreateAtlas(Font.Font font, int fontSize = 48)
+    private IGlyphAtlas GetOrCreateAtlas(Font.Font font, int fontSize = 48)
     {
         var key = (font, fontSize);
         if (_glyphAtlases.TryGetValue(key, out var atlas))
-        {
             return atlas;
-        }
 
-        atlas = new GlyphAtlas(_gl, font, fontSize);
+        atlas =
+            _mode == TextRenderMode.Sdf
+                ? new SdfGlyphAtlas(_gl, font, fontSize)
+                : new GlyphAtlas(_gl, font, fontSize);
+
         _glyphAtlases[key] = atlas;
         return atlas;
     }
@@ -286,7 +314,7 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         _quadCount++;
     }
 
-    private unsafe void RenderBatch(GlyphAtlas atlas)
+    private unsafe void RenderBatch(IGlyphAtlas atlas)
     {
         if (_quadCount == 0)
             return;
