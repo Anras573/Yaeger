@@ -27,6 +27,26 @@ public class FontManagerTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => _manager.LoadAsync("", httpClient));
     }
 
+    [Fact]
+    public async Task LoadAsync_RelativePath_ThrowsArgumentException()
+    {
+        using var httpClient = MakeFakeClient(HttpStatusCode.OK, []);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _manager.LoadAsync("relative/font.ttf", httpClient)
+        );
+    }
+
+    [Fact]
+    public async Task LoadAsync_NonHttpScheme_ThrowsArgumentException()
+    {
+        using var httpClient = MakeFakeClient(HttpStatusCode.OK, []);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _manager.LoadAsync("ftp://example.com/font.ttf", httpClient)
+        );
+    }
+
     // ── HTTP error responses ──────────────────────────────────────────────────
 
     [Fact]
@@ -91,6 +111,40 @@ public class FontManagerTests : IDisposable
             || File.Exists(
                 Path.Combine(dir, "runtimes", "linux-x64", "native", "libHarfBuzzSharp.so")
             );
+    }
+
+    // ── Load argument validation ──────────────────────────────────────────────
+
+    [Fact]
+    public void Load_NullPath_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => _manager.Load(null!));
+    }
+
+    [Fact]
+    public void Load_WhitespacePath_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => _manager.Load("   "));
+    }
+
+    [Fact]
+    public void Load_UrlPath_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => _manager.Load("http://example.com/font.ttf"));
+    }
+
+    // ── Get ───────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Get_NullPath_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => _manager.Get(null!));
+    }
+
+    [Fact]
+    public void Get_UnknownPath_ReturnsNull()
+    {
+        Assert.Null(_manager.Get("nonexistent.ttf"));
     }
 
     // ── Invalid/empty payload ─────────────────────────────────────────────────
