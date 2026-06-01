@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Yaeger.ECS;
 using Yaeger.ECS.Serializers;
@@ -799,6 +800,89 @@ public class PrefabLoaderTests
         Assert.Contains("RenderLayer", registry.RegisteredTypeIds);
     }
 
+    // ── PrefabLoader.LoadAsync – HTTP loading ─────────────────────────────────
+
+    [Fact]
+    public async Task LoadAsync_ValidUrl_ReturnsParsedPrefab()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register(new StubSerializer("Stub"));
+        var loader = new PrefabLoader(registry);
+        var json = """{ "components": [ { "type": "Stub" } ] }""";
+        using var httpClient = MakeFakeClient(HttpStatusCode.OK, json);
+
+        var prefab = await loader.LoadAsync("http://example.com/ball.prefab.json", httpClient);
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+        Assert.True(world.TryGetComponent<StubComponent>(entity, out _));
+    }
+
+    [Fact]
+    public async Task LoadAsync_NotFoundResponse_ThrowsPrefabLoadExceptionWithStatusCode()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeFakeClient(HttpStatusCode.NotFound, "");
+
+        var ex = await Assert.ThrowsAsync<PrefabLoadException>(() =>
+            loader.LoadAsync("http://example.com/missing.prefab.json", httpClient)
+        );
+        Assert.Contains("404", ex.Message);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ServerError_ThrowsPrefabLoadExceptionWithStatusCode()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeFakeClient(HttpStatusCode.InternalServerError, "");
+
+        var ex = await Assert.ThrowsAsync<PrefabLoadException>(() =>
+            loader.LoadAsync("http://example.com/error.prefab.json", httpClient)
+        );
+        Assert.Contains("500", ex.Message);
+    }
+
+    [Fact]
+    public async Task LoadAsync_NetworkFailure_ThrowsPrefabLoadException()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeThrowingClient();
+
+        await Assert.ThrowsAsync<PrefabLoadException>(() =>
+            loader.LoadAsync("http://example.com/ball.prefab.json", httpClient)
+        );
+    }
+
+    [Fact]
+    public async Task LoadAsync_NullHttpClient_ThrowsArgumentNullException()
+    {
+        var loader = MakeLoader();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            loader.LoadAsync("http://example.com/ball.prefab.json", null!)
+        );
+    }
+
+    [Fact]
+    public async Task LoadAsync_EmptyUrl_ThrowsArgumentException()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeFakeClient(HttpStatusCode.OK, "{}");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => loader.LoadAsync("", httpClient));
+    }
+
+    [Fact]
+    public async Task LoadAsync_InvalidJson_ThrowsPrefabLoadException()
+    {
+        var loader = MakeLoader();
+        using var httpClient = MakeFakeClient(HttpStatusCode.OK, "NOT JSON");
+
+        await Assert.ThrowsAsync<PrefabLoadException>(() =>
+            loader.LoadAsync("http://example.com/bad.prefab.json", httpClient)
+        );
+    }
+
     // ── PrefabLoader.Load – file-not-found ────────────────────────────────────
 
     [Fact]
@@ -875,6 +959,31 @@ public class PrefabLoaderTests
     {
         var registry = new ComponentRegistry();
         return new PrefabLoader(registry);
+    }
+
+    private static HttpClient MakeFakeClient(HttpStatusCode statusCode, string content) =>
+        new(new FakeHttpMessageHandler(statusCode, content));
+
+    private static HttpClient MakeThrowingClient() => new(new ThrowingHttpMessageHandler());
+
+    private sealed class FakeHttpMessageHandler(HttpStatusCode statusCode, string content)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) =>
+            Task.FromResult(
+                new HttpResponseMessage(statusCode) { Content = new StringContent(content) }
+            );
+    }
+
+    private sealed class ThrowingHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) => throw new HttpRequestException("Simulated network failure.");
     }
 
     // Minimal stub serializer that adds a StubComponent to the entity.
