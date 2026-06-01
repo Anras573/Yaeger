@@ -51,6 +51,13 @@ public class FontManager : IDisposable
                 ex
             );
         }
+        catch (Exception ex) when (ex is not (OperationCanceledException or FontLoadException))
+        {
+            throw new FontLoadException(
+                $"Failed to load font from '{url}': {ex.Message}",
+                ex
+            );
+        }
     }
 
     public Font Load(string fontPath)

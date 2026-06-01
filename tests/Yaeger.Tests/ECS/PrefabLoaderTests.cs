@@ -975,10 +975,7 @@ public class PrefabLoaderTests
             CancellationToken cancellationToken
         ) =>
             Task.FromResult(
-                new HttpResponseMessage(statusCode)
-                {
-                    Content = new StringContent(content),
-                }
+                new HttpResponseMessage(statusCode) { Content = new StringContent(content) }
             );
     }
 
