@@ -27,6 +27,9 @@ public sealed class Transform2DSerializer : IComponentSerializer
     public string TypeId => "Transform2D";
 
     /// <inheritdoc/>
+    public Type? ComponentType => typeof(Transform2D);
+
+    /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
         var position = element.TryGetProperty("position", out var posEl)

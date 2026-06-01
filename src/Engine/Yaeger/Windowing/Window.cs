@@ -10,7 +10,10 @@ namespace Yaeger.Windowing;
 public sealed class Window : IDisposable
 {
     private readonly IWindow _innerWindow;
+    private readonly IInputContext _inputContext;
     internal GL Gl { get; }
+    internal IView InnerView => _innerWindow;
+    internal IInputContext InputContext => _inputContext;
 
     /// <summary>
     /// Gets the audio context for this window.
@@ -42,12 +45,12 @@ public sealed class Window : IDisposable
 
         // Initialize keyboard and mouse. Mouse needs the window size to expose NDC coords;
         // seed it now and update on resize.
-        var inputContext = _innerWindow.CreateInput();
-        Keyboard.Initialize(inputContext);
-        Mouse.Initialize(inputContext);
+        _inputContext = _innerWindow.CreateInput();
+        Keyboard.Initialize(_inputContext);
+        Mouse.Initialize(_inputContext);
         Mouse.SetWindowSize(new Vector2(_innerWindow.Size.X, _innerWindow.Size.Y));
         _innerWindow.Resize += size => Mouse.SetWindowSize(new Vector2(size.X, size.Y));
-        // Note: inputContext lifecycle is managed by _innerWindow, which will dispose it
+        // Note: _inputContext lifecycle is managed by _innerWindow, which will dispose it
 
         // Initialize audio - if this fails, we need to clean up resources
         try

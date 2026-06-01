@@ -25,6 +25,9 @@ public sealed class AnimationStateSerializer : IComponentSerializer
     public string TypeId => "AnimationState";
 
     /// <inheritdoc/>
+    public Type? ComponentType => typeof(AnimationState);
+
+    /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
         var frameIndex = GetOptionalInt32(element, "currentFrameIndex", 0);

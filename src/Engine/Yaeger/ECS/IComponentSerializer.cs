@@ -25,6 +25,14 @@ public interface IComponentSerializer
     string TypeId { get; }
 
     /// <summary>
+    /// The CLR type of the component handled by this serializer, or <c>null</c> if the
+    /// serializer does not expose type information (e.g. game-specific serializers that opt
+    /// out). Used by tooling such as <c>ImGuiInspector</c> to create default instances and
+    /// perform generic add/remove operations via reflection.
+    /// </summary>
+    Type? ComponentType => null;
+
+    /// <summary>
     /// Deserializes a component from a <see cref="JsonElement"/> and returns an action
     /// that adds the resulting component to an entity.
     /// </summary>

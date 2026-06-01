@@ -22,5 +22,6 @@ public enum Keys
     Num2,
     Num3,
     C,
+    F1,
     // Add more keys as needed
 }
