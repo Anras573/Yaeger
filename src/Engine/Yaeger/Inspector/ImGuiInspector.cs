@@ -85,7 +85,8 @@ public sealed class ImGuiInspector : IDisposable
         if (!ImGui.Begin("Scene Inspector", ref open))
         {
             ImGui.End();
-            if (!open) _visible = false;
+            if (!open)
+                _visible = false;
             return;
         }
 
