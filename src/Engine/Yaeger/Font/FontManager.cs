@@ -69,7 +69,7 @@ public class FontManager : IDisposable
 
         if (IsAbsoluteUrl(fontPath))
             throw new ArgumentException(
-                "URL fonts must be fetched via LoadAsync; this URL is not cached.",
+                "URL fonts must be fetched via LoadAsync.",
                 nameof(fontPath)
             );
 
@@ -98,8 +98,11 @@ public class FontManager : IDisposable
         path.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
         || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-    private static string NormalizeKey(string path) =>
-        IsAbsoluteUrl(path) ? path : AssetPath.Resolve(path);
+    private static string NormalizeKey(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        return IsAbsoluteUrl(path) ? path : AssetPath.Resolve(path);
+    }
 
     public void Dispose()
     {
