@@ -30,9 +30,9 @@ public class SdfGlyphAtlasTests
         // 2-pixel-wide image with 4-byte row stride (2 real + 2 padding)
         byte[] alpha = [200, 50, 0xFF, 0xFF, 200, 50, 0xFF, 0xFF];
         var mask = SdfGlyphAtlas.ThresholdAlpha(alpha, 2, 2, rowStride: 4);
-        Assert.True(mask[0]);  // (0,0) = 200
+        Assert.True(mask[0]); // (0,0) = 200
         Assert.False(mask[1]); // (1,0) = 50
-        Assert.True(mask[2]);  // (0,1) = 200
+        Assert.True(mask[2]); // (0,1) = 200
         Assert.False(mask[3]); // (1,1) = 50
     }
 
@@ -125,7 +125,8 @@ public class SdfGlyphAtlasTests
     public void SdfPipeline_SolidSquare_CenterIsInside_CornersAreOutside()
     {
         // Build a 6×6 binary mask with a 4×4 solid square in the centre.
-        int w = 8, h = 8;
+        int w = 8,
+            h = 8;
         var mask = new bool[w * h];
         for (int y = 2; y < 6; y++)
         {

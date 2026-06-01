@@ -141,9 +141,10 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         if (_glyphAtlases.TryGetValue(key, out var atlas))
             return atlas;
 
-        atlas = _mode == TextRenderMode.Sdf
-            ? new SdfGlyphAtlas(_gl, font, fontSize)
-            : new GlyphAtlas(_gl, font, fontSize);
+        atlas =
+            _mode == TextRenderMode.Sdf
+                ? new SdfGlyphAtlas(_gl, font, fontSize)
+                : new GlyphAtlas(_gl, font, fontSize);
 
         _glyphAtlases[key] = atlas;
         return atlas;

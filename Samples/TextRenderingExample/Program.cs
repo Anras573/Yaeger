@@ -10,6 +10,7 @@ using Yaeger.Windowing;
 using var window = Window.Create();
 var world = new World();
 var fontManager = new FontManager();
+
 // Switch between TextRenderMode.Standard and TextRenderMode.Sdf to compare rendering modes.
 var textRenderer = new TextRenderer(window, fontManager, TextRenderMode.Sdf);
 var renderSystem = new UnifiedRenderSystem(null, textRenderer, world);
