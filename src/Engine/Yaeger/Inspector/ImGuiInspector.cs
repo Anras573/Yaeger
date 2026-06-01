@@ -31,9 +31,10 @@ public sealed class ImGuiInspector : IDisposable
     private string _saveScenePath = "Scenes/scene.json";
     private string _saveStatusMessage = string.Empty;
 
-    // Deferred commands — mutations run after all ImGui draw calls to avoid iterator invalidation
+    // Deferred commands — mutations run after all ImGui draw calls to avoid iterator invalidation.
+    // A List is used so multiple operations queued in the same frame (e.g. remove + add) all execute.
     private Entity? _pendingDestroyEntity;
-    private Action<World>? _pendingWorldOp;
+    private readonly List<Action<World>> _pendingWorldOps = [];
 
     // TypeIds that can be added with a sensible zero/default value
     private static readonly Dictionary<string, Action<World, Entity>> DefaultAddActions = new()
@@ -123,19 +124,22 @@ public sealed class ImGuiInspector : IDisposable
 
         foreach (var entity in entities)
         {
-            var label = _world.TryGetTag(entity, out var tag)
-                ? $"{tag}  (#{entity.Id})"
+            // Tags are user-provided; strip "##" so ImGui doesn't treat it as an ID separator.
+            // The explicit "##entity_{id}" suffix gives each Selectable a unique stable ID.
+            var display = _world.TryGetTag(entity, out var tag)
+                ? $"{tag.Replace("##", "#-#")}  (#{entity.Id})"
                 : $"Entity#{entity.Id}";
+            var selectableId = $"{display}##entity_{entity.Id}";
 
             var selected = _selectedEntity == entity;
-            if (ImGui.Selectable(label, selected))
+            if (ImGui.Selectable(selectableId, selected))
                 _selectedEntity = entity;
         }
 
         ImGui.Separator();
 
         if (ImGui.SmallButton("New Entity"))
-            _pendingWorldOp = static w => w.CreateEntity();
+            _pendingWorldOps.Add(static w => w.CreateEntity());
     }
 
     // ── Component inspector (right column) ───────────────────────────────────
@@ -343,7 +347,7 @@ public sealed class ImGuiInspector : IDisposable
             if (ImGui.SmallButton($"+##add_{entity.Id}"))
             {
                 var addAction = DefaultAddActions[selectedId];
-                _pendingWorldOp = w => addAction(w, entity);
+                _pendingWorldOps.Add(w => addAction(w, entity));
             }
         }
         else
@@ -390,6 +394,9 @@ public sealed class ImGuiInspector : IDisposable
         {
             try
             {
+                var dir = Path.GetDirectoryName(AssetPath.Resolve(_saveScenePath));
+                if (!string.IsNullOrEmpty(dir))
+                    Directory.CreateDirectory(dir);
                 _sceneSaver!.Save(_world, _saveScenePath);
                 _saveStatusMessage = $"Saved at {DateTime.Now:HH:mm:ss}";
             }
@@ -413,11 +420,11 @@ public sealed class ImGuiInspector : IDisposable
 
     private void ScheduleRemove(Entity entity, Type componentType)
     {
-        _pendingWorldOp = w =>
+        _pendingWorldOps.Add(w =>
         {
             var method = WorldRemoveMethod.MakeGenericMethod(componentType);
             method.Invoke(w, [entity]);
-        };
+        });
     }
 
     private void FlushPendingCommands()
@@ -428,11 +435,9 @@ public sealed class ImGuiInspector : IDisposable
             _pendingDestroyEntity = null;
         }
 
-        if (_pendingWorldOp != null)
-        {
-            _pendingWorldOp(_world);
-            _pendingWorldOp = null;
-        }
+        foreach (var op in _pendingWorldOps)
+            op(_world);
+        _pendingWorldOps.Clear();
     }
 
     public void Dispose() => _controller.Dispose();
