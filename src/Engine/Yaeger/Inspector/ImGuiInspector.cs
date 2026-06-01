@@ -327,7 +327,12 @@ public sealed class ImGuiInspector : IDisposable
             _addComponentComboIndex = 0;
 
         ImGui.SetNextItemWidth(180);
-        ImGui.Combo($"##addCombo_{entity.Id}", ref _addComponentComboIndex, typeIds, typeIds.Length);
+        ImGui.Combo(
+            $"##addCombo_{entity.Id}",
+            ref _addComponentComboIndex,
+            typeIds,
+            typeIds.Length
+        );
         ImGui.SameLine();
 
         var selectedId = typeIds[_addComponentComboIndex];
