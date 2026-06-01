@@ -63,15 +63,17 @@ public class FontManager : IDisposable
 
     public Font Load(string fontPath)
     {
-        var key = NormalizeKey(fontPath);
-        if (_fonts.TryGetValue(key, out var existingFont))
-            return existingFont;
+        ArgumentNullException.ThrowIfNull(fontPath);
 
         if (IsAbsoluteUrl(fontPath))
             throw new ArgumentException(
                 "URL fonts must be fetched via LoadAsync.",
                 nameof(fontPath)
             );
+
+        var key = AssetPath.Resolve(fontPath);
+        if (_fonts.TryGetValue(key, out var existingFont))
+            return existingFont;
 
         var font = new Font(key);
         _fonts[key] = font;
