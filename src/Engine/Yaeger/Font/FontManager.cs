@@ -23,6 +23,9 @@ public class FontManager : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
         ArgumentNullException.ThrowIfNull(httpClient);
 
+        if (!IsAbsoluteUrl(url))
+            throw new ArgumentException("Must be an absolute http or https URL.", nameof(url));
+
         if (_fonts.TryGetValue(url, out var cached))
             return cached;
 
@@ -62,9 +65,13 @@ public class FontManager : IDisposable
     {
         var key = NormalizeKey(fontPath);
         if (_fonts.TryGetValue(key, out var existingFont))
-        {
             return existingFont;
-        }
+
+        if (IsAbsoluteUrl(fontPath))
+            throw new ArgumentException(
+                "URL fonts must be fetched via LoadAsync; this URL is not cached.",
+                nameof(fontPath)
+            );
 
         var font = new Font(key);
         _fonts[key] = font;

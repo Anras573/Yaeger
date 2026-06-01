@@ -66,6 +66,12 @@ public sealed class SceneLoader
         ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
         ArgumentNullException.ThrowIfNull(httpClient);
 
+        if (
+            !Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || uri.Scheme is not ("http" or "https")
+        )
+            throw new ArgumentException("Must be an absolute http or https URL.", nameof(url));
+
         try
         {
             using var response = await httpClient
