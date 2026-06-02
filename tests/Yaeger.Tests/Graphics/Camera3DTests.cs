@@ -52,7 +52,8 @@ public class Camera3DTests
 
         Assert.Equal(0f, viewPoint.X, Tolerance);
         Assert.Equal(0f, viewPoint.Y, Tolerance);
-        Assert.True(viewPoint.Z > 0f); // in front of camera (+Z is behind viewer in OpenGL)
+        // Right-handed: view-space +Z points behind the camera, so forward targets have negative Z.
+        Assert.True(viewPoint.Z < 0f);
     }
 
     [Fact]
