@@ -52,7 +52,7 @@ public class Camera3DTests
 
         Assert.Equal(0f, viewPoint.X, Tolerance);
         Assert.Equal(0f, viewPoint.Y, Tolerance);
-        Assert.True(viewPoint.Z > 0f); // in front of camera (OpenGL convention: +Z is behind viewer)
+        Assert.True(viewPoint.Z > 0f); // in front of camera (+Z is behind viewer in OpenGL)
     }
 
     [Fact]
@@ -68,7 +68,10 @@ public class Camera3DTests
     {
         // The camera target, projected through view+projection, should land at NDC (0, 0).
         var camera = Camera3D.Default;
-        var clip = Vector4.Transform(new Vector4(camera.Target, 1f), camera.ViewProjection(AspectRatio));
+        var clip = Vector4.Transform(
+            new Vector4(camera.Target, 1f),
+            camera.ViewProjection(AspectRatio)
+        );
         var ndcX = clip.X / clip.W;
         var ndcY = clip.Y / clip.W;
 
