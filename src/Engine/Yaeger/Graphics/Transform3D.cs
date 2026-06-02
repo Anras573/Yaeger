@@ -13,6 +13,5 @@ public struct Transform3D(Vector3 position, Quaternion rotation, Vector3 scale)
         * Matrix4x4.CreateFromQuaternion(Rotation)
         * Matrix4x4.CreateTranslation(Position);
 
-    public static Transform3D Identity =>
-        new(Vector3.Zero, Quaternion.Identity, Vector3.One);
+    public static Transform3D Identity => new(Vector3.Zero, Quaternion.Identity, Vector3.One);
 }
