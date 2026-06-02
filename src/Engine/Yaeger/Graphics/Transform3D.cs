@@ -2,12 +2,8 @@ using System.Numerics;
 
 namespace Yaeger.Graphics;
 
-public struct Transform3D(Vector3 position, Quaternion rotation, Vector3 scale)
+public record struct Transform3D(Vector3 Position, Quaternion Rotation, Vector3 Scale)
 {
-    public Vector3 Position = position;
-    public Quaternion Rotation = rotation;
-    public Vector3 Scale = scale;
-
     public Matrix4x4 ModelMatrix =>
         Matrix4x4.CreateScale(Scale)
         * Matrix4x4.CreateFromQuaternion(Rotation)
