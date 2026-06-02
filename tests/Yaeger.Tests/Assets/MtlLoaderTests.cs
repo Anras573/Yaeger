@@ -130,6 +130,36 @@ public class MtlLoaderTests
     }
 
     [Fact]
+    public void Load_NullOrWhiteSpacePath_ShouldThrowArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => MtlLoader.Load("   "));
+    }
+
+    [Fact]
+    public void Load_InlineComments_ShouldBeStripped()
+    {
+        var mtl = """
+            newmtl inline_test # material name comment
+            Kd 1.0 0.0 0.0 # red diffuse
+            Ns 10.0 # shininess
+            """;
+        var path = WriteTempFile(mtl);
+
+        try
+        {
+            var materials = MtlLoader.Load(path);
+
+            Assert.Single(materials);
+            Assert.Equal("inline_test", materials["inline_test"].Name);
+            Assert.Equal((byte)255, materials["inline_test"].DiffuseColor.R);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Load_DefaultColors_AmbientIsBlackDiffuseIsWhite()
     {
         var mtl = """

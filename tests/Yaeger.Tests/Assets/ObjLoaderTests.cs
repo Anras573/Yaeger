@@ -274,8 +274,96 @@ public class ObjLoaderTests
     }
 
     [Fact]
+    public void Load_NegativeIndices_ShouldResolveRelativeToPoolEnd()
+    {
+        var obj = """
+            v 0.0 0.0 0.0
+            v 1.0 0.0 0.0
+            v 0.0 1.0 0.0
+            vn 0.0 0.0 1.0
+            g tri
+            f -3//-1 -2//-1 -1//-1
+            """;
+        var path = WriteTempFile(obj);
+
+        try
+        {
+            var meshes = ObjLoader.Load(path);
+
+            Assert.Single(meshes);
+            var mesh = meshes[0].Mesh;
+            Assert.Equal(3, mesh.Vertices.Length);
+            Assert.Equal(new Vector3(0f, 0f, 0f), mesh.Vertices[0].Position);
+            Assert.Equal(new Vector3(1f, 0f, 0f), mesh.Vertices[1].Position);
+            Assert.Equal(new Vector3(0f, 1f, 0f), mesh.Vertices[2].Position);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_NoUsemtl_ShouldHaveNullMaterialName()
+    {
+        var obj = """
+            v 0.0 0.0 0.0
+            v 1.0 0.0 0.0
+            v 0.0 1.0 0.0
+            vn 0.0 0.0 1.0
+            g tri
+            f 1//1 2//1 3//1
+            """;
+        var path = WriteTempFile(obj);
+
+        try
+        {
+            var meshes = ObjLoader.Load(path);
+
+            Assert.Single(meshes);
+            Assert.Null(meshes[0].MaterialName);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_InlineComments_ShouldBeStripped()
+    {
+        var obj = """
+            v 0.0 0.0 0.0 # origin
+            v 1.0 0.0 0.0 # x-axis
+            v 0.0 1.0 0.0 # y-axis
+            vn 0.0 0.0 1.0 # front
+            g tri # group name comment
+            f 1//1 2//1 3//1 # face
+            """;
+        var path = WriteTempFile(obj);
+
+        try
+        {
+            var meshes = ObjLoader.Load(path);
+
+            Assert.Single(meshes);
+            Assert.Equal(3, meshes[0].Mesh.Vertices.Length);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Load_FileNotFound_ShouldThrowFileNotFoundException()
     {
         Assert.Throws<FileNotFoundException>(() => ObjLoader.Load("nonexistent.obj"));
+    }
+
+    [Fact]
+    public void Load_NullOrWhiteSpacePath_ShouldThrowArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => ObjLoader.Load("   "));
     }
 }

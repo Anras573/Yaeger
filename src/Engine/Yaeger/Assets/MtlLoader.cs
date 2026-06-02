@@ -7,6 +7,8 @@ public static class MtlLoader
 {
     public static Dictionary<string, MtlMaterial> Load(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
+
         var resolved = AssetPath.Resolve(path);
 
         if (!File.Exists(resolved))
@@ -39,6 +41,12 @@ public static class MtlLoader
         {
             var line = rawLine.Trim();
             if (line.Length == 0 || line[0] == '#')
+                continue;
+
+            var commentIdx = line.IndexOf('#');
+            if (commentIdx >= 0)
+                line = line[..commentIdx].TrimEnd();
+            if (line.Length == 0)
                 continue;
 
             var spaceIdx = line.IndexOf(' ');

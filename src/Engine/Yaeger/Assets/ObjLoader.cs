@@ -12,6 +12,10 @@ public static class ObjLoader
 
     public static ObjScene LoadScene(string objPath, string? mtlBasePath = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(objPath, nameof(objPath));
+        if (mtlBasePath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(mtlBasePath, nameof(mtlBasePath));
+
         var resolved = AssetPath.Resolve(objPath);
 
         if (!File.Exists(resolved))
@@ -25,12 +29,15 @@ public static class ObjLoader
         var materials = new Dictionary<string, MtlMaterial>();
 
         string currentName = "default";
-        string currentMaterial = "";
+        string? currentMaterial = null;
         var currentVertices = new List<Vertex3D>();
         var currentIndices = new List<uint>();
         var vertexCache = new Dictionary<(int posIdx, int texIdx, int normIdx), uint>();
 
-        string mtlDir = mtlBasePath ?? Path.GetDirectoryName(resolved) ?? AppContext.BaseDirectory;
+        string mtlDir =
+            mtlBasePath is not null
+                ? AssetPath.Resolve(mtlBasePath)
+                : Path.GetDirectoryName(resolved) ?? AppContext.BaseDirectory;
 
         void FlushGroup()
         {
@@ -51,6 +58,12 @@ public static class ObjLoader
         {
             var line = rawLine.Trim();
             if (line.Length == 0 || line[0] == '#')
+                continue;
+
+            var commentIdx = line.IndexOf('#');
+            if (commentIdx >= 0)
+                line = line[..commentIdx].TrimEnd();
+            if (line.Length == 0)
                 continue;
 
             var spaceIdx = line.IndexOf(' ');
@@ -119,7 +132,12 @@ public static class ObjLoader
                     var faceVerts = new uint[tokens.Length];
                     for (var i = 0; i < tokens.Length; i++)
                     {
-                        var (posIdx, texIdx, normIdx) = ParseFaceVertex(tokens[i]);
+                        var (posIdx, texIdx, normIdx) = ParseFaceVertex(
+                            tokens[i],
+                            positions.Count,
+                            texCoords.Count,
+                            normals.Count
+                        );
                         var key = (posIdx, texIdx, normIdx);
                         if (!vertexCache.TryGetValue(key, out var vertIdx))
                         {
@@ -151,18 +169,26 @@ public static class ObjLoader
         );
     }
 
-    private static (int posIdx, int texIdx, int normIdx) ParseFaceVertex(string token)
+    private static (int posIdx, int texIdx, int normIdx) ParseFaceVertex(
+        string token,
+        int posCount,
+        int texCount,
+        int normCount
+    )
     {
         var parts = token.Split('/');
-        var posIdx = int.Parse(parts[0], CultureInfo.InvariantCulture) - 1;
+        var posIdx = Resolve(int.Parse(parts[0], CultureInfo.InvariantCulture), posCount);
         var texIdx =
             parts.Length > 1 && parts[1].Length > 0
-                ? int.Parse(parts[1], CultureInfo.InvariantCulture) - 1
+                ? Resolve(int.Parse(parts[1], CultureInfo.InvariantCulture), texCount)
                 : -1;
         var normIdx =
             parts.Length > 2 && parts[2].Length > 0
-                ? int.Parse(parts[2], CultureInfo.InvariantCulture) - 1
+                ? Resolve(int.Parse(parts[2], CultureInfo.InvariantCulture), normCount)
                 : -1;
         return (posIdx, texIdx, normIdx);
     }
+
+    private static int Resolve(int oneBasedOrNegative, int poolCount) =>
+        oneBasedOrNegative > 0 ? oneBasedOrNegative - 1 : poolCount + oneBasedOrNegative;
 }
