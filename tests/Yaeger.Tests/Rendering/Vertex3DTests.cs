@@ -6,18 +6,13 @@ namespace Yaeger.Tests.Rendering;
 public class Vertex3DTests
 {
     [Fact]
-    public void ObjectInitializer_SetsAllFields()
+    public void Constructor_SetsAllFields()
     {
         var position = new Vector3(1f, 2f, 3f);
         var normal = new Vector3(0f, 1f, 0f);
         var texCoord = new Vector2(0.5f, 0.25f);
 
-        var vertex = new Vertex3D
-        {
-            Position = position,
-            Normal = normal,
-            TexCoord = texCoord,
-        };
+        var vertex = new Vertex3D(position, normal, texCoord);
 
         Assert.Equal(position, vertex.Position);
         Assert.Equal(normal, vertex.Normal);

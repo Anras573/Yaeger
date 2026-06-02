@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Silk.NET.OpenGL;
 
 namespace Yaeger.Rendering;
@@ -10,14 +11,6 @@ public sealed class GpuMesh : IDisposable
     private readonly Buffer<uint> _ebo;
     private readonly uint _indexCount;
 
-    // Vertex layout: Position (3f) | Normal (3f) | TexCoord (2f)
-    private const uint VertexSize = 8;
-    private const int PositionCount = 3;
-    private const int NormalCount = 3;
-    private const int TexCoordCount = 2;
-    private const int NormalOffset = PositionCount;
-    private const int TexCoordOffset = PositionCount + NormalCount;
-
     public unsafe GpuMesh(GL gl, MeshData data)
     {
         _gl = gl;
@@ -27,29 +20,30 @@ public sealed class GpuMesh : IDisposable
         _gl.BindVertexArray(_vao);
 
         _vbo = new Buffer<Vertex3D>(gl, data.Vertices, BufferTargetARB.ArrayBuffer);
+        _vbo.Bind();
         _ebo = new Buffer<uint>(gl, data.Indices, BufferTargetARB.ElementArrayBuffer);
+        _ebo.Bind();
 
-        VertexAttributeFloatPointer(0, PositionCount, VertexSize, 0);
-        VertexAttributeFloatPointer(1, NormalCount, VertexSize, NormalOffset);
-        VertexAttributeFloatPointer(2, TexCoordCount, VertexSize, TexCoordOffset);
+        var stride = (uint)sizeof(Vertex3D);
+        SetupAttrib(0, 3, stride, OffsetOf(nameof(Vertex3D.Position)));
+        SetupAttrib(1, 3, stride, OffsetOf(nameof(Vertex3D.Normal)));
+        SetupAttrib(2, 2, stride, OffsetOf(nameof(Vertex3D.TexCoord)));
 
         _gl.BindVertexArray(0);
     }
 
-    private unsafe void VertexAttributeFloatPointer(
-        uint index,
-        int count,
-        uint vertexSize,
-        int offset
-    )
+    private static uint OffsetOf(string fieldName) =>
+        (uint)(nint)Marshal.OffsetOf<Vertex3D>(fieldName);
+
+    private unsafe void SetupAttrib(uint index, int count, uint stride, uint offset)
     {
         _gl.VertexAttribPointer(
             index,
             count,
             VertexAttribPointerType.Float,
             false,
-            vertexSize * sizeof(float),
-            (void*)(offset * sizeof(float))
+            stride,
+            (void*)offset
         );
         _gl.EnableVertexAttribArray(index);
     }
@@ -63,12 +57,13 @@ public sealed class GpuMesh : IDisposable
             DrawElementsType.UnsignedInt,
             (void*)0
         );
+        _gl.BindVertexArray(0);
     }
 
     public void Dispose()
     {
+        _gl.DeleteVertexArray(_vao);
         _vbo.Dispose();
         _ebo.Dispose();
-        _gl.DeleteVertexArray(_vao);
     }
 }

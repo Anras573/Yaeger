@@ -8,7 +8,7 @@ public class MeshDataTests
     [Fact]
     public void Constructor_SetsAllProperties()
     {
-        var vertices = new[] { new Vertex3D { Position = Vector3.UnitX } };
+        var vertices = new[] { new Vertex3D(Vector3.UnitX, Vector3.UnitY, Vector2.Zero) };
         var indices = new uint[] { 0, 1, 2 };
 
         var mesh = new MeshData("cube", vertices, indices);
@@ -21,7 +21,7 @@ public class MeshDataTests
     [Fact]
     public void RecordEquality_SameReferences_AreEqual()
     {
-        var vertices = new[] { new Vertex3D { Position = Vector3.Zero } };
+        var vertices = new[] { new Vertex3D(Vector3.Zero, Vector3.Zero, Vector2.Zero) };
         var indices = new uint[] { 0 };
 
         var a = new MeshData("mesh", vertices, indices);
@@ -35,8 +35,8 @@ public class MeshDataTests
     {
         // Arrays do not override Equals, so different instances are not equal
         // even when the contents match.
-        var a = new MeshData("mesh", Array.Empty<Vertex3D>(), new uint[] { 0 });
-        var b = new MeshData("mesh", Array.Empty<Vertex3D>(), new uint[] { 0 });
+        var a = new MeshData("mesh", new Vertex3D[0], new uint[] { 0 });
+        var b = new MeshData("mesh", new Vertex3D[0], new uint[] { 0 });
 
         Assert.NotEqual(a, b);
     }
