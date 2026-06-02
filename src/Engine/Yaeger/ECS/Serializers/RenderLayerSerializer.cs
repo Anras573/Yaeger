@@ -20,6 +20,9 @@ public sealed class RenderLayerSerializer : IComponentSerializer
     public string TypeId => "RenderLayer";
 
     /// <inheritdoc/>
+    public Type? ComponentType => typeof(RenderLayer);
+
+    /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
         var value = 0;

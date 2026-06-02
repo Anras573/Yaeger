@@ -20,6 +20,9 @@ public sealed class SpriteSerializer : IComponentSerializer
     public string TypeId => "Sprite";
 
     /// <inheritdoc/>
+    public Type? ComponentType => typeof(Sprite);
+
+    /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
         var texturePath = GetRequiredTexturePath(element);

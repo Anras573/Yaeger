@@ -27,6 +27,9 @@ public sealed class AnimationSerializer : IComponentSerializer
     public string TypeId => "Animation";
 
     /// <inheritdoc/>
+    public Type? ComponentType => typeof(Animation);
+
+    /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
         var loop = true;
