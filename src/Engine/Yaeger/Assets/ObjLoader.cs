@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Numerics;
 using Yaeger.Rendering;
@@ -6,7 +7,10 @@ namespace Yaeger.Assets;
 
 public static class ObjLoader
 {
-    public static ObjScene Load(string objPath, string? mtlBasePath = null)
+    public static IReadOnlyList<ObjMesh> Load(string objPath, string? mtlBasePath = null) =>
+        LoadScene(objPath, mtlBasePath).Meshes;
+
+    public static ObjScene LoadScene(string objPath, string? mtlBasePath = null)
     {
         var resolved = AssetPath.Resolve(objPath);
 
@@ -45,7 +49,7 @@ public static class ObjLoader
 
         foreach (var rawLine in File.ReadLines(resolved))
         {
-            var line = rawLine.TrimEnd();
+            var line = rawLine.Trim();
             if (line.Length == 0 || line[0] == '#')
                 continue;
 
@@ -141,7 +145,10 @@ public static class ObjLoader
         }
 
         FlushGroup();
-        return new ObjScene(meshes.AsReadOnly(), materials);
+        return new ObjScene(
+            meshes.AsReadOnly(),
+            new ReadOnlyDictionary<string, MtlMaterial>(materials)
+        );
     }
 
     private static (int posIdx, int texIdx, int normIdx) ParseFaceVertex(string token)

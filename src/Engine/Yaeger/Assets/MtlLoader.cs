@@ -37,7 +37,7 @@ public static class MtlLoader
 
         foreach (var rawLine in File.ReadLines(resolved))
         {
-            var line = rawLine.TrimEnd();
+            var line = rawLine.Trim();
             if (line.Length == 0 || line[0] == '#')
                 continue;
 
@@ -81,9 +81,12 @@ public static class MtlLoader
     private static Color ParseColor(string value)
     {
         var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var r = (byte)(float.Parse(parts[0], CultureInfo.InvariantCulture) * 255f);
-        var g = (byte)(float.Parse(parts[1], CultureInfo.InvariantCulture) * 255f);
-        var b = (byte)(float.Parse(parts[2], CultureInfo.InvariantCulture) * 255f);
-        return new Color(r, g, b);
+        return new Color(
+            ToChannel(float.Parse(parts[0], CultureInfo.InvariantCulture)),
+            ToChannel(float.Parse(parts[1], CultureInfo.InvariantCulture)),
+            ToChannel(float.Parse(parts[2], CultureInfo.InvariantCulture))
+        );
     }
+
+    private static byte ToChannel(float f) => (byte)Math.Clamp((int)(f * 255f), 0, 255);
 }

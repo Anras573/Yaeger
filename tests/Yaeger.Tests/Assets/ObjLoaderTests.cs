@@ -27,10 +27,10 @@ public class ObjLoaderTests
 
         try
         {
-            var scene = ObjLoader.Load(path);
+            var meshes = ObjLoader.Load(path);
 
-            Assert.Single(scene.Meshes);
-            var mesh = scene.Meshes[0].Mesh;
+            Assert.Single(meshes);
+            var mesh = meshes[0].Mesh;
             Assert.Equal(3, mesh.Vertices.Length);
             Assert.Equal(3, mesh.Indices.Length);
             Assert.Equal(new Vector3(0f, 0f, 0f), mesh.Vertices[0].Position);
@@ -60,10 +60,10 @@ public class ObjLoaderTests
 
         try
         {
-            var scene = ObjLoader.Load(path);
+            var meshes = ObjLoader.Load(path);
 
-            Assert.Single(scene.Meshes);
-            var mesh = scene.Meshes[0].Mesh;
+            Assert.Single(meshes);
+            var mesh = meshes[0].Mesh;
             Assert.Equal(4, mesh.Vertices.Length);
             Assert.Equal(6, mesh.Indices.Length);
             Assert.Equal<uint>(0, mesh.Indices[0]);
@@ -99,11 +99,11 @@ public class ObjLoaderTests
 
         try
         {
-            var scene = ObjLoader.Load(path);
+            var meshes = ObjLoader.Load(path);
 
-            Assert.Equal(2, scene.Meshes.Count);
-            Assert.Equal("groupA", scene.Meshes[0].Name);
-            Assert.Equal("groupB", scene.Meshes[1].Name);
+            Assert.Equal(2, meshes.Count);
+            Assert.Equal("groupA", meshes[0].Name);
+            Assert.Equal("groupB", meshes[1].Name);
         }
         finally
         {
@@ -127,10 +127,10 @@ public class ObjLoaderTests
 
         try
         {
-            var scene = ObjLoader.Load(path);
+            var meshes = ObjLoader.Load(path);
 
-            Assert.Single(scene.Meshes);
-            Assert.Equal("myMaterial", scene.Meshes[0].MaterialName);
+            Assert.Single(meshes);
+            Assert.Equal("myMaterial", meshes[0].MaterialName);
         }
         finally
         {
@@ -159,11 +159,11 @@ public class ObjLoaderTests
 
         try
         {
-            var scene = ObjLoader.Load(path);
+            var meshes = ObjLoader.Load(path);
 
-            Assert.Equal(2, scene.Meshes.Count);
-            Assert.Equal("mat1", scene.Meshes[0].MaterialName);
-            Assert.Equal("mat2", scene.Meshes[1].MaterialName);
+            Assert.Equal(2, meshes.Count);
+            Assert.Equal("mat1", meshes[0].MaterialName);
+            Assert.Equal("mat2", meshes[1].MaterialName);
         }
         finally
         {
@@ -189,10 +189,10 @@ public class ObjLoaderTests
 
         try
         {
-            var scene = ObjLoader.Load(path);
+            var meshes = ObjLoader.Load(path);
 
-            Assert.Single(scene.Meshes);
-            var vertices = scene.Meshes[0].Mesh.Vertices;
+            Assert.Single(meshes);
+            var vertices = meshes[0].Mesh.Vertices;
             Assert.Equal(new Vector2(0f, 0f), vertices[0].TexCoord);
             Assert.Equal(new Vector2(1f, 0f), vertices[1].TexCoord);
             Assert.Equal(new Vector2(0f, 1f), vertices[2].TexCoord);
@@ -220,10 +220,10 @@ public class ObjLoaderTests
 
         try
         {
-            var scene = ObjLoader.Load(path);
+            var meshes = ObjLoader.Load(path);
 
-            Assert.Single(scene.Meshes);
-            var mesh = scene.Meshes[0].Mesh;
+            Assert.Single(meshes);
+            var mesh = meshes[0].Mesh;
             Assert.Equal(4, mesh.Vertices.Length);
             Assert.Equal(6, mesh.Indices.Length);
         }
@@ -234,7 +234,7 @@ public class ObjLoaderTests
     }
 
     [Fact]
-    public void Load_MtllibDirective_ShouldPopulateMaterials()
+    public void LoadScene_MtllibDirective_ShouldPopulateMaterials()
     {
         var tempDir = Path.GetTempPath();
         var mtlPath = Path.Combine(tempDir, $"{Guid.NewGuid()}.mtl");
@@ -261,7 +261,7 @@ public class ObjLoaderTests
 
         try
         {
-            var scene = ObjLoader.Load(objPath);
+            var scene = ObjLoader.LoadScene(objPath);
 
             Assert.True(scene.Materials.ContainsKey("stone"));
             Assert.Equal(10.0f, scene.Materials["stone"].Shininess);
