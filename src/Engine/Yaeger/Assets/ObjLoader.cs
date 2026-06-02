@@ -24,7 +24,11 @@ public static class ObjLoader
         {
             if (currentIndices.Count == 0)
                 return;
-            var meshData = new MeshData(currentName, currentVertices.ToArray(), currentIndices.ToArray());
+            var meshData = new MeshData(
+                currentName,
+                currentVertices.ToArray(),
+                currentIndices.ToArray()
+            );
             meshes.Add(new ObjMesh(currentName, meshData, currentMaterial));
             currentVertices.Clear();
             currentIndices.Clear();
