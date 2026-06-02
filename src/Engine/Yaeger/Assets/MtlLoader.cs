@@ -92,6 +92,8 @@ public static class MtlLoader
     private static Color ParseColor(string value)
     {
         var parts = value.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3)
+            throw new FormatException($"MTL color requires 3 components; got {parts.Length}.");
         return new Color(
             ToChannel(float.Parse(parts[0], CultureInfo.InvariantCulture)),
             ToChannel(float.Parse(parts[1], CultureInfo.InvariantCulture)),

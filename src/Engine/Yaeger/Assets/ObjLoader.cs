@@ -74,6 +74,10 @@ public static class ObjLoader
                 case "v":
                 {
                     var p = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
+                    if (p.Length < 3)
+                        throw new FormatException(
+                            $"OBJ 'v' requires 3 components; got {p.Length}."
+                        );
                     positions.Add(
                         new Vector3(
                             float.Parse(p[0], CultureInfo.InvariantCulture),
@@ -86,6 +90,10 @@ public static class ObjLoader
                 case "vn":
                 {
                     var p = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
+                    if (p.Length < 3)
+                        throw new FormatException(
+                            $"OBJ 'vn' requires 3 components; got {p.Length}."
+                        );
                     normals.Add(
                         new Vector3(
                             float.Parse(p[0], CultureInfo.InvariantCulture),
@@ -98,6 +106,10 @@ public static class ObjLoader
                 case "vt":
                 {
                     var p = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
+                    if (p.Length < 2)
+                        throw new FormatException(
+                            $"OBJ 'vt' requires at least 2 components; got {p.Length}."
+                        );
                     texCoords.Add(
                         new Vector2(
                             float.Parse(p[0], CultureInfo.InvariantCulture),
@@ -128,6 +140,10 @@ public static class ObjLoader
                 case "f":
                 {
                     var tokens = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
+                    if (tokens.Length < 3)
+                        throw new FormatException(
+                            $"OBJ face 'f' requires at least 3 vertices; got {tokens.Length}."
+                        );
                     var faceVerts = new uint[tokens.Length];
                     for (var i = 0; i < tokens.Length; i++)
                     {
@@ -178,6 +194,10 @@ public static class ObjLoader
     )
     {
         var parts = token.Split('/');
+        if (parts.Length > 3)
+            throw new FormatException(
+                $"OBJ face vertex '{token}' has {parts.Length} components; expected v, v/vt, or v/vt/vn."
+            );
         var posIdx = Resolve(int.Parse(parts[0], CultureInfo.InvariantCulture), posCount);
         var texIdx =
             parts.Length > 1 && parts[1].Length > 0

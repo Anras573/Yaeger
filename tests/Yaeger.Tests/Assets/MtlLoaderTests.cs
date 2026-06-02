@@ -160,6 +160,25 @@ public class MtlLoaderTests
     }
 
     [Fact]
+    public void Load_MalformedColor_ShouldThrowFormatException()
+    {
+        var mtl = """
+            newmtl bad
+            Kd 1.0 0.5
+            """;
+        var path = WriteTempFile(mtl);
+
+        try
+        {
+            Assert.Throws<FormatException>(() => MtlLoader.Load(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Load_DefaultColors_AmbientIsBlackDiffuseIsWhite()
     {
         var mtl = """
