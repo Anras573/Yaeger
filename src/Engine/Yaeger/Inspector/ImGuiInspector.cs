@@ -155,7 +155,8 @@ public sealed class ImGuiInspector : IDisposable
         var entity = _selectedEntity.Value;
 
         // The game may have destroyed this entity externally between frames
-        if (!_world.Entities.Contains(entity))
+        var entitySet = _world.Entities as ICollection<Entity>;
+        if (!(entitySet?.Contains(entity) ?? _world.Entities.Contains(entity)))
         {
             _selectedEntity = null;
             ImGui.TextDisabled("Entity no longer exists.");
@@ -390,7 +391,10 @@ public sealed class ImGuiInspector : IDisposable
     {
         var items = new List<string>();
 
-        // Camera2D is a curated inspector type but not in the default registry
+        if (!_world.TryGetComponent<Transform2D>(entity, out _))
+            items.Add("Transform2D");
+
+        // Camera2D is not in the default registry, so it is always handled explicitly
         if (!_world.TryGetComponent<Camera2D>(entity, out _))
             items.Add("Camera2D");
 
@@ -398,6 +402,9 @@ public sealed class ImGuiInspector : IDisposable
         {
             foreach (var serializer in _registry.Serializers)
             {
+                // Skip curated types already handled above to avoid duplicates
+                if (serializer.TypeId is "Transform2D" or "Camera2D")
+                    continue;
                 if (!EntityHasComponent(entity, serializer))
                     items.Add(serializer.TypeId);
             }
@@ -464,7 +471,8 @@ public sealed class ImGuiInspector : IDisposable
         if (serializer.ComponentType is { } type && type.IsValueType)
         {
             var method = WorldTryGetComponentMethod.MakeGenericMethod(type);
-            var args = new object?[] { entity, null };
+            // Pass a boxed default for the out parameter; null can misfire for value types
+            var args = new object?[] { entity, Activator.CreateInstance(type) };
             return (bool)method.Invoke(_world, args)!;
         }
 
