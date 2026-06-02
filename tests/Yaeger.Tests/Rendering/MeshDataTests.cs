@@ -9,7 +9,7 @@ public class MeshDataTests
     public void Constructor_SetsAllProperties()
     {
         var vertices = new[] { new Vertex3D(Vector3.UnitX, Vector3.UnitY, Vector2.Zero) };
-        var indices = new uint[] { 0, 1, 2 };
+        var indices = new uint[] { 0 };
 
         var mesh = new MeshData("cube", vertices, indices);
 
