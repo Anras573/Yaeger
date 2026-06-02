@@ -9,6 +9,19 @@ public class Camera3DTests
     private const float AspectRatio = 16f / 9f;
 
     [Fact]
+    public void StructDefault_ViewProjection_IsFinite()
+    {
+        // default(Camera3D) has all-zero fields; the guards must prevent NaN/throws.
+        var camera = default(Camera3D);
+        var m = camera.ViewProjection(AspectRatio);
+
+        Assert.True(float.IsFinite(m.M11));
+        Assert.True(float.IsFinite(m.M22));
+        Assert.True(float.IsFinite(m.M33));
+        Assert.True(float.IsFinite(m.M44));
+    }
+
+    [Fact]
     public void ParameterlessCtor_ProducesSafeDefaults()
     {
         // Arrange / Act
@@ -37,8 +50,8 @@ public class Camera3DTests
     [Fact]
     public void ViewMatrix_TargetOnNegativeZ_LooksDownNegativeZ()
     {
-        // Camera at origin looking at (0,0,-1): forward is -Z, so the view matrix maps
-        // a point at (0,0,-1) world to (0,0,positive) in view space.
+        // Camera at origin looking toward (0,0,-1): in right-handed view space the
+        // target is in front of the camera, so its view-space Z is negative.
         var camera = new Camera3D(
             Vector3.Zero,
             new Vector3(0, 0, -1),
