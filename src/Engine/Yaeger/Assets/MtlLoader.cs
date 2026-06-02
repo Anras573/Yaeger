@@ -7,6 +7,11 @@ public static class MtlLoader
 {
     public static Dictionary<string, MtlMaterial> Load(string path)
     {
+        var resolved = AssetPath.Resolve(path);
+
+        if (!File.Exists(resolved))
+            throw new FileNotFoundException($"MTL file not found: {path}", resolved);
+
         var materials = new Dictionary<string, MtlMaterial>();
 
         string? currentName = null;
@@ -30,7 +35,7 @@ public static class MtlLoader
             );
         }
 
-        foreach (var rawLine in File.ReadLines(path))
+        foreach (var rawLine in File.ReadLines(resolved))
         {
             var line = rawLine.TrimEnd();
             if (line.Length == 0 || line[0] == '#')

@@ -124,6 +124,12 @@ public class MtlLoaderTests
     }
 
     [Fact]
+    public void Load_FileNotFound_ShouldThrowFileNotFoundException()
+    {
+        Assert.Throws<FileNotFoundException>(() => MtlLoader.Load("nonexistent.mtl"));
+    }
+
+    [Fact]
     public void Load_DefaultColors_AmbientIsBlackDiffuseIsWhite()
     {
         var mtl = """

@@ -27,10 +27,10 @@ public class ObjLoaderTests
 
         try
         {
-            var meshes = ObjLoader.Load(path);
+            var scene = ObjLoader.Load(path);
 
-            Assert.Single(meshes);
-            var mesh = meshes[0].Mesh;
+            Assert.Single(scene.Meshes);
+            var mesh = scene.Meshes[0].Mesh;
             Assert.Equal(3, mesh.Vertices.Length);
             Assert.Equal(3, mesh.Indices.Length);
             Assert.Equal(new Vector3(0f, 0f, 0f), mesh.Vertices[0].Position);
@@ -60,18 +60,15 @@ public class ObjLoaderTests
 
         try
         {
-            var meshes = ObjLoader.Load(path);
+            var scene = ObjLoader.Load(path);
 
-            Assert.Single(meshes);
-            var mesh = meshes[0].Mesh;
+            Assert.Single(scene.Meshes);
+            var mesh = scene.Meshes[0].Mesh;
             Assert.Equal(4, mesh.Vertices.Length);
-            // Two triangles = 6 indices
             Assert.Equal(6, mesh.Indices.Length);
-            // First triangle: v0, v1, v2
             Assert.Equal<uint>(0, mesh.Indices[0]);
             Assert.Equal<uint>(1, mesh.Indices[1]);
             Assert.Equal<uint>(2, mesh.Indices[2]);
-            // Second triangle: v0, v2, v3
             Assert.Equal<uint>(0, mesh.Indices[3]);
             Assert.Equal<uint>(2, mesh.Indices[4]);
             Assert.Equal<uint>(3, mesh.Indices[5]);
@@ -102,11 +99,11 @@ public class ObjLoaderTests
 
         try
         {
-            var meshes = ObjLoader.Load(path);
+            var scene = ObjLoader.Load(path);
 
-            Assert.Equal(2, meshes.Count);
-            Assert.Equal("groupA", meshes[0].Name);
-            Assert.Equal("groupB", meshes[1].Name);
+            Assert.Equal(2, scene.Meshes.Count);
+            Assert.Equal("groupA", scene.Meshes[0].Name);
+            Assert.Equal("groupB", scene.Meshes[1].Name);
         }
         finally
         {
@@ -130,10 +127,43 @@ public class ObjLoaderTests
 
         try
         {
-            var meshes = ObjLoader.Load(path);
+            var scene = ObjLoader.Load(path);
 
-            Assert.Single(meshes);
-            Assert.Equal("myMaterial", meshes[0].MaterialName);
+            Assert.Single(scene.Meshes);
+            Assert.Equal("myMaterial", scene.Meshes[0].MaterialName);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_UsemtlMidGroup_ShouldFlushAndCreateSeparateMeshes()
+    {
+        var obj = """
+            v 0.0 0.0 0.0
+            v 1.0 0.0 0.0
+            v 0.0 1.0 0.0
+            v 0.0 0.0 1.0
+            v 1.0 0.0 1.0
+            v 0.0 1.0 1.0
+            vn 0.0 0.0 1.0
+            g section
+            usemtl mat1
+            f 1//1 2//1 3//1
+            usemtl mat2
+            f 4//1 5//1 6//1
+            """;
+        var path = WriteTempFile(obj);
+
+        try
+        {
+            var scene = ObjLoader.Load(path);
+
+            Assert.Equal(2, scene.Meshes.Count);
+            Assert.Equal("mat1", scene.Meshes[0].MaterialName);
+            Assert.Equal("mat2", scene.Meshes[1].MaterialName);
         }
         finally
         {
@@ -159,10 +189,10 @@ public class ObjLoaderTests
 
         try
         {
-            var meshes = ObjLoader.Load(path);
+            var scene = ObjLoader.Load(path);
 
-            Assert.Single(meshes);
-            var vertices = meshes[0].Mesh.Vertices;
+            Assert.Single(scene.Meshes);
+            var vertices = scene.Meshes[0].Mesh.Vertices;
             Assert.Equal(new Vector2(0f, 0f), vertices[0].TexCoord);
             Assert.Equal(new Vector2(1f, 0f), vertices[1].TexCoord);
             Assert.Equal(new Vector2(0f, 1f), vertices[2].TexCoord);
@@ -176,7 +206,6 @@ public class ObjLoaderTests
     [Fact]
     public void Load_SharedVertices_ShouldDeduplicateViaCache()
     {
-        // Two triangles sharing two vertices (a square split into triangles)
         var obj = """
             v 0.0 0.0 0.0
             v 1.0 0.0 0.0
@@ -191,11 +220,10 @@ public class ObjLoaderTests
 
         try
         {
-            var meshes = ObjLoader.Load(path);
+            var scene = ObjLoader.Load(path);
 
-            Assert.Single(meshes);
-            var mesh = meshes[0].Mesh;
-            // 4 unique (pos, norm) combinations → 4 vertices
+            Assert.Single(scene.Meshes);
+            var mesh = scene.Meshes[0].Mesh;
             Assert.Equal(4, mesh.Vertices.Length);
             Assert.Equal(6, mesh.Indices.Length);
         }
@@ -203,5 +231,51 @@ public class ObjLoaderTests
         {
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public void Load_MtllibDirective_ShouldPopulateMaterials()
+    {
+        var tempDir = Path.GetTempPath();
+        var mtlPath = Path.Combine(tempDir, $"{Guid.NewGuid()}.mtl");
+        var objPath = Path.Combine(tempDir, $"{Guid.NewGuid()}.obj");
+
+        var mtl = """
+            newmtl stone
+            Kd 1.0 0.0 0.0
+            Ns 10.0
+            """;
+        File.WriteAllText(mtlPath, mtl);
+
+        var obj = $"""
+            mtllib {Path.GetFileName(mtlPath)}
+            v 0.0 0.0 0.0
+            v 1.0 0.0 0.0
+            v 0.0 1.0 0.0
+            vn 0.0 0.0 1.0
+            g tri
+            usemtl stone
+            f 1//1 2//1 3//1
+            """;
+        File.WriteAllText(objPath, obj);
+
+        try
+        {
+            var scene = ObjLoader.Load(objPath);
+
+            Assert.True(scene.Materials.ContainsKey("stone"));
+            Assert.Equal(10.0f, scene.Materials["stone"].Shininess);
+        }
+        finally
+        {
+            File.Delete(objPath);
+            File.Delete(mtlPath);
+        }
+    }
+
+    [Fact]
+    public void Load_FileNotFound_ShouldThrowFileNotFoundException()
+    {
+        Assert.Throws<FileNotFoundException>(() => ObjLoader.Load("nonexistent.obj"));
     }
 }

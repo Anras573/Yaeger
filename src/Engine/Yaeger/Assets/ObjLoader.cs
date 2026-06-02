@@ -6,19 +6,30 @@ namespace Yaeger.Assets;
 
 public static class ObjLoader
 {
-    public static IReadOnlyList<ObjMesh> Load(string objPath, string? mtlBasePath = null)
+    public static ObjScene Load(string objPath, string? mtlBasePath = null)
     {
+        var resolved = AssetPath.Resolve(objPath);
+
+        if (!File.Exists(resolved))
+            throw new FileNotFoundException($"OBJ file not found: {objPath}", resolved);
+
         var positions = new List<Vector3>();
         var normals = new List<Vector3>();
         var texCoords = new List<Vector2>();
 
         var meshes = new List<ObjMesh>();
+        var materials = new Dictionary<string, MtlMaterial>();
 
         string currentName = "default";
         string currentMaterial = "";
         var currentVertices = new List<Vertex3D>();
         var currentIndices = new List<uint>();
         var vertexCache = new Dictionary<(int posIdx, int texIdx, int normIdx), uint>();
+
+        string mtlDir =
+            mtlBasePath
+            ?? Path.GetDirectoryName(resolved)
+            ?? AppContext.BaseDirectory;
 
         void FlushGroup()
         {
@@ -35,7 +46,7 @@ public static class ObjLoader
             vertexCache.Clear();
         }
 
-        foreach (var rawLine in File.ReadLines(objPath))
+        foreach (var rawLine in File.ReadLines(resolved))
         {
             var line = rawLine.TrimEnd();
             if (line.Length == 0 || line[0] == '#')
@@ -88,11 +99,19 @@ public static class ObjLoader
                     currentName = rest;
                     break;
                 case "usemtl":
+                    FlushGroup();
                     currentMaterial = rest;
                     break;
                 case "mtllib":
-                    // Directive is recognized; callers use MtlLoader.Load() to retrieve material data.
+                {
+                    var mtlPath = Path.Combine(mtlDir, rest);
+                    if (File.Exists(mtlPath))
+                    {
+                        foreach (var (name, mat) in MtlLoader.Load(mtlPath))
+                            materials[name] = mat;
+                    }
                     break;
+                }
                 case "f":
                 {
                     var tokens = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -125,7 +144,7 @@ public static class ObjLoader
         }
 
         FlushGroup();
-        return meshes.AsReadOnly();
+        return new ObjScene(meshes.AsReadOnly(), materials);
     }
 
     private static (int posIdx, int texIdx, int normIdx) ParseFaceVertex(string token)
