@@ -132,12 +132,14 @@ public static class ObjLoader
     {
         var parts = token.Split('/');
         var posIdx = int.Parse(parts[0], CultureInfo.InvariantCulture) - 1;
-        var texIdx = parts.Length > 1 && parts[1].Length > 0
-            ? int.Parse(parts[1], CultureInfo.InvariantCulture) - 1
-            : -1;
-        var normIdx = parts.Length > 2 && parts[2].Length > 0
-            ? int.Parse(parts[2], CultureInfo.InvariantCulture) - 1
-            : -1;
+        var texIdx =
+            parts.Length > 1 && parts[1].Length > 0
+                ? int.Parse(parts[1], CultureInfo.InvariantCulture) - 1
+                : -1;
+        var normIdx =
+            parts.Length > 2 && parts[2].Length > 0
+                ? int.Parse(parts[2], CultureInfo.InvariantCulture) - 1
+                : -1;
         return (posIdx, texIdx, normIdx);
     }
 }
