@@ -264,7 +264,8 @@ public sealed class ImGuiInspector : IDisposable
             t.Position = new Vector2(posX, posY);
             t.Rotation = rot;
             t.Scale = new Vector2(scaleX, scaleY);
-            _world.AddComponent(entity, t);
+            var snapshot = t;
+            _pendingWorldOps.Add(w => w.AddComponent(entity, snapshot));
         }
 
         ImGui.Spacing();
@@ -304,7 +305,8 @@ public sealed class ImGuiInspector : IDisposable
             cam.Position = new Vector2(posX, posY);
             cam.Zoom = zoom;
             cam.Rotation = rot;
-            _world.AddComponent(entity, cam);
+            var snapshot = cam;
+            _pendingWorldOps.Add(w => w.AddComponent(entity, snapshot));
         }
 
         ImGui.Spacing();
@@ -322,7 +324,11 @@ public sealed class ImGuiInspector : IDisposable
         var path = sprite.TexturePath ?? string.Empty;
         ImGui.SetNextItemWidth(200);
         if (ImGui.InputText($"TexturePath##sp_{entity.Id}", ref path, 512))
-            _world.AddComponent(entity, new Sprite(path, sprite.Tint));
+        {
+            var tint = sprite.Tint;
+            var newPath = path;
+            _pendingWorldOps.Add(w => w.AddComponent(entity, new Sprite(newPath, tint)));
+        }
 
         ImGui.Spacing();
         if (ImGui.SmallButton($"Remove##Sprite_{entity.Id}"))
@@ -344,19 +350,29 @@ public sealed class ImGuiInspector : IDisposable
         if (_addComponentComboIndex >= typeIds.Length)
             _addComponentComboIndex = 0;
 
+        var currentLabel = typeIds[_addComponentComboIndex];
         ImGui.SetNextItemWidth(180);
-        ImGui.Combo(
-            $"##addCombo_{entity.Id}",
-            ref _addComponentComboIndex,
-            typeIds,
-            typeIds.Length
-        );
+        if (ImGui.BeginCombo($"##addCombo_{entity.Id}", currentLabel))
+        {
+            for (var i = 0; i < typeIds.Length; i++)
+            {
+                var typeId = typeIds[i];
+                var supported = DefaultAddActions.ContainsKey(typeId);
+                if (!supported)
+                    ImGui.BeginDisabled();
+
+                if (ImGui.Selectable(typeId, _addComponentComboIndex == i))
+                    _addComponentComboIndex = i;
+
+                if (!supported)
+                    ImGui.EndDisabled();
+            }
+            ImGui.EndCombo();
+        }
         ImGui.SameLine();
 
         var selectedId = typeIds[_addComponentComboIndex];
-        var hasDefaultAction = DefaultAddActions.ContainsKey(selectedId);
-
-        if (hasDefaultAction)
+        if (DefaultAddActions.ContainsKey(selectedId))
         {
             if (ImGui.SmallButton($"+##add_{entity.Id}"))
             {
