@@ -153,6 +153,15 @@ public sealed class ImGuiInspector : IDisposable
         }
 
         var entity = _selectedEntity.Value;
+
+        // The game may have destroyed this entity externally between frames
+        if (!_world.Entities.Contains(entity))
+        {
+            _selectedEntity = null;
+            ImGui.TextDisabled("Entity no longer exists.");
+            return;
+        }
+
         var entityLabel = _world.TryGetTag(entity, out var tag)
             ? $"\"{tag}\"  (#{entity.Id})"
             : $"Entity#{entity.Id}";
@@ -373,8 +382,7 @@ public sealed class ImGuiInspector : IDisposable
         {
             foreach (var serializer in _registry.Serializers)
             {
-                // Only show types the entity doesn't already have
-                if (serializer.TrySerialize(_world, entity) == null)
+                if (!EntityHasComponent(entity, serializer))
                     items.Add(serializer.TypeId);
             }
         }
