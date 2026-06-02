@@ -66,11 +66,15 @@ public sealed class ImGuiInspector : IDisposable
     /// </summary>
     public void Render(double delta)
     {
+        if (!_visible)
+        {
+            // Still flush any ops queued on the frame visibility was toggled off
+            FlushPendingCommands();
+            return;
+        }
+
         _controller.Update((float)delta);
-
-        if (_visible)
-            DrawInspectorWindow();
-
+        DrawInspectorWindow();
         _controller.Render();
         FlushPendingCommands();
     }
