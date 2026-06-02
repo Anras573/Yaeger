@@ -29,6 +29,7 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.AnimationFrame))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.AnimationState))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Camera2D))]
+[assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Camera3D))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Color))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.RenderLayer))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Sprite))]
