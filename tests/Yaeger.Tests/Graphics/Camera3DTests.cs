@@ -39,8 +39,14 @@ public class Camera3DTests
     {
         // Camera at origin looking at (0,0,-1): forward is -Z, so the view matrix maps
         // a point at (0,0,-1) world to (0,0,positive) in view space.
-        var camera = new Camera3D(Vector3.Zero, new Vector3(0, 0, -1), Vector3.UnitY,
-            MathF.PI / 2, 0.1f, 100f);
+        var camera = new Camera3D(
+            Vector3.Zero,
+            new Vector3(0, 0, -1),
+            Vector3.UnitY,
+            MathF.PI / 2,
+            0.1f,
+            100f
+        );
 
         var viewPoint = Vector4.Transform(new Vector4(0, 0, -1, 1), camera.ViewMatrix);
 
