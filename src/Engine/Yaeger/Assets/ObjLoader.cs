@@ -34,10 +34,9 @@ public static class ObjLoader
         var currentIndices = new List<uint>();
         var vertexCache = new Dictionary<(int posIdx, int texIdx, int normIdx), uint>();
 
-        string mtlDir =
-            mtlBasePath is not null
-                ? AssetPath.Resolve(mtlBasePath)
-                : Path.GetDirectoryName(resolved) ?? AppContext.BaseDirectory;
+        string mtlDir = mtlBasePath is not null
+            ? AssetPath.Resolve(mtlBasePath)
+            : Path.GetDirectoryName(resolved) ?? AppContext.BaseDirectory;
 
         void FlushGroup()
         {
