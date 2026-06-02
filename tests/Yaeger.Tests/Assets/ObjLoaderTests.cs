@@ -304,7 +304,7 @@ public class ObjLoaderTests
     }
 
     [Fact]
-    public void Load_NoUsemtl_ShouldHaveNullMaterialName()
+    public void Load_NoUsemtl_ShouldHaveEmptyMaterialName()
     {
         var obj = """
             v 0.0 0.0 0.0
@@ -321,7 +321,7 @@ public class ObjLoaderTests
             var meshes = ObjLoader.Load(path);
 
             Assert.Single(meshes);
-            Assert.Null(meshes[0].MaterialName);
+            Assert.Equal("", meshes[0].MaterialName);
         }
         finally
         {
@@ -365,5 +365,26 @@ public class ObjLoaderTests
     public void Load_NullOrWhiteSpacePath_ShouldThrowArgumentException()
     {
         Assert.Throws<ArgumentException>(() => ObjLoader.Load("   "));
+    }
+
+    [Fact]
+    public void Load_OutOfRangeIndex_ShouldThrowFormatException()
+    {
+        var obj = """
+            v 0.0 0.0 0.0
+            vn 0.0 0.0 1.0
+            g tri
+            f 99//1 100//1 101//1
+            """;
+        var path = WriteTempFile(obj);
+
+        try
+        {
+            Assert.Throws<FormatException>(() => ObjLoader.Load(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

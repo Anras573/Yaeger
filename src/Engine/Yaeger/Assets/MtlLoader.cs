@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Yaeger.Graphics;
 
@@ -5,7 +6,7 @@ namespace Yaeger.Assets;
 
 public static class MtlLoader
 {
-    public static Dictionary<string, MtlMaterial> Load(string path)
+    public static IReadOnlyDictionary<string, MtlMaterial> Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
 
@@ -49,9 +50,9 @@ public static class MtlLoader
             if (line.Length == 0)
                 continue;
 
-            var spaceIdx = line.IndexOf(' ');
-            var keyword = spaceIdx < 0 ? line : line[..spaceIdx];
-            var rest = spaceIdx < 0 ? "" : line[(spaceIdx + 1)..].TrimStart();
+            var wsIdx = line.IndexOfAny(s_whitespace);
+            var keyword = wsIdx < 0 ? line : line[..wsIdx];
+            var rest = wsIdx < 0 ? "" : line[(wsIdx + 1)..].TrimStart();
 
             switch (keyword)
             {
@@ -83,12 +84,14 @@ public static class MtlLoader
         }
 
         Flush();
-        return materials;
+        return new ReadOnlyDictionary<string, MtlMaterial>(materials);
     }
+
+    private static readonly char[] s_whitespace = [' ', '\t'];
 
     private static Color ParseColor(string value)
     {
-        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var parts = value.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
         return new Color(
             ToChannel(float.Parse(parts[0], CultureInfo.InvariantCulture)),
             ToChannel(float.Parse(parts[1], CultureInfo.InvariantCulture)),

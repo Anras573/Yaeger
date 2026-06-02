@@ -29,7 +29,7 @@ public static class ObjLoader
         var materials = new Dictionary<string, MtlMaterial>();
 
         string currentName = "default";
-        string? currentMaterial = null;
+        string currentMaterial = "";
         var currentVertices = new List<Vertex3D>();
         var currentIndices = new List<uint>();
         var vertexCache = new Dictionary<(int posIdx, int texIdx, int normIdx), uint>();
@@ -65,15 +65,15 @@ public static class ObjLoader
             if (line.Length == 0)
                 continue;
 
-            var spaceIdx = line.IndexOf(' ');
-            var keyword = spaceIdx < 0 ? line : line[..spaceIdx];
-            var rest = spaceIdx < 0 ? "" : line[(spaceIdx + 1)..].TrimStart();
+            var wsIdx = line.IndexOfAny(s_whitespace);
+            var keyword = wsIdx < 0 ? line : line[..wsIdx];
+            var rest = wsIdx < 0 ? "" : line[(wsIdx + 1)..].TrimStart();
 
             switch (keyword)
             {
                 case "v":
                 {
-                    var p = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    var p = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
                     positions.Add(
                         new Vector3(
                             float.Parse(p[0], CultureInfo.InvariantCulture),
@@ -85,7 +85,7 @@ public static class ObjLoader
                 }
                 case "vn":
                 {
-                    var p = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    var p = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
                     normals.Add(
                         new Vector3(
                             float.Parse(p[0], CultureInfo.InvariantCulture),
@@ -97,7 +97,7 @@ public static class ObjLoader
                 }
                 case "vt":
                 {
-                    var p = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    var p = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
                     texCoords.Add(
                         new Vector2(
                             float.Parse(p[0], CultureInfo.InvariantCulture),
@@ -127,7 +127,7 @@ public static class ObjLoader
                 }
                 case "f":
                 {
-                    var tokens = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    var tokens = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
                     var faceVerts = new uint[tokens.Length];
                     for (var i = 0; i < tokens.Length; i++)
                     {
@@ -168,6 +168,8 @@ public static class ObjLoader
         );
     }
 
+    private static readonly char[] s_whitespace = [' ', '\t'];
+
     private static (int posIdx, int texIdx, int normIdx) ParseFaceVertex(
         string token,
         int posCount,
@@ -188,6 +190,15 @@ public static class ObjLoader
         return (posIdx, texIdx, normIdx);
     }
 
-    private static int Resolve(int oneBasedOrNegative, int poolCount) =>
-        oneBasedOrNegative > 0 ? oneBasedOrNegative - 1 : poolCount + oneBasedOrNegative;
+    private static int Resolve(int raw, int poolCount)
+    {
+        if (raw == 0)
+            throw new FormatException("OBJ index 0 is invalid; indices are 1-based.");
+        var idx = raw > 0 ? raw - 1 : poolCount + raw;
+        if (idx < 0 || idx >= poolCount)
+            throw new FormatException(
+                $"OBJ index {raw} is out of range for pool of size {poolCount}."
+            );
+        return idx;
+    }
 }
