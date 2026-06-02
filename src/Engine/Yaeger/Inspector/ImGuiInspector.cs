@@ -178,17 +178,22 @@ public sealed class ImGuiInspector : IDisposable
                 if (serializer.TypeId is "Transform2D" or "Camera2D" or "Sprite")
                     continue;
 
-                var json = serializer.TrySerialize(_world, entity);
-                if (json == null)
+                if (!EntityHasComponent(entity, serializer))
                     continue;
 
                 if (ImGui.CollapsingHeader(serializer.TypeId))
                 {
-                    ImGui.TextWrapped(json.ToJsonString());
+                    var json = serializer.TrySerialize(_world, entity);
+                    if (json != null)
+                        ImGui.TextWrapped(json.ToJsonString());
+                    else
+                        ImGui.TextDisabled("(serialization not supported)");
+
                     ImGui.Spacing();
 
                     if (
                         serializer.ComponentType is { } cType
+                        && cType.IsValueType
                         && ImGui.SmallButton($"Remove##{serializer.TypeId}_{entity.Id}")
                     )
                     {
@@ -418,8 +423,36 @@ public sealed class ImGuiInspector : IDisposable
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private static readonly MethodInfo WorldTryGetComponentMethod = typeof(World).GetMethod(
+        nameof(World.TryGetComponent)
+    )!;
+
+    /// <summary>
+    /// Checks whether <paramref name="entity"/> carries the component handled by
+    /// <paramref name="serializer"/>.  When <see cref="IComponentSerializer.ComponentType"/>
+    /// is known, reflection is used for an authoritative presence check — this handles
+    /// serializers that return <c>null</c> from TrySerialize even when the entity has the
+    /// component (e.g. load-only / write-unsupported serializers).  Falls back to
+    /// TrySerialize for serializers that don't expose a ComponentType.
+    /// </summary>
+    private bool EntityHasComponent(Entity entity, IComponentSerializer serializer)
+    {
+        if (serializer.ComponentType is { } type && type.IsValueType)
+        {
+            var method = WorldTryGetComponentMethod.MakeGenericMethod(type);
+            var args = new object?[] { entity, null };
+            return (bool)method.Invoke(_world, args)!;
+        }
+
+        return serializer.TrySerialize(_world, entity) != null;
+    }
+
     private void ScheduleRemove(Entity entity, Type componentType)
     {
+        // componentType must be a struct (World.RemoveComponent<T> where T : struct)
+        if (!componentType.IsValueType)
+            return;
+
         _pendingWorldOps.Add(w =>
         {
             var method = WorldRemoveMethod.MakeGenericMethod(componentType);
@@ -429,15 +462,17 @@ public sealed class ImGuiInspector : IDisposable
 
     private void FlushPendingCommands()
     {
+        // World ops run first so that an Add queued in the same frame as Destroy
+        // doesn't create zombie components on an entity that no longer exists.
+        foreach (var op in _pendingWorldOps)
+            op(_world);
+        _pendingWorldOps.Clear();
+
         if (_pendingDestroyEntity.HasValue)
         {
             _world.DestroyEntity(_pendingDestroyEntity.Value);
             _pendingDestroyEntity = null;
         }
-
-        foreach (var op in _pendingWorldOps)
-            op(_world);
-        _pendingWorldOps.Clear();
     }
 
     public void Dispose() => _controller.Dispose();
