@@ -139,7 +139,7 @@ public sealed class ImGuiInspector : IDisposable
         ImGui.Separator();
 
         if (ImGui.SmallButton("New Entity"))
-            _pendingWorldOps.Add(static w => w.CreateEntity());
+            _pendingWorldOps.Add(w => _selectedEntity = w.CreateEntity());
     }
 
     // ── Component inspector (right column) ───────────────────────────────────
