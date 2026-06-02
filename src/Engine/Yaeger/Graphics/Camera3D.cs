@@ -4,7 +4,7 @@ namespace Yaeger.Graphics;
 
 /// <summary>
 /// 3D perspective camera component. Attach to an entity to provide a view + projection matrix
-/// pair for 3D rendering. The first camera entity encountered wins if multiple are present.
+/// pair for 3D rendering.
 /// </summary>
 public record struct Camera3D(
     Vector3 Position,
@@ -25,8 +25,11 @@ public record struct Camera3D(
     {
         get
         {
-            // Guard against default(Camera3D): Position == Target or zero Up produces NaN.
+            // Guard against default(Camera3D): degenerate inputs produce NaN.
             if (Position == Target || Up == Vector3.Zero)
+                return Matrix4x4.Identity;
+            var forward = Vector3.Normalize(Target - Position);
+            if (MathF.Abs(Vector3.Dot(Vector3.Normalize(Up), forward)) > 1f - 1e-6f)
                 return Matrix4x4.Identity;
             return Matrix4x4.CreateLookAt(Position, Target, Up);
         }
@@ -39,7 +42,8 @@ public record struct Camera3D(
         var fov = Fov > 0f ? Fov : MathF.PI / 4;
         var near = Near > 0f ? Near : 0.1f;
         var far = Far > near ? Far : near + 1000f;
-        return Matrix4x4.CreatePerspectiveFieldOfView(fov, aspectRatio, near, far);
+        var aspect = aspectRatio > 0f && float.IsFinite(aspectRatio) ? aspectRatio : 1f;
+        return Matrix4x4.CreatePerspectiveFieldOfView(fov, aspect, near, far);
     }
 
     public Matrix4x4 ViewProjection(float aspectRatio) =>
