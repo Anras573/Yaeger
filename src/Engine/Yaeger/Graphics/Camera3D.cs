@@ -3,9 +3,8 @@ using System.Numerics;
 namespace Yaeger.Graphics;
 
 /// <summary>
-/// 3D perspective camera component. Attach to an entity to make <c>MeshRenderSystem</c> upload
-/// a combined view-projection matrix as <c>uViewProj</c>. When no camera entity exists the
-/// system falls back to its own default. The first camera encountered wins if multiple are present.
+/// 3D perspective camera component. Attach to an entity to provide a view + projection matrix
+/// pair for 3D rendering. The first camera entity encountered wins if multiple are present.
 /// </summary>
 public record struct Camera3D(
     Vector3 Position,
@@ -16,6 +15,9 @@ public record struct Camera3D(
     float Far
 )
 {
+    public Camera3D()
+        : this(new Vector3(0, 2, 5), Vector3.Zero, Vector3.UnitY, MathF.PI / 4, 0.1f, 1000f) { }
+
     public static Camera3D Default =>
         new(new Vector3(0, 2, 5), Vector3.Zero, Vector3.UnitY, MathF.PI / 4, 0.1f, 1000f);
 
