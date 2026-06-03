@@ -9,6 +9,7 @@ namespace Yaeger.Systems;
 /// <summary>
 /// Queries ECS entities with <see cref="MeshHandle"/>, <see cref="Transform3D"/>, and
 /// <see cref="Material3D"/> components and issues draw calls via <see cref="Renderer3D"/>.
+/// Wire this to <see cref="Window.OnRender"/>, not <see cref="Window.OnUpdate"/>.
 /// </summary>
 public class MeshRenderSystem(
     Renderer3D renderer,
@@ -16,9 +17,9 @@ public class MeshRenderSystem(
     TextureManager textureManager,
     World world,
     Window window
-) : IUpdateSystem
+)
 {
-    public void Update(float deltaTime)
+    public void Render()
     {
         var viewProj = GetViewProjection();
 

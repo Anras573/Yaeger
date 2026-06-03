@@ -44,10 +44,12 @@ public sealed class Renderer3D : IDisposable
         uniform vec4      uDiffuseColor;
 
         void main() {
-            // Guard against degenerate inputs; keeps vNormal/vFragPos (and therefore
-            // uNormalMatrix) active without affecting the unlit output. Lighting in #78.
-            if (any(isnan(vNormal)) || any(isnan(vFragPos))) discard;
-            FragColor = texture(uDiffuse, vTexCoord) * uDiffuseColor;
+            // sign(dot(v,v)+1) == 1.0 for all finite inputs, so the multiply is a
+            // no-op on output but references vNormal/vFragPos, keeping uNormalMatrix
+            // active without discard (which would disable early-Z). Lighting in #78.
+            float n = sign(dot(vNormal, vNormal) + 1.0);
+            float f = sign(dot(vFragPos, vFragPos) + 1.0);
+            FragColor = texture(uDiffuse, vTexCoord) * uDiffuseColor * n * f;
         }
         """;
 
