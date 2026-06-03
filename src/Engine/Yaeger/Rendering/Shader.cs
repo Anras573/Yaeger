@@ -75,5 +75,35 @@ public class Shader : IDisposable
         _gl.Uniform4(location, value.X, value.Y, value.Z, value.W);
     }
 
+    public void SetUniformVec3(string name, Vector3 value)
+    {
+        var location = GetUniformLocation(name);
+        _gl.Uniform3(location, value.X, value.Y, value.Z);
+    }
+
+    public void SetUniformFloat(string name, float value)
+    {
+        var location = GetUniformLocation(name);
+        _gl.Uniform1(location, value);
+    }
+
+    public unsafe void SetUniformMatrix3(string name, Matrix4x4 matrix)
+    {
+        var location = GetUniformLocation(name);
+        float* mat3 = stackalloc float[]
+        {
+            matrix.M11,
+            matrix.M12,
+            matrix.M13,
+            matrix.M21,
+            matrix.M22,
+            matrix.M23,
+            matrix.M31,
+            matrix.M32,
+            matrix.M33,
+        };
+        _gl.UniformMatrix3(location, 1, false, mat3);
+    }
+
     public void Dispose() => _gl.DeleteProgram(_program);
 }
