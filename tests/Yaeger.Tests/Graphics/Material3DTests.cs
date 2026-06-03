@@ -12,7 +12,7 @@ public class Material3DTests
     }
 
     [Fact]
-    public void Default_HasEmptyTexturePath()
+    public void Default_HasNullTexturePath()
     {
         var material = default(Material3D);
 
