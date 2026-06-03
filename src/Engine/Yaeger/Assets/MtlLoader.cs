@@ -58,6 +58,10 @@ public static class MtlLoader
             {
                 case "newmtl":
                     Flush();
+                    if (rest.Length == 0)
+                        throw new FormatException(
+                            "MTL 'newmtl' directive requires a non-empty material name."
+                        );
                     currentName = rest;
                     diffuseTexturePath = null;
                     ambientColor = Color.Black;

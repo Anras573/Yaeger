@@ -124,6 +124,25 @@ public class MtlLoaderTests
     }
 
     [Fact]
+    public void Load_EmptyNewmtlName_ShouldThrowFormatException()
+    {
+        var mtl = """
+            newmtl
+            Kd 1.0 0.0 0.0
+            """;
+        var path = WriteTempFile(mtl);
+
+        try
+        {
+            Assert.Throws<FormatException>(() => MtlLoader.Load(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Load_FileNotFound_ShouldThrowFileNotFoundException()
     {
         Assert.Throws<FileNotFoundException>(() => MtlLoader.Load("nonexistent.mtl"));

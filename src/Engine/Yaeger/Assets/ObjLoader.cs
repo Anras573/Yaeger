@@ -129,9 +129,15 @@ public static class ObjLoader
                     break;
                 case "mtllib":
                 {
-                    var mtlPath = Path.Combine(mtlDir, rest);
-                    if (File.Exists(mtlPath))
+                    var filenames = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var filename in filenames)
                     {
+                        var mtlPath = Path.Combine(mtlDir, filename);
+                        if (!File.Exists(mtlPath))
+                            throw new FileNotFoundException(
+                                $"MTL file '{filename}' referenced by OBJ not found.",
+                                mtlPath
+                            );
                         foreach (var (name, mat) in MtlLoader.Load(mtlPath))
                             materials[name] = mat;
                     }
