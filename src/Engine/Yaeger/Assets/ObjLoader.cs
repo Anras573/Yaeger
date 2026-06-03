@@ -121,7 +121,7 @@ public static class ObjLoader
                 case "o":
                 case "g":
                     FlushGroup();
-                    currentName = rest;
+                    currentName = rest.Length > 0 ? rest : "default";
                     break;
                 case "usemtl":
                     FlushGroup();
@@ -130,9 +130,15 @@ public static class ObjLoader
                 case "mtllib":
                 {
                     var filenames = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
+                    var mtlDirFull = Path.GetFullPath(mtlDir);
+                    var safePrefix = mtlDirFull + Path.DirectorySeparatorChar;
                     foreach (var filename in filenames)
                     {
-                        var mtlPath = Path.Combine(mtlDir, filename);
+                        var mtlPath = Path.GetFullPath(Path.Combine(mtlDirFull, filename));
+                        if (!mtlPath.StartsWith(safePrefix, StringComparison.Ordinal))
+                            throw new InvalidOperationException(
+                                $"MTL filename '{filename}' resolves outside the MTL directory."
+                            );
                         if (!File.Exists(mtlPath))
                             throw new FileNotFoundException(
                                 $"MTL file '{filename}' referenced by OBJ not found.",
@@ -202,7 +208,7 @@ public static class ObjLoader
         var parts = token.Split('/');
         if (parts.Length > 3)
             throw new FormatException(
-                $"OBJ face vertex '{token}' has {parts.Length} components; expected v, v/vt, or v/vt/vn."
+                $"OBJ face vertex '{token}' has {parts.Length} components; expected v, v/vt, v//vn, or v/vt/vn."
             );
         var posIdx = Resolve(int.Parse(parts[0], CultureInfo.InvariantCulture), posCount);
         var texIdx =
