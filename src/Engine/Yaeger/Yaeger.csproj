@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <Compile Remove="AssetPath.cs" />
+    <Compile Remove="Assets\MtlMaterial.cs" />
     <Compile Remove="ECS\**\*.cs" />
     <Compile Remove="Graphics\**\*.cs" />
     <Compile Remove="Physics\**\*.cs" />
