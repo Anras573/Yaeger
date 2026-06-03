@@ -44,11 +44,10 @@ public sealed class Renderer3D : IDisposable
         uniform vec4      uDiffuseColor;
 
         void main() {
+            // Guard against degenerate inputs; keeps vNormal/vFragPos (and therefore
+            // uNormalMatrix) active without affecting the unlit output. Lighting in #78.
+            if (any(isnan(vNormal)) || any(isnan(vFragPos))) discard;
             FragColor = texture(uDiffuse, vTexCoord) * uDiffuseColor;
-            // vNormal and vFragPos are read here so the driver keeps uNormalMatrix
-            // active; the contribution is sub-precision and invisible at 8-bit display.
-            // Full lighting is wired in issue #78.
-            FragColor.rgb += (vNormal + vFragPos) * 0.000001;
         }
         """;
 

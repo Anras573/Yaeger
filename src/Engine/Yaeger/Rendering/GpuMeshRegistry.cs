@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Silk.NET.OpenGL;
 using Yaeger.Graphics;
 
@@ -21,8 +22,8 @@ public sealed class GpuMeshRegistry(GL gl) : IDisposable
     }
 
     /// <summary>Looks up the mesh for the given handle.</summary>
-    public bool TryGet(MeshHandle handle, out GpuMesh mesh) =>
-        _meshes.TryGetValue(handle.Id, out mesh!);
+    public bool TryGet(MeshHandle handle, [NotNullWhen(true)] out GpuMesh? mesh) =>
+        _meshes.TryGetValue(handle.Id, out mesh);
 
     public void Dispose()
     {

@@ -87,20 +87,20 @@ public class Shader : IDisposable
         _gl.Uniform1(location, value);
     }
 
-    public unsafe void SetUniformMatrix3(string name, Matrix4x4 m)
+    public unsafe void SetUniformMatrix3(string name, Matrix4x4 matrix)
     {
         var location = GetUniformLocation(name);
         float* mat3 = stackalloc float[]
         {
-            m.M11,
-            m.M12,
-            m.M13,
-            m.M21,
-            m.M22,
-            m.M23,
-            m.M31,
-            m.M32,
-            m.M33,
+            matrix.M11,
+            matrix.M12,
+            matrix.M13,
+            matrix.M21,
+            matrix.M22,
+            matrix.M23,
+            matrix.M31,
+            matrix.M32,
+            matrix.M33,
         };
         _gl.UniformMatrix3(location, 1, false, mat3);
     }
