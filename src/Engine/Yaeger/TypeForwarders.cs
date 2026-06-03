@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 
 [assembly: TypeForwardedTo(typeof(global::Yaeger.AssetPath))]
+[assembly: TypeForwardedTo(typeof(global::Yaeger.Assets.MtlMaterial))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.ECS.ComponentRegistry))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.ECS.ComponentStorage<>))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.ECS.Entity))]
@@ -31,6 +32,7 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Camera2D))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Camera3D))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Color))]
+[assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Material3D))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.RenderLayer))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Sprite))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.SpriteSheet))]
