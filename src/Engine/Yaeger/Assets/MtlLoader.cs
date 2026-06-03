@@ -70,18 +70,38 @@ public static class MtlLoader
                     shininess = 0f;
                     break;
                 case "Ka":
+                    if (currentName is null)
+                        throw new FormatException(
+                            "MTL 'Ka' directive appears before any 'newmtl'."
+                        );
                     ambientColor = ParseColor(rest);
                     break;
                 case "Kd":
+                    if (currentName is null)
+                        throw new FormatException(
+                            "MTL 'Kd' directive appears before any 'newmtl'."
+                        );
                     diffuseColor = ParseColor(rest);
                     break;
                 case "Ks":
+                    if (currentName is null)
+                        throw new FormatException(
+                            "MTL 'Ks' directive appears before any 'newmtl'."
+                        );
                     specularColor = ParseColor(rest);
                     break;
                 case "Ns":
+                    if (currentName is null)
+                        throw new FormatException(
+                            "MTL 'Ns' directive appears before any 'newmtl'."
+                        );
                     shininess = float.Parse(rest, CultureInfo.InvariantCulture);
                     break;
                 case "map_Kd":
+                    if (currentName is null)
+                        throw new FormatException(
+                            "MTL 'map_Kd' directive appears before any 'newmtl'."
+                        );
                     diffuseTexturePath = rest;
                     break;
             }

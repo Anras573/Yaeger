@@ -130,6 +130,10 @@ public static class ObjLoader
                 case "mtllib":
                 {
                     var filenames = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
+                    if (filenames.Length == 0)
+                        throw new FormatException(
+                            "OBJ 'mtllib' directive requires at least one filename."
+                        );
                     var mtlDirFull = Path.GetFullPath(mtlDir);
                     foreach (var filename in filenames)
                     {
@@ -139,7 +143,7 @@ public static class ObjLoader
                             Path.IsPathRooted(relative)
                             || relative.StartsWith("..", StringComparison.Ordinal)
                         )
-                            throw new InvalidOperationException(
+                            throw new FormatException(
                                 $"MTL filename '{filename}' resolves outside the MTL directory."
                             );
                         if (!File.Exists(mtlPath))
