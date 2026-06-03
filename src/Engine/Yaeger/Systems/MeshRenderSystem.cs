@@ -26,7 +26,7 @@ public class MeshRenderSystem(
 
         foreach (
             (
-                Entity entity,
+                _,
                 MeshHandle handle,
                 Transform3D transform,
                 Material3D material

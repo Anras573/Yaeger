@@ -90,9 +90,19 @@ public class Shader : IDisposable
     public unsafe void SetUniformMatrix3(string name, Matrix4x4 m)
     {
         var location = GetUniformLocation(name);
-        float[] mat3 = [m.M11, m.M12, m.M13, m.M21, m.M22, m.M23, m.M31, m.M32, m.M33];
-        fixed (float* ptr = mat3)
-            _gl.UniformMatrix3(location, 1, false, ptr);
+        float* mat3 = stackalloc float[]
+        {
+            m.M11,
+            m.M12,
+            m.M13,
+            m.M21,
+            m.M22,
+            m.M23,
+            m.M31,
+            m.M32,
+            m.M33,
+        };
+        _gl.UniformMatrix3(location, 1, false, mat3);
     }
 
     public void Dispose() => _gl.DeleteProgram(_program);

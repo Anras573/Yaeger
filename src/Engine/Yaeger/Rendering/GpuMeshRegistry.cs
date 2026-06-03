@@ -10,7 +10,7 @@ namespace Yaeger.Rendering;
 public sealed class GpuMeshRegistry(GL gl) : IDisposable
 {
     private readonly Dictionary<int, GpuMesh> _meshes = new();
-    private int _nextId;
+    private int _nextId = 1; // 0 is reserved so default(MeshHandle) is always invalid
 
     /// <summary>Uploads <paramref name="data"/> to the GPU and returns a typed handle.</summary>
     public MeshHandle Register(MeshData data)
