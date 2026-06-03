@@ -21,9 +21,11 @@ public class MeshRenderSystem(
 {
     public void Render()
     {
-        var viewProj = GetViewProjection();
+        var (viewProj, cameraPos) = GetViewProjectionAndPosition();
+        var light = GetDirectionalLight();
 
         renderer.BeginFrame3D();
+        renderer.SetSceneLighting(light, cameraPos);
 
         foreach (
             (_, MeshHandle handle, Transform3D transform, Material3D material) in world.Query<
@@ -42,15 +44,30 @@ public class MeshRenderSystem(
         renderer.EndFrame3D();
     }
 
-    private Matrix4x4 GetViewProjection()
+    private (Matrix4x4 ViewProj, Vector3 CameraPos) GetViewProjectionAndPosition()
     {
         foreach (var (_, camera) in world.GetStore<Camera3D>().All())
         {
             var size = window.Size;
             var aspectRatio = size.Y > 0f ? size.X / size.Y : 1f;
-            return camera.ViewProjection(aspectRatio);
+            return (camera.ViewProjection(aspectRatio), camera.Position);
         }
 
-        return Matrix4x4.Identity;
+        return (Matrix4x4.Identity, Vector3.Zero);
+    }
+
+    private static readonly DirectionalLight DefaultLight = new()
+    {
+        Direction = Vector3.UnitY,
+        Color = new Color(255, 255, 255),
+        Intensity = 1f,
+    };
+
+    private DirectionalLight GetDirectionalLight()
+    {
+        foreach (var (_, light) in world.GetStore<DirectionalLight>().All())
+            return light;
+
+        return DefaultLight;
     }
 }
