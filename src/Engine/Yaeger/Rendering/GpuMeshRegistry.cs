@@ -1,4 +1,5 @@
 using Silk.NET.OpenGL;
+using Yaeger.Graphics;
 
 namespace Yaeger.Rendering;
 
