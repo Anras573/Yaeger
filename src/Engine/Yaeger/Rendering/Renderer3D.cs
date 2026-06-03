@@ -10,6 +10,9 @@ namespace Yaeger.Rendering;
 /// </summary>
 public sealed class Renderer3D : IDisposable
 {
+    // uNormalMatrix and the normal/fragpos varyings are intentionally omitted until
+    // lighting is added in the follow-up issue; keeping them here would cause drivers
+    // to optimise them away, making uNormalMatrix inactive and throwing at runtime.
     private const string VertexShaderSource = """
         #version 330 core
         layout(location = 0) in vec3 aPosition;
@@ -18,26 +21,18 @@ public sealed class Renderer3D : IDisposable
 
         uniform mat4 uModel;
         uniform mat4 uViewProj;
-        uniform mat3 uNormalMatrix;
 
-        out vec3 vNormal;
         out vec2 vTexCoord;
-        out vec3 vFragPos;
 
         void main() {
-            vec4 worldPos = uModel * vec4(aPosition, 1.0);
-            vFragPos  = worldPos.xyz;
-            vNormal   = uNormalMatrix * aNormal;
-            vTexCoord = aTexCoord;
-            gl_Position = uViewProj * worldPos;
+            vTexCoord   = aTexCoord;
+            gl_Position = uViewProj * uModel * vec4(aPosition, 1.0);
         }
         """;
 
     private const string FragmentShaderSource = """
         #version 330 core
-        in  vec3 vNormal;
         in  vec2 vTexCoord;
-        in  vec3 vFragPos;
         out vec4 FragColor;
 
         uniform sampler2D uDiffuse;
@@ -95,12 +90,6 @@ public sealed class Renderer3D : IDisposable
 
         _shader.SetUniformMatrix4("uModel", model);
         _shader.SetUniformMatrix4("uViewProj", viewProj);
-
-        // Normal matrix = transpose(inverse(model)), uploaded as upper-left mat3.
-        if (!Matrix4x4.Invert(model, out var invModel))
-            invModel = Matrix4x4.Identity;
-        _shader.SetUniformMatrix3("uNormalMatrix", Matrix4x4.Transpose(invModel));
-
         _shader.SetUniformVec4("uDiffuseColor", material.Diffuse.ToVector4());
 
         if (!string.IsNullOrEmpty(material.DiffuseTexturePath))
