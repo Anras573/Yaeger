@@ -131,11 +131,11 @@ public static class ObjLoader
                 {
                     var filenames = rest.Split(s_whitespace, StringSplitOptions.RemoveEmptyEntries);
                     var mtlDirFull = Path.GetFullPath(mtlDir);
-                    var safePrefix = mtlDirFull + Path.DirectorySeparatorChar;
                     foreach (var filename in filenames)
                     {
                         var mtlPath = Path.GetFullPath(Path.Combine(mtlDirFull, filename));
-                        if (!mtlPath.StartsWith(safePrefix, StringComparison.Ordinal))
+                        var relative = Path.GetRelativePath(mtlDirFull, mtlPath);
+                        if (Path.IsPathRooted(relative) || relative.StartsWith("..", StringComparison.Ordinal))
                             throw new InvalidOperationException(
                                 $"MTL filename '{filename}' resolves outside the MTL directory."
                             );
