@@ -32,7 +32,7 @@ public class MeshRenderSystem(
             >()
         )
         {
-            if (!meshRegistry.TryGet(handle.Id, out var mesh))
+            if (!meshRegistry.TryGet(handle, out var mesh))
                 continue;
 
             renderer.Draw(mesh, transform.ModelMatrix, viewProj, material, textureManager);

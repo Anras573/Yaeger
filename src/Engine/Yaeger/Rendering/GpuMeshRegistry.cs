@@ -11,16 +11,17 @@ public sealed class GpuMeshRegistry(GL gl) : IDisposable
     private readonly Dictionary<int, GpuMesh> _meshes = new();
     private int _nextId;
 
-    /// <summary>Uploads <paramref name="data"/> to the GPU and returns an opaque handle ID.</summary>
-    public int Register(MeshData data)
+    /// <summary>Uploads <paramref name="data"/> to the GPU and returns a typed handle.</summary>
+    public MeshHandle Register(MeshData data)
     {
-        var id = _nextId++;
-        _meshes[id] = new GpuMesh(gl, data);
-        return id;
+        var handle = new MeshHandle(_nextId++);
+        _meshes[handle.Id] = new GpuMesh(gl, data);
+        return handle;
     }
 
-    /// <summary>Looks up the mesh for the given handle ID.</summary>
-    public bool TryGet(int id, out GpuMesh mesh) => _meshes.TryGetValue(id, out mesh!);
+    /// <summary>Looks up the mesh for the given handle.</summary>
+    public bool TryGet(MeshHandle handle, out GpuMesh mesh) =>
+        _meshes.TryGetValue(handle.Id, out mesh!);
 
     public void Dispose()
     {
