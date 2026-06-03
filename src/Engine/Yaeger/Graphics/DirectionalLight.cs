@@ -4,7 +4,7 @@ namespace Yaeger.Graphics;
 
 public record struct DirectionalLight
 {
-    public Vector3 Direction; // normalised; points *toward* the light (not from surface)
+    public Vector3 Direction; // normalised; points from the fragment toward the light source
     public Color Color;
     public float Intensity;
 }
