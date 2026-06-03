@@ -135,7 +135,10 @@ public static class ObjLoader
                     {
                         var mtlPath = Path.GetFullPath(Path.Combine(mtlDirFull, filename));
                         var relative = Path.GetRelativePath(mtlDirFull, mtlPath);
-                        if (Path.IsPathRooted(relative) || relative.StartsWith("..", StringComparison.Ordinal))
+                        if (
+                            Path.IsPathRooted(relative)
+                            || relative.StartsWith("..", StringComparison.Ordinal)
+                        )
                             throw new InvalidOperationException(
                                 $"MTL filename '{filename}' resolves outside the MTL directory."
                             );
