@@ -1,9 +1,9 @@
 using System.Numerics;
-using File = System.IO.File;
 using Silk.NET.Assimp;
 using Xunit;
 using Yaeger.Assets;
 using Yaeger.Graphics;
+using File = System.IO.File;
 
 namespace Yaeger.Tests.Assets;
 
