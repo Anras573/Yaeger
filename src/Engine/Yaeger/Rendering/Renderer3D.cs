@@ -114,7 +114,9 @@ public sealed class Renderer3D : IDisposable
     {
         var lenSq = light.Direction.LengthSquared();
         var dir =
-            float.IsFinite(lenSq) && lenSq > 0f ? Vector3.Normalize(light.Direction) : Vector3.UnitY;
+            float.IsFinite(lenSq) && lenSq > 0f
+                ? Vector3.Normalize(light.Direction)
+                : Vector3.UnitY;
         var intensity = float.IsFinite(light.Intensity) ? MathF.Max(light.Intensity, 0f) : 0f;
         _shader.Bind();
         _shader.SetUniformVec3("uLightDir", dir);
