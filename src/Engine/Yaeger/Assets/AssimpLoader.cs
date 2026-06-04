@@ -111,7 +111,9 @@ public static class AssimpLoader
             }
             var transform = new Transform3D(translation, rotation, scale);
 
-            meshes.Add(new ModelMesh(assimpMesh->MName.AsString, meshData, material, transform));
+            var nodeName = node->MName.AsString;
+            var name = string.IsNullOrEmpty(nodeName) ? assimpMesh->MName.AsString : nodeName;
+            meshes.Add(new ModelMesh(name, meshData, material, transform));
         }
 
         for (var i = 0u; i < node->MNumChildren; i++)
