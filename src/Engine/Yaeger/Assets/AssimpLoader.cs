@@ -41,8 +41,7 @@ public static class AssimpLoader
                         $"Assimp scene incomplete for '{path}': {api.GetErrorStringS()}"
                     );
 
-                var baseDir =
-                    Path.GetDirectoryName(resolved) ?? AppContext.BaseDirectory;
+                var baseDir = Path.GetDirectoryName(resolved) ?? AppContext.BaseDirectory;
                 var meshes = new List<ModelMesh>();
                 ProcessNode(api, scene, scene->MRootNode, Matrix4x4.Identity, baseDir, meshes);
                 return new ModelScene(meshes.AsReadOnly());
