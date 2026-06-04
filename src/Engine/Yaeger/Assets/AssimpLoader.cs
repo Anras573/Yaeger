@@ -42,7 +42,16 @@ public static class AssimpLoader
 
                 var baseDir = Path.GetDirectoryName(resolved) ?? AppContext.BaseDirectory;
                 var meshes = new List<ModelMesh>();
-                ProcessNode(api, scene, scene->MRootNode, Matrix4x4.Identity, baseDir, meshes);
+                var meshDataCache = new Dictionary<uint, MeshData>();
+                ProcessNode(
+                    api,
+                    scene,
+                    scene->MRootNode,
+                    Matrix4x4.Identity,
+                    baseDir,
+                    meshes,
+                    meshDataCache
+                );
                 return new ModelScene(meshes.AsReadOnly());
             }
             finally
@@ -58,7 +67,8 @@ public static class AssimpLoader
         Node* node,
         Matrix4x4 parentTransform,
         string baseDir,
-        List<ModelMesh> meshes
+        List<ModelMesh> meshes,
+        Dictionary<uint, MeshData> meshDataCache
     )
     {
         // Assimp uses column-vector (OpenGL) convention; System.Numerics uses row-vector.
@@ -70,7 +80,12 @@ public static class AssimpLoader
         {
             var meshIdx = node->MMeshes[i];
             var assimpMesh = scene->MMeshes[meshIdx];
-            var meshData = ExtractMeshData(assimpMesh);
+            if (!meshDataCache.TryGetValue(meshIdx, out var meshData))
+            {
+                meshData = ExtractMeshData(assimpMesh);
+                meshDataCache[meshIdx] = meshData;
+            }
+
             var material = ExtractMaterial(
                 api,
                 scene->MMaterials[assimpMesh->MMaterialIndex],
@@ -96,7 +111,15 @@ public static class AssimpLoader
         }
 
         for (var i = 0u; i < node->MNumChildren; i++)
-            ProcessNode(api, scene, node->MChildren[i], worldTransform, baseDir, meshes);
+            ProcessNode(
+                api,
+                scene,
+                node->MChildren[i],
+                worldTransform,
+                baseDir,
+                meshes,
+                meshDataCache
+            );
     }
 
     private static unsafe MeshData ExtractMeshData(Mesh* mesh)
@@ -152,7 +175,7 @@ public static class AssimpLoader
         {
             var candidate = Path.GetFullPath(Path.Combine(baseDir, diffuseStr.AsString));
             var relative = Path.GetRelativePath(baseDir, candidate);
-            if (!relative.StartsWith("..") && !Path.IsPathRooted(relative))
+            if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
                 diffusePath = candidate;
         }
 
@@ -174,7 +197,7 @@ public static class AssimpLoader
         {
             var candidate = Path.GetFullPath(Path.Combine(baseDir, normalStr.AsString));
             var relative = Path.GetRelativePath(baseDir, candidate);
-            if (!relative.StartsWith("..") && !Path.IsPathRooted(relative))
+            if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
                 normalPath = candidate;
         }
 
