@@ -12,7 +12,7 @@ public class DirectionalLightTests
     }
 
     [Fact]
-    public void Default_HasZeroFields()
+    public void StructDefault_HasZeroFields()
     {
         var light = default(DirectionalLight);
 

@@ -148,7 +148,10 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformVec4("uDiffuseColor", material.Diffuse.ToVector4());
         _shader.SetUniformVec4("uAmbientColor", material.Ambient.ToVector4());
         _shader.SetUniformVec4("uSpecularColor", material.Specular.ToVector4());
-        _shader.SetUniformFloat("uShininess", MathF.Max(material.Shininess, 1f));
+        _shader.SetUniformFloat(
+            "uShininess",
+            float.IsFinite(material.Shininess) ? MathF.Max(material.Shininess, 1f) : 1f
+        );
 
         if (!string.IsNullOrEmpty(material.DiffuseTexturePath))
             textures.Get(material.DiffuseTexturePath).Bind(TextureUnit.Texture0);
