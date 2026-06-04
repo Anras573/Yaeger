@@ -41,15 +41,35 @@ public sealed class Renderer3D : IDisposable
         out vec4 FragColor;
 
         uniform sampler2D uDiffuse;
-        uniform vec4      uDiffuseColor;
+        uniform vec4  uDiffuseColor;
+        uniform vec4  uAmbientColor;
+        uniform vec4  uSpecularColor;
+        uniform float uShininess;
+
+        uniform vec3  uLightDir;
+        uniform vec4  uLightColor;
+        uniform float uLightIntensity;
+        uniform vec3  uCameraPos;
 
         void main() {
-            // sign(dot(v,v)+1) == 1.0 for all finite inputs, so the multiply is a
-            // no-op on output but references vNormal/vFragPos, keeping uNormalMatrix
-            // active without discard (which would disable early-Z). Lighting in #78.
-            float n = sign(dot(vNormal, vNormal) + 1.0);
-            float f = sign(dot(vFragPos, vFragPos) + 1.0);
-            FragColor = texture(uDiffuse, vTexCoord) * uDiffuseColor * n * f;
+            vec3 N = normalize(vNormal);
+            vec3 L = normalize(uLightDir);
+            vec3 viewDir = uCameraPos - vFragPos;
+            vec3 V = viewDir * inversesqrt(max(dot(viewDir, viewDir), 1e-10));
+            vec3 halfDir = L + V;
+            vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
+
+            vec4 rawTex   = texture(uDiffuse, vTexCoord);
+            vec4 texColor = rawTex * uDiffuseColor;
+
+            float diff = max(dot(N, L), 0.0);
+            float spec = diff > 0.0 ? pow(max(dot(N, H), 0.0), uShininess) : 0.0;
+
+            vec3 ambient  = (uAmbientColor * rawTex).rgb;
+            vec3 diffuse  = texColor.rgb     * diff * uLightColor.rgb * uLightIntensity;
+            vec3 specular = uSpecularColor.rgb * spec * uLightColor.rgb * uLightIntensity;
+
+            FragColor = vec4(ambient + diffuse + specular, texColor.a);
         }
         """;
 
@@ -62,6 +82,7 @@ public sealed class Renderer3D : IDisposable
         _gl = gl;
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _defaultTexture = CreateWhiteTexture();
+        SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
     }
 
     /// <summary>
@@ -87,6 +108,25 @@ public sealed class Renderer3D : IDisposable
         _gl.Disable(EnableCap.CullFace);
     }
 
+    /// <summary>
+    /// Uploads scene-wide lighting uniforms. Call once per frame before the draw loop.
+    /// </summary>
+    public void SetSceneLighting(DirectionalLight light, Vector3 cameraPos)
+    {
+        var lenSq = light.Direction.LengthSquared();
+        var dir =
+            float.IsFinite(lenSq) && lenSq > 0f
+                ? Vector3.Normalize(light.Direction)
+                : Vector3.UnitY;
+        var intensity = float.IsFinite(light.Intensity) ? MathF.Max(light.Intensity, 0f) : 0f;
+        _shader.Bind();
+        _shader.SetUniformVec3("uLightDir", dir);
+        _shader.SetUniformVec4("uLightColor", light.Color.ToVector4());
+        _shader.SetUniformFloat("uLightIntensity", intensity);
+        _shader.SetUniformVec3("uCameraPos", cameraPos);
+        _shader.Unbind();
+    }
+
     /// <summary>Draws a single mesh with the supplied transform and material.</summary>
     public void Draw(
         GpuMesh mesh,
@@ -106,6 +146,12 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformMatrix3("uNormalMatrix", Matrix4x4.Transpose(invModel));
 
         _shader.SetUniformVec4("uDiffuseColor", material.Diffuse.ToVector4());
+        _shader.SetUniformVec4("uAmbientColor", material.Ambient.ToVector4());
+        _shader.SetUniformVec4("uSpecularColor", material.Specular.ToVector4());
+        _shader.SetUniformFloat(
+            "uShininess",
+            float.IsFinite(material.Shininess) ? MathF.Max(material.Shininess, 1f) : 1f
+        );
 
         if (!string.IsNullOrEmpty(material.DiffuseTexturePath))
             textures.Get(material.DiffuseTexturePath).Bind(TextureUnit.Texture0);

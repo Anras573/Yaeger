@@ -32,6 +32,7 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Camera2D))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Camera3D))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Color))]
+[assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.DirectionalLight))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Material3D))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.MeshHandle))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.RenderLayer))]
