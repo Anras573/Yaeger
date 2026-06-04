@@ -62,11 +62,11 @@ public sealed class Renderer3D : IDisposable
             float diff = max(dot(N, L), 0.0);
             float spec = diff > 0.0 ? pow(max(dot(N, H), 0.0), uShininess) : 0.0;
 
-            vec4 ambient  = uAmbientColor  * texColor;
-            vec4 diffuse  = texColor       * diff     * uLightColor * uLightIntensity;
-            vec4 specular = uSpecularColor * spec     * uLightColor * uLightIntensity;
+            vec3 ambient  = (uAmbientColor  * texColor).rgb;
+            vec3 diffuse  = texColor.rgb     * diff * uLightColor.rgb * uLightIntensity;
+            vec3 specular = uSpecularColor.rgb * spec * uLightColor.rgb * uLightIntensity;
 
-            FragColor = ambient + diffuse + specular;
+            FragColor = vec4(ambient + diffuse + specular, texColor.a);
         }
         """;
 
