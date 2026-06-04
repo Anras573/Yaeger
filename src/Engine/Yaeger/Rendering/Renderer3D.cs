@@ -54,8 +54,10 @@ public sealed class Renderer3D : IDisposable
         void main() {
             vec3 N = normalize(vNormal);
             vec3 L = normalize(uLightDir);
-            vec3 V = normalize(uCameraPos - vFragPos);
-            vec3 H = normalize(L + V);
+            vec3 viewDir = uCameraPos - vFragPos;
+            vec3 V = viewDir * inversesqrt(max(dot(viewDir, viewDir), 1e-10));
+            vec3 halfDir = L + V;
+            vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
 
             vec4 texColor = texture(uDiffuse, vTexCoord) * uDiffuseColor;
 
@@ -118,6 +120,7 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformVec4("uLightColor", light.Color.ToVector4());
         _shader.SetUniformFloat("uLightIntensity", light.Intensity);
         _shader.SetUniformVec3("uCameraPos", cameraPos);
+        _shader.Unbind();
     }
 
     /// <summary>Draws a single mesh with the supplied transform and material.</summary>
