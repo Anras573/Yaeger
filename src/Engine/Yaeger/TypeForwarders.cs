@@ -40,6 +40,7 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Sprite))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.SpriteSheet))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Transform2D))]
+[assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Transform3D))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Input.Keys))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Input.MouseButton))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Physics.CollisionManifold))]

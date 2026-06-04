@@ -43,6 +43,7 @@ public static class AssimpLoader
                 var baseDir = Path.GetDirectoryName(resolved) ?? AppContext.BaseDirectory;
                 var meshes = new List<ModelMesh>();
                 var meshDataCache = new Dictionary<uint, MeshData>();
+                var materialCache = new Dictionary<uint, ModelMaterial>();
                 ProcessNode(
                     api,
                     scene,
@@ -50,7 +51,8 @@ public static class AssimpLoader
                     Matrix4x4.Identity,
                     baseDir,
                     meshes,
-                    meshDataCache
+                    meshDataCache,
+                    materialCache
                 );
                 return new ModelScene(meshes.AsReadOnly());
             }
@@ -68,7 +70,8 @@ public static class AssimpLoader
         Matrix4x4 parentTransform,
         string baseDir,
         List<ModelMesh> meshes,
-        Dictionary<uint, MeshData> meshDataCache
+        Dictionary<uint, MeshData> meshDataCache,
+        Dictionary<uint, ModelMaterial> materialCache
     )
     {
         // Assimp uses column-vector (OpenGL) convention; System.Numerics uses row-vector.
@@ -86,11 +89,12 @@ public static class AssimpLoader
                 meshDataCache[meshIdx] = meshData;
             }
 
-            var material = ExtractMaterial(
-                api,
-                scene->MMaterials[assimpMesh->MMaterialIndex],
-                baseDir
-            );
+            var matIdx = assimpMesh->MMaterialIndex;
+            if (!materialCache.TryGetValue(matIdx, out var material))
+            {
+                material = ExtractMaterial(api, scene->MMaterials[matIdx], baseDir);
+                materialCache[matIdx] = material;
+            }
 
             if (
                 !Matrix4x4.Decompose(
@@ -118,7 +122,8 @@ public static class AssimpLoader
                 worldTransform,
                 baseDir,
                 meshes,
-                meshDataCache
+                meshDataCache,
+                materialCache
             );
     }
 

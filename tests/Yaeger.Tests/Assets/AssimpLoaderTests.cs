@@ -18,7 +18,11 @@ public class AssimpLoaderTests
             Assimp.GetApi().GetErrorStringS();
             return true;
         }
-        catch
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (BadImageFormatException)
         {
             return false;
         }

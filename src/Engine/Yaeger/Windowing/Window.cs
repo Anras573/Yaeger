@@ -125,15 +125,23 @@ public sealed class Window : IDisposable
 
     public void Dispose()
     {
-        // Dispose the AudioContext before the window. The audio system is independent of the
-        // IWindow lifecycle, so this order is safe and makes ownership of audio resources explicit.
+        // Dispose order: AudioContext → Gl → _innerWindow.
+        // AudioContext is independent of the window lifecycle.
+        // Gl must be released before the native window is destroyed.
         try
         {
             AudioContext.Dispose();
         }
         finally
         {
-            _innerWindow.Dispose();
+            try
+            {
+                Gl.Dispose();
+            }
+            finally
+            {
+                _innerWindow.Dispose();
+            }
         }
     }
 }

@@ -30,8 +30,8 @@ Console.WriteLine($"Loaded {modelScene.Meshes.Count} mesh(es) from {modelPath}")
 using var window = Window.Create();
 
 var world = new World();
-var registry = new GpuMeshRegistry(window.Gl);
-var textures = new TextureManager(window.Gl);
+using var registry = new GpuMeshRegistry(window.Gl);
+using var textures = new TextureManager(window.Gl);
 
 foreach (var modelMesh in modelScene.Meshes)
 {
@@ -68,7 +68,7 @@ world.AddComponent(
     }
 );
 
-var renderer3D = new Renderer3D(window.Gl);
+using var renderer3D = new Renderer3D(window.Gl);
 var meshRenderSystem = new MeshRenderSystem(renderer3D, registry, textures, world, window);
 
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
