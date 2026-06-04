@@ -78,7 +78,14 @@ public static class AssimpLoader
                 baseDir
             );
 
-            if (!Matrix4x4.Decompose(worldTransform, out var scale, out var rotation, out var translation))
+            if (
+                !Matrix4x4.Decompose(
+                    worldTransform,
+                    out var scale,
+                    out var rotation,
+                    out var translation
+                )
+            )
             {
                 scale = Vector3.One;
                 rotation = Quaternion.Identity;
