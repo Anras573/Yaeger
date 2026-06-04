@@ -59,7 +59,7 @@ public class MeshRenderSystem(
     private static readonly DirectionalLight DefaultLight = new()
     {
         Direction = Vector3.UnitY,
-        Color = new Color(255, 255, 255),
+        Color = Color.White,
         Intensity = 1f,
     };
 
