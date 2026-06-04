@@ -26,6 +26,11 @@ public class AssimpLoaderTests
         {
             return false;
         }
+        catch (FileNotFoundException)
+        {
+            // Silk.NET wraps missing native library as FileNotFoundException.
+            return false;
+        }
     }
 
     private static string WriteTempObj(string content, string extension = ".obj")
