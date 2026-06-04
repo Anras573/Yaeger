@@ -82,7 +82,12 @@ public sealed class Renderer3D : IDisposable
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _defaultTexture = CreateWhiteTexture();
         SetSceneLighting(
-            new DirectionalLight { Direction = Vector3.UnitY, Color = Color.White, Intensity = 1f },
+            new DirectionalLight
+            {
+                Direction = Vector3.UnitY,
+                Color = Color.White,
+                Intensity = 1f,
+            },
             Vector3.Zero
         );
     }
