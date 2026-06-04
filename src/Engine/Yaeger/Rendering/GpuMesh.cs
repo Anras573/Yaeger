@@ -28,6 +28,7 @@ public sealed class GpuMesh : IDisposable
         SetupAttrib(0, 3, stride, OffsetOf(nameof(Vertex3D.Position)));
         SetupAttrib(1, 3, stride, OffsetOf(nameof(Vertex3D.Normal)));
         SetupAttrib(2, 2, stride, OffsetOf(nameof(Vertex3D.TexCoord)));
+        SetupAttrib(3, 3, stride, OffsetOf(nameof(Vertex3D.Tangent)));
 
         _gl.BindVertexArray(0);
     }

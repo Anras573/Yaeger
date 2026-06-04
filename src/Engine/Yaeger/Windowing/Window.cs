@@ -11,7 +11,12 @@ public sealed class Window : IDisposable
 {
     private readonly IWindow _innerWindow;
     private readonly IInputContext _inputContext;
-    internal GL Gl { get; }
+
+    /// <summary>
+    /// Gets the OpenGL context for this window.
+    /// Owned and disposed by <see cref="Window"/>. Do not dispose this instance directly.
+    /// </summary>
+    public GL Gl { get; }
     internal IView InnerView => _innerWindow;
     internal IInputContext InputContext => _inputContext;
 
@@ -120,15 +125,23 @@ public sealed class Window : IDisposable
 
     public void Dispose()
     {
-        // Dispose the AudioContext before the window. The audio system is independent of the
-        // IWindow lifecycle, so this order is safe and makes ownership of audio resources explicit.
+        // Dispose order: AudioContext → Gl → _innerWindow.
+        // AudioContext is independent of the window lifecycle.
+        // Gl must be released before the native window is destroyed.
         try
         {
             AudioContext.Dispose();
         }
         finally
         {
-            _innerWindow.Dispose();
+            try
+            {
+                Gl.Dispose();
+            }
+            finally
+            {
+                _innerWindow.Dispose();
+            }
         }
     }
 }
