@@ -53,4 +53,14 @@ public class DirectionalLightTests
 
         Assert.NotEqual(a, b);
     }
+
+    [Fact]
+    public void Default_HasSafeValues()
+    {
+        var light = DirectionalLight.Default;
+
+        Assert.Equal(Vector3.UnitY, light.Direction);
+        Assert.Equal(Color.White, light.Color);
+        Assert.Equal(1f, light.Intensity);
+    }
 }

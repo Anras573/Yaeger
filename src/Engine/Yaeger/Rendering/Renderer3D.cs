@@ -59,12 +59,13 @@ public sealed class Renderer3D : IDisposable
             vec3 halfDir = L + V;
             vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
 
-            vec4 texColor = texture(uDiffuse, vTexCoord) * uDiffuseColor;
+            vec4 rawTex   = texture(uDiffuse, vTexCoord);
+            vec4 texColor = rawTex * uDiffuseColor;
 
             float diff = max(dot(N, L), 0.0);
             float spec = diff > 0.0 ? pow(max(dot(N, H), 0.0), uShininess) : 0.0;
 
-            vec3 ambient  = (uAmbientColor  * texColor).rgb;
+            vec3 ambient  = (uAmbientColor * rawTex).rgb;
             vec3 diffuse  = texColor.rgb     * diff * uLightColor.rgb * uLightIntensity;
             vec3 specular = uSpecularColor.rgb * spec * uLightColor.rgb * uLightIntensity;
 
