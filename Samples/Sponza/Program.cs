@@ -35,7 +35,9 @@ var textures = new TextureManager(window.Gl);
 
 foreach (var modelMesh in modelScene.Meshes)
 {
-    var entity = world.CreateEntity(modelMesh.Name);
+    var entity = string.IsNullOrWhiteSpace(modelMesh.Name)
+        ? world.CreateEntity()
+        : world.CreateEntity(modelMesh.Name);
     var handle = registry.Register(modelMesh.Mesh);
     world.AddComponent(entity, handle);
     world.AddComponent(entity, modelMesh.Transform);
