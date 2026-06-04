@@ -158,8 +158,7 @@ public static class AssimpLoader
         var diffuseColor = Color.White;
         Color4D col = default;
         if (
-            api.GetMaterialColor(mat, Assimp.MaterialColorDiffuseBase, 0, 0, &col)
-            == Return.Success
+            api.GetMaterialColor(mat, Assimp.MaterialColorDiffuseBase, 0, 0, &col) == Return.Success
         )
         {
             diffuseColor = new Color(
