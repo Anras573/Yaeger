@@ -111,9 +111,8 @@ public static class AssimpLoader
         {
             var pos = mesh->MVertices[i];
             var norm = mesh->MNormals != null ? mesh->MNormals[i] : Vector3.UnitY;
-            var uv = uvChannel0 != null
-                ? new Vector2(uvChannel0[i].X, uvChannel0[i].Y)
-                : Vector2.Zero;
+            var uv =
+                uvChannel0 != null ? new Vector2(uvChannel0[i].X, uvChannel0[i].Y) : Vector2.Zero;
             var tangent = hasTangents ? mesh->MTangents[i] : Vector3.UnitX;
 
             vertices[i] = new Vertex3D(pos, norm, uv, tangent);
