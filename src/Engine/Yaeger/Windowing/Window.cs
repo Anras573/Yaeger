@@ -11,6 +11,7 @@ public sealed class Window : IDisposable
 {
     private readonly IWindow _innerWindow;
     private readonly IInputContext _inputContext;
+
     /// <summary>
     /// Gets the OpenGL context for this window.
     /// Owned and disposed by <see cref="Window"/>. Do not dispose this instance directly.

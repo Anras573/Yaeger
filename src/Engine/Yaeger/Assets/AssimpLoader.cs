@@ -175,7 +175,9 @@ public static class AssimpLoader
         {
             var candidate = Path.GetFullPath(Path.Combine(baseDir, diffuseStr.AsString));
             var relative = Path.GetRelativePath(baseDir, candidate);
-            if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+            if (
+                !relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative)
+            )
                 diffusePath = candidate;
         }
 
@@ -197,7 +199,9 @@ public static class AssimpLoader
         {
             var candidate = Path.GetFullPath(Path.Combine(baseDir, normalStr.AsString));
             var relative = Path.GetRelativePath(baseDir, candidate);
-            if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+            if (
+                !relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative)
+            )
                 normalPath = candidate;
         }
 
