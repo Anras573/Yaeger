@@ -56,12 +56,7 @@ public class MeshRenderSystem(
         return (Matrix4x4.Identity, Vector3.Zero);
     }
 
-    private static readonly DirectionalLight DefaultLight = new()
-    {
-        Direction = Vector3.UnitY,
-        Color = Color.White,
-        Intensity = 1f,
-    };
+    private static readonly DirectionalLight DefaultLight = DirectionalLight.Default;
 
     private DirectionalLight GetDirectionalLight()
     {

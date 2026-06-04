@@ -81,15 +81,7 @@ public sealed class Renderer3D : IDisposable
         _gl = gl;
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _defaultTexture = CreateWhiteTexture();
-        SetSceneLighting(
-            new DirectionalLight
-            {
-                Direction = Vector3.UnitY,
-                Color = Color.White,
-                Intensity = 1f,
-            },
-            Vector3.Zero
-        );
+        SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
     }
 
     /// <summary>
@@ -120,14 +112,13 @@ public sealed class Renderer3D : IDisposable
     /// </summary>
     public void SetSceneLighting(DirectionalLight light, Vector3 cameraPos)
     {
-        var dir =
-            light.Direction.LengthSquared() > 0f
-                ? Vector3.Normalize(light.Direction)
-                : Vector3.UnitY;
+        var lenSq = light.Direction.LengthSquared();
+        var dir = float.IsFinite(lenSq) && lenSq > 0f ? Vector3.Normalize(light.Direction) : Vector3.UnitY;
+        var intensity = float.IsFinite(light.Intensity) ? MathF.Max(light.Intensity, 0f) : 0f;
         _shader.Bind();
         _shader.SetUniformVec3("uLightDir", dir);
         _shader.SetUniformVec4("uLightColor", light.Color.ToVector4());
-        _shader.SetUniformFloat("uLightIntensity", light.Intensity);
+        _shader.SetUniformFloat("uLightIntensity", intensity);
         _shader.SetUniformVec3("uCameraPos", cameraPos);
         _shader.Unbind();
     }
