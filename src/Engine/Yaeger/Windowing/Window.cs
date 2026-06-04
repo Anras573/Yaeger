@@ -11,7 +11,7 @@ public sealed class Window : IDisposable
 {
     private readonly IWindow _innerWindow;
     private readonly IInputContext _inputContext;
-    internal GL Gl { get; }
+    public GL Gl { get; }
     internal IView InnerView => _innerWindow;
     internal IInputContext InputContext => _inputContext;
 
