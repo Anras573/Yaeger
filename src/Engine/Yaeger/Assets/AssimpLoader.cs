@@ -12,7 +12,7 @@ public static class AssimpLoader
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
 
         var resolved = AssetPath.Resolve(path);
-        if (!File.Exists(resolved))
+        if (!System.IO.File.Exists(resolved))
             throw new FileNotFoundException($"Model file not found: {path}", resolved);
 
         var api = Assimp.GetApi();
@@ -20,7 +20,7 @@ public static class AssimpLoader
         var flags =
             PostProcessSteps.Triangulate
             | PostProcessSteps.GenerateSmoothNormals
-            | PostProcessSteps.CalcTangentSpace
+            | PostProcessSteps.CalculateTangentSpace
             | PostProcessSteps.JoinIdenticalVertices
             | PostProcessSteps.FlipUVs;
 
@@ -137,35 +137,52 @@ public static class AssimpLoader
 
         string? diffusePath = null;
         AssimpString diffuseStr = default;
-        if (
-            api.GetMaterialTexture(mat, TextureType.Diffuse, 0, &diffuseStr) == Return.Success
-            && diffuseStr.Length > 0
-        )
+        var diffuseResult = api.GetMaterialTexture(
+            mat,
+            TextureType.Diffuse,
+            0,
+            &diffuseStr,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+        if (diffuseResult == Return.Success && diffuseStr.Length > 0)
         {
             diffusePath = Path.GetFullPath(Path.Combine(baseDir, diffuseStr.AsString));
         }
 
         string? normalPath = null;
         AssimpString normalStr = default;
-        if (
-            api.GetMaterialTexture(mat, TextureType.Normals, 0, &normalStr) == Return.Success
-            && normalStr.Length > 0
-        )
+        var normalResult = api.GetMaterialTexture(
+            mat,
+            TextureType.Normals,
+            0,
+            &normalStr,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+        if (normalResult == Return.Success && normalStr.Length > 0)
         {
             normalPath = Path.GetFullPath(Path.Combine(baseDir, normalStr.AsString));
         }
 
         var diffuseColor = Color.White;
-        Color4D col = default;
-        if (
-            api.GetMaterialColor(mat, Assimp.MaterialColorDiffuseBase, 0, 0, &col) == Return.Success
-        )
+        var col = Vector4.One;
+        var colResult = api.GetMaterialColor(mat, Assimp.MaterialColorDiffuseBase, 0, 0, ref col);
+        if (colResult == Return.Success)
         {
             diffuseColor = new Color(
-                (byte)Math.Clamp((int)(col.R * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.G * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.B * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.A * 255f), 0, 255)
+                (byte)Math.Clamp((int)(col.X * 255f), 0, 255),
+                (byte)Math.Clamp((int)(col.Y * 255f), 0, 255),
+                (byte)Math.Clamp((int)(col.Z * 255f), 0, 255),
+                (byte)Math.Clamp((int)(col.W * 255f), 0, 255)
             );
         }
 
