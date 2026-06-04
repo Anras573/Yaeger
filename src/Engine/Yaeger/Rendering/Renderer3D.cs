@@ -109,8 +109,12 @@ public sealed class Renderer3D : IDisposable
     /// </summary>
     public void SetSceneLighting(DirectionalLight light, Vector3 cameraPos)
     {
+        var dir =
+            light.Direction.LengthSquared() > 0f
+                ? Vector3.Normalize(light.Direction)
+                : Vector3.UnitY;
         _shader.Bind();
-        _shader.SetUniformVec3("uLightDir", light.Direction);
+        _shader.SetUniformVec3("uLightDir", dir);
         _shader.SetUniformVec4("uLightColor", light.Color.ToVector4());
         _shader.SetUniformFloat("uLightIntensity", light.Intensity);
         _shader.SetUniformVec3("uCameraPos", cameraPos);
