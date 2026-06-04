@@ -19,4 +19,14 @@ public record struct Material3D
             Specular = mtl.SpecularColor,
             Shininess = mtl.Shininess,
         };
+
+    public static Material3D FromModel(ModelMaterial model) =>
+        new()
+        {
+            DiffuseTexturePath = model.DiffuseTexturePath ?? string.Empty,
+            Ambient = Color.Black,
+            Diffuse = model.DiffuseColor,
+            Specular = Color.Black,
+            Shininess = 0f,
+        };
 }

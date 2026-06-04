@@ -31,6 +31,7 @@
   <ItemGroup>
     <Compile Remove="AssetPath.cs" />
     <Compile Remove="Assets\MtlMaterial.cs" />
+    <Compile Remove="Assets\ModelMaterial.cs" />
     <Compile Remove="ECS\**\*.cs" />
     <Compile Remove="Graphics\**\*.cs" />
     <Compile Remove="Physics\**\*.cs" />
@@ -45,6 +46,7 @@
 
   <ItemGroup>
     <PackageReference Include="HarfBuzzSharp" Version="8.3.1.2" />
+    <PackageReference Include="Silk.NET.Assimp" Version="2.22.0" />
     <PackageReference Include="Silk.NET" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenAL" Version="2.22.0" />
