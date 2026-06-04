@@ -150,7 +150,10 @@ public static class AssimpLoader
         );
         if (diffuseResult == Return.Success && diffuseStr.Length > 0)
         {
-            diffusePath = Path.GetFullPath(Path.Combine(baseDir, diffuseStr.AsString));
+            var candidate = Path.GetFullPath(Path.Combine(baseDir, diffuseStr.AsString));
+            var relative = Path.GetRelativePath(baseDir, candidate);
+            if (!relative.StartsWith("..") && !Path.IsPathRooted(relative))
+                diffusePath = candidate;
         }
 
         string? normalPath = null;
@@ -169,7 +172,10 @@ public static class AssimpLoader
         );
         if (normalResult == Return.Success && normalStr.Length > 0)
         {
-            normalPath = Path.GetFullPath(Path.Combine(baseDir, normalStr.AsString));
+            var candidate = Path.GetFullPath(Path.Combine(baseDir, normalStr.AsString));
+            var relative = Path.GetRelativePath(baseDir, candidate);
+            if (!relative.StartsWith("..") && !Path.IsPathRooted(relative))
+                normalPath = candidate;
         }
 
         var diffuseColor = Color.White;
