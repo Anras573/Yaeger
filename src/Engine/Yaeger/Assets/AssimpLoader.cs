@@ -129,11 +129,7 @@ public static class AssimpLoader
         return new MeshData(mesh->MName.AsString, vertices, indices.ToArray());
     }
 
-    private static unsafe ModelMaterial ExtractMaterial(
-        Assimp api,
-        Material* mat,
-        string baseDir
-    )
+    private static unsafe ModelMaterial ExtractMaterial(Assimp api, Material* mat, string baseDir)
     {
         AssimpString nameStr = default;
         api.GetMaterialString(mat, Assimp.MaterialNameBase, 0, 0, &nameStr);
