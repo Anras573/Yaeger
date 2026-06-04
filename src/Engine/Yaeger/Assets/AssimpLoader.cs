@@ -21,8 +21,7 @@ public static class AssimpLoader
             PostProcessSteps.Triangulate
             | PostProcessSteps.GenerateSmoothNormals
             | PostProcessSteps.CalculateTangentSpace
-            | PostProcessSteps.JoinIdenticalVertices
-            | PostProcessSteps.FlipUVs;
+            | PostProcessSteps.JoinIdenticalVertices;
 
         unsafe
         {

@@ -148,7 +148,7 @@ public class AssimpLoaderTests
     }
 
     [SkippableFact]
-    public void LoadScene_NodeWithNonIdentityTransform_ShouldReflectInModelMesh()
+    public void LoadScene_DefaultNodeTransform_ShouldBeIdentity()
     {
         Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
 
@@ -182,19 +182,15 @@ public class AssimpLoaderTests
         }
     }
 
-    [SkippableFact]
+    [Fact]
     public void LoadScene_FileNotFound_ShouldThrowFileNotFoundException()
     {
-        Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
-
         Assert.Throws<FileNotFoundException>(() => AssimpLoader.LoadScene("nonexistent.gltf"));
     }
 
-    [SkippableFact]
+    [Fact]
     public void LoadScene_NullOrWhiteSpacePath_ShouldThrowArgumentException()
     {
-        Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
-
         Assert.Throws<ArgumentException>(() => AssimpLoader.LoadScene("   "));
     }
 }

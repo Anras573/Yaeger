@@ -1,4 +1,5 @@
 using System.Numerics;
+using Yaeger;
 using Yaeger.Assets;
 using Yaeger.ECS;
 using Yaeger.Graphics;
@@ -12,7 +13,7 @@ using Yaeger.Windowing;
 // Requires native libassimp at runtime (e.g. apt install libassimp-dev on Linux).
 // Press ESC to exit.
 
-const string modelPath = "Assets/Sponza/Sponza.gltf";
+var modelPath = AssetPath.Resolve("Assets/Sponza/Sponza.gltf");
 
 if (!File.Exists(modelPath))
 {
