@@ -65,7 +65,7 @@ public class AssimpLoaderTests
     {
         Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
 
-        // A quad lying flat in XY with texture coords — Assimp will compute tangents
+        // A triangle lying flat in XY with texture coords — Assimp will compute tangents
         var obj = """
             v 0.0 0.0 0.0
             v 1.0 0.0 0.0
@@ -152,9 +152,8 @@ public class AssimpLoaderTests
     {
         Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
 
-        // OBJ doesn't carry node transforms; use a minimal glTF-like structure.
-        // Since we can't easily embed a non-identity node transform in a plain OBJ,
-        // we verify that the identity case works and the Transform field is populated.
+        // OBJ doesn't carry node transforms, so the Transform3D should decompose to identity.
+        // We verify the field is populated correctly for this default case.
         var obj = """
             v 0.0 0.0 0.0
             v 1.0 0.0 0.0
