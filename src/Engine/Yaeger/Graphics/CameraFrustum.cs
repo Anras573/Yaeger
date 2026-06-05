@@ -75,9 +75,7 @@ public readonly struct CameraFrustum
             )
         );
         // Near plane: z_clip >= 0, i.e. dot(p, col(3)) >= 0
-        var near = Normalize(
-            new Vector4(viewProj.M13, viewProj.M23, viewProj.M33, viewProj.M43)
-        );
+        var near = Normalize(new Vector4(viewProj.M13, viewProj.M23, viewProj.M33, viewProj.M43));
         var far = Normalize(
             new Vector4(
                 viewProj.M14 - viewProj.M13,

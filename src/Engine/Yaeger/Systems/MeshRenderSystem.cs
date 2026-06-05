@@ -29,11 +29,12 @@ public class MeshRenderSystem(
         renderer.SetSceneLighting(light, cameraPos);
 
         foreach (
-            (Entity entity, MeshHandle handle, Transform3D transform, Material3D material) in world.Query<
-                MeshHandle,
-                Transform3D,
-                Material3D
-            >()
+            (
+                Entity entity,
+                MeshHandle handle,
+                Transform3D transform,
+                Material3D material
+            ) in world.Query<MeshHandle, Transform3D, Material3D>()
         )
         {
             if (!meshRegistry.TryGet(handle, out var mesh))
