@@ -44,7 +44,7 @@ public static class ObjLoader
                 return;
             var meshData = new MeshData(
                 currentName,
-                currentVertices.ToArray(),
+                ComputeTangents(currentVertices, currentIndices),
                 currentIndices.ToArray()
             );
             meshes.Add(new ObjMesh(currentName, meshData, currentMaterial));
@@ -201,6 +201,51 @@ public static class ObjLoader
             meshes.AsReadOnly(),
             new ReadOnlyDictionary<string, MtlMaterial>(materials)
         );
+    }
+
+    private static Vertex3D[] ComputeTangents(List<Vertex3D> vertices, List<uint> indices)
+    {
+        var tangents = new Vector3[vertices.Count];
+
+        for (var i = 0; i < indices.Count; i += 3)
+        {
+            var i0 = (int)indices[i];
+            var i1 = (int)indices[i + 1];
+            var i2 = (int)indices[i + 2];
+
+            var v0 = vertices[i0];
+            var v1 = vertices[i1];
+            var v2 = vertices[i2];
+
+            var edge1 = v1.Position - v0.Position;
+            var edge2 = v2.Position - v0.Position;
+            var deltaUv1 = v1.TexCoord - v0.TexCoord;
+            var deltaUv2 = v2.TexCoord - v0.TexCoord;
+
+            var denom = deltaUv1.X * deltaUv2.Y - deltaUv2.X * deltaUv1.Y;
+            var f = MathF.Abs(denom) > 1e-7f ? 1.0f / denom : 0f;
+
+            var tangent = new Vector3(
+                f * (deltaUv2.Y * edge1.X - deltaUv1.Y * edge2.X),
+                f * (deltaUv2.Y * edge1.Y - deltaUv1.Y * edge2.Y),
+                f * (deltaUv2.Y * edge1.Z - deltaUv1.Y * edge2.Z)
+            );
+
+            tangents[i0] += tangent;
+            tangents[i1] += tangent;
+            tangents[i2] += tangent;
+        }
+
+        var result = new Vertex3D[vertices.Count];
+        for (var i = 0; i < vertices.Count; i++)
+        {
+            var t = tangents[i];
+            var normalized = t.LengthSquared() > 1e-7f ? Vector3.Normalize(t) : Vector3.UnitX;
+            var v = vertices[i];
+            result[i] = new Vertex3D(v.Position, v.Normal, v.TexCoord, normalized);
+        }
+
+        return result;
     }
 
     private static readonly char[] s_whitespace = [' ', '\t'];
