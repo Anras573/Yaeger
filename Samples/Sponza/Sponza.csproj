@@ -22,7 +22,8 @@
   <!--
     Fetch the KhronosGroup Sponza assets on first build using git sparse-checkout.
     Skipped in CI (CI env var is set automatically by GitHub Actions).
-    Assets land in Assets/Sponza/ and are copied to the output directory by the rule above.
+    On first build the target copies directly to $(TargetDir); on subsequent builds
+    the <None Update="Assets\**"> rule above handles the output copy.
   -->
   <Target
     Name="FetchSponzaAssets"
