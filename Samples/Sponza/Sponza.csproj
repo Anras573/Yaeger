@@ -54,6 +54,10 @@
 
     <MakeDir Directories="$(_SponzaDir)" Condition="!Exists('$(_SponzaDir)')" />
     <Copy SourceFiles="@(_SponzaFiles)" DestinationFolder="$(_SponzaDir)/%(RecursiveDir)" />
+    <Copy
+      SourceFiles="@(_SponzaFiles)"
+      DestinationFolder="$(TargetDir)Assets/Sponza/%(RecursiveDir)"
+    />
     <Message Text="Sponza assets ready at $(_SponzaDir)" Importance="high" />
   </Target>
 </Project>
