@@ -58,6 +58,7 @@
       SourceFiles="@(_SponzaFiles)"
       DestinationFolder="$(TargetDir)Assets/Sponza/%(RecursiveDir)"
     />
+    <RemoveDir Directories="$(_SponzaFetchDir)" />
     <Message Text="Sponza assets ready at $(_SponzaDir)" Importance="high" />
   </Target>
 </Project>
