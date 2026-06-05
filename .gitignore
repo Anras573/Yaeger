@@ -507,3 +507,7 @@ fabric.properties
 
 # Custom additions to .gitignore
 .idea/
+
+# Sponza sample — fetched at build time, not committed
+Samples/Sponza/Assets/Sponza/
+Samples/Sponza/_sponza-fetch/

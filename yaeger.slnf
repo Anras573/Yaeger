@@ -1,0 +1,20 @@
+{
+  "solution": {
+    "path": "yaeger.sln",
+    "projects": [
+      "src\\Engine\\Yaeger\\Yaeger.csproj",
+      "src\\Engine\\Yaeger.Core\\Yaeger.Core.csproj",
+      "src\\Engine\\Yaeger.Browser\\Yaeger.Browser.csproj",
+      "tests\\Yaeger.Tests\\Yaeger.Tests.csproj",
+      "Samples\\Pong\\Pong.csproj",
+      "Samples\\RenderingStressTest\\RenderingStressTest.csproj",
+      "Samples\\TextRenderingExample\\TextRenderingExample.csproj",
+      "Samples\\BouncingBalls\\BouncingBalls.csproj",
+      "Samples\\Animation2D\\Animation2D.csproj",
+      "Samples\\CameraDemo\\CameraDemo.csproj",
+      "Samples\\MouseDemo\\MouseDemo.csproj",
+      "Samples\\SceneDemo\\SceneDemo.csproj",
+      "Samples\\BrowserDemo\\BrowserDemo.csproj"
+    ]
+  }
+}

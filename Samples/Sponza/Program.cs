@@ -1,4 +1,5 @@
 using System.Numerics;
+using Sponza;
 using Yaeger;
 using Yaeger.Assets;
 using Yaeger.ECS;
@@ -9,9 +10,9 @@ using Yaeger.Systems;
 using Yaeger.Windowing;
 
 // Sponza demo — loads the Intel/KhronosGroup Sponza glTF via AssimpLoader.
-// Place the model at Assets/Sponza/Sponza.gltf (download from KhronosGroup/glTF-Sample-Assets).
+// Assets are fetched automatically on first build via the FetchSponzaAssets MSBuild target.
 // Requires native libassimp at runtime (e.g. apt install libassimp-dev on Linux).
-// Press ESC to exit.
+// Controls: WASD move, Q/E up/down, right-mouse-drag look, ESC exit.
 
 var modelPath = AssetPath.Resolve("Assets/Sponza/Sponza.gltf");
 
@@ -19,7 +20,7 @@ if (!File.Exists(modelPath))
 {
     Console.Error.WriteLine(
         $"Model not found: {modelPath}\n"
-            + "Download from https://github.com/KhronosGroup/glTF-Sample-Assets and place it at that path."
+            + "Run 'dotnet build' outside CI to fetch assets automatically."
     );
     return;
 }
@@ -62,7 +63,7 @@ world.AddComponent(
     lightEntity,
     new DirectionalLight
     {
-        Direction = Vector3.Normalize(new Vector3(-1f, -1f, -1f)),
+        Direction = Vector3.Normalize(new Vector3(0.4f, -1f, 0.3f)),
         Color = Color.White,
         Intensity = 1f,
     }
@@ -70,9 +71,11 @@ world.AddComponent(
 
 using var renderer3D = new Renderer3D(window.Gl);
 var meshRenderSystem = new MeshRenderSystem(renderer3D, registry, textures, world, window);
+var freeFlySystem = new FreeFlySystem(world, cameraEntity);
 
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
 
+window.OnUpdate += deltaTime => freeFlySystem.Update((float)deltaTime);
 window.OnRender += _ => meshRenderSystem.Render();
 
 window.Run();

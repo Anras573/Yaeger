@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>Sponza</RootNamespace>
     <!-- Requires native libassimp at runtime. On Linux: apt install libassimp-dev -->
     <!-- On Windows/macOS: place the native binary alongside the executable. -->
   </PropertyGroup>
@@ -17,4 +18,48 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!--
+    Fetch the KhronosGroup Sponza assets on first build using git sparse-checkout.
+    Skipped in CI (CI env var is set automatically by GitHub Actions).
+    On first build the target copies directly to $(TargetDir); on subsequent builds
+    the <None Update="Assets\**"> rule above handles the output copy.
+  -->
+  <Target
+    Name="FetchSponzaAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/Sponza/Sponza.gltf')"
+  >
+    <PropertyGroup>
+      <_SponzaDir>$(MSBuildProjectDirectory)/Assets/Sponza</_SponzaDir>
+      <_SponzaFetchDir>$(MSBuildProjectDirectory)/_sponza-fetch</_SponzaFetchDir>
+      <_SponzaGltfFetchPath>$(_SponzaFetchDir)/Models/Sponza/glTF/Sponza.gltf</_SponzaGltfFetchPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the clone is retried on the next build -->
+    <RemoveDir
+      Directories="$(_SponzaFetchDir)"
+      Condition="Exists('$(_SponzaFetchDir)') And !Exists('$(_SponzaGltfFetchPath)')"
+    />
+
+    <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
+    <Exec
+      Command="git clone --filter=blob:none --no-checkout --sparse --depth=1 https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_SponzaFetchDir)&quot; &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; sparse-checkout set Models/Sponza/glTF &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; checkout"
+      Condition="!Exists('$(_SponzaFetchDir)')"
+    />
+
+    <!-- Collect files after the clone so the glob finds them -->
+    <ItemGroup>
+      <_SponzaFiles Include="$(_SponzaFetchDir)/Models/Sponza/glTF/**/*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_SponzaDir)" Condition="!Exists('$(_SponzaDir)')" />
+    <Copy SourceFiles="@(_SponzaFiles)" DestinationFolder="$(_SponzaDir)/%(RecursiveDir)" />
+    <Copy
+      SourceFiles="@(_SponzaFiles)"
+      DestinationFolder="$(TargetDir)Assets/Sponza/%(RecursiveDir)"
+    />
+    <RemoveDir Directories="$(_SponzaFetchDir)" />
+    <Message Text="Sponza assets ready at $(_SponzaDir)" Importance="high" />
+  </Target>
 </Project>
