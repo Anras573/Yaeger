@@ -1,6 +1,5 @@
 using System.Numerics;
 using Yaeger.Graphics;
-using Yaeger.Rendering;
 
 namespace Yaeger.Tests.Graphics;
 
@@ -18,14 +17,13 @@ public class Aabb3DTests
     }
 
     [Fact]
-    public void FromVertices_SingleVertex_ShouldReturnZeroSizeBox()
+    public void FromPositions_SinglePosition_ShouldReturnZeroSizeBox()
     {
         // Arrange
-        var vertex = new Vertex3D(new Vector3(1, 2, 3), Vector3.UnitY, Vector2.Zero);
-        var vertices = new[] { vertex };
+        ReadOnlySpan<Vector3> positions = [new Vector3(1, 2, 3)];
 
         // Act
-        var aabb = Aabb3D.FromVertices(vertices);
+        var aabb = Aabb3D.FromPositions(positions);
 
         // Assert
         Assert.Equal(new Vector3(1, 2, 3), aabb.Min);
@@ -33,19 +31,19 @@ public class Aabb3DTests
     }
 
     [Fact]
-    public void FromVertices_MultipleVertices_ShouldReturnCorrectBounds()
+    public void FromPositions_MultiplePositions_ShouldReturnCorrectBounds()
     {
         // Arrange
-        var vertices = new[]
-        {
-            new Vertex3D(new Vector3(-1, -2, -3), Vector3.UnitY, Vector2.Zero),
-            new Vertex3D(new Vector3(4, 5, 6), Vector3.UnitY, Vector2.Zero),
-            new Vertex3D(new Vector3(0, 0, 0), Vector3.UnitY, Vector2.Zero),
-            new Vertex3D(new Vector3(2, -5, 1), Vector3.UnitY, Vector2.Zero),
-        };
+        ReadOnlySpan<Vector3> positions =
+        [
+            new Vector3(-1, -2, -3),
+            new Vector3(4, 5, 6),
+            new Vector3(0, 0, 0),
+            new Vector3(2, -5, 1),
+        ];
 
         // Act
-        var aabb = Aabb3D.FromVertices(vertices);
+        var aabb = Aabb3D.FromPositions(positions);
 
         // Assert
         Assert.Equal(new Vector3(-1, -5, -3), aabb.Min);
@@ -53,13 +51,13 @@ public class Aabb3DTests
     }
 
     [Fact]
-    public void FromVertices_EmptyArray_ShouldReturnZeroAabb()
+    public void FromPositions_EmptySpan_ShouldReturnZeroAabb()
     {
         // Arrange
-        var vertices = Array.Empty<Vertex3D>();
+        ReadOnlySpan<Vector3> positions = [];
 
         // Act
-        var aabb = Aabb3D.FromVertices(vertices);
+        var aabb = Aabb3D.FromPositions(positions);
 
         // Assert
         Assert.Equal(Vector3.Zero, aabb.Min);

@@ -1,23 +1,21 @@
 using System.Numerics;
-using Yaeger.Rendering;
 
 namespace Yaeger.Graphics;
 
 public record struct Aabb3D(Vector3 Min, Vector3 Max)
 {
-    public static Aabb3D FromVertices(Vertex3D[] vertices)
+    public static Aabb3D FromPositions(ReadOnlySpan<Vector3> positions)
     {
-        if (vertices.Length == 0)
+        if (positions.IsEmpty)
             return new Aabb3D(Vector3.Zero, Vector3.Zero);
 
-        var min = vertices[0].Position;
-        var max = vertices[0].Position;
+        var min = positions[0];
+        var max = positions[0];
 
-        for (var i = 1; i < vertices.Length; i++)
+        for (var i = 1; i < positions.Length; i++)
         {
-            var p = vertices[i].Position;
-            min = Vector3.Min(min, p);
-            max = Vector3.Max(max, p);
+            min = Vector3.Min(min, positions[i]);
+            max = Vector3.Max(max, positions[i]);
         }
 
         return new Aabb3D(min, max);
