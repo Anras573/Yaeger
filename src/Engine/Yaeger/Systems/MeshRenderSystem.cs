@@ -23,12 +23,13 @@ public class MeshRenderSystem(
     {
         var (viewProj, cameraPos) = GetViewProjectionAndPosition();
         var light = GetDirectionalLight();
+        var frustum = CameraFrustum.FromMatrix(viewProj);
 
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
 
         foreach (
-            (_, MeshHandle handle, Transform3D transform, Material3D material) in world.Query<
+            (Entity entity, MeshHandle handle, Transform3D transform, Material3D material) in world.Query<
                 MeshHandle,
                 Transform3D,
                 Material3D
@@ -37,6 +38,12 @@ public class MeshRenderSystem(
         {
             if (!meshRegistry.TryGet(handle, out var mesh))
                 continue;
+
+            if (world.TryGetComponent(entity, out Aabb3D aabb))
+            {
+                if (!frustum.Intersects(aabb, transform.ModelMatrix))
+                    continue;
+            }
 
             renderer.Draw(mesh, transform.ModelMatrix, viewProj, material, textureManager);
         }
