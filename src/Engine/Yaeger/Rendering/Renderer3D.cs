@@ -61,12 +61,19 @@ public sealed class Renderer3D : IDisposable
             vec3 N = normalize(vNormal);
 
             if (uHasNormalMap != 0) {
-                vec3 T = normalize(vTangent);
-                T = normalize(T - dot(T, N) * N);
-                vec3 B = cross(N, T);
-                mat3 TBN = mat3(T, B, N);
-                vec3 sampledN = texture(uNormalMap, vTexCoord).rgb * 2.0 - 1.0;
-                N = normalize(TBN * sampledN);
+                float tLenSq = dot(vTangent, vTangent);
+                if (tLenSq > 1e-10) {
+                    vec3 T = vTangent * inversesqrt(tLenSq);
+                    vec3 Tproj = T - dot(T, N) * N;
+                    float projLenSq = dot(Tproj, Tproj);
+                    if (projLenSq > 1e-10) {
+                        vec3 Tn = Tproj * inversesqrt(projLenSq);
+                        vec3 B = cross(N, Tn);
+                        mat3 TBN = mat3(Tn, B, N);
+                        vec3 sampledN = texture(uNormalMap, vTexCoord).rgb * 2.0 - 1.0;
+                        N = normalize(TBN * sampledN);
+                    }
+                }
             }
 
             vec3 L = normalize(uLightDir);
