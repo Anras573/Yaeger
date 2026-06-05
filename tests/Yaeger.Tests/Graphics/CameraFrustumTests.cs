@@ -101,10 +101,11 @@ public class CameraFrustumTests
     [Fact]
     public void Intersects_BoxWithModelTranslationIntoFrustum_ShouldBeInside()
     {
-        // Arrange — AABB at local origin, moved to world origin by the model matrix
+        // Arrange — AABB defined at local origin; model matrix moves it to (5,0,-3),
+        // which is inside the frustum (camera at z=10 looking toward z=0).
         var frustum = BuildFrustum();
         var aabb = new Aabb3D(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
-        var model = Matrix4x4.CreateTranslation(0, 0, 0); // identity translation
+        var model = Matrix4x4.CreateTranslation(5, 0, -3);
 
         // Act
         var result = frustum.Intersects(aabb, model);
