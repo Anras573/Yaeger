@@ -32,7 +32,14 @@
     <PropertyGroup>
       <_SponzaDir>$(MSBuildProjectDirectory)/Assets/Sponza</_SponzaDir>
       <_SponzaFetchDir>$(MSBuildProjectDirectory)/_sponza-fetch</_SponzaFetchDir>
+      <_SponzaGltfFetchPath>$(_SponzaFetchDir)/Models/Sponza/glTF/Sponza.gltf</_SponzaGltfFetchPath>
     </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the clone is retried on the next build -->
+    <RemoveDir
+      Directories="$(_SponzaFetchDir)"
+      Condition="Exists('$(_SponzaFetchDir)') And !Exists('$(_SponzaGltfFetchPath)')"
+    />
 
     <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
     <Exec
