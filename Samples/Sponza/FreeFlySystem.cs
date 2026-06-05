@@ -52,12 +52,14 @@ internal sealed class FreeFlySystem(World world, Entity cameraEntity) : IUpdateS
                 var pitch = -delta.Y * LookSensitivity;
 
                 var fwd = Vector3.Normalize(camera.Target - camera.Position);
-                var r = Vector3.Normalize(Vector3.Cross(fwd, camera.Up));
 
                 // Yaw around world Y axis
                 fwd = Vector3.Normalize(
                     Vector3.TransformNormal(fwd, Matrix4x4.CreateFromAxisAngle(Vector3.UnitY, yaw))
                 );
+
+                // Recompute right axis after yaw so pitch is applied to post-yaw orientation
+                var r = Vector3.Normalize(Vector3.Cross(fwd, camera.Up));
 
                 // Pitch around local right axis; reject if result points nearly straight up/down
                 var pitched = Vector3.Normalize(

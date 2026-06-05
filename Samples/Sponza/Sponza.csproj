@@ -24,16 +24,21 @@
     Skipped in CI (CI env var is set automatically by GitHub Actions).
     Assets land in Assets/Sponza/ and are copied to the output directory by the rule above.
   -->
-  <Target Name="FetchSponzaAssets" BeforeTargets="Build" Condition="'$(CI)' != 'true'">
+  <Target
+    Name="FetchSponzaAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/Sponza/Sponza.gltf')"
+  >
     <PropertyGroup>
       <_SponzaDir>$(MSBuildProjectDirectory)/Assets/Sponza</_SponzaDir>
       <_SponzaFetchDir>$(MSBuildProjectDirectory)/_sponza-fetch</_SponzaFetchDir>
     </PropertyGroup>
 
-    <!-- Clone with sparse checkout only when the fetch cache does not yet exist -->
+    <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
     <Exec
-      Command="git clone --filter=blob:none --no-checkout --sparse https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_SponzaFetchDir)&quot; &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; sparse-checkout set Models/Sponza/glTF &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; checkout"
-      Condition="!Exists('$(_SponzaFetchDir)')" />
+      Command="git clone --filter=blob:none --no-checkout --sparse --depth=1 https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_SponzaFetchDir)&quot; &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; sparse-checkout set Models/Sponza/glTF &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; checkout"
+      Condition="!Exists('$(_SponzaFetchDir)')"
+    />
 
     <!-- Collect files after the clone so the glob finds them -->
     <ItemGroup>
@@ -41,14 +46,7 @@
     </ItemGroup>
 
     <MakeDir Directories="$(_SponzaDir)" Condition="!Exists('$(_SponzaDir)')" />
-    <Copy
-      SourceFiles="@(_SponzaFiles)"
-      DestinationFolder="$(_SponzaDir)/%(RecursiveDir)"
-      Condition="!Exists('$(_SponzaDir)/Sponza.gltf')" />
-
-    <Message
-      Text="Sponza assets ready at $(_SponzaDir)"
-      Importance="high"
-      Condition="Exists('$(_SponzaDir)/Sponza.gltf')" />
+    <Copy SourceFiles="@(_SponzaFiles)" DestinationFolder="$(_SponzaDir)/%(RecursiveDir)" />
+    <Message Text="Sponza assets ready at $(_SponzaDir)" Importance="high" />
   </Target>
 </Project>
