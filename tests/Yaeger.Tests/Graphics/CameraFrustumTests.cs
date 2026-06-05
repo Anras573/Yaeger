@@ -58,7 +58,7 @@ public class CameraFrustumTests
     [Fact]
     public void Intersects_BoxFarToTheRight_ShouldBeOutside()
     {
-        // Arrange — at distance 10 from camera with 90° FOV, frustum half-width ≈ 10 units.
+        // Arrange — 90° vertical FOV + 16:9 aspect → half-width ≈ 17.8 units at distance 10.
         // A box starting at x=200 is well outside the right side.
         var frustum = BuildFrustum();
         var aabb = new Aabb3D(new Vector3(200, -1, -1), new Vector3(201, 1, 1));

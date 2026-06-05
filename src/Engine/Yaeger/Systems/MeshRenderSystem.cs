@@ -24,6 +24,7 @@ public class MeshRenderSystem(
         var (viewProj, cameraPos) = GetViewProjectionAndPosition();
         var light = GetDirectionalLight();
         var frustum = CameraFrustum.FromMatrix(viewProj);
+        var aabbStore = world.GetStore<Aabb3D>();
 
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
@@ -40,7 +41,7 @@ public class MeshRenderSystem(
             if (!meshRegistry.TryGet(handle, out var mesh))
                 continue;
 
-            if (world.TryGetComponent(entity, out Aabb3D aabb))
+            if (aabbStore.TryGet(entity, out var aabb))
             {
                 if (!frustum.Intersects(aabb, transform.ModelMatrix))
                     continue;
