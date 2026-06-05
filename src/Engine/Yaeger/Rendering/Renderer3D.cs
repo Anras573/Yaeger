@@ -30,7 +30,7 @@ public sealed class Renderer3D : IDisposable
             vec4 worldPos = uModel * vec4(aPosition, 1.0);
             vFragPos  = worldPos.xyz;
             vNormal   = uNormalMatrix * aNormal;
-            vTangent  = uNormalMatrix * aTangent;
+            vTangent  = mat3(uModel) * aTangent;
             vTexCoord = aTexCoord;
             gl_Position = uViewProj * worldPos;
         }
