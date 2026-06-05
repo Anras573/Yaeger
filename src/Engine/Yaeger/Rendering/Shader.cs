@@ -87,6 +87,12 @@ public class Shader : IDisposable
         _gl.Uniform1(location, value);
     }
 
+    public void SetUniformInt(string name, int value)
+    {
+        var location = GetUniformLocation(name);
+        _gl.Uniform1(location, value);
+    }
+
     public unsafe void SetUniformMatrix3(string name, Matrix4x4 matrix)
     {
         var location = GetUniformLocation(name);

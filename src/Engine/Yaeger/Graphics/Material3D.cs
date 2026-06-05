@@ -5,6 +5,7 @@ namespace Yaeger.Graphics;
 public record struct Material3D
 {
     public string DiffuseTexturePath;
+    public string? NormalTexturePath;
     public Color Ambient;
     public Color Diffuse;
     public Color Specular;
@@ -14,6 +15,7 @@ public record struct Material3D
         new()
         {
             DiffuseTexturePath = mtl.DiffuseTexturePath ?? string.Empty,
+            NormalTexturePath = mtl.NormalTexturePath,
             Ambient = mtl.AmbientColor,
             Diffuse = mtl.DiffuseColor,
             Specular = mtl.SpecularColor,
@@ -24,6 +26,7 @@ public record struct Material3D
         new()
         {
             DiffuseTexturePath = model.DiffuseTexturePath ?? string.Empty,
+            NormalTexturePath = model.NormalTexturePath,
             Ambient = Color.Black,
             Diffuse = model.DiffuseColor,
             Specular = Color.Black,

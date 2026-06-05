@@ -15,6 +15,7 @@ public sealed class Renderer3D : IDisposable
         layout(location = 0) in vec3 aPosition;
         layout(location = 1) in vec3 aNormal;
         layout(location = 2) in vec2 aTexCoord;
+        layout(location = 3) in vec3 aTangent;
 
         uniform mat4 uModel;
         uniform mat4 uViewProj;
@@ -23,11 +24,13 @@ public sealed class Renderer3D : IDisposable
         out vec3 vNormal;
         out vec2 vTexCoord;
         out vec3 vFragPos;
+        out vec3 vTangent;
 
         void main() {
             vec4 worldPos = uModel * vec4(aPosition, 1.0);
             vFragPos  = worldPos.xyz;
             vNormal   = uNormalMatrix * aNormal;
+            vTangent  = uNormalMatrix * aTangent;
             vTexCoord = aTexCoord;
             gl_Position = uViewProj * worldPos;
         }
@@ -38,9 +41,12 @@ public sealed class Renderer3D : IDisposable
         in  vec3 vNormal;
         in  vec2 vTexCoord;
         in  vec3 vFragPos;
+        in  vec3 vTangent;
         out vec4 FragColor;
 
         uniform sampler2D uDiffuse;
+        uniform sampler2D uNormalMap;
+        uniform int       uHasNormalMap;
         uniform vec4  uDiffuseColor;
         uniform vec4  uAmbientColor;
         uniform vec4  uSpecularColor;
@@ -53,6 +59,16 @@ public sealed class Renderer3D : IDisposable
 
         void main() {
             vec3 N = normalize(vNormal);
+
+            if (uHasNormalMap != 0) {
+                vec3 T = normalize(vTangent);
+                T = normalize(T - dot(T, N) * N);
+                vec3 B = cross(N, T);
+                mat3 TBN = mat3(T, B, N);
+                vec3 sampledN = texture(uNormalMap, vTexCoord).rgb * 2.0 - 1.0;
+                N = normalize(TBN * sampledN);
+            }
+
             vec3 L = normalize(uLightDir);
             vec3 viewDir = uCameraPos - vFragPos;
             vec3 V = viewDir * inversesqrt(max(dot(viewDir, viewDir), 1e-10));
@@ -76,12 +92,14 @@ public sealed class Renderer3D : IDisposable
     private readonly GL _gl;
     private readonly Shader _shader;
     private readonly uint _defaultTexture;
+    private readonly uint _defaultNormalTexture;
 
     public Renderer3D(GL gl)
     {
         _gl = gl;
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _defaultTexture = CreateWhiteTexture();
+        _defaultNormalTexture = CreateFlatNormalTexture();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
     }
 
@@ -161,6 +179,22 @@ public sealed class Renderer3D : IDisposable
             _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
         }
 
+        _shader.SetUniformInt("uDiffuse", 0);
+
+        if (!string.IsNullOrEmpty(material.NormalTexturePath))
+        {
+            textures.Get(material.NormalTexturePath).Bind(TextureUnit.Texture1);
+            _shader.SetUniformInt("uHasNormalMap", 1);
+        }
+        else
+        {
+            _gl.ActiveTexture(TextureUnit.Texture1);
+            _gl.BindTexture(TextureTarget.Texture2D, _defaultNormalTexture);
+            _shader.SetUniformInt("uHasNormalMap", 0);
+        }
+
+        _shader.SetUniformInt("uNormalMap", 1);
+
         mesh.Draw();
 
         _shader.Unbind();
@@ -199,9 +233,44 @@ public sealed class Renderer3D : IDisposable
         return handle;
     }
 
+    // Flat normal map: (0.5, 0.5, 1.0) encodes tangent-space normal pointing straight up.
+    private unsafe uint CreateFlatNormalTexture()
+    {
+        var handle = _gl.GenTexture();
+        _gl.BindTexture(TextureTarget.Texture2D, handle);
+        byte[] flatNormal = [128, 128, 255, 255];
+        fixed (byte* ptr = flatNormal)
+        {
+            _gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                (int)InternalFormat.Rgba,
+                1,
+                1,
+                0,
+                PixelFormat.Rgba,
+                PixelType.UnsignedByte,
+                ptr
+            );
+        }
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter,
+            (int)TextureMinFilter.Nearest
+        );
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter,
+            (int)TextureMagFilter.Nearest
+        );
+        _gl.BindTexture(TextureTarget.Texture2D, 0);
+        return handle;
+    }
+
     public void Dispose()
     {
         _shader.Dispose();
         _gl.DeleteTexture(_defaultTexture);
+        _gl.DeleteTexture(_defaultNormalTexture);
     }
 }

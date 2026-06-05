@@ -392,6 +392,65 @@ public class ObjLoaderTests
     }
 
     [Fact]
+    public void Load_TriangleWithTexCoords_ShouldComputeNonZeroTangents()
+    {
+        // Triangle in the XY plane with UV coords — tangents should align with U direction
+        var obj = """
+            v 0.0 0.0 0.0
+            v 1.0 0.0 0.0
+            v 0.0 1.0 0.0
+            vt 0.0 0.0
+            vt 1.0 0.0
+            vt 0.0 1.0
+            vn 0.0 0.0 1.0
+            g tri
+            f 1/1/1 2/2/1 3/3/1
+            """;
+        var path = WriteTempFile(obj);
+
+        try
+        {
+            var meshes = ObjLoader.Load(path);
+
+            var vertices = meshes[0].Mesh.Vertices;
+            foreach (var v in vertices)
+                Assert.NotEqual(Vector3.Zero, v.Tangent);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_NoTexCoords_ShouldFallbackToUnitXTangent()
+    {
+        // When UV coords are all zero, denom is zero and tangent falls back to UnitX
+        var obj = """
+            v 0.0 0.0 0.0
+            v 1.0 0.0 0.0
+            v 0.0 1.0 0.0
+            vn 0.0 0.0 1.0
+            g tri
+            f 1//1 2//1 3//1
+            """;
+        var path = WriteTempFile(obj);
+
+        try
+        {
+            var meshes = ObjLoader.Load(path);
+
+            var vertices = meshes[0].Mesh.Vertices;
+            foreach (var v in vertices)
+                Assert.Equal(Vector3.UnitX, v.Tangent);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Load_FaceWithFewerThanThreeVertices_ShouldThrowFormatException()
     {
         var obj = """

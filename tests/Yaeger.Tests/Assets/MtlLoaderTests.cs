@@ -220,4 +220,114 @@ public class MtlLoaderTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void Load_NoNormalMap_ShouldHaveNullNormalTexturePath()
+    {
+        var mtl = """
+            newmtl plain
+            Kd 0.5 0.5 0.5
+            """;
+        var path = WriteTempFile(mtl);
+
+        try
+        {
+            var materials = MtlLoader.Load(path);
+
+            Assert.Null(materials["plain"].NormalTexturePath);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_MapBump_ShouldSetNormalTexturePath()
+    {
+        var mtl = """
+            newmtl bumped
+            map_Kd textures/wall.png
+            map_bump textures/wall_normal.png
+            """;
+        var path = WriteTempFile(mtl);
+
+        try
+        {
+            var materials = MtlLoader.Load(path);
+
+            Assert.Equal("textures/wall_normal.png", materials["bumped"].NormalTexturePath);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_BumpDirective_ShouldSetNormalTexturePath()
+    {
+        var mtl = """
+            newmtl bumped
+            bump textures/wall_normal.png
+            """;
+        var path = WriteTempFile(mtl);
+
+        try
+        {
+            var materials = MtlLoader.Load(path);
+
+            Assert.Equal("textures/wall_normal.png", materials["bumped"].NormalTexturePath);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_NormDirective_ShouldSetNormalTexturePath()
+    {
+        var mtl = """
+            newmtl bumped
+            norm textures/wall_normal.png
+            """;
+        var path = WriteTempFile(mtl);
+
+        try
+        {
+            var materials = MtlLoader.Load(path);
+
+            Assert.Equal("textures/wall_normal.png", materials["bumped"].NormalTexturePath);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_NormalMapResetBetweenMaterials()
+    {
+        var mtl = """
+            newmtl mat_with_normal
+            map_bump textures/normal.png
+
+            newmtl mat_without_normal
+            Kd 1.0 0.0 0.0
+            """;
+        var path = WriteTempFile(mtl);
+
+        try
+        {
+            var materials = MtlLoader.Load(path);
+
+            Assert.Equal("textures/normal.png", materials["mat_with_normal"].NormalTexturePath);
+            Assert.Null(materials["mat_without_normal"].NormalTexturePath);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

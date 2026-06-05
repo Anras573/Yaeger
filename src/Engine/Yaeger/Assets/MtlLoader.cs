@@ -19,6 +19,7 @@ public static class MtlLoader
 
         string? currentName = null;
         string? diffuseTexturePath = null;
+        string? normalTexturePath = null;
         Color ambientColor = Color.Black;
         Color diffuseColor = Color.White;
         Color specularColor = Color.Black;
@@ -31,6 +32,7 @@ public static class MtlLoader
             materials[currentName] = new MtlMaterial(
                 currentName,
                 diffuseTexturePath,
+                normalTexturePath,
                 ambientColor,
                 diffuseColor,
                 specularColor,
@@ -64,6 +66,7 @@ public static class MtlLoader
                         );
                     currentName = rest;
                     diffuseTexturePath = null;
+                    normalTexturePath = null;
                     ambientColor = Color.Black;
                     diffuseColor = Color.White;
                     specularColor = Color.Black;
@@ -103,6 +106,15 @@ public static class MtlLoader
                             "MTL 'map_Kd' directive appears before any 'newmtl'."
                         );
                     diffuseTexturePath = rest;
+                    break;
+                case "map_bump":
+                case "bump":
+                case "norm":
+                    if (currentName is null)
+                        throw new FormatException(
+                            $"MTL '{keyword}' directive appears before any 'newmtl'."
+                        );
+                    normalTexturePath = rest;
                     break;
             }
         }
