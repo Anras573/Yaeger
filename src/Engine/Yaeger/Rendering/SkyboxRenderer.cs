@@ -174,7 +174,14 @@ public sealed class SkyboxRenderer : IDisposable
             );
         }
 
-        _gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), (void*)0);
+        _gl.VertexAttribPointer(
+            0,
+            3,
+            VertexAttribPointerType.Float,
+            false,
+            3 * sizeof(float),
+            (void*)0
+        );
         _gl.EnableVertexAttribArray(0);
 
         _gl.BindVertexArray(0);
