@@ -62,8 +62,10 @@ public class MeshRenderSystem(
             foreach (var (_, skybox) in world.GetStore<Skybox>().All())
             {
                 if (cubemapRegistry.TryGet(skybox, out var cubemap))
+                {
                     skyboxRenderer.Draw(cubemap, view, projection);
-                break;
+                    break;
+                }
             }
         }
 

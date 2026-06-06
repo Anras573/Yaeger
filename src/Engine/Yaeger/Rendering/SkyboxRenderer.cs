@@ -202,6 +202,8 @@ public sealed class SkyboxRenderer : IDisposable
 
         // LEQUAL so the skybox (depth = 1.0 after pos.xyww) renders behind all geometry.
         _gl.DepthFunc(DepthFunction.Lequal);
+        // The cube is viewed from inside, so back-face culling would discard every face.
+        _gl.Disable(EnableCap.CullFace);
 
         _shader.Bind();
         _shader.SetUniformMatrix4("uView", rotationOnly);
@@ -217,6 +219,7 @@ public sealed class SkyboxRenderer : IDisposable
         cubemap.Unbind(TextureUnit.Texture0);
         _shader.Unbind();
 
+        _gl.Enable(EnableCap.CullFace);
         _gl.DepthFunc(DepthFunction.Less);
     }
 

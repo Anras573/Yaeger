@@ -41,10 +41,31 @@ public sealed class CubemapTexture : IDisposable
             ];
             string[] paths = [right, left, top, bottom, front, back];
 
+            int faceWidth = 0,
+                faceHeight = 0;
             for (var i = 0; i < 6; i++)
             {
                 using var stream = File.OpenRead(AssetPath.Resolve(paths[i]));
                 var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
+
+                if (image.Width != image.Height)
+                    throw new ArgumentException(
+                        $"Cubemap face '{paths[i]}' is not square ({image.Width}x{image.Height})."
+                    );
+
+                if (i == 0)
+                {
+                    faceWidth = image.Width;
+                    faceHeight = image.Height;
+                }
+                else if (image.Width != faceWidth || image.Height != faceHeight)
+                {
+                    throw new ArgumentException(
+                        $"Cubemap face '{paths[i]}' size {image.Width}x{image.Height} does not match "
+                            + $"face 0 size {faceWidth}x{faceHeight}."
+                    );
+                }
+
                 fixed (byte* data = image.Data)
                 {
                     _gl.TexImage2D(
