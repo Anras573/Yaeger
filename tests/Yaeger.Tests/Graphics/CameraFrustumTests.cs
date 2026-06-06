@@ -142,14 +142,15 @@ public class CameraFrustumTests
     }
 
     [Fact]
-    public void Intersects_BoxBetweenCameraAndNearPlane_ShouldBeInside()
+    public void Intersects_BoxInOpenGlClipRange_ShouldBeInside()
     {
-        // Regression: the near plane must use the OpenGL convention (NDC Z >= -1),
-        // not the .NET projection convention (NDC Z >= 0).
-        // Camera at z=10, near=1 → .NET near plane sits at world_z≈9 (NDC_z=0);
-        // OpenGL near plane sits at world_z≈9.5 (NDC_z=-1).
-        // A box at world_z≈9.3 has NDC_z≈-0.43, inside the OpenGL frustum and
-        // must NOT be culled. The previous col(3)-only formula would reject it.
+        // Regression guard: System.Numerics' perspective matrix maps Camera3D.Near to
+        // NDC_z = 0, but OpenGL clips at NDC_z = -1 (no glClipControl in the renderer).
+        // Objects with NDC_z in [-1, 0) are visible to OpenGL even though clip_z < 0.
+        // Using col(3) alone would incorrectly reject them; the correct near plane is
+        // col(3) + col(4), i.e. z_clip + w_clip >= 0 (NDC_z >= -1).
+        // This box sits at world_z ≈ 9.3 (camera at z=10), giving NDC_z ≈ -0.43 —
+        // inside OpenGL's clip range and must not be culled.
         var frustum = BuildFrustum();
         var aabb = new Aabb3D(new Vector3(-0.5f, -0.5f, 9.2f), new Vector3(0.5f, 0.5f, 9.4f));
 

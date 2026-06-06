@@ -21,9 +21,9 @@ public class MeshRenderSystem(
 {
     public void Render()
     {
-        var (viewProj, cameraPos) = GetViewProjectionAndPosition();
+        var (viewProj, cameraPos, hasCamera) = GetViewProjectionAndPosition();
         var light = GetDirectionalLight();
-        var frustum = CameraFrustum.FromMatrix(viewProj);
+        CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = world.GetStore<Aabb3D>();
 
         renderer.BeginFrame3D();
@@ -43,9 +43,9 @@ public class MeshRenderSystem(
 
             var modelMatrix = transform.ModelMatrix;
 
-            if (aabbStore.TryGet(entity, out var aabb))
+            if (frustum.HasValue && aabbStore.TryGet(entity, out var aabb))
             {
-                if (!frustum.Intersects(aabb, modelMatrix))
+                if (!frustum.Value.Intersects(aabb, modelMatrix))
                     continue;
             }
 
@@ -55,16 +55,16 @@ public class MeshRenderSystem(
         renderer.EndFrame3D();
     }
 
-    private (Matrix4x4 ViewProj, Vector3 CameraPos) GetViewProjectionAndPosition()
+    private (Matrix4x4 ViewProj, Vector3 CameraPos, bool HasCamera) GetViewProjectionAndPosition()
     {
         foreach (var (_, camera) in world.GetStore<Camera3D>().All())
         {
             var size = window.Size;
             var aspectRatio = size.Y > 0f ? size.X / size.Y : 1f;
-            return (camera.ViewProjection(aspectRatio), camera.Position);
+            return (camera.ViewProjection(aspectRatio), camera.Position, true);
         }
 
-        return (Matrix4x4.Identity, Vector3.Zero);
+        return (Matrix4x4.Identity, Vector3.Zero, false);
     }
 
     private static readonly DirectionalLight DefaultLight = DirectionalLight.Default;
