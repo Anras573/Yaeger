@@ -10,18 +10,23 @@ namespace Yaeger.Systems;
 /// Queries ECS entities with <see cref="MeshHandle"/>, <see cref="Transform3D"/>, and
 /// <see cref="Material3D"/> components and issues draw calls via <see cref="Renderer3D"/>.
 /// Wire this to <see cref="Window.OnRender"/>, not <see cref="Window.OnUpdate"/>.
+/// Pass a <see cref="SkyboxRenderer"/> and <see cref="CubemapRegistry"/> to render any
+/// <see cref="Skybox"/> entity automatically.
 /// </summary>
 public class MeshRenderSystem(
     Renderer3D renderer,
     GpuMeshRegistry meshRegistry,
     TextureManager textureManager,
     World world,
-    Window window
+    Window window,
+    SkyboxRenderer? skyboxRenderer = null,
+    CubemapRegistry? cubemapRegistry = null
 )
 {
     public void Render()
     {
-        var (viewProj, cameraPos, hasCamera) = GetViewProjectionAndPosition();
+        var (view, projection, cameraPos, hasCamera) = GetCameraMatrices();
+        var viewProj = view * projection;
         var light = GetDirectionalLight();
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
@@ -52,19 +57,36 @@ public class MeshRenderSystem(
             renderer.Draw(mesh, modelMatrix, viewProj, material, textureManager);
         }
 
+        if (skyboxRenderer != null && cubemapRegistry != null && hasCamera)
+        {
+            foreach (var (_, skybox) in world.GetStore<Skybox>().All())
+            {
+                if (cubemapRegistry.TryGet(skybox, out var cubemap))
+                {
+                    skyboxRenderer.Draw(cubemap, view, projection);
+                    break;
+                }
+            }
+        }
+
         renderer.EndFrame3D();
     }
 
-    private (Matrix4x4 ViewProj, Vector3 CameraPos, bool HasCamera) GetViewProjectionAndPosition()
+    private (
+        Matrix4x4 View,
+        Matrix4x4 Projection,
+        Vector3 CameraPos,
+        bool HasCamera
+    ) GetCameraMatrices()
     {
         foreach (var (_, camera) in world.GetStore<Camera3D>().All())
         {
             var size = window.Size;
             var aspectRatio = size.Y > 0f ? size.X / size.Y : 1f;
-            return (camera.ViewProjection(aspectRatio), camera.Position, true);
+            return (camera.ViewMatrix, camera.ProjectionMatrix(aspectRatio), camera.Position, true);
         }
 
-        return (Matrix4x4.Identity, Vector3.Zero, false);
+        return (Matrix4x4.Identity, Matrix4x4.Identity, Vector3.Zero, false);
     }
 
     private static readonly DirectionalLight DefaultLight = DirectionalLight.Default;
