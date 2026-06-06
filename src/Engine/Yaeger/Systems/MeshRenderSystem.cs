@@ -21,39 +21,50 @@ public class MeshRenderSystem(
 {
     public void Render()
     {
-        var (viewProj, cameraPos) = GetViewProjectionAndPosition();
+        var (viewProj, cameraPos, hasCamera) = GetViewProjectionAndPosition();
         var light = GetDirectionalLight();
+        CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
+        var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
 
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
 
         foreach (
-            (_, MeshHandle handle, Transform3D transform, Material3D material) in world.Query<
-                MeshHandle,
-                Transform3D,
-                Material3D
-            >()
+            (
+                Entity entity,
+                MeshHandle handle,
+                Transform3D transform,
+                Material3D material
+            ) in world.Query<MeshHandle, Transform3D, Material3D>()
         )
         {
             if (!meshRegistry.TryGet(handle, out var mesh))
                 continue;
 
-            renderer.Draw(mesh, transform.ModelMatrix, viewProj, material, textureManager);
+            var modelMatrix = transform.ModelMatrix;
+
+            if (frustum.HasValue && aabbStore!.TryGet(entity, out var aabb))
+            {
+                if (!frustum.Value.Intersects(aabb, modelMatrix))
+                    continue;
+            }
+
+            renderer.Draw(mesh, modelMatrix, viewProj, material, textureManager);
         }
 
         renderer.EndFrame3D();
     }
 
-    private (Matrix4x4 ViewProj, Vector3 CameraPos) GetViewProjectionAndPosition()
+    private (Matrix4x4 ViewProj, Vector3 CameraPos, bool HasCamera) GetViewProjectionAndPosition()
     {
         foreach (var (_, camera) in world.GetStore<Camera3D>().All())
         {
             var size = window.Size;
             var aspectRatio = size.Y > 0f ? size.X / size.Y : 1f;
-            return (camera.ViewProjection(aspectRatio), camera.Position);
+            return (camera.ViewProjection(aspectRatio), camera.Position, true);
         }
 
-        return (Matrix4x4.Identity, Vector3.Zero);
+        return (Matrix4x4.Identity, Vector3.Zero, false);
     }
 
     private static readonly DirectionalLight DefaultLight = DirectionalLight.Default;

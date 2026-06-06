@@ -43,6 +43,7 @@ foreach (var modelMesh in modelScene.Meshes)
     world.AddComponent(entity, handle);
     world.AddComponent(entity, modelMesh.Transform);
     world.AddComponent(entity, Material3D.FromModel(modelMesh.Material));
+    world.AddComponent(entity, modelMesh.Mesh.ToAabb());
 }
 
 var cameraEntity = world.CreateEntity("camera");
