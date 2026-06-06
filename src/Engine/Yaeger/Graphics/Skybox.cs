@@ -1,10 +1,9 @@
-using Yaeger.Rendering;
-
 namespace Yaeger.Graphics;
 
 /// <summary>
-/// ECS component that marks an entity as a skybox.
-/// Attach this to any entity and supply a <see cref="SkyboxRenderer"/> to
-/// <see cref="Yaeger.Systems.MeshRenderSystem"/> for automatic rendering.
+/// ECS component that holds an opaque integer key into a cubemap registry.
+/// Attach to an entity alongside a <see cref="CubemapRegistry"/> and
+/// <see cref="SkyboxRenderer"/> wired into <see cref="Yaeger.Systems.MeshRenderSystem"/>
+/// for automatic skybox rendering.
 /// </summary>
-public readonly record struct Skybox(CubemapTexture Cubemap);
+public readonly record struct Skybox(int Id);

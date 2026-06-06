@@ -10,7 +10,8 @@ namespace Yaeger.Systems;
 /// Queries ECS entities with <see cref="MeshHandle"/>, <see cref="Transform3D"/>, and
 /// <see cref="Material3D"/> components and issues draw calls via <see cref="Renderer3D"/>.
 /// Wire this to <see cref="Window.OnRender"/>, not <see cref="Window.OnUpdate"/>.
-/// Pass a <see cref="SkyboxRenderer"/> to render any <see cref="Skybox"/> entity automatically.
+/// Pass a <see cref="SkyboxRenderer"/> and <see cref="CubemapRegistry"/> to render any
+/// <see cref="Skybox"/> entity automatically.
 /// </summary>
 public class MeshRenderSystem(
     Renderer3D renderer,
@@ -18,7 +19,8 @@ public class MeshRenderSystem(
     TextureManager textureManager,
     World world,
     Window window,
-    SkyboxRenderer? skyboxRenderer = null
+    SkyboxRenderer? skyboxRenderer = null,
+    CubemapRegistry? cubemapRegistry = null
 )
 {
     public void Render()
@@ -55,11 +57,12 @@ public class MeshRenderSystem(
             renderer.Draw(mesh, modelMatrix, viewProj, material, textureManager);
         }
 
-        if (skyboxRenderer != null && hasCamera)
+        if (skyboxRenderer != null && cubemapRegistry != null && hasCamera)
         {
             foreach (var (_, skybox) in world.GetStore<Skybox>().All())
             {
-                skyboxRenderer.Draw(skybox.Cubemap, view, projection);
+                if (cubemapRegistry.TryGet(skybox, out var cubemap))
+                    skyboxRenderer.Draw(cubemap, view, projection);
                 break;
             }
         }
