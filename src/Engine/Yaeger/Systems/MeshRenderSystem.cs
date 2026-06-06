@@ -67,7 +67,12 @@ public class MeshRenderSystem(
         renderer.EndFrame3D();
     }
 
-    private (Matrix4x4 View, Matrix4x4 Projection, Vector3 CameraPos, bool HasCamera) GetCameraMatrices()
+    private (
+        Matrix4x4 View,
+        Matrix4x4 Projection,
+        Vector3 CameraPos,
+        bool HasCamera
+    ) GetCameraMatrices()
     {
         foreach (var (_, camera) in world.GetStore<Camera3D>().All())
         {
