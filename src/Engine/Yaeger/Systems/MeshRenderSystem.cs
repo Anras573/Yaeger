@@ -24,7 +24,7 @@ public class MeshRenderSystem(
         var (viewProj, cameraPos, hasCamera) = GetViewProjectionAndPosition();
         var light = GetDirectionalLight();
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
-        var aabbStore = world.GetStore<Aabb3D>();
+        var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
 
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
@@ -43,7 +43,7 @@ public class MeshRenderSystem(
 
             var modelMatrix = transform.ModelMatrix;
 
-            if (frustum.HasValue && aabbStore.TryGet(entity, out var aabb))
+            if (frustum.HasValue && aabbStore!.TryGet(entity, out var aabb))
             {
                 if (!frustum.Value.Intersects(aabb, modelMatrix))
                     continue;
