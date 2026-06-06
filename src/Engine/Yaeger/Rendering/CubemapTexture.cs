@@ -24,96 +24,109 @@ public sealed class CubemapTexture : IDisposable
     {
         _gl = gl;
         _handle = _gl.GenTexture();
-        _gl.BindTexture(TextureTarget.TextureCubeMap, _handle);
-
-        // Cubemap faces must not be flipped; restore after loading.
-        StbImage.stbi_set_flip_vertically_on_load(0);
+        var success = false;
         try
         {
-            TextureTarget[] faceTargets =
-            [
-                TextureTarget.TextureCubeMapPositiveX,
-                TextureTarget.TextureCubeMapNegativeX,
-                TextureTarget.TextureCubeMapPositiveY,
-                TextureTarget.TextureCubeMapNegativeY,
-                TextureTarget.TextureCubeMapPositiveZ,
-                TextureTarget.TextureCubeMapNegativeZ,
-            ];
-            string[] paths = [right, left, top, bottom, front, back];
+            _gl.BindTexture(TextureTarget.TextureCubeMap, _handle);
 
-            int faceWidth = 0,
-                faceHeight = 0;
-            for (var i = 0; i < 6; i++)
+            // Cubemap faces must not be flipped; restore after loading.
+            StbImage.stbi_set_flip_vertically_on_load(0);
+            try
             {
-                using var stream = File.OpenRead(AssetPath.Resolve(paths[i]));
-                var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
+                TextureTarget[] faceTargets =
+                [
+                    TextureTarget.TextureCubeMapPositiveX,
+                    TextureTarget.TextureCubeMapNegativeX,
+                    TextureTarget.TextureCubeMapPositiveY,
+                    TextureTarget.TextureCubeMapNegativeY,
+                    TextureTarget.TextureCubeMapPositiveZ,
+                    TextureTarget.TextureCubeMapNegativeZ,
+                ];
+                string[] paths = [right, left, top, bottom, front, back];
 
-                if (image.Width != image.Height)
-                    throw new ArgumentException(
-                        $"Cubemap face '{paths[i]}' is not square ({image.Width}x{image.Height})."
-                    );
+                int faceWidth = 0,
+                    faceHeight = 0;
+                for (var i = 0; i < 6; i++)
+                {
+                    using var stream = File.OpenRead(AssetPath.Resolve(paths[i]));
+                    var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
 
-                if (i == 0)
-                {
-                    faceWidth = image.Width;
-                    faceHeight = image.Height;
-                }
-                else if (image.Width != faceWidth || image.Height != faceHeight)
-                {
-                    throw new ArgumentException(
-                        $"Cubemap face '{paths[i]}' size {image.Width}x{image.Height} does not match "
-                            + $"face 0 size {faceWidth}x{faceHeight}."
-                    );
-                }
+                    if (image.Width != image.Height)
+                        throw new ArgumentException(
+                            $"Cubemap face '{paths[i]}' is not square ({image.Width}x{image.Height})."
+                        );
 
-                fixed (byte* data = image.Data)
-                {
-                    _gl.TexImage2D(
-                        faceTargets[i],
-                        0,
-                        (int)InternalFormat.Rgba,
-                        (uint)image.Width,
-                        (uint)image.Height,
-                        0,
-                        PixelFormat.Rgba,
-                        PixelType.UnsignedByte,
-                        data
-                    );
+                    if (i == 0)
+                    {
+                        faceWidth = image.Width;
+                        faceHeight = image.Height;
+                    }
+                    else if (image.Width != faceWidth || image.Height != faceHeight)
+                    {
+                        throw new ArgumentException(
+                            $"Cubemap face '{paths[i]}' size {image.Width}x{image.Height} does not match "
+                                + $"face 0 size {faceWidth}x{faceHeight}."
+                        );
+                    }
+
+                    fixed (byte* data = image.Data)
+                    {
+                        _gl.TexImage2D(
+                            faceTargets[i],
+                            0,
+                            (int)InternalFormat.Rgba,
+                            (uint)image.Width,
+                            (uint)image.Height,
+                            0,
+                            PixelFormat.Rgba,
+                            PixelType.UnsignedByte,
+                            data
+                        );
+                    }
                 }
             }
+            finally
+            {
+                StbImage.stbi_set_flip_vertically_on_load(1);
+            }
+
+            _gl.TexParameter(
+                TextureTarget.TextureCubeMap,
+                TextureParameterName.TextureMinFilter,
+                (int)GLEnum.Linear
+            );
+            _gl.TexParameter(
+                TextureTarget.TextureCubeMap,
+                TextureParameterName.TextureMagFilter,
+                (int)GLEnum.Linear
+            );
+            _gl.TexParameter(
+                TextureTarget.TextureCubeMap,
+                TextureParameterName.TextureWrapS,
+                (int)GLEnum.ClampToEdge
+            );
+            _gl.TexParameter(
+                TextureTarget.TextureCubeMap,
+                TextureParameterName.TextureWrapT,
+                (int)GLEnum.ClampToEdge
+            );
+            _gl.TexParameter(
+                TextureTarget.TextureCubeMap,
+                TextureParameterName.TextureWrapR,
+                (int)GLEnum.ClampToEdge
+            );
+
+            _gl.BindTexture(TextureTarget.TextureCubeMap, 0);
+            success = true;
         }
         finally
         {
-            StbImage.stbi_set_flip_vertically_on_load(1);
+            if (!success)
+            {
+                _gl.BindTexture(TextureTarget.TextureCubeMap, 0);
+                _gl.DeleteTexture(_handle);
+            }
         }
-
-        _gl.TexParameter(
-            TextureTarget.TextureCubeMap,
-            TextureParameterName.TextureMinFilter,
-            (int)GLEnum.Linear
-        );
-        _gl.TexParameter(
-            TextureTarget.TextureCubeMap,
-            TextureParameterName.TextureMagFilter,
-            (int)GLEnum.Linear
-        );
-        _gl.TexParameter(
-            TextureTarget.TextureCubeMap,
-            TextureParameterName.TextureWrapS,
-            (int)GLEnum.ClampToEdge
-        );
-        _gl.TexParameter(
-            TextureTarget.TextureCubeMap,
-            TextureParameterName.TextureWrapT,
-            (int)GLEnum.ClampToEdge
-        );
-        _gl.TexParameter(
-            TextureTarget.TextureCubeMap,
-            TextureParameterName.TextureWrapR,
-            (int)GLEnum.ClampToEdge
-        );
-
-        _gl.BindTexture(TextureTarget.TextureCubeMap, 0);
     }
 
     public void Bind(TextureUnit unit = TextureUnit.Texture0)

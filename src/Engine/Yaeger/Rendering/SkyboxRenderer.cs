@@ -214,23 +214,27 @@ public sealed class SkyboxRenderer : IDisposable
         _gl.DepthFunc(DepthFunction.Lequal);
         // The cube is viewed from inside, so back-face culling would discard every face.
         _gl.Disable(EnableCap.CullFace);
+        try
+        {
+            _shader.Bind();
+            _shader.SetUniformMatrix4("uView", rotationOnly);
+            _shader.SetUniformMatrix4("uProjection", projection);
+            _shader.SetUniformInt("uSkybox", 0);
 
-        _shader.Bind();
-        _shader.SetUniformMatrix4("uView", rotationOnly);
-        _shader.SetUniformMatrix4("uProjection", projection);
-        _shader.SetUniformInt("uSkybox", 0);
+            cubemap.Bind(TextureUnit.Texture0);
 
-        cubemap.Bind(TextureUnit.Texture0);
+            _gl.BindVertexArray(_vao);
+            _gl.DrawArrays(PrimitiveType.Triangles, 0, 36);
+            _gl.BindVertexArray(0);
 
-        _gl.BindVertexArray(_vao);
-        _gl.DrawArrays(PrimitiveType.Triangles, 0, 36);
-        _gl.BindVertexArray(0);
-
-        cubemap.Unbind(TextureUnit.Texture0);
-        _shader.Unbind();
-
-        _gl.Enable(EnableCap.CullFace);
-        _gl.DepthFunc(DepthFunction.Less);
+            cubemap.Unbind(TextureUnit.Texture0);
+            _shader.Unbind();
+        }
+        finally
+        {
+            _gl.Enable(EnableCap.CullFace);
+            _gl.DepthFunc(DepthFunction.Less);
+        }
     }
 
     public void Dispose()
