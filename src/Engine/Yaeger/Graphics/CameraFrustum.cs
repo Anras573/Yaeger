@@ -35,7 +35,7 @@ public readonly struct CameraFrustum
     /// <summary>
     /// Extracts the six frustum planes from the combined view-projection matrix.
     /// The matrix is assumed to use .NET's row-vector convention (clip = world * M)
-    /// with a [0, 1] depth range.
+    /// targeting OpenGL clip space, where the near plane sits at z_clip = -w_clip (NDC Z = -1).
     /// </summary>
     public static CameraFrustum FromMatrix(Matrix4x4 viewProj)
     {
@@ -74,8 +74,15 @@ public readonly struct CameraFrustum
                 viewProj.M44 - viewProj.M42
             )
         );
-        // Near plane: z_clip >= 0, i.e. dot(p, col(3)) >= 0
-        var near = Normalize(new Vector4(viewProj.M13, viewProj.M23, viewProj.M33, viewProj.M43));
+        // Near plane: z_clip >= -w_clip (OpenGL NDC Z >= -1), i.e. col(3) + col(4)
+        var near = Normalize(
+            new Vector4(
+                viewProj.M13 + viewProj.M14,
+                viewProj.M23 + viewProj.M24,
+                viewProj.M33 + viewProj.M34,
+                viewProj.M43 + viewProj.M44
+            )
+        );
         var far = Normalize(
             new Vector4(
                 viewProj.M14 - viewProj.M13,

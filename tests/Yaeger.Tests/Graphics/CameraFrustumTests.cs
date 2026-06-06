@@ -140,4 +140,21 @@ public class CameraFrustumTests
         var exception = Record.Exception(() => CameraFrustum.FromMatrix(viewProj));
         Assert.Null(exception);
     }
+
+    [Fact]
+    public void Intersects_BoxBetweenCameraAndNearPlane_ShouldBeInside()
+    {
+        // Regression: the near plane must use the OpenGL convention (NDC Z >= -1),
+        // not the .NET projection convention (NDC Z >= 0).
+        // Camera at z=10, near=1 → .NET near plane sits at world_z≈9 (NDC_z=0);
+        // OpenGL near plane sits at world_z≈9.5 (NDC_z=-1).
+        // A box at world_z≈9.3 has NDC_z≈-0.43, inside the OpenGL frustum and
+        // must NOT be culled. The previous col(3)-only formula would reject it.
+        var frustum = BuildFrustum();
+        var aabb = new Aabb3D(new Vector3(-0.5f, -0.5f, 9.2f), new Vector3(0.5f, 0.5f, 9.4f));
+
+        var result = frustum.Intersects(aabb, Matrix4x4.Identity);
+
+        Assert.True(result);
+    }
 }
