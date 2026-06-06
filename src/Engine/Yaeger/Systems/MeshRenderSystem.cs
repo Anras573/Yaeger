@@ -41,13 +41,15 @@ public class MeshRenderSystem(
             if (!meshRegistry.TryGet(handle, out var mesh))
                 continue;
 
+            var modelMatrix = transform.ModelMatrix;
+
             if (aabbStore.TryGet(entity, out var aabb))
             {
-                if (!frustum.Intersects(aabb, transform.ModelMatrix))
+                if (!frustum.Intersects(aabb, modelMatrix))
                     continue;
             }
 
-            renderer.Draw(mesh, transform.ModelMatrix, viewProj, material, textureManager);
+            renderer.Draw(mesh, modelMatrix, viewProj, material, textureManager);
         }
 
         renderer.EndFrame3D();
