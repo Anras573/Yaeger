@@ -89,17 +89,19 @@ public class Material3DTests
     [Fact]
     public void FromModel_MapsAllFields()
     {
+        var ambient = new Color(30, 30, 30, 255);
         var model = new ModelMaterial(
             Name: "stone",
             DiffuseTexturePath: "textures/stone.png",
             NormalTexturePath: null,
-            DiffuseColor: new Color(200, 180, 160, 255)
+            DiffuseColor: new Color(200, 180, 160, 255),
+            AmbientColor: ambient
         );
 
         var material = Material3D.FromModel(model);
 
         Assert.Equal("textures/stone.png", material.DiffuseTexturePath);
-        Assert.Equal(Color.Black, material.Ambient);
+        Assert.Equal(ambient, material.Ambient);
         Assert.Equal(new Color(200, 180, 160, 255), material.Diffuse);
         Assert.Equal(Color.Black, material.Specular);
         Assert.Equal(0f, material.Shininess);
@@ -112,7 +114,8 @@ public class Material3DTests
             Name: "stone",
             DiffuseTexturePath: "textures/stone.png",
             NormalTexturePath: "textures/stone_normal.png",
-            DiffuseColor: Color.White
+            DiffuseColor: Color.White,
+            AmbientColor: Color.Black
         );
 
         var material = Material3D.FromModel(model);
@@ -127,7 +130,8 @@ public class Material3DTests
             Name: "untextured",
             DiffuseTexturePath: null,
             NormalTexturePath: null,
-            DiffuseColor: Color.White
+            DiffuseColor: Color.White,
+            AmbientColor: Color.Black
         );
 
         var material = Material3D.FromModel(model);

@@ -211,6 +211,24 @@ public static class AssimpLoader
             );
         }
 
-        return new ModelMaterial(name, diffusePath, normalPath, diffuseColor);
+        var ambientColor = Color.Black;
+        var amb = Vector4.Zero;
+        var ambResult = api.GetMaterialColor(mat, Assimp.MaterialColorAmbientBase, 0, 0, ref amb);
+        if (ambResult == Return.Success && (amb.X + amb.Y + amb.Z) > 0f)
+        {
+            ambientColor = new Color(
+                (byte)Math.Clamp((int)(amb.X * 255f), 0, 255),
+                (byte)Math.Clamp((int)(amb.Y * 255f), 0, 255),
+                (byte)Math.Clamp((int)(amb.Z * 255f), 0, 255),
+                255
+            );
+        }
+        else
+        {
+            // Fall back to ~25% grey so unlit faces remain visible.
+            ambientColor = new Color(64, 64, 64, 255);
+        }
+
+        return new ModelMaterial(name, diffusePath, normalPath, diffuseColor, ambientColor);
     }
 }

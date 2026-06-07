@@ -6,5 +6,6 @@ public record ModelMaterial(
     string Name,
     string? DiffuseTexturePath,
     string? NormalTexturePath,
-    Color DiffuseColor
+    Color DiffuseColor,
+    Color AmbientColor
 );
