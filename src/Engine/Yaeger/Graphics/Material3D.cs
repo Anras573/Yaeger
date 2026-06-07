@@ -27,7 +27,7 @@ public record struct Material3D
         {
             DiffuseTexturePath = model.DiffuseTexturePath ?? string.Empty,
             NormalTexturePath = model.NormalTexturePath,
-            Ambient = Color.Black,
+            Ambient = model.AmbientColor,
             Diffuse = model.DiffuseColor,
             Specular = Color.Black,
             Shininess = 0f,
