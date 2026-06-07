@@ -225,8 +225,8 @@ public static class AssimpLoader
         }
         else
         {
-            // Fall back to a small constant ambient so unlit faces are not pure black.
-            ambientColor = new Color(26, 26, 26, 255);
+            // Fall back to ~25% grey so unlit faces remain visible.
+            ambientColor = new Color(64, 64, 64, 255);
         }
 
         return new ModelMaterial(name, diffusePath, normalPath, diffuseColor, ambientColor);

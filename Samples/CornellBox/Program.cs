@@ -47,7 +47,11 @@ static Material3D Matte(Color diffuse) =>
     new()
     {
         DiffuseTexturePath = string.Empty,
-        Ambient = new Color(35, 35, 35),
+        Ambient = new Color(
+            (byte)(diffuse.R * 0.4f),
+            (byte)(diffuse.G * 0.4f),
+            (byte)(diffuse.B * 0.4f)
+        ),
         Diffuse = diffuse,
         Specular = new Color(15, 15, 15),
         Shininess = 16f,
