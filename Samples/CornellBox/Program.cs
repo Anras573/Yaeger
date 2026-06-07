@@ -30,13 +30,7 @@ void AddSurface(string tag, MeshData meshData, Material3D material)
     world.AddComponent(entity, meshData.ToAabb());
 }
 
-void AddBox(
-    string tag,
-    Vector3 position,
-    Vector3 scale,
-    float rotationY,
-    Material3D material
-)
+void AddBox(string tag, Vector3 position, Vector3 scale, float rotationY, Material3D material)
 {
     var meshData = MeshFactory.CreateBox(tag);
     var entity = world.CreateEntity(tag);
