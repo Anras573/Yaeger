@@ -111,7 +111,7 @@ public sealed class Renderer3D : IDisposable
     }
 
     /// <summary>
-    /// Enables depth testing and back-face culling, and clears the depth buffer.
+    /// Enables depth testing and back-face culling, and clears the colour and depth buffers.
     /// Call once at the start of the 3D pass each frame.
     /// </summary>
     public void BeginFrame3D()
@@ -120,7 +120,8 @@ public sealed class Renderer3D : IDisposable
         _gl.DepthFunc(DepthFunction.Less);
         _gl.Enable(EnableCap.CullFace);
         _gl.CullFace(TriangleFace.Back);
-        _gl.Clear((uint)ClearBufferMask.DepthBufferBit);
+        _gl.ClearColor(0f, 0f, 0f, 1f);
+        _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
     }
 
     /// <summary>
