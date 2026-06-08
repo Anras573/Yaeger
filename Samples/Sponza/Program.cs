@@ -64,7 +64,7 @@ world.AddComponent(
     lightEntity,
     new DirectionalLight
     {
-        Direction = Vector3.Normalize(new Vector3(1f, 1f, 0f)),
+        Direction = Vector3.Normalize(new Vector3(1f, 4f, 0f)),
         Color = Color.White,
         Intensity = 1f,
     }
