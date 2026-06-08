@@ -50,7 +50,7 @@ var cameraEntity = world.CreateEntity("camera");
 world.AddComponent(
     cameraEntity,
     new Camera3D(
-        Position: new Vector3(0f, 5f, 15f),
+        Position: new Vector3(0f, 5f, 4f),
         Target: Vector3.Zero,
         Up: Vector3.UnitY,
         Fov: MathF.PI / 4f,
@@ -64,7 +64,7 @@ world.AddComponent(
     lightEntity,
     new DirectionalLight
     {
-        Direction = Vector3.Normalize(new Vector3(0.4f, -1f, 0.3f)),
+        Direction = Vector3.Normalize(new Vector3(1f, 4f, 0f)),
         Color = Color.White,
         Intensity = 1f,
     }
