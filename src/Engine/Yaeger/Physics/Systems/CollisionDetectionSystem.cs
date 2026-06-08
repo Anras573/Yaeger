@@ -10,7 +10,7 @@ namespace Yaeger.Physics.Systems;
 /// pairs, followed by exact AABB/circle narrowphase checks.
 /// Supports Box-Box (AABB), Circle-Circle, and Box-Circle collision pairs.
 /// </summary>
-public class CollisionDetectionSystem(World world, float cellSize = 0.1f)
+public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
 {
     private readonly SpatialHash _spatialHash = new(cellSize);
     private readonly List<CollisionManifold> _manifolds = [];

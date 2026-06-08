@@ -13,8 +13,7 @@ internal sealed class SpatialHash(float cellSize)
 
     internal void Clear()
     {
-        foreach (var list in _cells.Values)
-            list.Clear();
+        _cells.Clear();
     }
 
     internal void Insert(int id, Vector2 min, Vector2 max)

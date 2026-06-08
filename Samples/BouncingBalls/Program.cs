@@ -13,8 +13,9 @@ var world = new World();
 var renderer = new Renderer(window);
 var renderSystem = new UnifiedRenderSystem(renderer, null, world);
 
-// Physics world with downward gravity (positive Y is up in NDC)
-var physics = new PhysicsWorld2D(world, new Vector2(0, -2.0f));
+// Physics world with downward gravity (positive Y is up in NDC).
+// Cell size 0.15 ≈ 2× average ball radius — tuned for this NDC-scale world.
+var physics = new PhysicsWorld2D(world, new Vector2(0, -2.0f), broadphaseCellSize: 0.15f);
 
 // Debug renderer for collider wireframes (toggle with Space)
 using var debugRenderer = new PhysicsDebugRenderer(window, world);

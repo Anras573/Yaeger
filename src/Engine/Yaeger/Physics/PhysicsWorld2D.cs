@@ -36,14 +36,22 @@ public class PhysicsWorld2D : IUpdateSystem
     public IReadOnlyList<CollisionManifold> Manifolds => _collisionDetectionSystem.Manifolds;
 
     /// <summary>
-    /// Creates a new 2D physics world with the specified gravity.
+    /// Creates a new 2D physics world with the specified gravity and broadphase cell size.
     /// </summary>
-    public PhysicsWorld2D(World world, Vector2? gravity = null)
+    /// <param name="world">The ECS world containing physics entities.</param>
+    /// <param name="gravity">Gravity vector. Defaults to (0, -9.81).</param>
+    /// <param name="broadphaseCellSize">
+    /// Size of each spatial-hash cell in world units. Should be roughly 2× the average
+    /// collider extent for best pruning. Defaults to 1.0 (suitable for unit-scale worlds).
+    /// Use a smaller value (e.g. 0.1) for NDC-scale worlds, or a larger value (e.g. 64)
+    /// for pixel-scale worlds.
+    /// </param>
+    public PhysicsWorld2D(World world, Vector2? gravity = null, float broadphaseCellSize = 1.0f)
     {
         var g = gravity ?? new Vector2(0, -9.81f);
         _gravitySystem = new GravitySystem(world, g);
         _movementSystem = new MovementSystem(world);
-        _collisionDetectionSystem = new CollisionDetectionSystem(world);
+        _collisionDetectionSystem = new CollisionDetectionSystem(world, broadphaseCellSize);
         _collisionResolutionSystem = new CollisionResolutionSystem(world);
     }
 
