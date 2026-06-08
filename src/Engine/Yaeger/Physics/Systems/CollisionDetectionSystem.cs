@@ -15,7 +15,7 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
     private readonly SpatialHash _spatialHash = new(cellSize);
     private readonly List<CollisionManifold> _manifolds = [];
     private readonly List<(Entity Entity, Vector2 Center, BoxCollider2D Collider)> _boxEntities =
-        [];
+    [];
     private readonly List<(
         Entity Entity,
         Vector2 Center,
