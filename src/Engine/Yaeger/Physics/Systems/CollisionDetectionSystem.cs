@@ -6,20 +6,22 @@ using Yaeger.Physics.Components;
 namespace Yaeger.Physics.Systems;
 
 /// <summary>
-/// Detects collisions between entities using narrowphase checks.
+/// Detects collisions between entities using a spatial-hash broadphase to cull candidate
+/// pairs, followed by exact AABB/circle narrowphase checks.
 /// Supports Box-Box (AABB), Circle-Circle, and Box-Circle collision pairs.
-/// Phase 1 uses brute-force broadphase (O(n^2)).
 /// </summary>
-public class CollisionDetectionSystem(World world)
+public class CollisionDetectionSystem(World world, float cellSize = 0.1f)
 {
+    private readonly SpatialHash _spatialHash = new(cellSize);
     private readonly List<CollisionManifold> _manifolds = [];
     private readonly List<(Entity Entity, Vector2 Center, BoxCollider2D Collider)> _boxEntities =
-    [];
+        [];
     private readonly List<(
         Entity Entity,
         Vector2 Center,
         CircleCollider2D Collider
     )> _circleEntities = [];
+    private readonly HashSet<(int A, int B)> _candidatePairs = [];
 
     /// <summary>
     /// The collision manifolds detected in the last call to <see cref="Detect"/>.
@@ -27,13 +29,15 @@ public class CollisionDetectionSystem(World world)
     public IReadOnlyList<CollisionManifold> Manifolds => _manifolds;
 
     /// <summary>
-    /// Runs collision detection for all collidable entities.
+    /// Runs broadphase spatial partitioning followed by narrowphase collision detection.
     /// </summary>
     public void Detect()
     {
         _manifolds.Clear();
         _boxEntities.Clear();
         _circleEntities.Clear();
+        _candidatePairs.Clear();
+        _spatialHash.Clear();
 
         // Collect all collidable entities with their world positions
         foreach (
@@ -58,43 +62,59 @@ public class CollisionDetectionSystem(World world)
             _circleEntities.Add((entity, center, collider));
         }
 
-        // Box vs Box
+        var boxCount = _boxEntities.Count;
+
+        // Broadphase: insert all collider AABBs into the spatial hash.
+        // Box indices: 0..boxCount-1. Circle indices: boxCount..boxCount+circleCount-1.
         for (var i = 0; i < _boxEntities.Count; i++)
         {
-            for (var j = i + 1; j < _boxEntities.Count; j++)
-            {
-                if (TestBoxBox(_boxEntities[i], _boxEntities[j], out var manifold))
-                {
-                    _manifolds.Add(manifold);
-                }
-            }
+            var (_, center, collider) = _boxEntities[i];
+            _spatialHash.Insert(i, center - collider.HalfSize, center + collider.HalfSize);
         }
 
-        // Circle vs Circle
         for (var i = 0; i < _circleEntities.Count; i++)
         {
-            for (var j = i + 1; j < _circleEntities.Count; j++)
-            {
-                if (TestCircleCircle(_circleEntities[i], _circleEntities[j], out var manifold))
-                {
-                    _manifolds.Add(manifold);
-                }
-            }
+            var (_, center, collider) = _circleEntities[i];
+            var r = new Vector2(collider.Radius);
+            _spatialHash.Insert(boxCount + i, center - r, center + r);
         }
 
-        // Box vs Circle
-        for (var i = 0; i < _boxEntities.Count; i++)
+        _spatialHash.GetCandidatePairs(_candidatePairs);
+
+        // Narrowphase: test only broadphase candidate pairs.
+        foreach (var (ia, ib) in _candidatePairs)
         {
-            for (var j = 0; j < _circleEntities.Count; j++)
+            var aIsBox = ia < boxCount;
+            var bIsBox = ib < boxCount;
+
+            if (aIsBox && bIsBox)
             {
-                // Skip self-collision (entity has both BoxCollider2D and CircleCollider2D)
-                if (_boxEntities[i].Entity == _circleEntities[j].Entity)
+                if (TestBoxBox(_boxEntities[ia], _boxEntities[ib], out var manifold))
+                    _manifolds.Add(manifold);
+            }
+            else if (!aIsBox && !bIsBox)
+            {
+                if (
+                    TestCircleCircle(
+                        _circleEntities[ia - boxCount],
+                        _circleEntities[ib - boxCount],
+                        out var manifold
+                    )
+                )
+                    _manifolds.Add(manifold);
+            }
+            else
+            {
+                // Mixed pair: box indices are always less than circle indices, so ia is
+                // always the box index and ib - boxCount is always the circle index.
+                var box = _boxEntities[ia];
+                var circle = _circleEntities[ib - boxCount];
+
+                if (box.Entity == circle.Entity)
                     continue;
 
-                if (TestBoxCircle(_boxEntities[i], _circleEntities[j], out var manifold))
-                {
+                if (TestBoxCircle(box, circle, out var manifold))
                     _manifolds.Add(manifold);
-                }
             }
         }
     }

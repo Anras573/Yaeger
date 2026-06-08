@@ -405,4 +405,93 @@ public class CollisionDetectionSystemTests
         // Assert — should not generate a self-collision manifold
         Assert.Empty(system.Manifolds);
     }
+
+    #region Broadphase
+
+    [Fact]
+    public void Detect_Broadphase_FarApartEntitiesProduceNoManifolds()
+    {
+        // Arrange — 4 boxes in separate regions of a 10x10 world, none touching
+        var world = new World();
+
+        var positions = new[]
+        {
+            new Vector2(-4f, -4f),
+            new Vector2(4f, -4f),
+            new Vector2(-4f, 4f),
+            new Vector2(4f, 4f),
+        };
+
+        foreach (var pos in positions)
+        {
+            var e = world.CreateEntity();
+            world.AddComponent(e, new Transform2D(pos));
+            world.AddComponent(e, new BoxCollider2D(1f, 1f));
+        }
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — none of the four boxes are close enough to collide
+        Assert.Empty(system.Manifolds);
+    }
+
+    [Fact]
+    public void Detect_Broadphase_OnlyAdjacentCirclesCollide()
+    {
+        // Arrange — 3 circles in a row; only the first two overlap
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0f, 0f)));
+        world.AddComponent(a, new CircleCollider2D(0.1f));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(0.15f, 0f)));
+        world.AddComponent(b, new CircleCollider2D(0.1f));
+
+        var c = world.CreateEntity();
+        world.AddComponent(c, new Transform2D(new Vector2(5f, 0f)));
+        world.AddComponent(c, new CircleCollider2D(0.1f));
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — only a and b share a spatial cell and overlap; c is pruned
+        Assert.Single(system.Manifolds);
+        var entities = new[] { system.Manifolds[0].EntityA, system.Manifolds[0].EntityB };
+        Assert.Contains(a, entities);
+        Assert.Contains(b, entities);
+    }
+
+    [Fact]
+    public void Detect_Broadphase_ManyNonCollidingEntitiesProduceNoManifolds()
+    {
+        // Arrange — 100 circles spread across a grid, none overlapping
+        var world = new World();
+
+        for (var row = 0; row < 10; row++)
+        {
+            for (var col = 0; col < 10; col++)
+            {
+                var e = world.CreateEntity();
+                world.AddComponent(e, new Transform2D(new Vector2(col * 0.5f, row * 0.5f)));
+                world.AddComponent(e, new CircleCollider2D(0.1f));
+            }
+        }
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — circles are spaced 0.5 apart with radius 0.1, so none touch
+        Assert.Empty(system.Manifolds);
+    }
+
+    #endregion
 }
