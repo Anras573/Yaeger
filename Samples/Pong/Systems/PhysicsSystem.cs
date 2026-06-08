@@ -7,25 +7,19 @@ using Yaeger.Systems;
 
 namespace Pong.Systems;
 
-public class PhysicsSystem : IUpdateSystem
+public class PhysicsSystem(World world) : IUpdateSystem
 {
-    private readonly World _world;
-    private readonly Entity _ballEntity;
-    private long _lastBounce;
+    private long _lastBounce = Stopwatch.GetTimestamp();
     const float BallVelocityIncrement = 1.1f;
-
-    public PhysicsSystem(World world)
-    {
-        _world = world;
-        _ballEntity = world.GetEntity(EntityTags.Ball);
-        _lastBounce = Stopwatch.GetTimestamp();
-    }
 
     public void Update(float deltaTime)
     {
-        var transform = _world.GetComponent<Transform2D>(_ballEntity);
-        var velocity = _world.GetComponent<Velocity>(_ballEntity);
-        var bounds = _world.GetComponent<Bounds>(_ballEntity);
+        if (!world.TryGetEntity(EntityTags.Ball, out var ballEntity))
+            return;
+
+        var transform = world.GetComponent<Transform2D>(ballEntity);
+        var velocity = world.GetComponent<Velocity>(ballEntity);
+        var bounds = world.GetComponent<Bounds>(ballEntity);
 
         var ballPos = transform.Position;
         var ballScale = transform.Scale;
@@ -37,7 +31,7 @@ public class PhysicsSystem : IUpdateSystem
         velocity = HandleWallCollisions(ballPos, ballHalf, velocity, bounds);
         velocity = HandlePaddleCollisions(ballPos, ballHalf, velocity);
 
-        _world.AddComponent(_ballEntity, velocity);
+        world.AddComponent(ballEntity, velocity);
     }
 
     private Velocity HandlePaddleCollisions(
@@ -46,7 +40,7 @@ public class PhysicsSystem : IUpdateSystem
         Velocity ballVelocity
     )
     {
-        foreach ((_, Transform2D paddle, _) in _world.Query<Transform2D, PlayerControlled>())
+        foreach ((_, _, Transform2D paddle) in world.Query<PlayerControlled, Transform2D>())
         {
             var paddlePos = paddle.Position;
             var paddleScale = paddle.Scale;

@@ -1,0 +1,75 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C#: TextRenderingExample Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/TextRenderingExample/TextRenderingExample.csproj"
+        },
+        {
+            "name": "C#: Sponza Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/Sponza/Sponza.csproj"
+        },
+        {
+            "name": "C#: SceneDemo Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/SceneDemo/SceneDemo.csproj"
+        },
+        {
+            "name": "C#: RenderingStressTest Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/RenderingStressTest/RenderingStressTest.csproj"
+        },
+        {
+            "name": "C#: Pong Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/Pong/Pong.csproj"
+        },
+        {
+            "name": "C#: MouseDemo Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/MouseDemo/MouseDemo.csproj"
+        },
+        {
+            "name": "C#: CornellBox Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/CornellBox/CornellBox.csproj"
+        },
+        {
+            "name": "C#: CameraDemo Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/CameraDemo/CameraDemo.csproj"
+        },
+        {
+            "name": "C#: BrowserDemo Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/BrowserDemo/BrowserDemo.csproj"
+        },
+        {
+            "name": "C#: BouncingBalls Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/BouncingBalls/BouncingBalls.csproj"
+        },
+        {
+            "name": "C#: Animation2D Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/Animation2D/Animation2D.csproj"
+        }
+
+    ]
+}
