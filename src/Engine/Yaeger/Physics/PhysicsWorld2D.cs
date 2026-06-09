@@ -48,6 +48,13 @@ public class PhysicsWorld2D : IUpdateSystem
     /// </param>
     public PhysicsWorld2D(World world, Vector2? gravity = null, float broadphaseCellSize = 1.0f)
     {
+        if (broadphaseCellSize <= 0 || !float.IsFinite(broadphaseCellSize))
+            throw new ArgumentOutOfRangeException(
+                nameof(broadphaseCellSize),
+                broadphaseCellSize,
+                "Cell size must be a positive finite value."
+            );
+
         var g = gravity ?? new Vector2(0, -9.81f);
         _gravitySystem = new GravitySystem(world, g);
         _movementSystem = new MovementSystem(world);

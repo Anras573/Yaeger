@@ -12,7 +12,14 @@ namespace Yaeger.Physics.Systems;
 /// </summary>
 public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
 {
-    private readonly SpatialHash _spatialHash = new(cellSize);
+    private readonly SpatialHash _spatialHash =
+        cellSize > 0 && float.IsFinite(cellSize)
+            ? new(cellSize)
+            : throw new ArgumentOutOfRangeException(
+                nameof(cellSize),
+                cellSize,
+                "Cell size must be a positive finite value."
+            );
     private readonly List<CollisionManifold> _manifolds = [];
     private readonly List<(Entity Entity, Vector2 Center, BoxCollider2D Collider)> _boxEntities =
     [];

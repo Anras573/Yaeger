@@ -461,7 +461,7 @@ public class CollisionDetectionSystemTests
         // Act
         system.Detect();
 
-        // Assert — only a and b share a spatial cell and overlap; c is pruned
+        // Assert — only a and b overlap; c at (5,0) is too far away
         Assert.Single(system.Manifolds);
         var entities = new[] { system.Manifolds[0].EntityA, system.Manifolds[0].EntityB };
         Assert.Contains(a, entities);
