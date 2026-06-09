@@ -37,10 +37,30 @@ internal sealed class SpatialHash(float cellSize)
         )
             return;
 
-        var minCx = (int)MathF.Floor(min.X / cellSize);
-        var minCy = (int)MathF.Floor(min.Y / cellSize);
-        var maxCx = (int)MathF.Floor(max.X / cellSize);
-        var maxCy = (int)MathF.Floor(max.Y / cellSize);
+        var fMinCx = MathF.Floor(min.X / cellSize);
+        var fMinCy = MathF.Floor(min.Y / cellSize);
+        var fMaxCx = MathF.Floor(max.X / cellSize);
+        var fMaxCy = MathF.Floor(max.Y / cellSize);
+
+        // Division by a very small cellSize or extreme coordinates can overflow float to
+        // ±Infinity, or produce values outside the int range. Skip rather than cast to a
+        // corrupt index.
+        if (
+            !float.IsFinite(fMinCx)
+            || !float.IsFinite(fMinCy)
+            || !float.IsFinite(fMaxCx)
+            || !float.IsFinite(fMaxCy)
+            || fMinCx < int.MinValue
+            || fMinCy < int.MinValue
+            || fMaxCx > int.MaxValue
+            || fMaxCy > int.MaxValue
+        )
+            return;
+
+        var minCx = (int)fMinCx;
+        var minCy = (int)fMinCy;
+        var maxCx = (int)fMaxCx;
+        var maxCy = (int)fMaxCy;
 
         for (var cx = minCx; cx <= maxCx; cx++)
         {
