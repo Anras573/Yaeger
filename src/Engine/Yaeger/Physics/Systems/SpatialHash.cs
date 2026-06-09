@@ -11,9 +11,15 @@ internal sealed class SpatialHash(float cellSize)
 {
     private readonly Dictionary<(int X, int Y), List<int>> _cells = new();
 
+    // Tracks which cells are occupied this frame so Clear() can reuse their lists
+    // rather than dropping them for GC, and GetCandidatePairs() skips empty cells.
+    private readonly List<(int X, int Y)> _activeCells = [];
+
     internal void Clear()
     {
-        _cells.Clear();
+        foreach (var key in _activeCells)
+            _cells[key].Clear();
+        _activeCells.Clear();
     }
 
     internal void Insert(int id, Vector2 min, Vector2 max)
@@ -33,6 +39,8 @@ internal sealed class SpatialHash(float cellSize)
                     list = [];
                     _cells[key] = list;
                 }
+                if (list.Count == 0)
+                    _activeCells.Add(key);
                 list.Add(id);
             }
         }
@@ -40,8 +48,9 @@ internal sealed class SpatialHash(float cellSize)
 
     internal void GetCandidatePairs(HashSet<(int A, int B)> results)
     {
-        foreach (var list in _cells.Values)
+        foreach (var key in _activeCells)
         {
+            var list = _cells[key];
             for (var i = 0; i < list.Count; i++)
             {
                 for (var j = i + 1; j < list.Count; j++)

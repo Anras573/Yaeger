@@ -29,6 +29,7 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
         CircleCollider2D Collider
     )> _circleEntities = [];
     private readonly HashSet<(int A, int B)> _candidatePairs = [];
+    private readonly List<(int A, int B)> _sortedPairs = [];
 
     /// <summary>
     /// The collision manifolds detected in the last call to <see cref="Detect"/>.
@@ -88,8 +89,13 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
 
         _spatialHash.GetCandidatePairs(_candidatePairs);
 
+        // Sort pairs for deterministic narrowphase and manifold order.
+        _sortedPairs.Clear();
+        _sortedPairs.AddRange(_candidatePairs);
+        _sortedPairs.Sort();
+
         // Narrowphase: test only broadphase candidate pairs.
-        foreach (var (ia, ib) in _candidatePairs)
+        foreach (var (ia, ib) in _sortedPairs)
         {
             var aIsBox = ia < boxCount;
             var bIsBox = ib < boxCount;
