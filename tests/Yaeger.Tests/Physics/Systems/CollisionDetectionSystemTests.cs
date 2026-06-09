@@ -494,4 +494,23 @@ public class CollisionDetectionSystemTests
     }
 
     #endregion
+
+    #region Constructor validation
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-1f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(float.NegativeInfinity)]
+    public void Constructor_InvalidCellSize_ShouldThrow(float cellSize)
+    {
+        // Arrange
+        var world = new World();
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => new CollisionDetectionSystem(world, cellSize));
+    }
+
+    #endregion
 }

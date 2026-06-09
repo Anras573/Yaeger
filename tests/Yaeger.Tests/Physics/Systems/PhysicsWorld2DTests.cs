@@ -120,6 +120,23 @@ public class PhysicsWorld2DTests
         Assert.Equal(new Vector2(0, -9.81f), physics.Gravity);
     }
 
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-1f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(float.NegativeInfinity)]
+    public void Constructor_InvalidBroadphaseCellSize_ShouldThrow(float cellSize)
+    {
+        // Arrange
+        var world = new World();
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new PhysicsWorld2D(world, broadphaseCellSize: cellSize)
+        );
+    }
+
     [Fact]
     public void Update_StaticFloor_DynamicBall_ShouldBounce()
     {

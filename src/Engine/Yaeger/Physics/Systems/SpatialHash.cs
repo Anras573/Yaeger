@@ -10,15 +10,20 @@ namespace Yaeger.Physics.Systems;
 internal sealed class SpatialHash(float cellSize)
 {
     private readonly Dictionary<(int X, int Y), List<int>> _cells = new();
-
-    // Tracks which cells are occupied this frame so Clear() can reuse their lists
-    // rather than dropping them for GC, and GetCandidatePairs() skips empty cells.
     private readonly List<(int X, int Y)> _activeCells = [];
+
+    // Pool of cleared List<int> objects ready for reuse, avoiding per-frame allocation.
+    private readonly Stack<List<int>> _listPool = new();
 
     internal void Clear()
     {
         foreach (var key in _activeCells)
-            _cells[key].Clear();
+        {
+            var list = _cells[key];
+            list.Clear();
+            _listPool.Push(list);
+            _cells.Remove(key);
+        }
         _activeCells.Clear();
     }
 
@@ -36,7 +41,7 @@ internal sealed class SpatialHash(float cellSize)
                 var key = (cx, cy);
                 if (!_cells.TryGetValue(key, out var list))
                 {
-                    list = [];
+                    list = _listPool.Count > 0 ? _listPool.Pop() : [];
                     _cells[key] = list;
                 }
                 if (list.Count == 0)
