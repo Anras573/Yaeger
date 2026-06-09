@@ -62,6 +62,17 @@ internal sealed class SpatialHash(float cellSize)
         var maxCx = (int)fMaxCx;
         var maxCy = (int)fMaxCy;
 
+        // Guard against degenerate configurations (e.g. tiny cellSize with large colliders)
+        // that would make the nested loops iterate millions of times in a single frame.
+        var cellCountX = (long)maxCx - minCx + 1;
+        var cellCountY = (long)maxCy - minCy + 1;
+        const long maxCellsPerInsert = 1 << 16; // 65536
+        if (cellCountX * cellCountY > maxCellsPerInsert)
+            throw new InvalidOperationException(
+                $"Collider covers {cellCountX}×{cellCountY} = {cellCountX * cellCountY} broadphase cells, "
+                    + $"exceeding the limit of {maxCellsPerInsert}. Increase the spatial-hash cell size."
+            );
+
         for (var cx = minCx; cx <= maxCx; cx++)
         {
             for (var cy = minCy; cy <= maxCy; cy++)

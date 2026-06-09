@@ -493,6 +493,31 @@ public class CollisionDetectionSystemTests
         Assert.Empty(system.Manifolds);
     }
 
+    [Fact]
+    public void Detect_Broadphase_CollidersStraddlingCellBoundary_ShouldDetect()
+    {
+        // Arrange — with cellSize=2, the boundary between cell 0 and cell 1 is at x=2.
+        // A's center (1.9) is in cell 0; B's center (2.5) is in cell 1. Both AABBs
+        // straddle x=2 and overlap, so the broadphase must surface this pair.
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(1.9f, 0f)));
+        world.AddComponent(a, new BoxCollider2D(1.2f, 1.2f)); // half=0.6; AABB x=[1.3..2.5]
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(2.5f, 0f)));
+        world.AddComponent(b, new BoxCollider2D(1.2f, 1.2f)); // half=0.6; AABB x=[1.9..3.1]
+
+        var system = new CollisionDetectionSystem(world, cellSize: 2.0f);
+
+        // Act
+        system.Detect();
+
+        // Assert — overlap on X = 2.5 - 1.9 = 0.6; centers are in adjacent cells
+        Assert.Single(system.Manifolds);
+    }
+
     #endregion
 
     #region Constructor validation
