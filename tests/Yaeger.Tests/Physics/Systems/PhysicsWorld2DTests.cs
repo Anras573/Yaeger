@@ -132,8 +132,8 @@ public class PhysicsWorld2DTests
         var world = new World();
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(
-            () => new PhysicsWorld2D(world, broadphaseCellSize: cellSize)
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PhysicsWorld2D(world, broadphaseCellSize: cellSize)
         );
     }
 

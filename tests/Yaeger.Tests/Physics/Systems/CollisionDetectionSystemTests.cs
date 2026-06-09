@@ -509,7 +509,9 @@ public class CollisionDetectionSystemTests
         var world = new World();
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => new CollisionDetectionSystem(world, cellSize));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new CollisionDetectionSystem(world, cellSize)
+        );
     }
 
     #endregion
