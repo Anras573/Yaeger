@@ -29,6 +29,14 @@ internal sealed class SpatialHash(float cellSize)
 
     internal void Insert(int id, Vector2 min, Vector2 max)
     {
+        if (
+            !float.IsFinite(min.X)
+            || !float.IsFinite(min.Y)
+            || !float.IsFinite(max.X)
+            || !float.IsFinite(max.Y)
+        )
+            return;
+
         var minCx = (int)MathF.Floor(min.X / cellSize);
         var minCy = (int)MathF.Floor(min.Y / cellSize);
         var maxCx = (int)MathF.Floor(max.X / cellSize);
