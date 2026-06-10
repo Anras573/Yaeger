@@ -24,6 +24,7 @@
     <Compile Include="..\Yaeger\Systems\AnimationSystem.cs" Link="Systems\AnimationSystem.cs" />
     <Compile Include="..\Yaeger\Systems\IUpdateSystem.cs" Link="Systems\IUpdateSystem.cs" />
     <Compile Include="..\Yaeger\Systems\ParallaxSystem.cs" Link="Systems\ParallaxSystem.cs" />
+    <Compile Include="..\Yaeger\Systems\ParticleSystem.cs" Link="Systems\ParticleSystem.cs" />
     <Compile Include="..\Yaeger\Input\Keys.cs" Link="Input\Keys.cs" />
     <Compile Include="..\Yaeger\Input\MouseButton.cs" Link="Input\MouseButton.cs" />
   </ItemGroup>
