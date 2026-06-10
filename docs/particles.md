@@ -62,7 +62,7 @@ The split exists because simulation belongs to the update loop while quad submis
 
 ## Performance characteristics
 
-- Each emitter owns a fixed-size `ParticlePool` — an array of `Particle` structs allocated once. Expired particles are recycled by swapping the last live particle into their slot, so steady-state simulation performs **no per-frame heap allocation**.
+- Each emitter owns a fixed-size `ParticlePool` — an array of `Particle` structs allocated once. Expired particles are recycled by swapping the last live particle into their slot, so **particle storage and recycling never allocate** after construction. (The ECS query enumerators used each frame are the same small allocation every system in the engine makes.)
 - Particles flow through the renderer's existing batching: contiguous quads sharing a texture collapse into one draw call (up to 1 000 quads each). Give all emitters of an effect the same texture to keep batches large.
 - Particles honour the active `Camera2D` (the renderer's view-projection applies to every quad).
 

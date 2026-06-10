@@ -7,8 +7,9 @@ namespace Yaeger.Systems;
 
 /// <summary>
 /// Simulates and renders particles for every entity carrying a <see cref="ParticleEmitter"/>
-/// and a <see cref="Transform2D"/>. Each emitter owns a fixed-size <see cref="ParticlePool"/>,
-/// so steady-state simulation performs no per-frame heap allocation.
+/// and a <see cref="Transform2D"/>. Each emitter owns a fixed-size <see cref="ParticlePool"/>
+/// whose particle storage and recycling never allocate after construction; the remaining
+/// steady-state cost is the ECS query enumerators shared by every system.
 ///
 /// Call <see cref="Update"/> once per frame from the update loop, then <see cref="Render"/>
 /// from the render callback after the main render system has drawn (particles are flushed
@@ -152,10 +153,13 @@ public class ParticleSystem : IUpdateSystem
 
     private void RemoveExpiredPools()
     {
+        // An emitter is only simulated while it carries both components, so a pool whose
+        // entity lost either one would otherwise be retained (and rendered) forever.
         var emitterStore = _world.GetStore<ParticleEmitter>();
+        var transformStore = _world.GetStore<Transform2D>();
         foreach (var entity in _pools.Keys)
         {
-            if (!emitterStore.TryGet(entity, out _))
+            if (!emitterStore.TryGet(entity, out _) || !transformStore.TryGet(entity, out _))
                 _expiredPools.Add(entity);
         }
 

@@ -195,6 +195,27 @@ public class ParticleSystemTests
     }
 
     [Fact]
+    public void Update_WhenTransformRemoved_ShouldRemovePool()
+    {
+        var world = new World();
+        var system = new ParticleSystem(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter(TexturePath) { EmitRate = 10f, ParticleLifetime = 10f }
+        );
+
+        system.Update(0.5f);
+        Assert.True(system.TryGetPool(entity, out _));
+
+        // The emitter component remains, but without a Transform2D the entity is no
+        // longer simulated — its pool must not be retained (or rendered) forever.
+        world.RemoveComponent<Transform2D>(entity);
+        system.Update(0.1f);
+
+        Assert.False(system.TryGetPool(entity, out _));
+    }
+
+    [Fact]
     public void Render_ShouldSubmitOneQuadPerLiveParticleAndFlush()
     {
         var world = new World();
