@@ -405,4 +405,139 @@ public class CollisionDetectionSystemTests
         // Assert — should not generate a self-collision manifold
         Assert.Empty(system.Manifolds);
     }
+
+    #region Broadphase
+
+    [Fact]
+    public void Detect_Broadphase_FarApartEntitiesProduceNoManifolds()
+    {
+        // Arrange — 4 boxes in separate regions of a 10x10 world, none touching
+        var world = new World();
+
+        var positions = new[]
+        {
+            new Vector2(-4f, -4f),
+            new Vector2(4f, -4f),
+            new Vector2(-4f, 4f),
+            new Vector2(4f, 4f),
+        };
+
+        foreach (var pos in positions)
+        {
+            var e = world.CreateEntity();
+            world.AddComponent(e, new Transform2D(pos));
+            world.AddComponent(e, new BoxCollider2D(1f, 1f));
+        }
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — none of the four boxes are close enough to collide
+        Assert.Empty(system.Manifolds);
+    }
+
+    [Fact]
+    public void Detect_Broadphase_OnlyAdjacentCirclesCollide()
+    {
+        // Arrange — 3 circles in a row; only the first two overlap
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0f, 0f)));
+        world.AddComponent(a, new CircleCollider2D(0.1f));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(0.15f, 0f)));
+        world.AddComponent(b, new CircleCollider2D(0.1f));
+
+        var c = world.CreateEntity();
+        world.AddComponent(c, new Transform2D(new Vector2(5f, 0f)));
+        world.AddComponent(c, new CircleCollider2D(0.1f));
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — only a and b overlap; c at (5,0) is too far away
+        Assert.Single(system.Manifolds);
+        var entities = new[] { system.Manifolds[0].EntityA, system.Manifolds[0].EntityB };
+        Assert.Contains(a, entities);
+        Assert.Contains(b, entities);
+    }
+
+    [Fact]
+    public void Detect_Broadphase_ManyNonCollidingEntitiesProduceNoManifolds()
+    {
+        // Arrange — 100 circles spread across a grid, none overlapping
+        var world = new World();
+
+        for (var row = 0; row < 10; row++)
+        {
+            for (var col = 0; col < 10; col++)
+            {
+                var e = world.CreateEntity();
+                world.AddComponent(e, new Transform2D(new Vector2(col * 0.5f, row * 0.5f)));
+                world.AddComponent(e, new CircleCollider2D(0.1f));
+            }
+        }
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — circles are spaced 0.5 apart with radius 0.1, so none touch
+        Assert.Empty(system.Manifolds);
+    }
+
+    [Fact]
+    public void Detect_Broadphase_CollidersStraddlingCellBoundary_ShouldDetect()
+    {
+        // Arrange — with cellSize=2, the boundary between cell 0 and cell 1 is at x=2.
+        // A's center (1.9) is in cell 0; B's center (2.5) is in cell 1. Both AABBs
+        // straddle x=2 and overlap, so the broadphase must surface this pair.
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(1.9f, 0f)));
+        world.AddComponent(a, new BoxCollider2D(1.2f, 1.2f)); // half=0.6; AABB x=[1.3..2.5]
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(2.5f, 0f)));
+        world.AddComponent(b, new BoxCollider2D(1.2f, 1.2f)); // half=0.6; AABB x=[1.9..3.1]
+
+        var system = new CollisionDetectionSystem(world, cellSize: 2.0f);
+
+        // Act
+        system.Detect();
+
+        // Assert — overlap on X = 2.5 - 1.9 = 0.6; centers are in adjacent cells
+        Assert.Single(system.Manifolds);
+    }
+
+    #endregion
+
+    #region Constructor validation
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-1f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(float.NegativeInfinity)]
+    public void Constructor_InvalidCellSize_ShouldThrow(float cellSize)
+    {
+        // Arrange
+        var world = new World();
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new CollisionDetectionSystem(world, cellSize)
+        );
+    }
+
+    #endregion
 }
