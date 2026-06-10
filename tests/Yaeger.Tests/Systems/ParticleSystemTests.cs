@@ -313,6 +313,27 @@ public class ParticleSystemTests
     }
 
     [Fact]
+    public void Render_WhenTransformRemovedAfterUpdate_ShouldNotSubmitQuads()
+    {
+        var world = new World();
+        var renderer = new FakeRenderSurface();
+        var system = new ParticleSystem(world, renderer, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter(TexturePath) { EmitRate = 10f, ParticleLifetime = 10f }
+        );
+
+        system.Update(0.5f);
+
+        // Removing the transform between Update and Render must suppress rendering even
+        // though the pool still holds live particles until the next Update expires it.
+        world.RemoveComponent<Transform2D>(entity);
+        system.Render();
+
+        Assert.Empty(renderer.Quads);
+    }
+
+    [Fact]
     public void Update_WithChangedMaxParticles_ShouldRecreatePoolWithNewCapacity()
     {
         var world = new World();

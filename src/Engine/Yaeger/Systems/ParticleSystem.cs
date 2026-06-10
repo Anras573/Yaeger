@@ -77,11 +77,18 @@ public class ParticleSystem : IUpdateSystem
         if (_renderer is null)
             return;
 
+        var transformStore = _world.GetStore<Transform2D>();
         foreach (
             (Entity entity, ParticleEmitter emitter) in _world.GetStore<ParticleEmitter>().All()
         )
         {
             if (!_pools.TryGetValue(entity, out var pool))
+                continue;
+
+            // The simulation contract requires emitter + transform; a transform removed
+            // since the last Update would otherwise still render until the next Update
+            // expires the pool.
+            if (!transformStore.TryGet(entity, out _))
                 continue;
 
             var startColor = emitter.StartColor.ToVector4();
@@ -116,7 +123,9 @@ public class ParticleSystem : IUpdateSystem
     private ParticlePool GetOrCreatePool(Entity entity, int maxParticles)
     {
         // Recreate the pool when MaxParticles changes so the emitter component stays
-        // the single source of truth for capacity.
+        // the single source of truth for capacity. This drops all live particles and
+        // resets the emission carry-over — capacity changes are treated as a restart
+        // of the effect, not a resize.
         if (_pools.TryGetValue(entity, out var pool) && pool.Capacity == maxParticles)
             return pool;
 
