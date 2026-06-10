@@ -222,6 +222,9 @@ public class ParticleSystemTests
         system.Update(2f);
 
         Assert.Equal(0, pool.AliveCount);
+        // Once drained, the disabled emitter's pool is released so its backing array
+        // isn't pinned; re-enabling MaxParticles recreates it.
+        Assert.False(system.TryGetPool(entity, out _));
     }
 
     [Fact]

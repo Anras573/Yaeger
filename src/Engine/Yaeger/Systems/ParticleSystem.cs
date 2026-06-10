@@ -53,9 +53,14 @@ public class ParticleSystem : IUpdateSystem
             {
                 // No capacity means no new pool and no emission, but a pool created while
                 // MaxParticles was positive must keep aging so its particles die out
-                // instead of rendering frozen forever.
+                // instead of rendering frozen forever. Once drained, drop the pool so a
+                // disabled emitter doesn't pin its backing array; re-enabling recreates it.
                 if (_pools.TryGetValue(entity, out var orphanedPool))
+                {
                     orphanedPool.Update(deltaTime);
+                    if (orphanedPool.AliveCount == 0)
+                        _pools.Remove(entity);
+                }
                 continue;
             }
 
