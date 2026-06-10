@@ -31,6 +31,7 @@ nav:
       - Animation System: animation-system.md
       - Audio System: audio-system.md
       - Camera: camera.md
+      - Particles: particles.md
       - Scenes: scenes.md
   - Contributing:
       - Testing Guide: testing.md

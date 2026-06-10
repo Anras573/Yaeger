@@ -85,6 +85,10 @@ Value-type ECS components: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `Sprite
 
 `Camera2D` is a `record struct` with `Position`, `Zoom`, `Rotation`. Attach it to an entity and construct `RenderSystem` with a `Window` (third arg) to activate camera-aware rendering. Without a `Window`, or without a `Camera2D` entity, the renderer falls back to identity view (NDC-direct — the pre-camera behaviour). `TextRenderer` is explicitly screen-space and does NOT honour the camera. See `docs/camera.md` and `Samples/CameraDemo`.
 
+### Particles (`Graphics/ParticleEmitter` + `Systems/ParticleSystem`)
+
+`ParticleEmitter` (paired with a `Transform2D` for position) configures continuous emission: rate, lifetime, direction/spread, speed, and start→end colour/size lerps. `ParticleSystem` implements `IUpdateSystem`; call `Update(dt)` from the update loop (simulation: age, recycle, emit) and `Render()` from the render callback **after** the main render system (it submits quads through the renderer's batched path and flushes). Each emitter owns a fixed-size `ParticlePool` of `Particle` structs recycled in-place — no per-frame heap allocation. See `docs/particles.md` and `Samples/ParticleDemo`.
+
 ### Windowing (`Windowing/Window`)
 
 Wraps Silk.NET's `IWindow`. The public surface is event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Exposes `window.Gl` (the OpenGL context) and `window.AudioContext`. Always `using var window = Window.Create();` to ensure disposal.

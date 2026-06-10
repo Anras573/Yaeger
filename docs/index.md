@@ -10,6 +10,7 @@ Yaeger is a modular, experimental 2D game engine written in C#. It provides a fl
 - **2D rendering** with Silk.NET
 - **Batch rendering** for efficient sprite rendering
 - **Animation system** with frame-based texture cycling
+- **Particle system** with pooled, batched emitters
 - **Audio system** with OpenAL support
 - **Input handling** (keyboard, mouse)
 - Extensible component and system design
@@ -53,6 +54,7 @@ Samples/
 ├── Animation2D/             # Sprite-sheet animation demo
 ├── CameraDemo/              # Opt-in 2D camera demo
 ├── MouseDemo/               # Mouse input demo
+├── ParticleDemo/            # Particle effects demo (fire, smoke, explosions)
 ├── SceneDemo/               # JSON scene loading demo
 ├── RenderingStressTest/     # Renderer stress test
 └── TextRenderingExample/    # Text rendering demo
