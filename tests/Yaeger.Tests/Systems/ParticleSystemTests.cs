@@ -195,6 +195,36 @@ public class ParticleSystemTests
     }
 
     [Fact]
+    public void Update_WhenMaxParticlesDropsToZero_ShouldStillAgeOutExistingParticles()
+    {
+        var world = new World();
+        var system = new ParticleSystem(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter(TexturePath)
+            {
+                MaxParticles = 8,
+                EmitRate = 10f,
+                ParticleLifetime = 1f,
+            }
+        );
+
+        system.Update(0.5f);
+        Assert.True(system.TryGetPool(entity, out var pool));
+        Assert.Equal(5, pool.AliveCount);
+
+        // Zero capacity stops emission, but the already-live particles must keep aging
+        // out rather than rendering frozen forever.
+        var emitter = world.GetComponent<ParticleEmitter>(entity);
+        emitter.MaxParticles = 0;
+        world.AddComponent(entity, emitter);
+
+        system.Update(2f);
+
+        Assert.Equal(0, pool.AliveCount);
+    }
+
+    [Fact]
     public void Update_WhenTransformRemoved_ShouldRemovePool()
     {
         var world = new World();

@@ -50,7 +50,14 @@ public class ParticleSystem : IUpdateSystem
         )
         {
             if (emitter.MaxParticles <= 0)
+            {
+                // No capacity means no new pool and no emission, but a pool created while
+                // MaxParticles was positive must keep aging so its particles die out
+                // instead of rendering frozen forever.
+                if (_pools.TryGetValue(entity, out var orphanedPool))
+                    orphanedPool.Update(deltaTime);
                 continue;
+            }
 
             var pool = GetOrCreatePool(entity, emitter.MaxParticles);
             pool.Update(deltaTime);
