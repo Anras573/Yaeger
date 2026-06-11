@@ -65,12 +65,15 @@ window.OnUpdate += _ =>
     if (inGame)
     {
         frameCount++;
-        world.AddComponent(hudScoreLabel, new UiLabel
-        {
-            Text = $"Score: {frameCount}",
-            FontSize = 20,
-            Color = Color.White,
-        });
+        world.AddComponent(
+            hudScoreLabel,
+            new UiLabel
+            {
+                Text = $"Score: {frameCount}",
+                FontSize = 20,
+                Color = Color.White,
+            }
+        );
     }
 };
 

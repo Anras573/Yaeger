@@ -65,7 +65,12 @@ public class UiBuilder(World world, Vector2 windowSize)
         );
         world.AddComponent(
             entity,
-            new UiButton { Normal = normal, Hovered = hovered, Pressed = pressed }
+            new UiButton
+            {
+                Normal = normal,
+                Hovered = hovered,
+                Pressed = pressed,
+            }
         );
         world.AddComponent(entity, new UiButtonState());
         return entity;
@@ -88,7 +93,12 @@ public class UiBuilder(World world, Vector2 windowSize)
         );
         world.AddComponent(
             entity,
-            new UiLabel { Text = text, FontSize = fontSize, Color = color }
+            new UiLabel
+            {
+                Text = text,
+                FontSize = fontSize,
+                Color = color,
+            }
         );
         return entity;
     }
