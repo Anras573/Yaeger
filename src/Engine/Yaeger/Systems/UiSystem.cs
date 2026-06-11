@@ -19,9 +19,7 @@ public class UiSystem(World world) : IUpdateSystem
         var mousePos = Mouse.Position;
         var isMousePressed = Mouse.IsButtonPressed(MouseButton.Left);
 
-        foreach (
-            (Entity entity, UiRect rect, UiButton _) in world.Query<UiRect, UiButton>()
-        )
+        foreach ((Entity entity, UiRect rect, UiButton _) in world.Query<UiRect, UiButton>())
         {
             var isHovered = HitTest(mousePos, rect);
             var isPressed = isHovered && isMousePressed;

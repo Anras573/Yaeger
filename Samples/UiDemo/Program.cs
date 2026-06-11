@@ -43,17 +43,21 @@ window.OnUpdate += _ =>
 
     if (!inGame)
     {
-        if (world.TryGetEntity("btn-play", out var btnPlay)
+        if (
+            world.TryGetEntity("btn-play", out var btnPlay)
             && world.TryGetComponent<UiButtonState>(btnPlay, out var playState)
-            && playState.WasClicked)
+            && playState.WasClicked
+        )
         {
             EnterGame();
         }
     }
 
-    if (world.TryGetEntity("btn-quit", out var btnQuit)
+    if (
+        world.TryGetEntity("btn-quit", out var btnQuit)
         && world.TryGetComponent<UiButtonState>(btnQuit, out var quitState)
-        && quitState.WasClicked)
+        && quitState.WasClicked
+    )
     {
         window.Close();
     }

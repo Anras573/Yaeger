@@ -35,8 +35,14 @@ public class UiBuilder(World world, Vector2 windowSize)
     )
     {
         var entity = tag is not null ? world.CreateEntity(tag) : world.CreateEntity();
-        world.AddComponent(entity, new UiRect { Position = new Vector2(x, y), Size = new Vector2(width, height) });
-        world.AddComponent(entity, new UiPanel { BackgroundColor = backgroundColor, BorderRadius = borderRadius });
+        world.AddComponent(
+            entity,
+            new UiRect { Position = new Vector2(x, y), Size = new Vector2(width, height) }
+        );
+        world.AddComponent(
+            entity,
+            new UiPanel { BackgroundColor = backgroundColor, BorderRadius = borderRadius }
+        );
         return entity;
     }
 
@@ -53,8 +59,14 @@ public class UiBuilder(World world, Vector2 windowSize)
     )
     {
         var entity = tag is not null ? world.CreateEntity(tag) : world.CreateEntity();
-        world.AddComponent(entity, new UiRect { Position = new Vector2(x, y), Size = new Vector2(width, height) });
-        world.AddComponent(entity, new UiButton { Normal = normal, Hovered = hovered, Pressed = pressed });
+        world.AddComponent(
+            entity,
+            new UiRect { Position = new Vector2(x, y), Size = new Vector2(width, height) }
+        );
+        world.AddComponent(
+            entity,
+            new UiButton { Normal = normal, Hovered = hovered, Pressed = pressed }
+        );
         world.AddComponent(entity, new UiButtonState());
         return entity;
     }
@@ -70,8 +82,14 @@ public class UiBuilder(World world, Vector2 windowSize)
     )
     {
         var entity = tag is not null ? world.CreateEntity(tag) : world.CreateEntity();
-        world.AddComponent(entity, new UiRect { Position = new Vector2(x, y), Size = Vector2.Zero });
-        world.AddComponent(entity, new UiLabel { Text = text, FontSize = fontSize, Color = color });
+        world.AddComponent(
+            entity,
+            new UiRect { Position = new Vector2(x, y), Size = Vector2.Zero }
+        );
+        world.AddComponent(
+            entity,
+            new UiLabel { Text = text, FontSize = fontSize, Color = color }
+        );
         return entity;
     }
 }

@@ -80,7 +80,8 @@ public class UiRenderSystem
             var color = button.Normal;
             if (buttonStateStore.TryGet(entity, out var state))
             {
-                color = state.IsPressed ? button.Pressed
+                color =
+                    state.IsPressed ? button.Pressed
                     : state.IsHovered ? button.Hovered
                     : button.Normal;
             }

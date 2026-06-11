@@ -199,11 +199,9 @@ public class UiRenderer : IDisposable
     /// <summary>Flushes any queued rectangles to the GPU.</summary>
     public void EndFrame() => Flush();
 
-    private float ToNdcX(float px) =>
-        _windowSize.X > 0 ? (px / _windowSize.X) * 2f - 1f : 0f;
+    private float ToNdcX(float px) => _windowSize.X > 0 ? (px / _windowSize.X) * 2f - 1f : 0f;
 
-    private float ToNdcY(float py) =>
-        _windowSize.Y > 0 ? 1f - (py / _windowSize.Y) * 2f : 0f;
+    private float ToNdcY(float py) => _windowSize.Y > 0 ? 1f - (py / _windowSize.Y) * 2f : 0f;
 
     private unsafe void Flush()
     {
