@@ -21,7 +21,7 @@ public class UiRenderSystem
     private readonly World _world;
     private readonly UiRenderer _uiRenderer;
     private readonly ITextRenderSurface _textRenderer;
-    private readonly Font _defaultFont;
+    private readonly Font.Font _defaultFont;
     private readonly Window _window;
 
     /// <param name="world">The ECS world containing UI entities.</param>
@@ -33,7 +33,7 @@ public class UiRenderSystem
         World world,
         UiRenderer uiRenderer,
         ITextRenderSurface textRenderer,
-        Font defaultFont,
+        Font.Font defaultFont,
         Window window
     )
     {
