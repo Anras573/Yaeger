@@ -114,36 +114,40 @@ void BuildMenu(Vector2 windowSize)
     var quitY = playY + buttonHeight + gap;
 
     var panel = builder.CreatePanel(
-        panelX, panelY, panelWidth, panelHeight,
+        panelX,
+        panelY,
+        panelWidth,
+        panelHeight,
         new Color(30, 30, 40, 220)
     );
 
-    var title = builder.CreateLabel(
-        panelX + 65f, panelY + 16f,
-        "Main Menu", 26, Color.White
-    );
+    var title = builder.CreateLabel(panelX + 65f, panelY + 16f, "Main Menu", 26, Color.White);
 
     var btnPlay = builder.CreateButton(
-        btnX, playY, buttonWidth, buttonHeight,
-        new Color(55, 110, 55), new Color(80, 155, 80), new Color(35, 80, 35),
+        btnX,
+        playY,
+        buttonWidth,
+        buttonHeight,
+        new Color(55, 110, 55),
+        new Color(80, 155, 80),
+        new Color(35, 80, 35),
         tag: "btn-play"
     );
 
-    var lblPlay = builder.CreateLabel(
-        btnX + 72f, playY + 13f,
-        "Play", 22, Color.White
-    );
+    var lblPlay = builder.CreateLabel(btnX + 72f, playY + 13f, "Play", 22, Color.White);
 
     var btnQuit = builder.CreateButton(
-        btnX, quitY, buttonWidth, buttonHeight,
-        new Color(110, 45, 45), new Color(155, 65, 65), new Color(80, 30, 30),
+        btnX,
+        quitY,
+        buttonWidth,
+        buttonHeight,
+        new Color(110, 45, 45),
+        new Color(155, 65, 65),
+        new Color(80, 30, 30),
         tag: "btn-quit"
     );
 
-    var lblQuit = builder.CreateLabel(
-        btnX + 72f, quitY + 13f,
-        "Quit", 22, Color.White
-    );
+    var lblQuit = builder.CreateLabel(btnX + 72f, quitY + 13f, "Quit", 22, Color.White);
 
     menuEntities.AddRange(new[] { panel, title, btnPlay, lblPlay, btnQuit, lblQuit });
 }
@@ -164,8 +168,13 @@ void EnterGame()
     hudScoreLabel = builder.CreateLabel(18, 18, "Score: 0", 20, Color.White);
 
     builder.CreateButton(
-        windowSize.X - 120f, 10f, 110f, 36f,
-        new Color(110, 45, 45), new Color(155, 65, 65), new Color(80, 30, 30),
+        windowSize.X - 120f,
+        10f,
+        110f,
+        36f,
+        new Color(110, 45, 45),
+        new Color(155, 65, 65),
+        new Color(80, 30, 30),
         tag: "btn-quit"
     );
 
