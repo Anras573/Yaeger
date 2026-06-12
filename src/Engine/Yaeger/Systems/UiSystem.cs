@@ -12,18 +12,19 @@ namespace Yaeger.Systems;
 /// </summary>
 public class UiSystem(World world) : IUpdateSystem
 {
-    private bool _wasMousePressed;
-
     public void Update(float deltaTime)
     {
         var mousePos = Mouse.Position;
         var isMousePressed = Mouse.IsButtonPressed(MouseButton.Left);
+        var stateStore = world.GetStore<UiButtonState>();
 
         foreach ((Entity entity, UiRect rect, UiButton _) in world.Query<UiRect, UiButton>())
         {
             var isHovered = HitTest(mousePos, rect);
             var isPressed = isHovered && isMousePressed;
-            var wasClicked = isHovered && _wasMousePressed && !isMousePressed;
+            // A click requires the press to have started on this entity (IsPressed last frame).
+            var wasPressed = stateStore.TryGet(entity, out var prev) && prev.IsPressed;
+            var wasClicked = isHovered && wasPressed && !isMousePressed;
 
             world.AddComponent(
                 entity,
@@ -35,8 +36,6 @@ public class UiSystem(World world) : IUpdateSystem
                 }
             );
         }
-
-        _wasMousePressed = isMousePressed;
     }
 
     private static bool HitTest(Vector2 mousePos, UiRect rect) =>

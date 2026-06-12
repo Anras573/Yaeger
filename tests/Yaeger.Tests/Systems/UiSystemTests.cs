@@ -139,6 +139,23 @@ public class UiSystemTests : IDisposable
     }
 
     [Fact]
+    public void Update_WhenPressStartedOutsideButton_ShouldNotSetWasClicked()
+    {
+        // Regression: dragging into a button while holding the mouse must not count as a click.
+        var (world, entity, system) = CreateScene(100, 100, 200, 50);
+
+        SetMousePosition(new Vector2(50, 50)); // outside
+        SetMouseButton(true);
+        system.Update(0f); // press outside — IsPressed stays false for the button
+
+        SetMousePosition(new Vector2(150, 120)); // drag inside
+        SetMouseButton(false);
+        system.Update(0f); // release inside, but press didn't originate here
+
+        Assert.False(world.GetComponent<UiButtonState>(entity).WasClicked);
+    }
+
+    [Fact]
     public void Update_WasClicked_ShouldBeTrueForExactlyOneFrame()
     {
         var (world, entity, system) = CreateScene(100, 100, 200, 50);

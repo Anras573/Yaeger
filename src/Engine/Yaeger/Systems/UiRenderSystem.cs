@@ -27,7 +27,7 @@ public class UiRenderSystem : IRenderSystem
     /// <param name="world">The ECS world containing UI entities.</param>
     /// <param name="uiRenderer">Colored-quad renderer for panels and buttons.</param>
     /// <param name="textRenderer">Text renderer for labels.</param>
-    /// <param name="defaultFont">Font used by all <see cref="UI.UiLabel"/> components.</param>
+    /// <param name="defaultFont">Font used by all <see cref="UiLabel"/> components.</param>
     /// <param name="window">Used to read the current window size each frame.</param>
     public UiRenderSystem(
         World world,
