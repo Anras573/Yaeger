@@ -183,10 +183,10 @@ public class UiSystemTests : IDisposable
         system.Update(0f);
 
         SetMouseButton(false);
-        system.Update(0f); // WasClicked = true this frame
+        system.Update(0f); // release frame — WasClicked must be true here
+        Assert.True(world.GetComponent<UiButtonState>(entity).WasClicked);
 
-        system.Update(0f); // next frame — should revert to false
-
+        system.Update(0f); // next frame — must revert to false
         Assert.False(world.GetComponent<UiButtonState>(entity).WasClicked);
     }
 }
