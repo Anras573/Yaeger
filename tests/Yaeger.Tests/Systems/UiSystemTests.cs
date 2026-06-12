@@ -14,15 +14,19 @@ public class SequentialCollection { }
 [Collection("Sequential")]
 public class UiSystemTests : IDisposable
 {
-    private static readonly FieldInfo PositionField = typeof(Mouse).GetField(
-        "_position",
-        BindingFlags.NonPublic | BindingFlags.Static
-    )!;
+    private static readonly FieldInfo PositionField = RequireField(typeof(Mouse), "_position");
+    private static readonly FieldInfo PressedButtonsField = RequireField(
+        typeof(Mouse),
+        "PressedButtons"
+    );
 
-    private static readonly FieldInfo PressedButtonsField = typeof(Mouse).GetField(
-        "PressedButtons",
-        BindingFlags.NonPublic | BindingFlags.Static
-    )!;
+    private static FieldInfo RequireField(Type type, string name)
+    {
+        return type.GetField(name, BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException(
+                $"{type.Name}.{name} was not found — was Mouse refactored?"
+            );
+    }
 
     private static void SetMousePosition(Vector2 pos) => PositionField.SetValue(null, pos);
 

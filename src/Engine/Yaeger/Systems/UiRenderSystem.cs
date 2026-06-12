@@ -96,7 +96,7 @@ public class UiRenderSystem : IRenderSystem
             if (string.IsNullOrEmpty(label.Text))
                 continue;
 
-            var fontSize = (int)MathF.Max(1f, label.FontSize);
+            var fontSize = (int)MathF.Round(MathF.Max(1f, label.FontSize));
 
             // Convert UiRect.Position to NDC. TextRenderer places glyphs relative to this
             // point as the baseline origin — text ascenders extend upward from rect.Position.Y.
