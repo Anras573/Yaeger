@@ -62,6 +62,5 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Physics.Systems.GravitySystem))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Physics.Systems.MovementSystem))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Systems.AnimationSystem))]
-[assembly: TypeForwardedTo(typeof(global::Yaeger.Systems.IRenderSystem))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Systems.IUpdateSystem))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Systems.ParticleSystem))]
