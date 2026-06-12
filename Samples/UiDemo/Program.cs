@@ -37,9 +37,9 @@ window.OnLoad += () =>
     BuildMenu(windowSize);
 };
 
-window.OnUpdate += _ =>
+window.OnUpdate += delta =>
 {
-    uiSystem.Update(0f);
+    uiSystem.Update(delta);
 
     if (!inGame)
     {

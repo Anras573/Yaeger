@@ -16,7 +16,7 @@ namespace Yaeger.Systems;
 /// Call <see cref="Render"/> from your window's render callback, after the main
 /// game render systems.
 /// </summary>
-public class UiRenderSystem
+public class UiRenderSystem : IRenderSystem
 {
     private readonly World _world;
     private readonly UiRenderer _uiRenderer;
