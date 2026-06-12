@@ -7,6 +7,11 @@ using Yaeger.UI;
 
 namespace Yaeger.Tests.Systems;
 
+// Tests mutate static Mouse state — prevent cross-class races with xUnit's parallel runner.
+[CollectionDefinition("Sequential", DisableParallelization = true)]
+public class SequentialCollection { }
+
+[Collection("Sequential")]
 public class UiSystemTests : IDisposable
 {
     private static readonly FieldInfo PositionField = typeof(Mouse).GetField(
@@ -141,16 +146,18 @@ public class UiSystemTests : IDisposable
     [Fact]
     public void Update_WhenPressStartedOutsideButton_ShouldNotSetWasClicked()
     {
-        // Regression: dragging into a button while holding the mouse must not count as a click.
+        // Regression: holding mouse down elsewhere and dragging into a button must not click.
         var (world, entity, system) = CreateScene(100, 100, 200, 50);
 
         SetMousePosition(new Vector2(50, 50)); // outside
         SetMouseButton(true);
-        system.Update(0f); // press outside — IsPressed stays false for the button
+        system.Update(0f); // press started outside — button not added to _pressStartedOn
 
-        SetMousePosition(new Vector2(150, 120)); // drag inside
+        SetMousePosition(new Vector2(150, 120)); // drag inside while still pressed
+        system.Update(0f); // isHovered=true, but pressStartedThisFrame=false → not registered
+
         SetMouseButton(false);
-        system.Update(0f); // release inside, but press didn't originate here
+        system.Update(0f); // release inside — must NOT fire WasClicked
 
         Assert.False(world.GetComponent<UiButtonState>(entity).WasClicked);
     }

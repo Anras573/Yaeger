@@ -64,7 +64,6 @@ window.OnUpdate += delta =>
 
     if (inGame)
     {
-        frameCount++;
         world.AddComponent(
             hudScoreLabel,
             new UiLabel
@@ -74,6 +73,7 @@ window.OnUpdate += delta =>
                 Color = Color.White,
             }
         );
+        frameCount++;
     }
 };
 

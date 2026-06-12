@@ -102,12 +102,12 @@ public class UiRenderSystem : IRenderSystem
             var ndcX = windowSize.X > 0 ? (rect.Position.X / windowSize.X) * 2f - 1f : 0f;
             var ndcY = windowSize.Y > 0 ? 1f - (rect.Position.Y / windowSize.Y) * 2f : 0f;
 
-            // Scale font units to NDC. Empirically, scale = fontSize * 0.1 / windowHeight
-            // yields text that is approximately fontSize pixels tall.
-            var scale = windowSize.Y > 0 ? label.FontSize * 0.1f / windowSize.Y : 0.003f;
+            // Independent X/Y scales convert glyph pixel units to NDC and preserve aspect ratio.
+            var scaleX = windowSize.X > 0 ? 2f / windowSize.X : 0f;
+            var scaleY = windowSize.Y > 0 ? 2f / windowSize.Y : 0f;
 
             var transform =
-                Matrix4x4.CreateScale(scale, scale, 1f)
+                Matrix4x4.CreateScale(scaleX, scaleY, 1f)
                 * Matrix4x4.CreateTranslation(ndcX, ndcY, 0f);
 
             _textRenderer.DrawText(label.Text, transform, _defaultFont, fontSize, label.Color);
