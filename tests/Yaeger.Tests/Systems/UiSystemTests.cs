@@ -9,11 +9,15 @@ namespace Yaeger.Tests.Systems;
 
 public class UiSystemTests : IDisposable
 {
-    private static readonly FieldInfo PositionField =
-        typeof(Mouse).GetField("_position", BindingFlags.NonPublic | BindingFlags.Static)!;
+    private static readonly FieldInfo PositionField = typeof(Mouse).GetField(
+        "_position",
+        BindingFlags.NonPublic | BindingFlags.Static
+    )!;
 
-    private static readonly FieldInfo PressedButtonsField =
-        typeof(Mouse).GetField("PressedButtons", BindingFlags.NonPublic | BindingFlags.Static)!;
+    private static readonly FieldInfo PressedButtonsField = typeof(Mouse).GetField(
+        "PressedButtons",
+        BindingFlags.NonPublic | BindingFlags.Static
+    )!;
 
     private static void SetMousePosition(Vector2 pos) => PositionField.SetValue(null, pos);
 
