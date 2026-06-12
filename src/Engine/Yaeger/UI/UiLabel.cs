@@ -7,7 +7,7 @@ namespace Yaeger.UI;
 /// </summary>
 public struct UiLabel
 {
-    public string Text;
+    public string? Text;
     public Color Color;
     public float FontSize;
 }

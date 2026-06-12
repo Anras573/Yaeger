@@ -87,14 +87,25 @@ public class UiSystemTests : IDisposable
     }
 
     [Fact]
-    public void Update_WhenMouseOnButtonEdge_ShouldSetIsHovered()
+    public void Update_WhenMouseOnTopLeftCorner_ShouldSetIsHovered()
     {
         var (world, entity, system) = CreateScene(100, 100, 200, 50);
-        SetMousePosition(new Vector2(100, 100)); // exactly top-left corner
+        SetMousePosition(new Vector2(100, 100)); // inclusive left/top edge
 
         system.Update(0f);
 
         Assert.True(world.GetComponent<UiButtonState>(entity).IsHovered);
+    }
+
+    [Fact]
+    public void Update_WhenMouseOnBottomRightEdge_ShouldNotSetIsHovered()
+    {
+        var (world, entity, system) = CreateScene(100, 100, 200, 50);
+        SetMousePosition(new Vector2(300, 150)); // exclusive right/bottom edge
+
+        system.Update(0f);
+
+        Assert.False(world.GetComponent<UiButtonState>(entity).IsHovered);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 using System.Numerics;
 using Yaeger.ECS;
-using Yaeger.Font;
+using Yaeger.Graphics;
 using Yaeger.Platform;
 using Yaeger.Rendering;
 using Yaeger.UI;
@@ -21,7 +21,7 @@ public class UiRenderSystem : IRenderSystem
     private readonly World _world;
     private readonly UiRenderer _uiRenderer;
     private readonly ITextRenderSurface _textRenderer;
-    private readonly Font.Font _defaultFont;
+    private readonly IFontHandle _defaultFont;
     private readonly Window _window;
 
     /// <param name="world">The ECS world containing UI entities.</param>
@@ -33,7 +33,7 @@ public class UiRenderSystem : IRenderSystem
         World world,
         UiRenderer uiRenderer,
         ITextRenderSurface textRenderer,
-        Font.Font defaultFont,
+        IFontHandle defaultFont,
         Window window
     )
     {

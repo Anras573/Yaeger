@@ -50,7 +50,7 @@ public class UiSystem(World world) : IUpdateSystem
 
     private static bool HitTest(Vector2 mousePos, UiRect rect) =>
         mousePos.X >= rect.Position.X
-        && mousePos.X <= rect.Position.X + rect.Size.X
+        && mousePos.X < rect.Position.X + rect.Size.X
         && mousePos.Y >= rect.Position.Y
-        && mousePos.Y <= rect.Position.Y + rect.Size.Y;
+        && mousePos.Y < rect.Position.Y + rect.Size.Y;
 }
