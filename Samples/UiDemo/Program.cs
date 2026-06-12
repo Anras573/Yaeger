@@ -28,6 +28,7 @@ var uiRenderSystem = new UiRenderSystem(world, uiRenderer, textRenderer, font, w
 
 var frameCount = 0;
 var menuEntities = new List<Entity>();
+var hudEntities = new List<Entity>();
 Entity hudScoreLabel = default;
 var inGame = false;
 
@@ -81,6 +82,24 @@ window.OnRender += _ =>
 {
     uiRenderer.Clear(Color.Black);
     uiRenderSystem.Render();
+};
+
+window.OnResize += size =>
+{
+    if (!inGame)
+    {
+        foreach (var e in menuEntities)
+            world.DestroyEntity(e);
+        menuEntities.Clear();
+        BuildMenu(size);
+    }
+    else
+    {
+        foreach (var e in hudEntities)
+            world.DestroyEntity(e);
+        hudEntities.Clear();
+        BuildHud(size);
+    }
 };
 
 window.OnClosing += () =>
@@ -160,14 +179,18 @@ void EnterGame()
         world.DestroyEntity(e);
     menuEntities.Clear();
 
-    var windowSize = window.Size;
+    BuildHud(window.Size);
+}
+
+void BuildHud(Vector2 windowSize)
+{
     var builder = new UiBuilder(world, windowSize);
 
-    builder.CreatePanel(10, 10, 180, 40, new Color(0, 0, 0, 160));
+    var scorePanel = builder.CreatePanel(10, 10, 180, 40, new Color(0, 0, 0, 160));
 
-    hudScoreLabel = builder.CreateLabel(18, 18, "Score: 0", 20, Color.White);
+    hudScoreLabel = builder.CreateLabel(18, 18, $"Score: {frameCount}", 20, Color.White);
 
-    builder.CreateButton(
+    var btnQuit = builder.CreateButton(
         windowSize.X - 120f,
         10f,
         110f,
@@ -178,5 +201,14 @@ void EnterGame()
         tag: "btn-quit"
     );
 
-    builder.CreateLabel(windowSize.X - 80f, 20f, "Quit", 20, Color.White);
+    var lblQuit = builder.CreateLabel(
+        windowSize.X - 80f,
+        20f,
+        "Quit",
+        20,
+        Color.White,
+        tag: "lbl-quit-hud"
+    );
+
+    hudEntities.AddRange(new[] { scorePanel, hudScoreLabel, btnQuit, lblQuit });
 }

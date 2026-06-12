@@ -6,8 +6,9 @@ namespace Yaeger.UI;
 
 /// <summary>
 /// Fluent helper for creating UI entities with window-relative positioning.
-/// Pass the current window size so that <see cref="Width"/>, <see cref="Height"/>,
-/// <see cref="CenterX"/>, and <see cref="CenterY"/> stay correct across resolutions.
+/// The window size is captured at construction time; recreate the builder inside
+/// <c>Window.OnResize</c> to keep <see cref="Width"/>, <see cref="Height"/>,
+/// <see cref="CenterX"/>, and <see cref="CenterY"/> correct after a resize.
 /// </summary>
 public class UiBuilder(World world, Vector2 windowSize)
 {
