@@ -141,6 +141,81 @@ public class Material3DTests
     }
 
     [Fact]
+    public void Default_IsNotPbr()
+    {
+        var material = default(Material3D);
+
+        Assert.False(material.UsePbr);
+    }
+
+    [Fact]
+    public void FromMtl_DoesNotEnablePbr()
+    {
+        var mtl = new MtlMaterial(
+            Name: "TestMat",
+            DiffuseTexturePath: "textures/wall.png",
+            NormalTexturePath: null,
+            AmbientColor: Color.Black,
+            DiffuseColor: Color.White,
+            SpecularColor: Color.White,
+            Shininess: 32f
+        );
+
+        var material = Material3D.FromMtl(mtl);
+
+        Assert.False(material.UsePbr);
+    }
+
+    [Fact]
+    public void FromModel_MapsPbrFields()
+    {
+        var emissive = new Color(10, 20, 30, 255);
+        var model = new ModelMaterial(
+            Name: "metal",
+            DiffuseTexturePath: "textures/base.png",
+            NormalTexturePath: "textures/normal.png",
+            DiffuseColor: Color.White,
+            AmbientColor: Color.Black,
+            MetallicRoughnessTexturePath: "textures/mr.png",
+            AoTexturePath: "textures/ao.png",
+            EmissiveTexturePath: "textures/emissive.png",
+            MetallicFactor: 0.8f,
+            RoughnessFactor: 0.3f,
+            EmissiveColor: emissive,
+            UsePbr: true
+        );
+
+        var material = Material3D.FromModel(model);
+
+        Assert.True(material.UsePbr);
+        Assert.Equal("textures/mr.png", material.MetallicRoughnessTexturePath);
+        Assert.Equal("textures/ao.png", material.AoTexturePath);
+        Assert.Equal("textures/emissive.png", material.EmissiveTexturePath);
+        Assert.Equal(0.8f, material.MetallicFactor);
+        Assert.Equal(0.3f, material.RoughnessFactor);
+        Assert.Equal(emissive, material.EmissiveColor);
+    }
+
+    [Fact]
+    public void FromModel_NonPbr_LeavesPbrDisabled()
+    {
+        var model = new ModelMaterial(
+            Name: "stone",
+            DiffuseTexturePath: "textures/stone.png",
+            NormalTexturePath: null,
+            DiffuseColor: Color.White,
+            AmbientColor: Color.Black
+        );
+
+        var material = Material3D.FromModel(model);
+
+        Assert.False(material.UsePbr);
+        Assert.Null(material.MetallicRoughnessTexturePath);
+        Assert.Null(material.AoTexturePath);
+        Assert.Null(material.EmissiveTexturePath);
+    }
+
+    [Fact]
     public void RecordStruct_EqualityByValue()
     {
         var a = new Material3D

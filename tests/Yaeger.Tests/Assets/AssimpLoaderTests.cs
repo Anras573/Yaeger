@@ -190,6 +190,81 @@ public class AssimpLoaderTests
         }
     }
 
+    [SkippableFact]
+    public void LoadScene_GltfPbrMaterial_ShouldMapMetallicRoughnessAndEmissive()
+    {
+        Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
+
+        // Minimal glTF 2.0 triangle whose material uses pbrMetallicRoughness. The buffer
+        // (base64) holds three VEC3 positions followed by three unsigned-short indices.
+        const string gltf = """
+            {
+              "asset": { "version": "2.0" },
+              "scene": 0,
+              "scenes": [ { "nodes": [ 0 ] } ],
+              "nodes": [ { "mesh": 0 } ],
+              "meshes": [
+                {
+                  "primitives": [
+                    { "attributes": { "POSITION": 0 }, "indices": 1, "material": 0 }
+                  ]
+                }
+              ],
+              "materials": [
+                {
+                  "pbrMetallicRoughness": {
+                    "baseColorFactor": [ 1.0, 1.0, 1.0, 1.0 ],
+                    "metallicFactor": 0.25,
+                    "roughnessFactor": 0.75
+                  },
+                  "emissiveFactor": [ 0.5, 0.0, 0.0 ]
+                }
+              ],
+              "buffers": [
+                {
+                  "byteLength": 42,
+                  "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAAAAABAAIA"
+                }
+              ],
+              "bufferViews": [
+                { "buffer": 0, "byteOffset": 0, "byteLength": 36, "target": 34962 },
+                { "buffer": 0, "byteOffset": 36, "byteLength": 6, "target": 34963 }
+              ],
+              "accessors": [
+                {
+                  "bufferView": 0,
+                  "componentType": 5126,
+                  "count": 3,
+                  "type": "VEC3",
+                  "min": [ 0.0, 0.0, 0.0 ],
+                  "max": [ 1.0, 1.0, 0.0 ]
+                },
+                { "bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR" }
+              ]
+            }
+            """;
+        var path = WriteTempObj(gltf, ".gltf");
+        try
+        {
+            var scene = AssimpLoader.LoadScene(path);
+
+            Assert.Single(scene.Meshes);
+            var mat = scene.Meshes[0].Material;
+
+            Assert.True(mat.UsePbr);
+            Assert.Equal(0.25f, mat.MetallicFactor, 3);
+            Assert.Equal(0.75f, mat.RoughnessFactor, 3);
+            // emissiveFactor R=0.5 → ~127 after the 0-255 quantisation; G and B stay 0.
+            Assert.InRange(mat.EmissiveColor.R, (byte)120, (byte)135);
+            Assert.Equal(0, mat.EmissiveColor.G);
+            Assert.Equal(0, mat.EmissiveColor.B);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Fact]
     public void LoadScene_FileNotFound_ShouldThrowFileNotFoundException()
     {

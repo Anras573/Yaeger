@@ -46,16 +46,55 @@ public sealed class Renderer3D : IDisposable
 
         uniform sampler2D uDiffuse;
         uniform sampler2D uNormalMap;
+        uniform sampler2D uMetallicRoughnessMap;
+        uniform sampler2D uAoMap;
+        uniform sampler2D uEmissiveMap;
         uniform int       uHasNormalMap;
+        uniform int       uHasMetallicRoughnessMap;
+        uniform int       uHasAoMap;
+        uniform int       uHasEmissiveMap;
+
         uniform vec4  uDiffuseColor;
         uniform vec4  uAmbientColor;
         uniform vec4  uSpecularColor;
         uniform float uShininess;
 
+        uniform int   uUsePbr;
+        uniform float uMetallicFactor;
+        uniform float uRoughnessFactor;
+        uniform vec4  uEmissiveColor;
+
         uniform vec3  uLightDir;
         uniform vec4  uLightColor;
         uniform float uLightIntensity;
         uniform vec3  uCameraPos;
+
+        const float PI = 3.14159265359;
+
+        float distributionGGX(vec3 N, vec3 H, float roughness) {
+            float a = roughness * roughness;
+            float a2 = a * a;
+            float NdotH = max(dot(N, H), 0.0);
+            float denom = NdotH * NdotH * (a2 - 1.0) + 1.0;
+            denom = PI * denom * denom;
+            return a2 / max(denom, 1e-7);
+        }
+
+        float geometrySchlickGGX(float NdotX, float roughness) {
+            float r = roughness + 1.0;
+            float k = (r * r) / 8.0;
+            return NdotX / (NdotX * (1.0 - k) + k);
+        }
+
+        float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
+            float NdotV = max(dot(N, V), 0.0);
+            float NdotL = max(dot(N, L), 0.0);
+            return geometrySchlickGGX(NdotV, roughness) * geometrySchlickGGX(NdotL, roughness);
+        }
+
+        vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+            return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+        }
 
         void main() {
             vec3 N = normalize(vNormal);
@@ -82,17 +121,64 @@ public sealed class Renderer3D : IDisposable
             vec3 halfDir = L + V;
             vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
 
-            vec4 rawTex   = texture(uDiffuse, vTexCoord);
-            vec4 texColor = rawTex * uDiffuseColor;
+            vec4 rawTex = texture(uDiffuse, vTexCoord);
 
-            float diff = max(dot(N, L), 0.0);
-            float spec = diff > 0.0 ? pow(max(dot(N, H), 0.0), uShininess) : 0.0;
+            if (uUsePbr != 0) {
+                // glTF base colour is sRGB-encoded; linearise before lighting.
+                vec3 albedo = pow(rawTex.rgb * uDiffuseColor.rgb, vec3(2.2));
 
-            vec3 ambient  = (uAmbientColor * rawTex).rgb;
-            vec3 diffuse  = texColor.rgb     * diff * uLightColor.rgb * uLightIntensity;
-            vec3 specular = uSpecularColor.rgb * spec * uLightColor.rgb * uLightIntensity;
+                float metallic  = uMetallicFactor;
+                float roughness = uRoughnessFactor;
+                if (uHasMetallicRoughnessMap != 0) {
+                    // glTF packs roughness in G and metallic in B.
+                    vec3 mr = texture(uMetallicRoughnessMap, vTexCoord).rgb;
+                    roughness *= mr.g;
+                    metallic  *= mr.b;
+                }
+                roughness = clamp(roughness, 0.04, 1.0);
+                metallic  = clamp(metallic, 0.0, 1.0);
 
-            FragColor = vec4(ambient + diffuse + specular, texColor.a);
+                float ao = uHasAoMap != 0 ? texture(uAoMap, vTexCoord).r : 1.0;
+
+                vec3 emissive = uEmissiveColor.rgb;
+                if (uHasEmissiveMap != 0)
+                    emissive *= pow(texture(uEmissiveMap, vTexCoord).rgb, vec3(2.2));
+
+                vec3 radiance = uLightColor.rgb * uLightIntensity;
+
+                vec3  F0  = mix(vec3(0.04), albedo, metallic);
+                float NDF = distributionGGX(N, H, roughness);
+                float G   = geometrySmith(N, V, L, roughness);
+                vec3  F   = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+                float NdotL = max(dot(N, L), 0.0);
+                vec3  numerator = NDF * G * F;
+                float denom = 4.0 * max(dot(N, V), 0.0) * NdotL + 1e-4;
+                vec3  specular = numerator / denom;
+
+                vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+                vec3 Lo = (kD * albedo / PI + specular) * radiance * NdotL;
+
+                vec3 ambient = vec3(0.03) * albedo * ao;
+                vec3 color = ambient + Lo + emissive;
+
+                // Reinhard tone-map, then gamma encode back to sRGB.
+                color = color / (color + vec3(1.0));
+                color = pow(color, vec3(1.0 / 2.2));
+
+                FragColor = vec4(color, rawTex.a * uDiffuseColor.a);
+            } else {
+                vec4 texColor = rawTex * uDiffuseColor;
+
+                float diff = max(dot(N, L), 0.0);
+                float spec = diff > 0.0 ? pow(max(dot(N, H), 0.0), uShininess) : 0.0;
+
+                vec3 ambient  = (uAmbientColor * rawTex).rgb;
+                vec3 diffuse  = texColor.rgb     * diff * uLightColor.rgb * uLightIntensity;
+                vec3 specular = uSpecularColor.rgb * spec * uLightColor.rgb * uLightIntensity;
+
+                FragColor = vec4(ambient + diffuse + specular, texColor.a);
+            }
         }
         """;
 
@@ -179,6 +265,18 @@ public sealed class Renderer3D : IDisposable
             float.IsFinite(material.Shininess) ? MathF.Max(material.Shininess, 1f) : 1f
         );
 
+        var metallic = float.IsFinite(material.MetallicFactor)
+            ? Math.Clamp(material.MetallicFactor, 0f, 1f)
+            : 1f;
+        var roughness = float.IsFinite(material.RoughnessFactor)
+            ? Math.Clamp(material.RoughnessFactor, 0f, 1f)
+            : 1f;
+
+        _shader.SetUniformInt("uUsePbr", material.UsePbr ? 1 : 0);
+        _shader.SetUniformFloat("uMetallicFactor", metallic);
+        _shader.SetUniformFloat("uRoughnessFactor", roughness);
+        _shader.SetUniformVec4("uEmissiveColor", material.EmissiveColor.ToVector4());
+
         if (!string.IsNullOrEmpty(material.DiffuseTexturePath))
             textures.Get(material.DiffuseTexturePath).Bind(TextureUnit.Texture0);
         else
@@ -203,9 +301,60 @@ public sealed class Renderer3D : IDisposable
 
         _shader.SetUniformInt("uNormalMap", 1);
 
+        BindOptionalTexture(
+            textures,
+            material.MetallicRoughnessTexturePath,
+            TextureUnit.Texture2,
+            2,
+            "uMetallicRoughnessMap",
+            "uHasMetallicRoughnessMap"
+        );
+        BindOptionalTexture(
+            textures,
+            material.AoTexturePath,
+            TextureUnit.Texture3,
+            3,
+            "uAoMap",
+            "uHasAoMap"
+        );
+        BindOptionalTexture(
+            textures,
+            material.EmissiveTexturePath,
+            TextureUnit.Texture4,
+            4,
+            "uEmissiveMap",
+            "uHasEmissiveMap"
+        );
+
         mesh.Draw();
 
         _shader.Unbind();
+    }
+
+    // Binds an optional PBR texture to the given unit (or a 1×1 white fallback when absent)
+    // and sets the matching sampler + has-flag uniforms so the shader can branch on presence.
+    private void BindOptionalTexture(
+        TextureManager textures,
+        string? path,
+        TextureUnit unit,
+        int samplerSlot,
+        string samplerUniform,
+        string hasUniform
+    )
+    {
+        if (!string.IsNullOrEmpty(path))
+        {
+            textures.Get(path).Bind(unit);
+            _shader.SetUniformInt(hasUniform, 1);
+        }
+        else
+        {
+            _gl.ActiveTexture(unit);
+            _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
+            _shader.SetUniformInt(hasUniform, 0);
+        }
+
+        _shader.SetUniformInt(samplerUniform, samplerSlot);
     }
 
     private unsafe uint CreateWhiteTexture()

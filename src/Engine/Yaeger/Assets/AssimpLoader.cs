@@ -164,39 +164,8 @@ public static class AssimpLoader
         api.GetMaterialString(mat, Assimp.MaterialNameBase, 0, 0, &nameStr);
         var name = nameStr.AsString;
 
-        string? diffusePath = null;
-        AssimpString diffuseStr = default;
-        var diffuseResult = api.GetMaterialTexture(
-            mat,
-            TextureType.Diffuse,
-            0,
-            &diffuseStr,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-        );
-        if (diffuseResult == Return.Success && diffuseStr.Length > 0)
-            diffusePath = Path.GetFullPath(Path.Combine(baseDir, diffuseStr.AsString));
-
-        string? normalPath = null;
-        AssimpString normalStr = default;
-        var normalResult = api.GetMaterialTexture(
-            mat,
-            TextureType.Normals,
-            0,
-            &normalStr,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-        );
-        if (normalResult == Return.Success && normalStr.Length > 0)
-            normalPath = Path.GetFullPath(Path.Combine(baseDir, normalStr.AsString));
+        var diffusePath = GetTexturePath(api, mat, TextureType.Diffuse, baseDir);
+        var normalPath = GetTexturePath(api, mat, TextureType.Normals, baseDir);
 
         var diffuseColor = Color.White;
         var col = Vector4.One;
@@ -229,6 +198,110 @@ public static class AssimpLoader
             ambientColor = new Color(64, 64, 64, 255);
         }
 
-        return new ModelMaterial(name, diffusePath, normalPath, diffuseColor, ambientColor);
+        // --- PBR metallic/roughness (glTF 2.0) ---
+        // Assimp's glTF importer assigns the packed metallic-roughness texture to METALNESS,
+        // the occlusion texture to AMBIENT_OCCLUSION (Lightmap on older builds), and the
+        // emissive texture to EMISSIVE.
+        var metallicRoughnessPath = GetTexturePath(api, mat, TextureType.Metalness, baseDir);
+        var aoPath =
+            GetTexturePath(api, mat, TextureType.AmbientOcclusion, baseDir)
+            ?? GetTexturePath(api, mat, TextureType.Lightmap, baseDir);
+        var emissivePath = GetTexturePath(api, mat, TextureType.Emissive, baseDir);
+
+        var hasMetallic = TryGetMaterialFloat(
+            api,
+            mat,
+            Assimp.MatkeyMetallicFactor,
+            out var metallicFactor
+        );
+        var hasRoughness = TryGetMaterialFloat(
+            api,
+            mat,
+            Assimp.MatkeyRoughnessFactor,
+            out var roughnessFactor
+        );
+
+        var emissiveColor = Color.Black;
+        var emissive = Vector4.Zero;
+        var emissiveResult = api.GetMaterialColor(
+            mat,
+            Assimp.MaterialColorEmissiveBase,
+            0,
+            0,
+            ref emissive
+        );
+        if (emissiveResult == Return.Success)
+        {
+            emissiveColor = new Color(
+                (byte)Math.Clamp((int)(emissive.X * 255f), 0, 255),
+                (byte)Math.Clamp((int)(emissive.Y * 255f), 0, 255),
+                (byte)Math.Clamp((int)(emissive.Z * 255f), 0, 255),
+                255
+            );
+        }
+
+        // Treat the material as PBR when the importer surfaced any metallic/roughness data —
+        // glTF always provides the factor keys, whereas OBJ/MTL (Blinn-Phong) never does.
+        var usePbr =
+            hasMetallic
+            || hasRoughness
+            || metallicRoughnessPath != null
+            || aoPath != null
+            || emissivePath != null;
+
+        return new ModelMaterial(
+            name,
+            diffusePath,
+            normalPath,
+            diffuseColor,
+            ambientColor,
+            metallicRoughnessPath,
+            aoPath,
+            emissivePath,
+            hasMetallic ? metallicFactor : 1f,
+            hasRoughness ? roughnessFactor : 1f,
+            emissiveColor,
+            usePbr
+        );
+    }
+
+    private static unsafe string? GetTexturePath(
+        Assimp api,
+        Material* mat,
+        TextureType type,
+        string baseDir
+    )
+    {
+        AssimpString pathStr = default;
+        var result = api.GetMaterialTexture(
+            mat,
+            type,
+            0,
+            &pathStr,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+        if (result == Return.Success && pathStr.Length > 0)
+            return Path.GetFullPath(Path.Combine(baseDir, pathStr.AsString));
+
+        return null;
+    }
+
+    private static unsafe bool TryGetMaterialFloat(
+        Assimp api,
+        Material* mat,
+        string key,
+        out float value
+    )
+    {
+        float result = 0f;
+        uint max = 1;
+        var status = api.GetMaterialFloatArray(mat, key, 0, 0, &result, &max);
+        value = result;
+        return status == Return.Success;
     }
 }
