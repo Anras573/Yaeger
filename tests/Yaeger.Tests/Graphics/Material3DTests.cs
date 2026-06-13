@@ -141,6 +141,17 @@ public class Material3DTests
     }
 
     [Fact]
+    public void New_DefaultsMetallicAndRoughnessToGltfDefaults()
+    {
+        // Hand-authored PBR materials (`new Material3D { UsePbr = true, ... }`) should pick up
+        // glTF's 1.0 factor defaults without the caller having to set them explicitly.
+        var material = new Material3D();
+
+        Assert.Equal(1f, material.MetallicFactor);
+        Assert.Equal(1f, material.RoughnessFactor);
+    }
+
+    [Fact]
     public void Default_IsNotPbr()
     {
         var material = default(Material3D);
