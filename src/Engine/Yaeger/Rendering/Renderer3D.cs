@@ -302,30 +302,41 @@ public sealed class Renderer3D : IDisposable
 
         _shader.SetUniformInt("uNormalMap", 1);
 
-        BindOptionalTexture(
-            textures,
-            material.MetallicRoughnessTexturePath,
-            TextureUnit.Texture2,
-            2,
-            "uMetallicRoughnessMap",
-            "uHasMetallicRoughnessMap"
-        );
-        BindOptionalTexture(
-            textures,
-            material.AoTexturePath,
-            TextureUnit.Texture3,
-            3,
-            "uAoMap",
-            "uHasAoMap"
-        );
-        BindOptionalTexture(
-            textures,
-            material.EmissiveTexturePath,
-            TextureUnit.Texture4,
-            4,
-            "uEmissiveMap",
-            "uHasEmissiveMap"
-        );
+        // Only the PBR branch samples the metallic-roughness/AO/emissive maps, so skip the
+        // texture binds entirely for Blinn-Phong materials and just clear the has-flags.
+        if (material.UsePbr)
+        {
+            BindOptionalTexture(
+                textures,
+                material.MetallicRoughnessTexturePath,
+                TextureUnit.Texture2,
+                2,
+                "uMetallicRoughnessMap",
+                "uHasMetallicRoughnessMap"
+            );
+            BindOptionalTexture(
+                textures,
+                material.AoTexturePath,
+                TextureUnit.Texture3,
+                3,
+                "uAoMap",
+                "uHasAoMap"
+            );
+            BindOptionalTexture(
+                textures,
+                material.EmissiveTexturePath,
+                TextureUnit.Texture4,
+                4,
+                "uEmissiveMap",
+                "uHasEmissiveMap"
+            );
+        }
+        else
+        {
+            _shader.SetUniformInt("uHasMetallicRoughnessMap", 0);
+            _shader.SetUniformInt("uHasAoMap", 0);
+            _shader.SetUniformInt("uHasEmissiveMap", 0);
+        }
 
         mesh.Draw();
 
