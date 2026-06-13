@@ -241,9 +241,9 @@ public class ColorTests
         // Arrange & Act — components below 0 and above 1 should saturate to [0, 255].
         var color = Color.FromVector4(new Vector4(-0.5f, 0.5f, 2.0f, 1.5f));
 
-        // Assert
+        // Assert — 0.5 rounds to nearest (0.5 * 255 = 127.5 -> 128).
         Assert.Equal(0, color.R);
-        Assert.Equal(127, color.G);
+        Assert.Equal(128, color.G);
         Assert.Equal(255, color.B);
         Assert.Equal(255, color.A);
     }

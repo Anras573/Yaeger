@@ -30,5 +30,5 @@ public readonly struct Color(byte r, byte g, byte b, byte a = 255)
         new(ToByte(value.X), ToByte(value.Y), ToByte(value.Z), ToByte(value.W));
 
     private static byte ToByte(float component) =>
-        (byte)Math.Clamp((int)(component * 255f), 0, 255);
+        (byte)Math.Clamp((int)MathF.Round(component * 255f), 0, 255);
 }
