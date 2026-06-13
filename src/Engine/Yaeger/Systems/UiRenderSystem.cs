@@ -98,10 +98,12 @@ public class UiRenderSystem : IRenderSystem
 
             var fontSize = (int)MathF.Round(MathF.Max(1f, label.FontSize));
 
-            // Convert UiRect.Position to NDC. TextRenderer places glyphs relative to this
-            // point as the baseline origin — text ascenders extend upward from rect.Position.Y.
+            // UiRect.Position is the top-left corner (Y-down). TextRenderer places glyphs
+            // relative to the baseline, so shift Y down by fontSize to approximate where
+            // the baseline falls within the requested top-left-anchored bounds.
+            var baselineY = rect.Position.Y + fontSize;
             var ndcX = windowSize.X > 0 ? (rect.Position.X / windowSize.X) * 2f - 1f : 0f;
-            var ndcY = windowSize.Y > 0 ? 1f - (rect.Position.Y / windowSize.Y) * 2f : 0f;
+            var ndcY = windowSize.Y > 0 ? 1f - (baselineY / windowSize.Y) * 2f : 0f;
 
             // Independent X/Y scales convert glyph pixel units to NDC and preserve aspect ratio.
             var scaleX = windowSize.X > 0 ? 2f / windowSize.X : 0f;
