@@ -1,3 +1,4 @@
+using System.Numerics;
 using Yaeger.Graphics;
 
 namespace Yaeger.Tests.Graphics;
@@ -216,5 +217,34 @@ public class ColorTests
         Assert.Equal(0.50196f, vector.Y, precision: 5);
         Assert.Equal(0.75294f, vector.Z, precision: 5);
         Assert.Equal(1f, vector.W, precision: 5);
+    }
+
+    [Fact]
+    public void FromVector4_RoundTripsThroughToVector4()
+    {
+        // Arrange
+        var original = new Color(64, 128, 192, 200);
+
+        // Act
+        var roundTripped = Color.FromVector4(original.ToVector4());
+
+        // Assert
+        Assert.Equal(original.R, roundTripped.R);
+        Assert.Equal(original.G, roundTripped.G);
+        Assert.Equal(original.B, roundTripped.B);
+        Assert.Equal(original.A, roundTripped.A);
+    }
+
+    [Fact]
+    public void FromVector4_ClampsOutOfRangeComponents()
+    {
+        // Arrange & Act — components below 0 and above 1 should saturate to [0, 255].
+        var color = Color.FromVector4(new Vector4(-0.5f, 0.5f, 2.0f, 1.5f));
+
+        // Assert
+        Assert.Equal(0, color.R);
+        Assert.Equal(127, color.G);
+        Assert.Equal(255, color.B);
+        Assert.Equal(255, color.A);
     }
 }

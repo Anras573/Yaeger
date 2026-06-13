@@ -21,4 +21,14 @@ public readonly struct Color(byte r, byte g, byte b, byte a = 255)
     /// Converts this color to a normalized Vector4 (0-1 range) suitable for shaders.
     /// </summary>
     public Vector4 ToVector4() => new(R / 255f, G / 255f, B / 255f, A / 255f);
+
+    /// <summary>
+    /// Creates a color from a normalized Vector4 (0-1 range), clamping each component to [0, 255].
+    /// Inverse of <see cref="ToVector4"/>.
+    /// </summary>
+    public static Color FromVector4(Vector4 value) =>
+        new(ToByte(value.X), ToByte(value.Y), ToByte(value.Z), ToByte(value.W));
+
+    private static byte ToByte(float component) =>
+        (byte)Math.Clamp((int)(component * 255f), 0, 255);
 }

@@ -171,32 +171,16 @@ public static class AssimpLoader
         var col = Vector4.One;
         var colResult = api.GetMaterialColor(mat, Assimp.MaterialColorDiffuseBase, 0, 0, ref col);
         if (colResult == Return.Success)
-        {
-            diffuseColor = new Color(
-                (byte)Math.Clamp((int)(col.X * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.Y * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.Z * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.W * 255f), 0, 255)
-            );
-        }
+            diffuseColor = Color.FromVector4(col);
 
-        var ambientColor = Color.Black;
+        Color ambientColor;
         var amb = Vector4.Zero;
         var ambResult = api.GetMaterialColor(mat, Assimp.MaterialColorAmbientBase, 0, 0, ref amb);
         if (ambResult == Return.Success && (amb.X + amb.Y + amb.Z) > 0f)
-        {
-            ambientColor = new Color(
-                (byte)Math.Clamp((int)(amb.X * 255f), 0, 255),
-                (byte)Math.Clamp((int)(amb.Y * 255f), 0, 255),
-                (byte)Math.Clamp((int)(amb.Z * 255f), 0, 255),
-                255
-            );
-        }
+            ambientColor = Color.FromVector4(amb with { W = 1f });
         else
-        {
             // Fall back to ~25% grey so unlit faces remain visible.
             ambientColor = new Color(64, 64, 64, 255);
-        }
 
         // --- PBR metallic/roughness (glTF 2.0) ---
         // Assimp's glTF importer assigns the packed metallic-roughness texture to METALNESS,
@@ -231,23 +215,13 @@ public static class AssimpLoader
             ref emissive
         );
         if (emissiveResult == Return.Success)
-        {
-            emissiveColor = new Color(
-                (byte)Math.Clamp((int)(emissive.X * 255f), 0, 255),
-                (byte)Math.Clamp((int)(emissive.Y * 255f), 0, 255),
-                (byte)Math.Clamp((int)(emissive.Z * 255f), 0, 255),
-                255
-            );
-        }
+            emissiveColor = Color.FromVector4(emissive with { W = 1f });
 
-        // Treat the material as PBR when the importer surfaced any metallic/roughness data —
-        // glTF always provides the factor keys, whereas OBJ/MTL (Blinn-Phong) never does.
-        var usePbr =
-            hasMetallic
-            || hasRoughness
-            || metallicRoughnessPath != null
-            || aoPath != null
-            || emissivePath != null;
+        // Treat the material as PBR when the importer surfaced metallic/roughness data — glTF
+        // always provides these (the factor keys, and a metalness texture slot), whereas OBJ/MTL
+        // (Blinn-Phong) never does. Emissive/AO are deliberately excluded: OBJ can carry an
+        // emissive map/colour, which must not flip an otherwise Blinn-Phong material to PBR.
+        var usePbr = hasMetallic || hasRoughness || metallicRoughnessPath != null;
 
         return new ModelMaterial(
             name,
@@ -302,6 +276,8 @@ public static class AssimpLoader
         uint max = 1;
         var status = api.GetMaterialFloatArray(mat, key, 0, 0, &result, &max);
         value = result;
-        return status == Return.Success;
+        // `max` is updated to the number of values actually written; require at least one so a
+        // present-but-empty property doesn't masquerade as a real 0.0 factor.
+        return status == Return.Success && max >= 1;
     }
 }

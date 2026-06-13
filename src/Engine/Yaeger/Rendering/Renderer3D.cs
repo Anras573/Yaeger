@@ -194,7 +194,21 @@ public sealed class Renderer3D : IDisposable
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _defaultTexture = CreateWhiteTexture();
         _defaultNormalTexture = CreateFlatNormalTexture();
+        BindSamplerUnits();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
+    }
+
+    // Sampler-to-texture-unit assignments never change after link, so set them once here rather
+    // than re-uploading them on every Draw call.
+    private void BindSamplerUnits()
+    {
+        _shader.Bind();
+        _shader.SetUniformInt("uDiffuse", 0);
+        _shader.SetUniformInt("uNormalMap", 1);
+        _shader.SetUniformInt("uMetallicRoughnessMap", 2);
+        _shader.SetUniformInt("uAoMap", 3);
+        _shader.SetUniformInt("uEmissiveMap", 4);
+        _shader.Unbind();
     }
 
     /// <summary>
@@ -286,8 +300,6 @@ public sealed class Renderer3D : IDisposable
             _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
         }
 
-        _shader.SetUniformInt("uDiffuse", 0);
-
         if (!string.IsNullOrEmpty(material.NormalTexturePath))
         {
             textures.Get(material.NormalTexturePath).Bind(TextureUnit.Texture1);
@@ -300,8 +312,6 @@ public sealed class Renderer3D : IDisposable
             _shader.SetUniformInt("uHasNormalMap", 0);
         }
 
-        _shader.SetUniformInt("uNormalMap", 1);
-
         // Only the PBR branch samples the metallic-roughness/AO/emissive maps, so skip the
         // texture binds entirely for Blinn-Phong materials and just clear the has-flags.
         if (material.UsePbr)
@@ -310,24 +320,18 @@ public sealed class Renderer3D : IDisposable
                 textures,
                 material.MetallicRoughnessTexturePath,
                 TextureUnit.Texture2,
-                2,
-                "uMetallicRoughnessMap",
                 "uHasMetallicRoughnessMap"
             );
             BindOptionalTexture(
                 textures,
                 material.AoTexturePath,
                 TextureUnit.Texture3,
-                3,
-                "uAoMap",
                 "uHasAoMap"
             );
             BindOptionalTexture(
                 textures,
                 material.EmissiveTexturePath,
                 TextureUnit.Texture4,
-                4,
-                "uEmissiveMap",
                 "uHasEmissiveMap"
             );
         }
@@ -346,20 +350,18 @@ public sealed class Renderer3D : IDisposable
     // Binds an optional PBR texture to the given unit and flags its presence. When the path is
     // empty the bind is skipped entirely: the fragment shader gates each optional map behind a
     // per-draw `uHas*Map` uniform, so the (uniform-not-taken) sample is never executed and the
-    // sampler needs no complete texture bound.
+    // sampler needs no complete texture bound. Sampler-to-unit assignments are set once at
+    // construction (see BindSamplerUnits), so they aren't re-uploaded here.
     private void BindOptionalTexture(
         TextureManager textures,
         string? path,
         TextureUnit unit,
-        int samplerSlot,
-        string samplerUniform,
         string hasUniform
     )
     {
         if (!string.IsNullOrEmpty(path))
         {
             textures.Get(path).Bind(unit);
-            _shader.SetUniformInt(samplerUniform, samplerSlot);
             _shader.SetUniformInt(hasUniform, 1);
         }
         else
