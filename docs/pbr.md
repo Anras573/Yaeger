@@ -52,6 +52,13 @@ texture is present, glTF packs roughness in the green channel and metallic in th
 the `MetallicFactor`/`RoughnessFactor` scalars multiply those channels (and stand in for them when
 no texture is bound).
 
+> **Colour space**: in the PBR path the `Diffuse` (base-colour) and `EmissiveColor` factors are
+> treated as **linear**, matching glTF 2.0, whereas the base-colour and emissive *textures* are
+> assumed to be sRGB and are linearised before being multiplied by the factors. When authoring PBR
+> materials by hand, pick `Color` factor values in linear space — an sRGB-intended value (e.g. a
+> mid-grey `128`) will render brighter than expected. (In the Blinn-Phong path these colours are
+> used directly, with no linearisation.)
+
 ## Loading PBR materials
 
 `AssimpLoader` maps glTF `pbrMetallicRoughness` properties onto `Material3D` automatically. A
