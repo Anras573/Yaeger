@@ -124,8 +124,9 @@ public sealed class Renderer3D : IDisposable
             vec4 rawTex = texture(uDiffuse, vTexCoord);
 
             if (uUsePbr != 0) {
-                // glTF base colour is sRGB-encoded; linearise before lighting.
-                vec3 albedo = pow(rawTex.rgb * uDiffuseColor.rgb, vec3(2.2));
+                // glTF base colour texture is sRGB-encoded; linearise it before applying the
+                // base-colour factor, which glTF defines in linear space.
+                vec3 albedo = pow(rawTex.rgb, vec3(2.2)) * uDiffuseColor.rgb;
 
                 float metallic  = uMetallicFactor;
                 float roughness = uRoughnessFactor;
