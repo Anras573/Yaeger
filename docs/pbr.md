@@ -29,7 +29,7 @@ colour is Reinhard tone-mapped and gamma-encoded back to sRGB.
 public record struct Material3D
 {
     // Blinn-Phong (used when UsePbr is false)
-    public string DiffuseTexturePath;
+    public string DiffuseTexturePath = string.Empty;
     public string? NormalTexturePath;
     public Color Ambient;
     public Color Diffuse;
@@ -40,8 +40,8 @@ public record struct Material3D
     public string? MetallicRoughnessTexturePath; // glTF packed: G=roughness, B=metallic
     public string? AoTexturePath;
     public string? EmissiveTexturePath;
-    public float MetallicFactor;   // scales the texture's metallic channel
-    public float RoughnessFactor;  // scales the texture's roughness channel
+    public float MetallicFactor = 1f;   // scales the texture's metallic channel
+    public float RoughnessFactor = 1f;  // scales the texture's roughness channel
     public Color EmissiveColor;
     public bool UsePbr;
 }

@@ -343,8 +343,10 @@ public sealed class Renderer3D : IDisposable
         _shader.Unbind();
     }
 
-    // Binds an optional PBR texture to the given unit (or a 1×1 white fallback when absent)
-    // and sets the matching sampler + has-flag uniforms so the shader can branch on presence.
+    // Binds an optional PBR texture to the given unit and flags its presence. When the path is
+    // empty the bind is skipped entirely: the fragment shader gates each optional map behind a
+    // per-draw `uHas*Map` uniform, so the (uniform-not-taken) sample is never executed and the
+    // sampler needs no complete texture bound.
     private void BindOptionalTexture(
         TextureManager textures,
         string? path,
@@ -357,16 +359,13 @@ public sealed class Renderer3D : IDisposable
         if (!string.IsNullOrEmpty(path))
         {
             textures.Get(path).Bind(unit);
+            _shader.SetUniformInt(samplerUniform, samplerSlot);
             _shader.SetUniformInt(hasUniform, 1);
         }
         else
         {
-            _gl.ActiveTexture(unit);
-            _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
             _shader.SetUniformInt(hasUniform, 0);
         }
-
-        _shader.SetUniformInt(samplerUniform, samplerSlot);
     }
 
     private unsafe uint CreateWhiteTexture()
