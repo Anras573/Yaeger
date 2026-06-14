@@ -315,14 +315,16 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformFloat("uRoughnessFactor", roughness);
         _shader.SetUniformVec4("uEmissiveColor", material.EmissiveColor.ToVector4());
 
+        // Select the target unit *before* TextureManager.Get: a first-time Get constructs a
+        // Texture whose ctor binds on the currently-active unit, which would otherwise clobber a
+        // previously-bound unit. Activating first keeps that side-effect bind on the right unit.
+        _gl.ActiveTexture(TextureUnit.Texture0);
         if (!string.IsNullOrEmpty(material.DiffuseTexturePath))
             textures.Get(material.DiffuseTexturePath).Bind(TextureUnit.Texture0);
         else
-        {
-            _gl.ActiveTexture(TextureUnit.Texture0);
             _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
-        }
 
+        _gl.ActiveTexture(TextureUnit.Texture1);
         if (!string.IsNullOrEmpty(material.NormalTexturePath))
         {
             textures.Get(material.NormalTexturePath).Bind(TextureUnit.Texture1);
@@ -330,7 +332,6 @@ public sealed class Renderer3D : IDisposable
         }
         else
         {
-            _gl.ActiveTexture(TextureUnit.Texture1);
             _gl.BindTexture(TextureTarget.Texture2D, _defaultNormalTexture);
             _shader.SetUniformInt("uHasNormalMap", 0);
         }
@@ -384,6 +385,9 @@ public sealed class Renderer3D : IDisposable
     {
         if (!string.IsNullOrEmpty(path))
         {
+            // Select the unit before Get so a first-time Texture ctor binds on this unit rather
+            // than clobbering whichever unit happened to be active.
+            _gl.ActiveTexture(unit);
             textures.Get(path).Bind(unit);
             _shader.SetUniformInt(hasUniform, 1);
         }
