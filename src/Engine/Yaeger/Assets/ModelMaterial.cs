@@ -7,5 +7,12 @@ public record ModelMaterial(
     string? DiffuseTexturePath,
     string? NormalTexturePath,
     Color DiffuseColor,
-    Color AmbientColor
+    Color AmbientColor,
+    string? MetallicRoughnessTexturePath = null,
+    string? AoTexturePath = null,
+    string? EmissiveTexturePath = null,
+    float MetallicFactor = 1f,
+    float RoughnessFactor = 1f,
+    Color EmissiveColor = default,
+    bool UsePbr = false
 );

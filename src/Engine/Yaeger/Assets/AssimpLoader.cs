@@ -164,71 +164,120 @@ public static class AssimpLoader
         api.GetMaterialString(mat, Assimp.MaterialNameBase, 0, 0, &nameStr);
         var name = nameStr.AsString;
 
-        string? diffusePath = null;
-        AssimpString diffuseStr = default;
-        var diffuseResult = api.GetMaterialTexture(
-            mat,
-            TextureType.Diffuse,
-            0,
-            &diffuseStr,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-        );
-        if (diffuseResult == Return.Success && diffuseStr.Length > 0)
-            diffusePath = Path.GetFullPath(Path.Combine(baseDir, diffuseStr.AsString));
-
-        string? normalPath = null;
-        AssimpString normalStr = default;
-        var normalResult = api.GetMaterialTexture(
-            mat,
-            TextureType.Normals,
-            0,
-            &normalStr,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-        );
-        if (normalResult == Return.Success && normalStr.Length > 0)
-            normalPath = Path.GetFullPath(Path.Combine(baseDir, normalStr.AsString));
+        var diffusePath = GetTexturePath(api, mat, TextureType.Diffuse, baseDir);
+        var normalPath = GetTexturePath(api, mat, TextureType.Normals, baseDir);
 
         var diffuseColor = Color.White;
         var col = Vector4.One;
         var colResult = api.GetMaterialColor(mat, Assimp.MaterialColorDiffuseBase, 0, 0, ref col);
         if (colResult == Return.Success)
-        {
-            diffuseColor = new Color(
-                (byte)Math.Clamp((int)(col.X * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.Y * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.Z * 255f), 0, 255),
-                (byte)Math.Clamp((int)(col.W * 255f), 0, 255)
-            );
-        }
+            diffuseColor = Color.FromVector4(col);
 
-        var ambientColor = Color.Black;
+        Color ambientColor;
         var amb = Vector4.Zero;
         var ambResult = api.GetMaterialColor(mat, Assimp.MaterialColorAmbientBase, 0, 0, ref amb);
         if (ambResult == Return.Success && (amb.X + amb.Y + amb.Z) > 0f)
-        {
-            ambientColor = new Color(
-                (byte)Math.Clamp((int)(amb.X * 255f), 0, 255),
-                (byte)Math.Clamp((int)(amb.Y * 255f), 0, 255),
-                (byte)Math.Clamp((int)(amb.Z * 255f), 0, 255),
-                255
-            );
-        }
+            ambientColor = Color.FromVector4(amb with { W = 1f });
         else
-        {
             // Fall back to ~25% grey so unlit faces remain visible.
             ambientColor = new Color(64, 64, 64, 255);
-        }
 
-        return new ModelMaterial(name, diffusePath, normalPath, diffuseColor, ambientColor);
+        // --- PBR metallic/roughness (glTF 2.0) ---
+        // Assimp's glTF importer assigns the packed metallic-roughness texture to METALNESS,
+        // the occlusion texture to AMBIENT_OCCLUSION (Lightmap on older builds), and the
+        // emissive texture to EMISSIVE.
+        var metallicRoughnessPath = GetTexturePath(api, mat, TextureType.Metalness, baseDir);
+        var aoPath =
+            GetTexturePath(api, mat, TextureType.AmbientOcclusion, baseDir)
+            ?? GetTexturePath(api, mat, TextureType.Lightmap, baseDir);
+        var emissivePath = GetTexturePath(api, mat, TextureType.Emissive, baseDir);
+
+        var hasMetallic = TryGetMaterialFloat(
+            api,
+            mat,
+            Assimp.MatkeyMetallicFactor,
+            out var metallicFactor
+        );
+        var hasRoughness = TryGetMaterialFloat(
+            api,
+            mat,
+            Assimp.MatkeyRoughnessFactor,
+            out var roughnessFactor
+        );
+
+        var emissiveColor = Color.Black;
+        var emissive = Vector4.Zero;
+        var emissiveResult = api.GetMaterialColor(
+            mat,
+            Assimp.MaterialColorEmissiveBase,
+            0,
+            0,
+            ref emissive
+        );
+        if (emissiveResult == Return.Success)
+            emissiveColor = Color.FromVector4(emissive with { W = 1f });
+
+        // Treat the material as PBR when the importer surfaced metallic/roughness data — glTF
+        // always provides these (the factor keys, and a metalness texture slot), whereas OBJ/MTL
+        // (Blinn-Phong) never does. Emissive/AO are deliberately excluded: OBJ can carry an
+        // emissive map/colour, which must not flip an otherwise Blinn-Phong material to PBR.
+        var usePbr = hasMetallic || hasRoughness || metallicRoughnessPath != null;
+
+        return new ModelMaterial(
+            name,
+            diffusePath,
+            normalPath,
+            diffuseColor,
+            ambientColor,
+            metallicRoughnessPath,
+            aoPath,
+            emissivePath,
+            hasMetallic ? metallicFactor : 1f,
+            hasRoughness ? roughnessFactor : 1f,
+            emissiveColor,
+            usePbr
+        );
+    }
+
+    private static unsafe string? GetTexturePath(
+        Assimp api,
+        Material* mat,
+        TextureType type,
+        string baseDir
+    )
+    {
+        AssimpString pathStr = default;
+        var result = api.GetMaterialTexture(
+            mat,
+            type,
+            0,
+            &pathStr,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+        if (result == Return.Success && pathStr.Length > 0)
+            return Path.GetFullPath(Path.Combine(baseDir, pathStr.AsString));
+
+        return null;
+    }
+
+    private static unsafe bool TryGetMaterialFloat(
+        Assimp api,
+        Material* mat,
+        string key,
+        out float value
+    )
+    {
+        float result = 0f;
+        uint max = 1;
+        var status = api.GetMaterialFloatArray(mat, key, 0, 0, &result, &max);
+        value = result;
+        // `max` is updated to the number of values actually written; require at least one so a
+        // present-but-empty property doesn't masquerade as a real 0.0 factor.
+        return status == Return.Success && max >= 1;
     }
 }
