@@ -23,16 +23,11 @@ public class MeshRenderSystem(
     CubemapRegistry? cubemapRegistry = null
 )
 {
-    // Reused each frame so collecting lights doesn't allocate per render call. Sized to the
-    // renderer's hard caps; entities beyond the cap are simply ignored.
-    private readonly (Vector3 Position, PointLight Light)[] _pointLights = new (
-        Vector3,
-        PointLight
-    )[Renderer3D.MaxPointLights];
-    private readonly (Vector3 Position, SpotLight Light)[] _spotLights = new (
-        Vector3,
-        SpotLight
-    )[Renderer3D.MaxSpotLights];
+    // Reused across frames so collecting lights doesn't allocate per render call. Sized to the
+    // renderer's hard caps (entities beyond the cap are simply ignored) and allocated lazily on
+    // first use.
+    private (Vector3 Position, PointLight Light)[]? _pointLights;
+    private (Vector3 Position, SpotLight Light)[]? _spotLights;
 
     public void Render()
     {
@@ -42,10 +37,14 @@ public class MeshRenderSystem(
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
 
+        // Collect first so the lazily-allocated buffers are populated before we slice them.
+        var pointLightCount = CollectPointLights();
+        var spotLightCount = CollectSpotLights();
+
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
-        renderer.SetPointLights(_pointLights.AsSpan(0, CollectPointLights()));
-        renderer.SetSpotLights(_spotLights.AsSpan(0, CollectSpotLights()));
+        renderer.SetPointLights(_pointLights!.AsSpan(0, pointLightCount));
+        renderer.SetSpotLights(_spotLights!.AsSpan(0, spotLightCount));
 
         foreach (
             (
@@ -106,6 +105,7 @@ public class MeshRenderSystem(
     // and returns the count written. Iterating PointLight first keeps the probe set small.
     private int CollectPointLights()
     {
+        _pointLights ??= new (Vector3, PointLight)[Renderer3D.MaxPointLights];
         var count = 0;
         foreach (var (_, pointLight, transform) in world.Query<PointLight, Transform3D>())
         {
@@ -120,6 +120,7 @@ public class MeshRenderSystem(
     // returns the count written.
     private int CollectSpotLights()
     {
+        _spotLights ??= new (Vector3, SpotLight)[Renderer3D.MaxSpotLights];
         var count = 0;
         foreach (var (_, spotLight, transform) in world.Query<SpotLight, Transform3D>())
         {
