@@ -311,6 +311,44 @@ public sealed class Renderer3D : IDisposable
     /// <summary>Maximum number of spot lights the fragment shader can accumulate per frame.</summary>
     public const int MaxSpotLights = 8;
 
+    // Per-light uniform names depend only on the array index, so build them once and reuse them
+    // every frame. Interpolating them inside the per-frame upload loops would allocate a fresh
+    // string per light field on every call.
+    private static readonly string[] PointPositionNames;
+    private static readonly string[] PointColorNames;
+    private static readonly string[] PointIntensityNames;
+    private static readonly string[] PointRangeNames;
+    private static readonly string[] SpotPositionNames;
+    private static readonly string[] SpotDirectionNames;
+    private static readonly string[] SpotColorNames;
+    private static readonly string[] SpotIntensityNames;
+    private static readonly string[] SpotInnerCosNames;
+    private static readonly string[] SpotOuterCosNames;
+    private static readonly string[] SpotRangeNames;
+
+    static Renderer3D()
+    {
+        PointPositionNames = BuildNames("uPointLights", "position", MaxPointLights);
+        PointColorNames = BuildNames("uPointLights", "color", MaxPointLights);
+        PointIntensityNames = BuildNames("uPointLights", "intensity", MaxPointLights);
+        PointRangeNames = BuildNames("uPointLights", "range", MaxPointLights);
+        SpotPositionNames = BuildNames("uSpotLights", "position", MaxSpotLights);
+        SpotDirectionNames = BuildNames("uSpotLights", "direction", MaxSpotLights);
+        SpotColorNames = BuildNames("uSpotLights", "color", MaxSpotLights);
+        SpotIntensityNames = BuildNames("uSpotLights", "intensity", MaxSpotLights);
+        SpotInnerCosNames = BuildNames("uSpotLights", "innerCos", MaxSpotLights);
+        SpotOuterCosNames = BuildNames("uSpotLights", "outerCos", MaxSpotLights);
+        SpotRangeNames = BuildNames("uSpotLights", "range", MaxSpotLights);
+    }
+
+    private static string[] BuildNames(string array, string field, int count)
+    {
+        var names = new string[count];
+        for (var i = 0; i < count; i++)
+            names[i] = $"{array}[{i}].{field}";
+        return names;
+    }
+
     private readonly GL _gl;
     private readonly Shader _shader;
     private readonly uint _defaultTexture;
@@ -422,11 +460,10 @@ public sealed class Renderer3D : IDisposable
         for (var i = 0; i < count; i++)
         {
             var (position, light) = lights[i];
-            var prefix = $"uPointLights[{i}]";
-            _shader.SetUniformVec3($"{prefix}.position", position);
-            _shader.SetUniformVec4($"{prefix}.color", light.Color.ToVector4());
-            _shader.SetUniformFloat($"{prefix}.intensity", SanitizeNonNegative(light.Intensity));
-            _shader.SetUniformFloat($"{prefix}.range", SanitizeNonNegative(light.Range));
+            _shader.SetUniformVec3(PointPositionNames[i], position);
+            _shader.SetUniformVec4(PointColorNames[i], light.Color.ToVector4());
+            _shader.SetUniformFloat(PointIntensityNames[i], SanitizeNonNegative(light.Intensity));
+            _shader.SetUniformFloat(PointRangeNames[i], SanitizeNonNegative(light.Range));
         }
         _shader.Unbind();
     }
@@ -456,14 +493,13 @@ public sealed class Renderer3D : IDisposable
             var outerAngle = Math.Clamp(SanitizeNonNegative(light.OuterConeAngle), 0f, MathF.PI);
             var innerAngle = Math.Clamp(SanitizeNonNegative(light.InnerConeAngle), 0f, outerAngle);
 
-            var prefix = $"uSpotLights[{i}]";
-            _shader.SetUniformVec3($"{prefix}.position", position);
-            _shader.SetUniformVec3($"{prefix}.direction", direction);
-            _shader.SetUniformVec4($"{prefix}.color", light.Color.ToVector4());
-            _shader.SetUniformFloat($"{prefix}.intensity", SanitizeNonNegative(light.Intensity));
-            _shader.SetUniformFloat($"{prefix}.innerCos", MathF.Cos(innerAngle));
-            _shader.SetUniformFloat($"{prefix}.outerCos", MathF.Cos(outerAngle));
-            _shader.SetUniformFloat($"{prefix}.range", SanitizeNonNegative(light.Range));
+            _shader.SetUniformVec3(SpotPositionNames[i], position);
+            _shader.SetUniformVec3(SpotDirectionNames[i], direction);
+            _shader.SetUniformVec4(SpotColorNames[i], light.Color.ToVector4());
+            _shader.SetUniformFloat(SpotIntensityNames[i], SanitizeNonNegative(light.Intensity));
+            _shader.SetUniformFloat(SpotInnerCosNames[i], MathF.Cos(innerAngle));
+            _shader.SetUniformFloat(SpotOuterCosNames[i], MathF.Cos(outerAngle));
+            _shader.SetUniformFloat(SpotRangeNames[i], SanitizeNonNegative(light.Range));
         }
         _shader.Unbind();
     }
