@@ -25,10 +25,14 @@ public class MeshRenderSystem(
 {
     // Reused each frame so collecting lights doesn't allocate per render call. Sized to the
     // renderer's hard caps; entities beyond the cap are simply ignored.
-    private readonly (Vector3 Position, PointLight Light)[] _pointLights =
-        new (Vector3, PointLight)[Renderer3D.MaxPointLights];
-    private readonly (Vector3 Position, SpotLight Light)[] _spotLights =
-        new (Vector3, SpotLight)[Renderer3D.MaxSpotLights];
+    private readonly (Vector3 Position, PointLight Light)[] _pointLights = new (
+        Vector3,
+        PointLight
+    )[Renderer3D.MaxPointLights];
+    private readonly (Vector3 Position, SpotLight Light)[] _spotLights = new (
+        Vector3,
+        SpotLight
+    )[Renderer3D.MaxSpotLights];
 
     public void Render()
     {
