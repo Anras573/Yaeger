@@ -195,6 +195,7 @@ public sealed class Renderer3D : IDisposable
         _defaultTexture = CreateWhiteTexture();
         _defaultNormalTexture = CreateFlatNormalTexture();
         BindSamplerUnits();
+        BindDefaultPbrTextures();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
     }
 
@@ -209,6 +210,24 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformInt("uAoMap", 3);
         _shader.SetUniformInt("uEmissiveMap", 4);
         _shader.Unbind();
+    }
+
+    // Bind the 1×1 white texture to the optional PBR sampler units (2-4) once at construction.
+    // Those samplers are statically used by the fragment shader (the gating `uHas*Map` uniform
+    // doesn't make them un-referenced), so each must point at a *complete* texture for defined
+    // behaviour. Draw only ever overwrites these units with a real map and never unbinds them,
+    // so this one-time bind keeps the units complete for the renderer's lifetime — Draw can then
+    // skip binding a fallback when a map is absent.
+    private void BindDefaultPbrTextures()
+    {
+        foreach (
+            var unit in (ReadOnlySpan<TextureUnit>)
+                [TextureUnit.Texture2, TextureUnit.Texture3, TextureUnit.Texture4]
+        )
+        {
+            _gl.ActiveTexture(unit);
+            _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
+        }
     }
 
     /// <summary>
@@ -348,10 +367,10 @@ public sealed class Renderer3D : IDisposable
     }
 
     // Binds an optional PBR texture to the given unit and flags its presence. When the path is
-    // empty the bind is skipped entirely: the fragment shader gates each optional map behind a
-    // per-draw `uHas*Map` uniform, so the (uniform-not-taken) sample is never executed and the
-    // sampler needs no complete texture bound. Sampler-to-unit assignments are set once at
-    // construction (see BindSamplerUnits), so they aren't re-uploaded here.
+    // empty the bind is skipped: the unit already holds a complete fallback texture from
+    // construction (see BindDefaultPbrTextures), so the (uniform-gated) sampler stays valid and
+    // `uHas*Map = 0` tells the shader to ignore it. Sampler-to-unit assignments are likewise set
+    // once at construction (see BindSamplerUnits), so they aren't re-uploaded here.
     private void BindOptionalTexture(
         TextureManager textures,
         string? path,
