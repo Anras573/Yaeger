@@ -29,6 +29,12 @@ public readonly struct Color(byte r, byte g, byte b, byte a = 255)
     public static Color FromVector4(Vector4 value) =>
         new(ToByte(value.X), ToByte(value.Y), ToByte(value.Z), ToByte(value.W));
 
-    private static byte ToByte(float component) =>
-        (byte)Math.Clamp((int)MathF.Round(component * 255f), 0, 255);
+    private static byte ToByte(float component)
+    {
+        // Clamp in float space before the int cast: converting a NaN or out-of-range float to int
+        // is unspecified in C#. Math.Clamp maps +/-Infinity to 1/0; NaN compares false, so guard it.
+        if (float.IsNaN(component))
+            return 0;
+        return (byte)MathF.Round(Math.Clamp(component, 0f, 1f) * 255f);
+    }
 }

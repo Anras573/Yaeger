@@ -247,4 +247,19 @@ public class ColorTests
         Assert.Equal(255, color.B);
         Assert.Equal(255, color.A);
     }
+
+    [Fact]
+    public void FromVector4_HandlesNonFiniteComponents()
+    {
+        // Arrange & Act — NaN -> 0, +Infinity saturates to 255, -Infinity to 0.
+        var color = Color.FromVector4(
+            new Vector4(float.NaN, float.PositiveInfinity, float.NegativeInfinity, 1f)
+        );
+
+        // Assert
+        Assert.Equal(0, color.R);
+        Assert.Equal(255, color.G);
+        Assert.Equal(0, color.B);
+        Assert.Equal(255, color.A);
+    }
 }

@@ -228,6 +228,10 @@ public sealed class Renderer3D : IDisposable
             _gl.ActiveTexture(unit);
             _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
         }
+
+        // Restore the default active unit so we don't leak Texture4 into later GL setup (e.g. the
+        // Texture constructor binds without first selecting a unit).
+        _gl.ActiveTexture(TextureUnit.Texture0);
     }
 
     /// <summary>
