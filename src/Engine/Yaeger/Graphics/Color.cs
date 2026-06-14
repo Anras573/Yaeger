@@ -21,4 +21,20 @@ public readonly struct Color(byte r, byte g, byte b, byte a = 255)
     /// Converts this color to a normalized Vector4 (0-1 range) suitable for shaders.
     /// </summary>
     public Vector4 ToVector4() => new(R / 255f, G / 255f, B / 255f, A / 255f);
+
+    /// <summary>
+    /// Creates a color from a normalized Vector4 (0-1 range), clamping each component to [0, 255].
+    /// Inverse of <see cref="ToVector4"/>.
+    /// </summary>
+    public static Color FromVector4(Vector4 value) =>
+        new(ToByte(value.X), ToByte(value.Y), ToByte(value.Z), ToByte(value.W));
+
+    private static byte ToByte(float component)
+    {
+        // Clamp in float space before the int cast: converting a NaN or out-of-range float to int
+        // is unspecified in C#. Math.Clamp maps +/-Infinity to 1/0; NaN compares false, so guard it.
+        if (float.IsNaN(component))
+            return 0;
+        return (byte)MathF.Round(Math.Clamp(component, 0f, 1f) * 255f);
+    }
 }

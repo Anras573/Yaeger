@@ -10,6 +10,8 @@ using Yaeger.Systems;
 using Yaeger.Windowing;
 
 // Sponza demo — loads the Intel/KhronosGroup Sponza glTF via AssimpLoader.
+// The glTF materials are rendered through Renderer3D's PBR metallic/roughness path
+// (AssimpLoader flags them as PBR automatically — see docs/pbr.md).
 // Assets are fetched automatically on first build via the FetchSponzaAssets MSBuild target.
 // Requires native libassimp at runtime (e.g. apt install libassimp-dev on Linux).
 // Controls: WASD move, Q/E up/down, right-mouse-drag look, ESC exit.
