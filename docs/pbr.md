@@ -29,7 +29,7 @@ colour is Reinhard tone-mapped and gamma-encoded back to sRGB.
 public record struct Material3D
 {
     // Blinn-Phong (used when UsePbr is false)
-    public string DiffuseTexturePath = string.Empty;
+    public string? DiffuseTexturePath = string.Empty;
     public string? NormalTexturePath;
     public Color Ambient;
     public Color Diffuse;

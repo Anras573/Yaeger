@@ -4,8 +4,10 @@ namespace Yaeger.Graphics;
 
 public record struct Material3D
 {
-    // Blinn-Phong fields (used when UsePbr is false)
-    public string DiffuseTexturePath = string.Empty;
+    // Blinn-Phong fields (used when UsePbr is false).
+    // Nullable because default(Material3D) bypasses the field initializer and leaves this null;
+    // the renderer treats null/empty alike (no diffuse texture).
+    public string? DiffuseTexturePath = string.Empty;
     public string? NormalTexturePath;
     public Color Ambient;
     public Color Diffuse;
