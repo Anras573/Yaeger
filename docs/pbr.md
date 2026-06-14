@@ -68,3 +68,9 @@ Blinn-Phong scenes therefore keep `UsePbr = false` and render exactly as before.
 
 The `Sponza` sample loads the KhronosGroup Sponza glTF and renders it through the PBR path; the
 `CornellBox` sample uses hand-authored Blinn-Phong materials.
+
+## Lights
+
+Both shading paths accumulate a directional light plus any point and spot lights in the scene. See
+[lighting.md](lighting.md) for the `DirectionalLight`, `PointLight`, and `SpotLight` components and
+their falloff behaviour.

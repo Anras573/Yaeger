@@ -23,6 +23,13 @@ public class MeshRenderSystem(
     CubemapRegistry? cubemapRegistry = null
 )
 {
+    // Reused each frame so collecting lights doesn't allocate per render call. Sized to the
+    // renderer's hard caps; entities beyond the cap are simply ignored.
+    private readonly (Vector3 Position, PointLight Light)[] _pointLights =
+        new (Vector3, PointLight)[Renderer3D.MaxPointLights];
+    private readonly (Vector3 Position, SpotLight Light)[] _spotLights =
+        new (Vector3, SpotLight)[Renderer3D.MaxSpotLights];
+
     public void Render()
     {
         var (view, projection, cameraPos, hasCamera) = GetCameraMatrices();
@@ -33,6 +40,8 @@ public class MeshRenderSystem(
 
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
+        renderer.SetPointLights(_pointLights.AsSpan(0, CollectPointLights()));
+        renderer.SetSpotLights(_spotLights.AsSpan(0, CollectSpotLights()));
 
         foreach (
             (
@@ -87,6 +96,34 @@ public class MeshRenderSystem(
         }
 
         return (Matrix4x4.Identity, Matrix4x4.Identity, Vector3.Zero, false);
+    }
+
+    // Fills _pointLights with up to MaxPointLights entities carrying a PointLight + Transform3D
+    // and returns the count written. Iterating PointLight first keeps the probe set small.
+    private int CollectPointLights()
+    {
+        var count = 0;
+        foreach (var (_, pointLight, transform) in world.Query<PointLight, Transform3D>())
+        {
+            if (count >= _pointLights.Length)
+                break;
+            _pointLights[count++] = (transform.Position, pointLight);
+        }
+        return count;
+    }
+
+    // Fills _spotLights with up to MaxSpotLights entities carrying a SpotLight + Transform3D and
+    // returns the count written.
+    private int CollectSpotLights()
+    {
+        var count = 0;
+        foreach (var (_, spotLight, transform) in world.Query<SpotLight, Transform3D>())
+        {
+            if (count >= _spotLights.Length)
+                break;
+            _spotLights[count++] = (transform.Position, spotLight);
+        }
+        return count;
     }
 
     private static readonly DirectionalLight DefaultLight = DirectionalLight.Default;
