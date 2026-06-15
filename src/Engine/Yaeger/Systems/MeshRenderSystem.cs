@@ -63,6 +63,12 @@ public class MeshRenderSystem(
                 settings.EnablePcf
             );
         }
+        else
+        {
+            // Keep the opt-in robust when a Renderer3D is shared with a shadow-casting system: clear
+            // any stale shadow state so this scene doesn't sample a leftover/deleted depth texture.
+            renderer.DisableShadows();
+        }
 
         foreach (
             (
