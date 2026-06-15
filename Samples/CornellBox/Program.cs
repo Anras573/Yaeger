@@ -198,9 +198,30 @@ world.AddComponent(
     {
         Direction = Vector3.Normalize(new Vector3(0f, 1f, 0.15f)),
         Color = Color.White,
-        Intensity = 1f,
+        Intensity = 0.5f,
     }
 );
+
+// Coloured point lights — demonstrate multiple light sources casting distinct pools of colour
+// across the walls and boxes. Each is placed via a Transform3D; MeshRenderSystem queries them.
+void AddPointLight(string tag, Vector3 position, Color color, float intensity, float range)
+{
+    var entity = world.CreateEntity(tag);
+    world.AddComponent(entity, new Transform3D(position, Quaternion.Identity, Vector3.One));
+    world.AddComponent(
+        entity,
+        new PointLight
+        {
+            Color = color,
+            Intensity = intensity,
+            Range = range,
+        }
+    );
+}
+
+AddPointLight("light_red", new Vector3(-0.6f, 1.3f, 0.4f), Color.Red, 2.5f, 2.5f);
+AddPointLight("light_green", new Vector3(0.6f, 1.3f, 0.4f), Color.Green, 2.5f, 2.5f);
+AddPointLight("light_blue", new Vector3(0f, 0.6f, -0.6f), Color.Blue, 2.5f, 2.5f);
 
 using var renderer3D = new Renderer3D(window.Gl);
 var meshRenderSystem = new MeshRenderSystem(renderer3D, registry, textures, world, window);

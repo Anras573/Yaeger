@@ -69,7 +69,50 @@ public sealed class Renderer3D : IDisposable
         uniform float uLightIntensity;
         uniform vec3  uCameraPos;
 
+        #define MAX_POINT_LIGHTS 16
+        #define MAX_SPOT_LIGHTS 8
+
+        struct PointLight {
+            vec3  position;
+            vec4  color;
+            float intensity;
+            float range;
+        };
+
+        struct SpotLight {
+            vec3  position;
+            vec3  direction;  // beam axis, from the light outward (normalised)
+            vec4  color;
+            float intensity;
+            float innerCos;   // cos(innerConeAngle); fully lit at or below this angle
+            float outerCos;   // cos(outerConeAngle); fully dark beyond this angle
+            float range;
+        };
+
+        uniform int        uPointLightCount;
+        uniform PointLight uPointLights[MAX_POINT_LIGHTS];
+        uniform int        uSpotLightCount;
+        uniform SpotLight  uSpotLights[MAX_SPOT_LIGHTS];
+
         const float PI = 3.14159265359;
+
+        // Smooth, range-based distance attenuation (UE4-style): an inverse-square falloff windowed
+        // so the contribution reaches exactly zero at `range`, avoiding a hard cutoff edge.
+        float attenuate(float dist, float range) {
+            if (range <= 0.0) return 0.0;
+            float ratio = dist / range;
+            float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+            return (window * window) / (dist * dist + 1.0);
+        }
+
+        // Cone falloff for a spot light. `L` points from the fragment toward the light. Equivalent
+        // to smoothstep(outerCos, innerCos, cosAngle) but guards the edge0==edge1 case (a zero-width
+        // cone edge) that would otherwise divide by zero.
+        float spotFactor(vec3 L, vec3 spotDir, float innerCos, float outerCos) {
+            float cosAngle = dot(-L, spotDir);
+            float t = clamp((cosAngle - outerCos) / max(innerCos - outerCos, 1e-4), 0.0, 1.0);
+            return t * t * (3.0 - 2.0 * t);
+        }
 
         float distributionGGX(vec3 N, vec3 H, float roughness) {
             float a = roughness * roughness;
@@ -96,6 +139,41 @@ public sealed class Renderer3D : IDisposable
             return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
         }
 
+        // Cook-Torrance contribution of a single light. `L` points from the fragment toward the
+        // light; `radiance` already folds in the light's colour, intensity and any attenuation.
+        vec3 pbrContribution(
+            vec3 N, vec3 V, vec3 L, vec3 radiance,
+            vec3 albedo, float metallic, float roughness, vec3 F0
+        ) {
+            vec3 halfDir = L + V;
+            vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
+
+            float NDF = distributionGGX(N, H, roughness);
+            float G   = geometrySmith(N, V, L, roughness);
+            vec3  F   = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+            float NdotL = max(dot(N, L), 0.0);
+            vec3  numerator = NDF * G * F;
+            float denom = 4.0 * max(dot(N, V), 0.0) * NdotL + 1e-4;
+            vec3  specular = numerator / denom;
+
+            vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+            return (kD * albedo / PI + specular) * radiance * NdotL;
+        }
+
+        // Blinn-Phong contribution of a single light. `radiance` already folds in the light's
+        // colour, intensity and any attenuation.
+        vec3 phongContribution(
+            vec3 N, vec3 V, vec3 L, vec3 radiance,
+            vec3 texColor, vec3 specColor, float shininess
+        ) {
+            vec3 halfDir = L + V;
+            vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
+            float diff = max(dot(N, L), 0.0);
+            float spec = diff > 0.0 ? pow(max(dot(N, H), 0.0), shininess) : 0.0;
+            return (texColor * diff + specColor * spec) * radiance;
+        }
+
         void main() {
             vec3 N = normalize(vNormal);
 
@@ -118,8 +196,6 @@ public sealed class Renderer3D : IDisposable
             vec3 L = normalize(uLightDir);
             vec3 viewDir = uCameraPos - vFragPos;
             vec3 V = viewDir * inversesqrt(max(dot(viewDir, viewDir), 1e-10));
-            vec3 halfDir = L + V;
-            vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
 
             vec4 rawTex = texture(uDiffuse, vTexCoord);
 
@@ -145,20 +221,37 @@ public sealed class Renderer3D : IDisposable
                 if (uHasEmissiveMap != 0)
                     emissive *= pow(texture(uEmissiveMap, vTexCoord).rgb, vec3(2.2));
 
-                vec3 radiance = uLightColor.rgb * uLightIntensity;
+                vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
-                vec3  F0  = mix(vec3(0.04), albedo, metallic);
-                float NDF = distributionGGX(N, H, roughness);
-                float G   = geometrySmith(N, V, L, roughness);
-                vec3  F   = fresnelSchlick(max(dot(H, V), 0.0), F0);
+                // Directional light.
+                vec3 Lo = pbrContribution(
+                    N, V, L, uLightColor.rgb * uLightIntensity,
+                    albedo, metallic, roughness, F0
+                );
 
-                float NdotL = max(dot(N, L), 0.0);
-                vec3  numerator = NDF * G * F;
-                float denom = 4.0 * max(dot(N, V), 0.0) * NdotL + 1e-4;
-                vec3  specular = numerator / denom;
+                // Point lights.
+                for (int i = 0; i < uPointLightCount; i++) {
+                    vec3 toLight = uPointLights[i].position - vFragPos;
+                    float dist = length(toLight);
+                    vec3 Lp = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
+                    float att = attenuate(dist, uPointLights[i].range);
+                    vec3 radiance = uPointLights[i].color.rgb * uPointLights[i].intensity * att;
+                    Lo += pbrContribution(N, V, Lp, radiance, albedo, metallic, roughness, F0);
+                }
 
-                vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
-                vec3 Lo = (kD * albedo / PI + specular) * radiance * NdotL;
+                // Spot lights.
+                for (int i = 0; i < uSpotLightCount; i++) {
+                    vec3 toLight = uSpotLights[i].position - vFragPos;
+                    float dist = length(toLight);
+                    vec3 Ls = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
+                    float att = attenuate(dist, uSpotLights[i].range);
+                    float spot = spotFactor(
+                        Ls, uSpotLights[i].direction,
+                        uSpotLights[i].innerCos, uSpotLights[i].outerCos
+                    );
+                    vec3 radiance = uSpotLights[i].color.rgb * uSpotLights[i].intensity * att * spot;
+                    Lo += pbrContribution(N, V, Ls, radiance, albedo, metallic, roughness, F0);
+                }
 
                 vec3 ambient = vec3(0.03) * albedo * ao;
                 vec3 color = ambient + Lo + emissive;
@@ -171,17 +264,90 @@ public sealed class Renderer3D : IDisposable
             } else {
                 vec4 texColor = rawTex * uDiffuseColor;
 
-                float diff = max(dot(N, L), 0.0);
-                float spec = diff > 0.0 ? pow(max(dot(N, H), 0.0), uShininess) : 0.0;
+                // Directional light.
+                vec3 lit = phongContribution(
+                    N, V, L, uLightColor.rgb * uLightIntensity,
+                    texColor.rgb, uSpecularColor.rgb, uShininess
+                );
 
-                vec3 ambient  = (uAmbientColor * rawTex).rgb;
-                vec3 diffuse  = texColor.rgb     * diff * uLightColor.rgb * uLightIntensity;
-                vec3 specular = uSpecularColor.rgb * spec * uLightColor.rgb * uLightIntensity;
+                // Point lights.
+                for (int i = 0; i < uPointLightCount; i++) {
+                    vec3 toLight = uPointLights[i].position - vFragPos;
+                    float dist = length(toLight);
+                    vec3 Lp = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
+                    float att = attenuate(dist, uPointLights[i].range);
+                    vec3 radiance = uPointLights[i].color.rgb * uPointLights[i].intensity * att;
+                    lit += phongContribution(
+                        N, V, Lp, radiance, texColor.rgb, uSpecularColor.rgb, uShininess
+                    );
+                }
 
-                FragColor = vec4(ambient + diffuse + specular, texColor.a);
+                // Spot lights.
+                for (int i = 0; i < uSpotLightCount; i++) {
+                    vec3 toLight = uSpotLights[i].position - vFragPos;
+                    float dist = length(toLight);
+                    vec3 Ls = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
+                    float att = attenuate(dist, uSpotLights[i].range);
+                    float spot = spotFactor(
+                        Ls, uSpotLights[i].direction,
+                        uSpotLights[i].innerCos, uSpotLights[i].outerCos
+                    );
+                    vec3 radiance = uSpotLights[i].color.rgb * uSpotLights[i].intensity * att * spot;
+                    lit += phongContribution(
+                        N, V, Ls, radiance, texColor.rgb, uSpecularColor.rgb, uShininess
+                    );
+                }
+
+                vec3 ambient = (uAmbientColor * rawTex).rgb;
+
+                FragColor = vec4(ambient + lit, texColor.a);
             }
         }
         """;
+
+    /// <summary>Maximum number of point lights the fragment shader can accumulate per frame.</summary>
+    public const int MaxPointLights = 16;
+
+    /// <summary>Maximum number of spot lights the fragment shader can accumulate per frame.</summary>
+    public const int MaxSpotLights = 8;
+
+    // Per-light uniform names depend only on the array index, so build them once and reuse them
+    // every frame. Interpolating them inside the per-frame upload loops would allocate a fresh
+    // string per light field on every call.
+    private static readonly string[] PointPositionNames;
+    private static readonly string[] PointColorNames;
+    private static readonly string[] PointIntensityNames;
+    private static readonly string[] PointRangeNames;
+    private static readonly string[] SpotPositionNames;
+    private static readonly string[] SpotDirectionNames;
+    private static readonly string[] SpotColorNames;
+    private static readonly string[] SpotIntensityNames;
+    private static readonly string[] SpotInnerCosNames;
+    private static readonly string[] SpotOuterCosNames;
+    private static readonly string[] SpotRangeNames;
+
+    static Renderer3D()
+    {
+        PointPositionNames = BuildNames("uPointLights", "position", MaxPointLights);
+        PointColorNames = BuildNames("uPointLights", "color", MaxPointLights);
+        PointIntensityNames = BuildNames("uPointLights", "intensity", MaxPointLights);
+        PointRangeNames = BuildNames("uPointLights", "range", MaxPointLights);
+        SpotPositionNames = BuildNames("uSpotLights", "position", MaxSpotLights);
+        SpotDirectionNames = BuildNames("uSpotLights", "direction", MaxSpotLights);
+        SpotColorNames = BuildNames("uSpotLights", "color", MaxSpotLights);
+        SpotIntensityNames = BuildNames("uSpotLights", "intensity", MaxSpotLights);
+        SpotInnerCosNames = BuildNames("uSpotLights", "innerCos", MaxSpotLights);
+        SpotOuterCosNames = BuildNames("uSpotLights", "outerCos", MaxSpotLights);
+        SpotRangeNames = BuildNames("uSpotLights", "range", MaxSpotLights);
+    }
+
+    private static string[] BuildNames(string array, string field, int count)
+    {
+        var names = new string[count];
+        for (var i = 0; i < count; i++)
+            names[i] = $"{array}[{i}].{field}";
+        return names;
+    }
 
     private readonly GL _gl;
     private readonly Shader _shader;
@@ -197,6 +363,10 @@ public sealed class Renderer3D : IDisposable
         BindSamplerUnits();
         BindDefaultPbrTextures();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
+        // Start with no point/spot lights so scenes that never call SetPointLights/SetSpotLights
+        // (the pre-existing single-directional-light path) render exactly as before.
+        SetPointLights([]);
+        SetSpotLights([]);
     }
 
     // Sampler-to-texture-unit assignments never change after link, so set them once here rather
@@ -276,6 +446,67 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformVec3("uCameraPos", cameraPos);
         _shader.Unbind();
     }
+
+    /// <summary>
+    /// Uploads the active point lights for this frame. Call once per frame before the draw loop.
+    /// At most <see cref="MaxPointLights"/> lights are used; any extras are ignored. Passing an
+    /// empty span disables all point lights.
+    /// </summary>
+    public void SetPointLights(ReadOnlySpan<(Vector3 Position, PointLight Light)> lights)
+    {
+        var count = Math.Min(lights.Length, MaxPointLights);
+        _shader.Bind();
+        _shader.SetUniformInt("uPointLightCount", count);
+        for (var i = 0; i < count; i++)
+        {
+            var (position, light) = lights[i];
+            _shader.SetUniformVec3(PointPositionNames[i], position);
+            _shader.SetUniformVec4(PointColorNames[i], light.Color.ToVector4());
+            _shader.SetUniformFloat(PointIntensityNames[i], SanitizeNonNegative(light.Intensity));
+            _shader.SetUniformFloat(PointRangeNames[i], SanitizeNonNegative(light.Range));
+        }
+        _shader.Unbind();
+    }
+
+    /// <summary>
+    /// Uploads the active spot lights for this frame. Call once per frame before the draw loop.
+    /// At most <see cref="MaxSpotLights"/> lights are used; any extras are ignored. Passing an
+    /// empty span disables all spot lights.
+    /// </summary>
+    public void SetSpotLights(ReadOnlySpan<(Vector3 Position, SpotLight Light)> lights)
+    {
+        var count = Math.Min(lights.Length, MaxSpotLights);
+        _shader.Bind();
+        _shader.SetUniformInt("uSpotLightCount", count);
+        for (var i = 0; i < count; i++)
+        {
+            var (position, light) = lights[i];
+
+            var lenSq = light.Direction.LengthSquared();
+            var direction =
+                float.IsFinite(lenSq) && lenSq > 0f
+                    ? Vector3.Normalize(light.Direction)
+                    : -Vector3.UnitY;
+
+            // Clamp angles to [0, pi] and force inner <= outer so the cos values stay ordered
+            // (innerCos >= outerCos), which smoothstep requires for a well-defined cone edge.
+            var outerAngle = Math.Clamp(SanitizeNonNegative(light.OuterConeAngle), 0f, MathF.PI);
+            var innerAngle = Math.Clamp(SanitizeNonNegative(light.InnerConeAngle), 0f, outerAngle);
+
+            _shader.SetUniformVec3(SpotPositionNames[i], position);
+            _shader.SetUniformVec3(SpotDirectionNames[i], direction);
+            _shader.SetUniformVec4(SpotColorNames[i], light.Color.ToVector4());
+            _shader.SetUniformFloat(SpotIntensityNames[i], SanitizeNonNegative(light.Intensity));
+            _shader.SetUniformFloat(SpotInnerCosNames[i], MathF.Cos(innerAngle));
+            _shader.SetUniformFloat(SpotOuterCosNames[i], MathF.Cos(outerAngle));
+            _shader.SetUniformFloat(SpotRangeNames[i], SanitizeNonNegative(light.Range));
+        }
+        _shader.Unbind();
+    }
+
+    // Guards against NaN/negative values leaking into shader uniforms (mirrors SetSceneLighting).
+    private static float SanitizeNonNegative(float value) =>
+        float.IsFinite(value) ? MathF.Max(value, 0f) : 0f;
 
     /// <summary>Draws a single mesh with the supplied transform and material.</summary>
     public void Draw(

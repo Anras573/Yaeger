@@ -17,4 +17,12 @@ public class ComponentStorage<T> : IComponentStore
     public T Get(Entity entity) => _components[entity];
 
     public IEnumerable<KeyValuePair<Entity, T>> All() => _components;
+
+    /// <summary>
+    /// Returns a non-allocating struct enumerator over the (entity, component) pairs, enabling
+    /// <c>foreach</c> directly over the storage. Unlike <see cref="All"/> — which surfaces the
+    /// pairs through the boxing <see cref="IEnumerable{T}"/> interface — this avoids a per-call
+    /// heap allocation, which matters for stores iterated every frame.
+    /// </summary>
+    public Dictionary<Entity, T>.Enumerator GetEnumerator() => _components.GetEnumerator();
 }

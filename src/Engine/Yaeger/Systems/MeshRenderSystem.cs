@@ -23,6 +23,12 @@ public class MeshRenderSystem(
     CubemapRegistry? cubemapRegistry = null
 )
 {
+    // Reused across frames so collecting lights doesn't allocate per render call. Sized to the
+    // renderer's hard caps (entities beyond the cap are simply ignored) and allocated lazily on
+    // first use.
+    private (Vector3 Position, PointLight Light)[]? _pointLights;
+    private (Vector3 Position, SpotLight Light)[]? _spotLights;
+
     public void Render()
     {
         var (view, projection, cameraPos, hasCamera) = GetCameraMatrices();
@@ -31,8 +37,14 @@ public class MeshRenderSystem(
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
 
+        // Collect first so the lazily-allocated buffers are populated before we slice them.
+        var pointLightCount = CollectPointLights();
+        var spotLightCount = CollectSpotLights();
+
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
+        renderer.SetPointLights(_pointLights!.AsSpan(0, pointLightCount));
+        renderer.SetSpotLights(_spotLights!.AsSpan(0, spotLightCount));
 
         foreach (
             (
@@ -87,6 +99,42 @@ public class MeshRenderSystem(
         }
 
         return (Matrix4x4.Identity, Matrix4x4.Identity, Vector3.Zero, false);
+    }
+
+    // Fills _pointLights with up to MaxPointLights entities carrying a PointLight + Transform3D
+    // and returns the count written. Iterates the PointLight store directly (struct enumerator,
+    // no allocation) and probes Transform3D via TryGet, mirroring how world.Query works internally
+    // but without the per-frame iterator allocation.
+    private int CollectPointLights()
+    {
+        _pointLights ??= new (Vector3, PointLight)[Renderer3D.MaxPointLights];
+        var transforms = world.GetStore<Transform3D>();
+        var count = 0;
+        foreach (var (entity, pointLight) in world.GetStore<PointLight>())
+        {
+            if (count >= _pointLights.Length)
+                break;
+            if (transforms.TryGet(entity, out var transform))
+                _pointLights[count++] = (transform.Position, pointLight);
+        }
+        return count;
+    }
+
+    // Fills _spotLights with up to MaxSpotLights entities carrying a SpotLight + Transform3D and
+    // returns the count written. Allocation-free, like CollectPointLights.
+    private int CollectSpotLights()
+    {
+        _spotLights ??= new (Vector3, SpotLight)[Renderer3D.MaxSpotLights];
+        var transforms = world.GetStore<Transform3D>();
+        var count = 0;
+        foreach (var (entity, spotLight) in world.GetStore<SpotLight>())
+        {
+            if (count >= _spotLights.Length)
+                break;
+            if (transforms.TryGet(entity, out var transform))
+                _spotLights[count++] = (transform.Position, spotLight);
+        }
+        return count;
     }
 
     private static readonly DirectionalLight DefaultLight = DirectionalLight.Default;
