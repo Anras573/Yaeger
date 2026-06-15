@@ -193,8 +193,9 @@ public sealed class Renderer3D : IDisposable
             vec3 proj = vLightSpacePos.xyz / vLightSpacePos.w;
             proj = proj * 0.5 + 0.5;
 
-            // Beyond the light's far plane or outside the map footprint: treat as lit.
-            if (proj.z > 1.0) return 1.0;
+            // Outside the light's depth range (in front of its near plane or beyond the far
+            // plane) or outside the map footprint: treat as lit.
+            if (proj.z < 0.0 || proj.z > 1.0) return 1.0;
             if (proj.x < 0.0 || proj.x > 1.0 || proj.y < 0.0 || proj.y > 1.0) return 1.0;
 
             // Slope-scaled bias: grazing angles need more offset to avoid shadow acne.
