@@ -11,7 +11,8 @@ namespace Yaeger.Systems;
 /// <see cref="Material3D"/> components and issues draw calls via <see cref="Renderer3D"/>.
 /// Wire this to <see cref="Window.OnRender"/>, not <see cref="Window.OnUpdate"/>.
 /// Pass a <see cref="SkyboxRenderer"/> and <see cref="CubemapRegistry"/> to render any
-/// <see cref="Skybox"/> entity automatically.
+/// <see cref="Skybox"/> entity automatically. Pass a <see cref="ShadowMapRenderer"/> to render
+/// directional-light shadows via an extra depth pre-pass.
 /// </summary>
 public class MeshRenderSystem(
     Renderer3D renderer,
@@ -20,7 +21,8 @@ public class MeshRenderSystem(
     World world,
     Window window,
     SkyboxRenderer? skyboxRenderer = null,
-    CubemapRegistry? cubemapRegistry = null
+    CubemapRegistry? cubemapRegistry = null,
+    ShadowMapRenderer? shadowMapRenderer = null
 )
 {
     // Reused across frames so collecting lights doesn't allocate per render call. Sized to the
@@ -31,7 +33,7 @@ public class MeshRenderSystem(
 
     public void Render()
     {
-        var (view, projection, cameraPos, hasCamera) = GetCameraMatrices();
+        var (view, projection, cameraPos, sceneCenter, hasCamera) = GetCameraMatrices();
         var viewProj = view * projection;
         var light = GetDirectionalLight();
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
@@ -41,10 +43,26 @@ public class MeshRenderSystem(
         var pointLightCount = CollectPointLights();
         var spotLightCount = CollectSpotLights();
 
+        // Shadow pre-pass: render scene depth from the directional light's point of view. Runs
+        // before BeginFrame3D so it owns the framebuffer/viewport state for its duration.
+        if (shadowMapRenderer != null)
+            RenderShadowPass(light, sceneCenter);
+
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
         renderer.SetPointLights(_pointLights!.AsSpan(0, pointLightCount));
         renderer.SetSpotLights(_spotLights!.AsSpan(0, spotLightCount));
+
+        if (shadowMapRenderer != null)
+        {
+            var settings = shadowMapRenderer.Settings;
+            renderer.SetShadowMap(
+                shadowMapRenderer.LightSpaceMatrix,
+                shadowMapRenderer.DepthTexture,
+                settings.Bias,
+                settings.EnablePcf
+            );
+        }
 
         foreach (
             (
@@ -84,10 +102,34 @@ public class MeshRenderSystem(
         renderer.EndFrame3D();
     }
 
+    // Renders every shadow caster into the shadow map from the light's perspective. Casters are not
+    // frustum-culled against the camera: geometry behind or beside the view can still cast into it.
+    private void RenderShadowPass(DirectionalLight light, Vector3 sceneCenter)
+    {
+        shadowMapRenderer!.BeginPass(light, sceneCenter);
+
+        foreach (
+            (
+                Entity _,
+                MeshHandle handle,
+                Transform3D transform,
+                Material3D _
+            ) in world.Query<MeshHandle, Transform3D, Material3D>()
+        )
+        {
+            if (meshRegistry.TryGet(handle, out var mesh))
+                shadowMapRenderer.Draw(mesh, transform.ModelMatrix);
+        }
+
+        var size = window.Size;
+        shadowMapRenderer.EndPass((int)size.X, (int)size.Y);
+    }
+
     private (
         Matrix4x4 View,
         Matrix4x4 Projection,
         Vector3 CameraPos,
+        Vector3 SceneCenter,
         bool HasCamera
     ) GetCameraMatrices()
     {
@@ -95,10 +137,16 @@ public class MeshRenderSystem(
         {
             var size = window.Size;
             var aspectRatio = size.Y > 0f ? size.X / size.Y : 1f;
-            return (camera.ViewMatrix, camera.ProjectionMatrix(aspectRatio), camera.Position, true);
+            return (
+                camera.ViewMatrix,
+                camera.ProjectionMatrix(aspectRatio),
+                camera.Position,
+                camera.Target,
+                true
+            );
         }
 
-        return (Matrix4x4.Identity, Matrix4x4.Identity, Vector3.Zero, false);
+        return (Matrix4x4.Identity, Matrix4x4.Identity, Vector3.Zero, Vector3.Zero, false);
     }
 
     // Fills _pointLights with up to MaxPointLights entities carrying a PointLight + Transform3D

@@ -196,9 +196,10 @@ world.AddComponent(
     lightEntity,
     new DirectionalLight
     {
-        Direction = Vector3.Normalize(new Vector3(0f, 1f, 0.15f)),
+        // Angled slightly off-vertical so the boxes throw distinct shadows across the floor.
+        Direction = Vector3.Normalize(new Vector3(0.25f, 1f, 0.2f)),
         Color = Color.White,
-        Intensity = 0.5f,
+        Intensity = 1.2f,
     }
 );
 
@@ -224,7 +225,30 @@ AddPointLight("light_green", new Vector3(0.6f, 1.3f, 0.4f), Color.Green, 2.5f, 2
 AddPointLight("light_blue", new Vector3(0f, 0.6f, -0.6f), Color.Blue, 2.5f, 2.5f);
 
 using var renderer3D = new Renderer3D(window.Gl);
-var meshRenderSystem = new MeshRenderSystem(renderer3D, registry, textures, world, window);
+
+// Directional-light shadow mapping. The orthographic frustum is sized to frame the 2×2×2 room
+// (centred on the camera target), and PCF softens the cast-shadow edges.
+using var shadowMapRenderer = new ShadowMapRenderer(
+    window.Gl,
+    new ShadowSettings
+    {
+        MapResolution = 2048,
+        OrthographicSize = 2.5f,
+        NearPlane = 0.1f,
+        FarPlane = 12f,
+        Bias = 0.004f,
+        EnablePcf = true,
+    }
+);
+
+var meshRenderSystem = new MeshRenderSystem(
+    renderer3D,
+    registry,
+    textures,
+    world,
+    window,
+    shadowMapRenderer: shadowMapRenderer
+);
 var freeFlySystem = new FreeFlySystem(world, cameraEntity);
 
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
