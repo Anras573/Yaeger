@@ -28,7 +28,11 @@ public class ShadowMapRendererTests
         };
         var center = new Vector3(1f, 2f, -3f);
 
-        var matrix = ShadowMapRenderer.ComputeLightSpaceMatrix(light, center, ShadowSettings.Default);
+        var matrix = ShadowMapRenderer.ComputeLightSpaceMatrix(
+            light,
+            center,
+            ShadowSettings.Default
+        );
         var ndc = ProjectToNdc(center, matrix);
 
         Assert.Equal(0f, ndc.X, 3);

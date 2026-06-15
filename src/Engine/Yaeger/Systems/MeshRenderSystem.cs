@@ -109,12 +109,11 @@ public class MeshRenderSystem(
         shadowMapRenderer!.BeginPass(light, sceneCenter);
 
         foreach (
-            (
-                Entity _,
-                MeshHandle handle,
-                Transform3D transform,
-                Material3D _
-            ) in world.Query<MeshHandle, Transform3D, Material3D>()
+            (Entity _, MeshHandle handle, Transform3D transform, Material3D _) in world.Query<
+                MeshHandle,
+                Transform3D,
+                Material3D
+            >()
         )
         {
             if (meshRegistry.TryGet(handle, out var mesh))
