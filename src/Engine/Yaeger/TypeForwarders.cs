@@ -43,6 +43,7 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.ParticlePool))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.PointLight))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.RenderLayer))]
+[assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.ShadowSettings))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Skybox))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.SpotLight))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Graphics.Sprite))]
