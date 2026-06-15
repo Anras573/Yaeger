@@ -106,7 +106,10 @@ public class MeshRenderSystem(
     // frustum-culled against the camera: geometry behind or beside the view can still cast into it.
     private void RenderShadowPass(DirectionalLight light, Vector3 sceneCenter)
     {
-        shadowMapRenderer!.BeginPass(light, sceneCenter);
+        // Caller guards on shadowMapRenderer != null; hoist to a non-null local so the whole method
+        // reads off a single, analysis-friendly reference.
+        var shadowMap = shadowMapRenderer!;
+        shadowMap.BeginPass(light, sceneCenter);
 
         foreach (
             (Entity _, MeshHandle handle, Transform3D transform, Material3D _) in world.Query<
@@ -117,11 +120,11 @@ public class MeshRenderSystem(
         )
         {
             if (meshRegistry.TryGet(handle, out var mesh))
-                shadowMapRenderer.Draw(mesh, transform.ModelMatrix);
+                shadowMap.Draw(mesh, transform.ModelMatrix);
         }
 
         var size = window.Size;
-        shadowMapRenderer.EndPass((int)size.X, (int)size.Y);
+        shadowMap.EndPass((int)size.X, (int)size.Y);
     }
 
     private (

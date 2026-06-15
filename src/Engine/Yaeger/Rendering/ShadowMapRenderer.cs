@@ -138,6 +138,12 @@ public sealed class ShadowMapRenderer : IDisposable
         _shader.Unbind();
         _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         _gl.Viewport(0, 0, (uint)Math.Max(viewportWidth, 1), (uint)Math.Max(viewportHeight, 1));
+
+        // Restore the engine's default 3D state changed in BeginPass so a caller that doesn't
+        // immediately re-establish it (BeginFrame3D does) isn't left with culling disabled.
+        _gl.Enable(EnableCap.CullFace);
+        _gl.CullFace(TriangleFace.Back);
+        _gl.DepthFunc(DepthFunction.Less);
     }
 
     private unsafe uint CreateDepthTexture(int resolution)
