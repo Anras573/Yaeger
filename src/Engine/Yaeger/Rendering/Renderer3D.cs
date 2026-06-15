@@ -408,7 +408,7 @@ public sealed class Renderer3D : IDisposable
         _defaultNormalTexture = CreateFlatNormalTexture();
         BindSamplerUnits();
         BindDefaultPbrTextures();
-        BindDefaultShadowTexture();
+        // DisableShadows also binds the default texture on unit 5, so no separate setup is needed.
         DisableShadows();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
         // Start with no point/spot lights so scenes that never call SetPointLights/SetSpotLights
@@ -498,6 +498,11 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformInt("uShadowsEnabled", 0);
         _shader.SetUniformMatrix4("uLightSpaceMatrix", Matrix4x4.Identity);
         _shader.Unbind();
+
+        // Restore the default (complete) shadow texture on unit 5. After a prior SetShadowMap the
+        // unit may still point at a depth texture that gets deleted when its ShadowMapRenderer is
+        // disposed, leaving the statically-used sampler incomplete even though sampling is gated off.
+        BindDefaultShadowTexture();
     }
 
     /// <summary>
