@@ -158,7 +158,9 @@ public sealed class ShadowMapRenderer : IDisposable
             (uint)resolution,
             0,
             PixelFormat.DepthComponent,
-            PixelType.Float,
+            // Data is null, so this type only labels the (absent) source pixels; pair it with the
+            // sized DepthComponent24 internal format's conventional integer type.
+            PixelType.UnsignedInt,
             null
         );
         _gl.TexParameter(
