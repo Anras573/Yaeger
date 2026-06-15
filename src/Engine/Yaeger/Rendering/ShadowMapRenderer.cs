@@ -148,8 +148,10 @@ public sealed class ShadowMapRenderer : IDisposable
 
     private unsafe uint CreateDepthTexture(int resolution)
     {
-        // Select a known unit before binding so this (and the matching unbind below) doesn't
-        // disturb whatever texture the caller had bound on an arbitrary active unit.
+        // Normalise to a known unit (Texture0) before binding so the texture setup lands on a
+        // predictable unit — and leaves unit 0 cleared — instead of mutating whatever unit the
+        // caller happened to leave active. Mirrors how Renderer3D settles on unit 0 after its
+        // own texture setup; construction runs during scene init, so no live binding is lost.
         _gl.ActiveTexture(TextureUnit.Texture0);
         var handle = _gl.GenTexture();
         _gl.BindTexture(TextureTarget.Texture2D, handle);
