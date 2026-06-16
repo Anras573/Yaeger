@@ -20,11 +20,13 @@ public sealed class Renderer3D : IDisposable
         uniform mat4 uModel;
         uniform mat4 uViewProj;
         uniform mat3 uNormalMatrix;
+        uniform mat4 uLightSpaceMatrix;
 
         out vec3 vNormal;
         out vec2 vTexCoord;
         out vec3 vFragPos;
         out vec3 vTangent;
+        out vec4 vLightSpacePos;
 
         void main() {
             vec4 worldPos = uModel * vec4(aPosition, 1.0);
@@ -32,6 +34,7 @@ public sealed class Renderer3D : IDisposable
             vNormal   = uNormalMatrix * aNormal;
             vTangent  = mat3(uModel) * aTangent;
             vTexCoord = aTexCoord;
+            vLightSpacePos = uLightSpaceMatrix * worldPos;
             gl_Position = uViewProj * worldPos;
         }
         """;
@@ -42,6 +45,7 @@ public sealed class Renderer3D : IDisposable
         in  vec2 vTexCoord;
         in  vec3 vFragPos;
         in  vec3 vTangent;
+        in  vec4 vLightSpacePos;
         out vec4 FragColor;
 
         uniform sampler2D uDiffuse;
@@ -49,10 +53,15 @@ public sealed class Renderer3D : IDisposable
         uniform sampler2D uMetallicRoughnessMap;
         uniform sampler2D uAoMap;
         uniform sampler2D uEmissiveMap;
+        uniform sampler2D uShadowMap;
         uniform int       uHasNormalMap;
         uniform int       uHasMetallicRoughnessMap;
         uniform int       uHasAoMap;
         uniform int       uHasEmissiveMap;
+
+        uniform int   uShadowsEnabled;
+        uniform float uShadowBias;
+        uniform int   uUsePcf;
 
         uniform vec4  uDiffuseColor;
         uniform vec4  uAmbientColor;
@@ -174,6 +183,45 @@ public sealed class Renderer3D : IDisposable
             return (texColor * diff + specColor * spec) * radiance;
         }
 
+        // Directional-light visibility in [0, 1]: 1 = fully lit, 0 = fully shadowed. Projects the
+        // fragment into light space, compares its depth against the shadow map, and (optionally)
+        // averages a 3x3 PCF kernel for soft edges. Only the directional light casts shadows in v1.
+        float directionalShadow(vec3 N, vec3 L) {
+            if (uShadowsEnabled == 0) return 1.0;
+
+            // Back-facing to the light: both shading paths clamp the directional term to zero, so
+            // the shadow factor is irrelevant (shadow * 0 == 0). Skip the (PCF) texture reads.
+            if (dot(N, L) <= 0.0) return 1.0;
+
+            // Perspective divide, then map NDC -> [0, 1] texture/depth space.
+            vec3 proj = vLightSpacePos.xyz / vLightSpacePos.w;
+            proj = proj * 0.5 + 0.5;
+
+            // Outside the light's depth range (in front of its near plane or beyond the far
+            // plane) or outside the map footprint: treat as lit.
+            if (proj.z < 0.0 || proj.z > 1.0) return 1.0;
+            if (proj.x < 0.0 || proj.x > 1.0 || proj.y < 0.0 || proj.y > 1.0) return 1.0;
+
+            // Slope-scaled bias: grazing angles need more offset to avoid shadow acne.
+            float bias = max(uShadowBias * (1.0 - dot(N, L)), uShadowBias * 0.1);
+            float current = proj.z;
+
+            if (uUsePcf != 0) {
+                float sum = 0.0;
+                vec2 texel = 1.0 / vec2(textureSize(uShadowMap, 0));
+                for (int x = -1; x <= 1; x++) {
+                    for (int y = -1; y <= 1; y++) {
+                        float closest = texture(uShadowMap, proj.xy + vec2(x, y) * texel).r;
+                        sum += current - bias > closest ? 1.0 : 0.0;
+                    }
+                }
+                return 1.0 - sum / 9.0;
+            }
+
+            float closest = texture(uShadowMap, proj.xy).r;
+            return current - bias > closest ? 0.0 : 1.0;
+        }
+
         void main() {
             vec3 N = normalize(vNormal);
 
@@ -196,6 +244,9 @@ public sealed class Renderer3D : IDisposable
             vec3 L = normalize(uLightDir);
             vec3 viewDir = uCameraPos - vFragPos;
             vec3 V = viewDir * inversesqrt(max(dot(viewDir, viewDir), 1e-10));
+
+            // Directional shadowing (1 = lit, 0 = shadowed); only the directional light casts.
+            float shadow = directionalShadow(N, L);
 
             vec4 rawTex = texture(uDiffuse, vTexCoord);
 
@@ -223,11 +274,11 @@ public sealed class Renderer3D : IDisposable
 
                 vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
-                // Directional light.
+                // Directional light (shadowed).
                 vec3 Lo = pbrContribution(
                     N, V, L, uLightColor.rgb * uLightIntensity,
                     albedo, metallic, roughness, F0
-                );
+                ) * shadow;
 
                 // Point lights.
                 for (int i = 0; i < uPointLightCount; i++) {
@@ -264,11 +315,11 @@ public sealed class Renderer3D : IDisposable
             } else {
                 vec4 texColor = rawTex * uDiffuseColor;
 
-                // Directional light.
+                // Directional light (shadowed).
                 vec3 lit = phongContribution(
                     N, V, L, uLightColor.rgb * uLightIntensity,
                     texColor.rgb, uSpecularColor.rgb, uShininess
-                );
+                ) * shadow;
 
                 // Point lights.
                 for (int i = 0; i < uPointLightCount; i++) {
@@ -362,6 +413,8 @@ public sealed class Renderer3D : IDisposable
         _defaultNormalTexture = CreateFlatNormalTexture();
         BindSamplerUnits();
         BindDefaultPbrTextures();
+        // DisableShadows also binds the default texture on unit 5, so no separate setup is needed.
+        DisableShadows();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
         // Start with no point/spot lights so scenes that never call SetPointLights/SetSpotLights
         // (the pre-existing single-directional-light path) render exactly as before.
@@ -379,6 +432,7 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformInt("uMetallicRoughnessMap", 2);
         _shader.SetUniformInt("uAoMap", 3);
         _shader.SetUniformInt("uEmissiveMap", 4);
+        _shader.SetUniformInt("uShadowMap", 5);
         _shader.Unbind();
     }
 
@@ -402,6 +456,58 @@ public sealed class Renderer3D : IDisposable
         // Restore the default active unit so we don't leak Texture4 into later GL setup (e.g. the
         // Texture constructor binds without first selecting a unit).
         _gl.ActiveTexture(TextureUnit.Texture0);
+    }
+
+    // The shadow sampler (unit 5) is statically used by the fragment shader, so it must point at a
+    // complete texture even when shadows are disabled. Bind the 1×1 white texture (sampled as depth
+    // 1.0 = fully lit) until SetShadowMap swaps in a real depth map. As with the PBR fallbacks, the
+    // shadow path never unbinds this unit, so the one-time bind keeps it valid for the lifetime.
+    private void BindDefaultShadowTexture()
+    {
+        _gl.ActiveTexture(TextureUnit.Texture5);
+        _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
+        _gl.ActiveTexture(TextureUnit.Texture0);
+    }
+
+    /// <summary>
+    /// Binds the shadow map and uploads the light-space transform for the lighting pass. Call once
+    /// per frame, after the shadow pass has populated the depth texture and before the draw loop.
+    /// </summary>
+    public void SetShadowMap(
+        Matrix4x4 lightSpaceMatrix,
+        uint depthTexture,
+        float bias,
+        bool enablePcf
+    )
+    {
+        _shader.Bind();
+        _shader.SetUniformMatrix4("uLightSpaceMatrix", lightSpaceMatrix);
+        _shader.SetUniformFloat("uShadowBias", SanitizeNonNegative(bias));
+        _shader.SetUniformInt("uUsePcf", enablePcf ? 1 : 0);
+        _shader.SetUniformInt("uShadowsEnabled", 1);
+
+        _gl.ActiveTexture(TextureUnit.Texture5);
+        _gl.BindTexture(TextureTarget.Texture2D, depthTexture);
+        _gl.ActiveTexture(TextureUnit.Texture0);
+
+        _shader.Unbind();
+    }
+
+    /// <summary>
+    /// Disables shadow sampling: the lighting pass treats every fragment as fully lit. This is the
+    /// default state until <see cref="SetShadowMap"/> is called.
+    /// </summary>
+    public void DisableShadows()
+    {
+        _shader.Bind();
+        _shader.SetUniformInt("uShadowsEnabled", 0);
+        _shader.SetUniformMatrix4("uLightSpaceMatrix", Matrix4x4.Identity);
+        _shader.Unbind();
+
+        // Restore the default (complete) shadow texture on unit 5. After a prior SetShadowMap the
+        // unit may still point at a depth texture that gets deleted when its ShadowMapRenderer is
+        // disposed, leaving the statically-used sampler incomplete even though sampling is gated off.
+        BindDefaultShadowTexture();
     }
 
     /// <summary>

@@ -13,6 +13,8 @@ There is always exactly one directional light (the first `DirectionalLight` enti
 default when none exists). Point and spot lights are optional and additive — a scene with none
 renders exactly as it did before this feature existed.
 
+The directional light can also cast shadows via shadow mapping — see [shadows.md](shadows.md).
+
 ## Components
 
 ```csharp
