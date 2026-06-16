@@ -79,7 +79,9 @@ var registry = new ComponentRegistry().RegisterEngineComponents();
 using var inspector = new ImGuiInspector(window, world, registry);
 ```
 
-Only components with a registered serializer are persisted. The built-in 3D components do not yet
-ship serializers, so a 3D scene saved this way captures entities and tags but not their 3D
-component data — edit-and-save round-tripping is currently a 2D feature. Without a registry the
-Save row is disabled and the inspector is edit-only.
+Only components with a registered serializer are persisted. `RegisterEngineComponents()` covers
+both the 2D and 3D built-in components, so edit-and-save round-tripping works for 3D scenes too.
+The one exception is `MeshHandle`: its `Id` is an opaque, runtime-assigned key into a
+`GpuMeshRegistry` that is not portable across runs, so it is intentionally not serialized — a saved
+scene keeps an entity's `Transform3D`, `Material3D`, lights, etc., but the mesh must be re-assigned
+in code on load. Without a registry the Save row is disabled and the inspector is edit-only.
