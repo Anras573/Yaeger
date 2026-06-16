@@ -158,6 +158,18 @@ public class Serializer3DTests
         Assert.False(obj.ContainsKey("diffuseTexturePath"));
     }
 
+    [Fact]
+    public void Material3D_WhitespaceTexturePath_ShouldBeTreatedAsUnset()
+    {
+        // A whitespace-only path is neither written on save nor surfaced as a real value on load,
+        // so it can never round-trip into a bogus asset reference.
+        var component = Deserialize<Material3D>(
+            """{ "type": "Material3D", "normalTexturePath": "   " }"""
+        );
+
+        Assert.Null(component.NormalTexturePath);
+    }
+
     // ── DirectionalLight ─────────────────────────────────────────────────────
 
     [Fact]

@@ -57,7 +57,10 @@ internal static class ComponentJson
 
     /// <summary>
     /// Reads an optional string property. Returns <paramref name="defaultValue"/> when the property
-    /// is absent or JSON <c>null</c>; throws when present but not a string.
+    /// is absent, JSON <c>null</c>, or blank (empty/whitespace); throws when present but not a
+    /// string. Blank strings are treated as "unset" so that asset-path fields never round-trip a
+    /// whitespace-only path that downstream consumers (which only check <c>IsNullOrEmpty</c>) would
+    /// mistake for a real reference.
     /// </summary>
     public static string? GetOptionalString(
         JsonElement element,
@@ -74,7 +77,8 @@ internal static class ComponentJson
         if (el.ValueKind != JsonValueKind.String)
             throw new PrefabLoadException($"Property '{propertyName}' must be a string.");
 
-        return el.GetString();
+        var value = el.GetString();
+        return string.IsNullOrWhiteSpace(value) ? defaultValue : value;
     }
 
     public static Vector3 ReadVector3(JsonElement el, string propertyName)

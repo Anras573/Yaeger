@@ -14,21 +14,20 @@ namespace Yaeger.ECS.Serializers;
 ///   "type": "Material3D",
 ///   "usePbr": false,
 ///   "diffuseTexturePath": "Assets/wood.png",
-///   "normalTexturePath": null,
 ///   "ambient": [25, 25, 25],
 ///   "diffuse": [200, 180, 150],
 ///   "specular": [255, 255, 255],
 ///   "shininess": 32.0,
-///   "metallicRoughnessTexturePath": null,
-///   "aoTexturePath": null,
-///   "emissiveTexturePath": null,
 ///   "metallicFactor": 1.0,
 ///   "roughnessFactor": 1.0,
 ///   "emissiveColor": [0, 0, 0]
 /// }
 /// </code>
-/// Texture-path fields are written only when set. Numeric/colour fields default to the
-/// <see cref="Material3D()"/> defaults (e.g. metallic/roughness factors of 1.0) when absent.
+/// Texture-path fields (<c>diffuseTexturePath</c>, <c>normalTexturePath</c>,
+/// <c>metallicRoughnessTexturePath</c>, <c>aoTexturePath</c>, <c>emissiveTexturePath</c>) are
+/// written only when set, so unset ones are omitted entirely rather than emitted as <c>null</c>.
+/// Numeric/colour fields default to the <see cref="Material3D()"/> defaults (e.g. metallic/roughness
+/// factors of 1.0) when absent.
 /// </remarks>
 public sealed class Material3DSerializer : IComponentSerializer
 {
@@ -125,7 +124,9 @@ public sealed class Material3DSerializer : IComponentSerializer
 
     private static void WriteTexturePathIfSet(JsonObject json, string propertyName, string? path)
     {
-        if (!string.IsNullOrEmpty(path))
+        // Treat whitespace-only paths as unset so we never serialize an invalid asset reference
+        // that downstream consumers (which only check IsNullOrEmpty) would load.
+        if (!string.IsNullOrWhiteSpace(path))
             json[propertyName] = path;
     }
 }
