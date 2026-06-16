@@ -189,6 +189,10 @@ public sealed class Renderer3D : IDisposable
         float directionalShadow(vec3 N, vec3 L) {
             if (uShadowsEnabled == 0) return 1.0;
 
+            // Back-facing to the light: both shading paths clamp the directional term to zero, so
+            // the shadow factor is irrelevant (shadow * 0 == 0). Skip the (PCF) texture reads.
+            if (dot(N, L) <= 0.0) return 1.0;
+
             // Perspective divide, then map NDC -> [0, 1] texture/depth space.
             vec3 proj = vLightSpacePos.xyz / vLightSpacePos.w;
             proj = proj * 0.5 + 0.5;
