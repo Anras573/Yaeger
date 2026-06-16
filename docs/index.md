@@ -13,6 +13,7 @@ Yaeger is a modular, experimental 2D game engine written in C#. It provides a fl
 - **Particle system** with pooled, batched emitters
 - **Audio system** with OpenAL support
 - **Input handling** (keyboard, mouse)
+- **Editor overlay** — in-game ImGui inspector for live entity/component editing ([editor.md](editor.md))
 - Extensible component and system design
 
 ## Quick Start
@@ -56,6 +57,7 @@ Samples/
 ├── MouseDemo/               # Mouse input demo
 ├── ParticleDemo/            # Particle effects demo (fire, smoke, explosions)
 ├── SceneDemo/               # JSON scene loading demo
+├── CornellBox/              # 3D Cornell Box + F1 editor overlay demo
 ├── RenderingStressTest/     # Renderer stress test
 └── TextRenderingExample/    # Text rendering demo
 ```

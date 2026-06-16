@@ -4,13 +4,14 @@ using Yaeger;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Input;
+using Yaeger.Inspector;
 using Yaeger.Rendering;
 using Yaeger.Systems;
 using Yaeger.Windowing;
 
 // Cornell Box demo — classic CG test scene built entirely from procedural geometry.
 // No external assets required.
-// Controls: WASD move, Q/E up/down, right-mouse-drag look, ESC exit.
+// Controls: WASD move, Q/E up/down, right-mouse-drag look, F1 toggle editor overlay, ESC exit.
 
 using var window = Window.Create();
 var world = new World();
@@ -251,9 +252,18 @@ var meshRenderSystem = new MeshRenderSystem(
 );
 var freeFlySystem = new FreeFlySystem(world, cameraEntity);
 
+// Editor overlay — lists every entity and lets you live-edit the attached 3D components
+// (transforms, materials, lights, the camera). Toggle with F1.
+using var inspector = new ImGuiInspector(window, world);
+
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
+Keyboard.AddKeyDown(Keys.F1, inspector.Toggle);
 
 window.OnUpdate += deltaTime => freeFlySystem.Update((float)deltaTime);
-window.OnRender += _ => meshRenderSystem.Render();
+window.OnRender += delta =>
+{
+    meshRenderSystem.Render();
+    inspector.Render(delta);
+};
 
 window.Run();
