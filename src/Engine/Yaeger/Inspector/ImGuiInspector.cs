@@ -434,11 +434,17 @@ public sealed class ImGuiInspector : IDisposable
 
         if (changed || rotationChanged)
         {
-            var rotation = FromEulerDegrees(_rotationCacheEulerDeg);
-            // Keep the cache in step with what we just wrote so the next frame doesn't re-derive.
-            _rotationCacheQuat = rotation;
+            // Only rebuild the quaternion when rotation was actually edited. Recomputing it on a
+            // position/scale-only edit would push t.Rotation through a lossy Euler round-trip and
+            // perturb an orientation the user never touched.
+            if (rotationChanged)
+            {
+                var rotation = FromEulerDegrees(_rotationCacheEulerDeg);
+                // Keep the cache in step with what we just wrote so the next frame doesn't re-derive.
+                _rotationCacheQuat = rotation;
+                t.Rotation = rotation;
+            }
             t.Position = position;
-            t.Rotation = rotation;
             t.Scale = scale;
             var snapshot = t;
             _pendingWorldOps.Add(w => w.AddComponent(entity, snapshot));
