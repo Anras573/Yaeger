@@ -40,7 +40,7 @@ window.OnLoad += () =>
 
 window.OnUpdate += delta =>
 {
-    uiSystem.Update(delta);
+    uiSystem.Update((float)delta);
 
     if (!inGame)
     {
@@ -168,7 +168,7 @@ void BuildMenu(Vector2 windowSize)
 
     var lblQuit = builder.CreateLabel(btnX + 72f, quitY + 13f, "Quit", 22, Color.White);
 
-    menuEntities.AddRange(new[] { panel, title, btnPlay, lblPlay, btnQuit, lblQuit });
+    menuEntities.AddRange([panel, title, btnPlay, lblPlay, btnQuit, lblQuit]);
 }
 
 void EnterGame()
@@ -210,5 +210,5 @@ void BuildHud(Vector2 windowSize)
         tag: "lbl-quit-hud"
     );
 
-    hudEntities.AddRange(new[] { scorePanel, hudScoreLabel, btnQuit, lblQuit });
+    hudEntities.AddRange([scorePanel, hudScoreLabel, btnQuit, lblQuit]);
 }

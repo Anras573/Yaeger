@@ -5,6 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "C#: UiDemo Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/UiDemo/UiDemo.csproj"
+        },
+        {
             "name": "C#: TextRenderingExample Debug",
             "type": "dotnet",
             "request": "launch",
