@@ -3,8 +3,9 @@
 `ImGuiInspector` is an in-game [Dear ImGui](https://github.com/ocornut/imgui) overlay that lists
 every entity in a `World` and lets you live-edit the components attached to the selected one. It
 works for both 2D and 3D scenes, so it doubles as a lightweight 3D scene editor for the
-`Renderer3D` / `MeshRenderSystem` pipeline. Edits are applied to the world on the same frame, so
-the change is visible immediately in the running game.
+`Renderer3D` / `MeshRenderSystem` pipeline. Edits are committed to the world when the inspector's
+render pass ends; with the recommended ordering below (scene first, overlay last) that is after the
+scene was drawn this frame, so the change shows up in the running game on the next frame.
 
 See it in action in [`Samples/CornellBox`](../Samples/CornellBox) — press **F1** to toggle the
 overlay, then drag entity values around while the scene renders.

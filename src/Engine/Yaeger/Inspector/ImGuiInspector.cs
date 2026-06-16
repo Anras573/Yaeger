@@ -14,7 +14,9 @@ namespace Yaeger.Inspector;
 /// <see cref="Camera2D"/>, <see cref="Sprite"/>) and the 3D components (<see cref="Transform3D"/>,
 /// <see cref="Camera3D"/>, <see cref="Material3D"/>, <see cref="MeshHandle"/>,
 /// <see cref="DirectionalLight"/>, <see cref="PointLight"/>, <see cref="SpotLight"/>), so it doubles
-/// as a lightweight 3D scene editor. Edits are applied live to the world on the same frame.
+/// as a lightweight 3D scene editor. Edits are committed to the world at the end of the
+/// inspector's render pass; with the recommended ordering below (scene first, overlay last) the
+/// change becomes visible in the scene on the next frame.
 /// Wire it up in your render loop and toggle with a key binding:
 /// <code>
 /// var inspector = new ImGuiInspector(window, world, componentRegistry);
