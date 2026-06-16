@@ -63,9 +63,25 @@ public sealed class ImGuiInspector : IDisposable
         ["Camera3D"] = static (w, e) => w.AddComponent(e, Camera3D.Default),
         ["Material3D"] = static (w, e) => w.AddComponent(e, new Material3D()),
         ["DirectionalLight"] = static (w, e) => w.AddComponent(e, DirectionalLight.Default),
-        ["PointLight"] = static (w, e) => w.AddComponent(e, PointLight.Default),
-        ["SpotLight"] = static (w, e) => w.AddComponent(e, SpotLight.Default),
+        // Point and spot lights are positioned by their Transform3D — MeshRenderSystem skips lights
+        // without one — so ensure a transform exists, otherwise the freshly added light does nothing.
+        ["PointLight"] = static (w, e) =>
+        {
+            EnsureTransform3D(w, e);
+            w.AddComponent(e, PointLight.Default);
+        },
+        ["SpotLight"] = static (w, e) =>
+        {
+            EnsureTransform3D(w, e);
+            w.AddComponent(e, SpotLight.Default);
+        },
     };
+
+    private static void EnsureTransform3D(World world, Entity entity)
+    {
+        if (!world.TryGetComponent<Transform3D>(entity, out _))
+            world.AddComponent(entity, Transform3D.Identity);
+    }
 
     // Curated 3D component type ids handled by their own editor sections below.
     private static readonly string[] Curated3DTypeIds =
