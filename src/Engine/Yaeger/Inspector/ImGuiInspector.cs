@@ -481,9 +481,11 @@ public sealed class ImGuiInspector : IDisposable
         var position = cam.Position;
         var target = cam.Target;
         var up = cam.Up;
-        var fovDeg = cam.Fov * (180f / MathF.PI);
-        var near = cam.Near;
-        var far = cam.Far;
+        // Mirror Camera3D's own guards so the controls stay usable (and the displayed FOV matches
+        // what the renderer uses) even for a default/invalid camera with zero Fov/Near/Far.
+        var fovDeg = (cam.Fov > 0f ? cam.Fov : MathF.PI / 4f) * (180f / MathF.PI);
+        var near = cam.Near > 0f ? cam.Near : 0.1f;
+        var far = cam.Far > near ? cam.Far : near + 1000f;
         var changed = false;
 
         ImGui.SetNextItemWidth(220);
@@ -773,6 +775,12 @@ public sealed class ImGuiInspector : IDisposable
     /// </summary>
     private static Vector3 ToEulerDegrees(Quaternion q)
     {
+        // Guard against a zero-length or non-finite quaternion (e.g. default(Transform3D) has
+        // Rotation = (0,0,0,0)): Quaternion.Normalize would yield NaNs that propagate to the UI.
+        var lengthSq = q.LengthSquared();
+        if (!float.IsFinite(lengthSq) || lengthSq < 1e-12f)
+            return Vector3.Zero;
+
         q = Quaternion.Normalize(q);
         var sinPitch = Math.Clamp(2f * (q.W * q.X - q.Y * q.Z), -1f, 1f);
         var pitch = MathF.Asin(sinPitch);
