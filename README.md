@@ -4,7 +4,7 @@ YAEGER - **Y**et **A**nother **E**xperimental **G**ame **E**ngine **R**epository
 
 ## Overview
 
-Yaeger is a modular, experimental 2D/3D game engine written in C#. It aims to provide a flexible and extensible platform for rapid prototyping and development of games and interactive applications. The engine is designed with an Entity-Component-System (ECS) architecture and is split into a platform-agnostic abstraction layer (`Yaeger.Core`) plus a native runtime (`Yaeger`) for Silk.NET/OpenGL/OpenAL integration and a browser runtime (`Yaeger.Browser`).
+Yaeger is a modular, experimental 2D/3D game engine written in C#. It aims to provide a flexible and extensible platform for rapid prototyping and development of games and interactive applications. The engine is designed with an Entity-Component-System (ECS) architecture and is split into a platform-agnostic engine core (`Yaeger.Core`) plus a native runtime (`Yaeger`) for Silk.NET/OpenGL/OpenAL integration and a browser runtime (`Yaeger.Browser`).
 
 ## Features
 
@@ -67,7 +67,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
 
 ## Project Structure
 
-- `src/Engine/Yaeger.Core/` - Platform-agnostic engine assembly (no Silk.NET dependency): ECS, components/transforms, physics, prefabs & scenes, the platform-independent systems (animation, particles, parallax), and the platform-abstraction interfaces (render/text surfaces, input state, time source, asset resolver). These sources physically live under `src/Engine/Yaeger/` and are linked into `Yaeger.Core` via `<Compile Include>` globs (`Yaeger.Core.csproj`); `Yaeger.csproj` removes them and references `Yaeger.Core`.
+- `src/Engine/Yaeger.Core/` - Platform-agnostic engine assembly (no Silk.NET dependency): ECS, components/transforms, physics, prefabs & scenes, the platform-independent systems (animation, particles, parallax), and the platform-abstraction interfaces (render/text surfaces, input state, time source, asset resolver). The abstraction interfaces (`Platform/`) and `FontHandle` (`Graphics/`) live here under `src/Engine/Yaeger.Core/`; the ECS/Graphics/Physics/Systems sources physically live under `src/Engine/Yaeger/` and are linked into `Yaeger.Core` via `<Compile Include>` globs (`Yaeger.Core.csproj`), which `Yaeger.csproj` then removes and references.
 - `src/Engine/Yaeger/` - Native runtime (references `Yaeger.Core`): windowing, 2D/3D rendering, audio, input bindings, font runtime, UI + editor overlay, and model loaders — the Silk.NET/OpenGL/OpenAL-dependent pieces
 - `src/Engine/Yaeger.Browser/` - Browser runtime adapters (WebGL 2.0 render surface, browser input/time sources)
 - `tests/Yaeger.Tests/` - Unit test suite (ECS, Graphics, Physics, Assets, Font, Rendering, Systems, Browser)
