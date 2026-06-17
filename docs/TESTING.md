@@ -2,29 +2,34 @@
 
 ## Overview
 
-This document describes the testing approach implemented for the Yaeger 2D game engine. The test suite is built using xUnit and covers the core ECS (Entity-Component-System) architecture and graphics components.
+This document describes the testing approach implemented for the Yaeger 2D/3D game engine. The test suite is built using xUnit and covers the core ECS (Entity-Component-System) architecture, graphics components, physics, asset loading, fonts, and the engine's update/render systems.
 
 ## Test Infrastructure
 
 ### Framework
 
-- **Testing Framework**: xUnit 2.9.2
+- **Testing Framework**: xUnit 2.9.2 (with Xunit.SkippableFact for tests that need a live OpenGL context)
 - **Test SDK**: Microsoft.NET.Test.Sdk 17.12.0
 - **Coverage Tool**: coverlet.collector 6.0.2
 - **Target Framework**: .NET 10.0
 
 ### Project Structure
 
+Tests live under `tests/Yaeger.Tests/`, organized into folders that mirror the
+engine source layout:
+
 ```
 tests/
 └── Yaeger.Tests/
-    ├── ECS/
-    │   ├── WorldTests.cs           # World entity management tests
-    │   ├── EntityTests.cs          # Entity behavior tests
-    │   └── WorldExtensionsTests.cs # ECS query system tests
-    ├── Graphics/
-    │   ├── Transform2DTests.cs     # 2D transformation tests
-    │   └── ColorTests.cs           # Color structure tests
+    ├── AssetPathTests.cs           # Asset path resolution
+    ├── ECS/                        # World, entities, queries, prefabs, scenes, serializers
+    ├── Graphics/                   # Transforms, colors, cameras, lights, sprite sheets, particles, …
+    ├── Physics/                    # Colliders, rigid bodies + collision/movement/gravity systems
+    ├── Assets/                     # OBJ/MTL/Assimp model loaders
+    ├── Font/                       # Font manager and SDF glyph atlas
+    ├── Rendering/                  # Mesh data, vertex layout, shadow map renderer
+    ├── Systems/                    # Parallax, particle, and UI update systems
+    ├── Browser/                    # Browser runtime adapters (e.g. time source)
     └── Yaeger.Tests.csproj
 ```
 
@@ -56,54 +61,40 @@ dotnet test --collect:"XPlat Code Coverage"
 
 ## Test Coverage
 
-### ECS System (Entity-Component-System)
+The suite has grown well beyond its original ECS/graphics scope — it now contains
+**500+ test cases across 50+ files**. The areas below summarize what is covered;
+the source files under each folder are the authoritative list.
 
-#### World Tests (`WorldTests.cs`)
-- Entity creation and ID management
-- Component addition, retrieval, and removal
-- Entity destruction
-- Component store management
-- Multiple entity handling
+### ECS System (Entity-Component-System) — `ECS/`
 
-**Test Count**: 11 tests
+- Entity creation, ID management, and destruction (`WorldTests`, `EntityTests`)
+- Component addition, retrieval, removal, and store management
+- Two/three/four-component queries and filtering (`WorldExtensionsTests`)
+- Prefab loading and building (`PrefabLoaderTests`, `PrefabTests`)
+- Scene load/save round-trips (`SceneLoaderTests`, `SceneSaverTests`)
+- Component serializers, including 3D and render-layer serializers
 
-#### Entity Tests (`EntityTests.cs`)
-- Entity ID uniqueness
-- Value type behavior
-- Hash code generation
-- Equality comparison
+### Graphics System — `Graphics/`
 
-**Test Count**: 4 tests
+- 2D and 3D transforms (`Transform2DTests`, `Transform3DTests`)
+- Color construction, alpha, and predefined values (`ColorTests`)
+- 2D/3D cameras and frustum culling (`Camera2DTests`, `Camera3DTests`, `CameraFrustumTests`)
+- Lights (`DirectionalLightTests`, `PointLightTests`, `SpotLightTests`)
+- Materials, sprite sheets, sprite tinting, AABBs, mesh/font handles, particle pools, parallax layers, shadow settings
 
-#### WorldExtensions Tests (`WorldExtensionsTests.cs`)
-- Two-component queries
-- Three-component queries
-- Four-component queries
-- Query result filtering
-- Component removal interaction
-- Duplicate handling
+### Physics — `Physics/`
 
-**Test Count**: 7 tests
+- Colliders, rigid bodies, velocity, and physics materials (`Components/`)
+- Collision detection/resolution, movement, gravity, and the `PhysicsWorld2D` façade (`Systems/`)
 
-### Graphics System
+### Other areas
 
-#### Transform2D Tests (`Transform2DTests.cs`)
-- Position, rotation, and scale properties
-- Default value handling
-- Transform matrix generation
-- Matrix composition (scale, rotation, translation)
-- Property mutation
-
-**Test Count**: 12 tests
-
-#### Color Tests (`ColorTests.cs`)
-- RGB value construction
-- Alpha channel handling
-- Predefined colors (White, Black, Red, Green, Blue)
-- Value type behavior
-- Transparency support
-
-**Test Count**: 11 tests
+- **Assets/** — OBJ/MTL/Assimp model loaders
+- **Font/** — font manager and SDF glyph atlas
+- **Rendering/** — mesh data, vertex layout, shadow map renderer
+- **Systems/** — parallax, particle, and UI update systems
+- **Browser/** — browser runtime adapters (e.g. time source)
+- **AssetPathTests** — asset path resolution against `AppContext.BaseDirectory`
 
 ## Testing Approach
 
@@ -266,11 +257,10 @@ The recommended CI pipeline should:
 
 ### Expected Test Results
 
-Current test statistics:
-- **Total Tests**: 45
-- **Passed**: 45
-- **Failed**: 0
-- **Execution Time**: ~0.06 seconds
+All tests should pass. The suite currently holds **500+ test cases across 50+ files**
+and runs in a few seconds. Tests that require a live OpenGL context use
+`Xunit.SkippableFact` and are skipped automatically in headless environments rather
+than failing.
 
 ## Future Testing Improvements
 
@@ -331,10 +321,10 @@ When adding new features to Yaeger:
 2. Ensure all existing tests pass
 3. Add tests for new functionality
 4. Update this documentation if adding new test categories
-5. Run `dotnet format` before committing
+5. Run `dotnet csharpier format .` before committing (the project uses CSharpier, not `dotnet format`; a Husky pre-commit hook also formats staged `.cs` files, and CI enforces `dotnet csharpier check .`)
 
 ---
 
-**Last Updated**: January 2026
+**Last Updated**: June 2026
 **Test Framework Version**: xUnit 2.9.2
-**Test Count**: 45 tests
+**Test Count**: 500+ tests across 50+ files

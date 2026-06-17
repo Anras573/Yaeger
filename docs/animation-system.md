@@ -61,7 +61,9 @@ using Yaeger.Windowing;
 using var window = Window.Create();
 var world = new World();
 var renderer = new Renderer(window);
-var renderSystem = new RenderSystem(renderer, world);
+// UnifiedRenderSystem draws sprites (and optionally text) in deterministic layer order.
+// Pass null for the text renderer when you only need sprites.
+var renderSystem = new UnifiedRenderSystem(renderer, null, world);
 var animationSystem = new AnimationSystem(world);
 
 // Create an animated entity
@@ -116,7 +118,7 @@ The animation system integrates seamlessly with the existing ECS architecture:
 
 3. **AnimationSystem Updates Sprites**: The system automatically updates each entity's `Sprite` component based on the current animation frame.
 
-4. **RenderSystem Renders**: The existing `RenderSystem` renders the updated sprites normally.
+4. **UnifiedRenderSystem Renders**: `UnifiedRenderSystem` renders the updated sprites normally. (The older `RenderSystem` is now `[Obsolete]` — prefer `UnifiedRenderSystem`.)
 
 ## Features
 
