@@ -2,7 +2,7 @@
 
 **Y**et **A**nother **E**xperimental **G**ame **E**ngine **R**epository
 
-Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a flexible and extensible platform for rapid prototyping and development of games and interactive applications, with a split between platform-agnostic abstractions and native/browser runtime integrations.
+Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a flexible and extensible platform for rapid prototyping and development of games and interactive applications, with a split between a platform-agnostic engine core and native/browser runtime integrations.
 
 ## Features
 
@@ -43,23 +43,31 @@ dotnet run --project Samples/Pong/Pong.csproj
 ## Project Structure
 
 ```
-src/Engine/Yaeger.Core/        # Platform-agnostic abstractions (no Silk.NET dependency)
-                               # render/text surfaces, input state, time source, asset resolver, font handle
+src/Engine/
+├── Yaeger.Core/      # Platform-agnostic engine assembly — NO Silk.NET dependency.
+│                     # Compiles the core logic: ECS (entities, components, queries),
+│                     # transforms, physics, prefabs & scenes, and the platform-independent
+│                     # systems (animation, particles, parallax), plus the platform-abstraction
+│                     # interfaces in Platform/ (render/text surfaces, input state, time source,
+│                     # asset resolver) and FontHandle.
+│
+├── Yaeger/           # Native runtime assembly — references Yaeger.Core and adds the
+│                     # Silk.NET/OpenGL/OpenAL pieces: windowing, 2D + 3D rendering (sprites,
+│                     # text, meshes, shadows, skybox), audio, input bindings, font runtime
+│                     # (HarfBuzz/Skia), UI + editor overlay, and model loaders.
+│
+└── Yaeger.Browser/   # Browser/WebAssembly runtime adapters (Canvas2D surface, browser input/time)
+```
 
-src/Engine/Yaeger/             # The engine + native (Silk.NET/OpenGL/OpenAL) runtime
-├── ECS/                       # Entities, components, queries, prefabs, scenes
-├── Graphics/                  # Value-type components (Transform2D/3D, Sprite, Camera2D/3D, lights, …)
-├── Physics/                   # AABB/circle collision detection + impulse resolution
-├── Systems/                   # Update/render systems (animation, particles, mesh, UI, …)
-├── Rendering/                 # OpenGL 2D + 3D renderers (sprites, text, meshes, shadows, skybox)
-├── Audio/                     # OpenAL audio runtime
-├── Input/                     # Silk.NET input bindings
-├── Font/                      # HarfBuzz/Skia text runtime
-├── UI/ + Inspector/           # ImGui-based UI widgets and the editor overlay
-└── Windowing/                 # Window and context management
+> **Where the code physically lives.** The platform-agnostic sources sit on disk under
+> `src/Engine/Yaeger/` (e.g. `Yaeger/ECS`, `Yaeger/Graphics`, `Yaeger/Physics`) but are linked into
+> **`Yaeger.Core`** via `<Compile Include>` globs in `Yaeger.Core.csproj`; `Yaeger.csproj` then
+> `<Compile Remove>`s them and references `Yaeger.Core`. So the folder a file sits in does not always
+> match the assembly it compiles into — the `ECS`/`Graphics`/`Physics` folders compile into
+> `Yaeger.Core`, while `Text.cs`, `PhysicsDebugRenderer.cs`, `Rendering/`, `Audio/`, `Windowing/`,
+> `Font/`, `UI/`, and `Inspector/` compile into `Yaeger`.
 
-src/Engine/Yaeger.Browser/     # Browser/WebAssembly runtime adapters (Canvas2D surface, browser input/time)
-
+```
 Samples/
 ├── Pong/                    # Classic Pong game
 ├── BouncingBalls/           # Physics demo

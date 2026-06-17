@@ -8,7 +8,7 @@ This document describes the testing approach implemented for the Yaeger 2D/3D ga
 
 ### Framework
 
-- **Testing Framework**: xUnit 2.9.2 (with Xunit.SkippableFact for tests that need a live OpenGL context)
+- **Testing Framework**: xUnit 2.9.2 (with Xunit.SkippableFact for tests that need optional native libraries such as Assimp or HarfBuzz)
 - **Test SDK**: Microsoft.NET.Test.Sdk 17.12.0
 - **Coverage Tool**: coverlet.collector 6.0.2
 - **Target Framework**: .NET 10.0
@@ -258,9 +258,9 @@ The recommended CI pipeline should:
 ### Expected Test Results
 
 All tests should pass. The suite currently holds **500+ test cases across 50+ files**
-and runs in a few seconds. Tests that require a live OpenGL context use
-`Xunit.SkippableFact` and are skipped automatically in headless environments rather
-than failing.
+and runs in a few seconds. Tests that depend on optional native libraries (e.g.
+Assimp model loading, HarfBuzz font shaping) use `Xunit.SkippableFact` and skip
+automatically when those libraries aren't available, rather than failing.
 
 ## Future Testing Improvements
 
