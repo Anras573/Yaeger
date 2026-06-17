@@ -98,4 +98,19 @@ public class SkeletonTests
             skeleton.ComputeMatrixPalette(ReadOnlySpan<Matrix4x4>.Empty, palette)
         );
     }
+
+    [Fact]
+    public void ComputeMatrixPalette_FewerInverseBindPosesThanBones_ShouldThrow()
+    {
+        // Two bones but only one inverse bind pose.
+        var skeleton = new Skeleton(
+            [new Bone("root", -1, Matrix4x4.Identity), new Bone("child", 0, Matrix4x4.Identity)],
+            [Matrix4x4.Identity]
+        );
+        var palette = new Matrix4x4[2];
+
+        Assert.Throws<InvalidOperationException>(() =>
+            skeleton.ComputeMatrixPalette(ReadOnlySpan<Matrix4x4>.Empty, palette)
+        );
+    }
 }

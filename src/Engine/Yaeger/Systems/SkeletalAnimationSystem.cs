@@ -20,8 +20,8 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
 
     public void Update(float deltaTime)
     {
-        // Never step backwards; a negative delta would rewind playback unexpectedly.
-        if (deltaTime < 0f)
+        // Never step backwards, and never let a non-finite delta poison playback time and sampling.
+        if (!float.IsFinite(deltaTime) || deltaTime < 0f)
             deltaTime = 0f;
 
         // Force iteration over the SkeletonHandle store (index 0): the loop writes back the
@@ -47,6 +47,11 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
                 skeletons.TryGetClip(handle, player.CurrentClip, out clip);
 
             var updated = player;
+            // Keep time finite so the modulo/clamp logic and keyframe sampling stay well-defined
+            // even if a caller assigned a non-finite Time (or a prior bad delta crept in).
+            if (!float.IsFinite(updated.Time))
+                updated.Time = 0f;
+
             if (clip is { Duration: > 0f })
             {
                 var speed = float.IsFinite(player.Speed) ? player.Speed : 0f;

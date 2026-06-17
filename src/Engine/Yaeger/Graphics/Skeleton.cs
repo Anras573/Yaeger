@@ -39,6 +39,12 @@ public record Skeleton(Bone[] Bones, Matrix4x4[] InverseBindPoses)
                 nameof(palette)
             );
 
+        if (InverseBindPoses.Length < Bones.Length)
+            throw new InvalidOperationException(
+                $"Skeleton has {Bones.Length} bones but only {InverseBindPoses.Length} "
+                    + "inverse bind poses; expected one per bone."
+            );
+
         // Pass 1: accumulate world transforms. Bones are pre-order, so a parent's world transform is
         // already resolved by the time we reach its children. world = local * parentWorld in the
         // row-vector convention System.Numerics uses.

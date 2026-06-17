@@ -155,6 +155,45 @@ public class SkeletalAnimationSystemTests
     }
 
     [Fact]
+    public void Update_NonFiniteDelta_ShouldNotAdvanceOrCorruptTime()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = 0.4f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(float.NaN);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.True(float.IsFinite(player.Time));
+        Assert.Equal(0.4f, player.Time, 4);
+    }
+
+    [Fact]
+    public void Update_NonFiniteExistingTime_ShouldBeSanitized()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = float.NaN }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.5f); // NaN sanitized to 0, then advanced by 0.5
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal(0.5f, player.Time, 4);
+    }
+
+    [Fact]
     public void Update_ReusesPaletteArrayAcrossFrames()
     {
         var (registry, handle) = BuildRig();
