@@ -4,16 +4,20 @@ YAEGER - **Y**et **A**nother **E**xperimental **G**ame **E**ngine **R**epository
 
 ## Overview
 
-Yaeger is a modular, experimental 2D game engine written in C#. It aims to provide a flexible and extensible platform for rapid prototyping and development of games and interactive applications. The engine is designed with an Entity-Component-System (ECS) architecture and is split into a platform-agnostic core (`Yaeger.Core`) plus a native runtime (`Yaeger`) for Silk.NET/OpenGL/OpenAL integration.
+Yaeger is a modular, experimental 2D/3D game engine written in C#. It aims to provide a flexible and extensible platform for rapid prototyping and development of games and interactive applications. The engine is designed with an Entity-Component-System (ECS) architecture and is split into a platform-agnostic engine core (`Yaeger.Core`) plus a native runtime (`Yaeger`) for Silk.NET/OpenGL/OpenAL integration and a browser runtime (`Yaeger.Browser`).
 
 ## Features
 
-- Entity-Component-System (ECS) architecture
-- 2D rendering with Silk.NET (texture-batched sprites with deterministic ordering)
-- Deterministic layered draw ordering via `RenderLayer` and `UnifiedRenderSystem`
+- Entity-Component-System (ECS) architecture, with JSON prefabs and scenes
+- 2D rendering with Silk.NET (texture-batched sprites with deterministic, layered draw ordering via `RenderLayer` and `UnifiedRenderSystem`)
+- 3D rendering — mesh rendering with lighting, shadow mapping, and PBR materials (see [`docs/`](docs/index.md))
 - Opt-in 2D camera (pan / zoom / rotate; world-space sprites + screen-space text)
+- Frame-based animation and a pooled, batched particle system
+- 2D physics (AABB/circle collision detection + impulse-based resolution)
+- Audio playback via OpenAL and text rendering via HarfBuzz/Skia
+- In-game ImGui editor overlay for live entity/component editing
 - Input handling (keyboard, mouse; browser runtime maps single-touch/pen to mouse-style input)
-- Sample games (see `Samples/Pong`, `Samples/BouncingBalls`, `Samples/Animation2D`, `Samples/CameraDemo`)
+- Sample games and demos (see [`Samples/`](Samples))
 - Extensible component and system design
 - Comprehensive unit test suite
 
@@ -59,33 +63,35 @@ The project includes a comprehensive test suite covering the ECS system and grap
 dotnet test
 ```
 
-For more information about testing, see the [Testing Guide](docs/testing.md).
+For more information about testing, see the [Testing Guide](docs/TESTING.md).
 
 ## Project Structure
 
-- `src/Engine/Yaeger.Core/` - Platform-agnostic engine core (ECS, scenes, animation, transforms, physics, gameplay logic)
-- `src/Engine/Yaeger/` - Native runtime (windowing, rendering, input bindings, audio, font runtime)
-- `src/Engine/Yaeger.Browser/` - Browser runtime adapters (Canvas2D render surface, browser input/time sources)
-- `tests/Yaeger.Tests/` - Unit test suite
-  - `ECS/` - Tests for ECS components
-  - `Graphics/` - Tests for graphics primitives
+- `src/Engine/Yaeger.Core/` - Platform-agnostic engine assembly (no Silk.NET dependency): ECS, components/transforms, physics, prefabs & scenes, the platform-independent systems (animation, particles, parallax), and the platform-abstraction interfaces (render/text surfaces, input state, time source, asset resolver). The abstraction interfaces (`Platform/`) and `FontHandle` (`Graphics/`) live here under `src/Engine/Yaeger.Core/`; the ECS/Graphics/Physics/Systems sources physically live under `src/Engine/Yaeger/` and are linked into `Yaeger.Core` via `<Compile Include>` globs (`Yaeger.Core.csproj`), which `Yaeger.csproj` then removes and references.
+- `src/Engine/Yaeger/` - Native runtime (references `Yaeger.Core`): windowing, 2D/3D rendering, audio, input bindings, font runtime, UI + editor overlay, and model loaders — the Silk.NET/OpenGL/OpenAL-dependent pieces
+- `src/Engine/Yaeger.Browser/` - Browser runtime adapters (WebGL 2.0 render surface, browser input/time sources)
+- `tests/Yaeger.Tests/` - Unit test suite (ECS, Graphics, Physics, Assets, Font, Rendering, Systems, Browser)
 - `Samples/` - Example games and demos
-  - `BrowserDemo/` - Blazor/WebAssembly browser loop + browser input/runtime integration
   - `Pong/` - Classic Pong game implementation
   - `BouncingBalls/` - Physics demo
   - `Animation2D/` - Sprite-sheet animation demo
   - `CameraDemo/` - Opt-in 2D camera (pan / zoom / rotate)
   - `MouseDemo/` - Mouse input (paint trail + scroll resize)
+  - `ParticleDemo/` - Particle effects (fire, smoke, explosions)
   - `SceneDemo/` - JSON scene loading
+  - `CornellBox/` - 3D Cornell Box + F1 editor overlay
+  - `Sponza/` - glTF Sponza scene rendered through the PBR path
+  - `UiDemo/` - ImGui UI demo
+  - `BrowserDemo/` - Blazor/WebAssembly browser loop + browser input/runtime integration
   - `RenderingStressTest/` - Renderer stress test (FPS vs sprite count)
-- `docs/` - Documentation
-  - `TESTING.md` - Comprehensive testing guide
+  - `TextRenderingExample/` - Text rendering demo
+- `docs/` - Documentation (see [`docs/index.md`](docs/index.md))
 
 ## Usage
 
-For headless/platform-agnostic simulation and gameplay logic, reference `Yaeger.Core`.
-For desktop/native runtime behavior (window, rendering, input, audio), reference `Yaeger`.
-For browser/WebAssembly behavior (Canvas2D rendering, browser input/frame timing), reference `Yaeger.Browser`.
+`Yaeger.Core` is the platform-agnostic engine assembly — it contains the ECS, components, physics, prefabs & scenes, and the platform-independent systems, alongside the platform-abstraction interfaces, with no Silk.NET dependency. Reference it directly for headless simulation, gameplay logic, and unit tests.
+For desktop/native behavior (windowing, 2D/3D rendering, input, audio), reference `Yaeger`.
+For browser/WebAssembly behavior (WebGL 2.0 rendering, browser input/frame timing), reference `Yaeger.Browser`.
 See the Pong sample for a minimal end-to-end native implementation.
 
 ## Contributing
