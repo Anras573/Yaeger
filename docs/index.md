@@ -56,7 +56,7 @@ src/Engine/
 │                     # text, meshes, shadows, skybox), audio, input bindings, font runtime
 │                     # (HarfBuzz/Skia), UI + editor overlay, and model loaders.
 │
-└── Yaeger.Browser/   # Browser/WebAssembly runtime adapters (Canvas2D surface, browser input/time)
+└── Yaeger.Browser/   # Browser/WebAssembly runtime adapters (WebGL 2.0 surface, browser input/time)
 ```
 
 > **Where the code physically lives.** The platform-agnostic sources sit on disk under

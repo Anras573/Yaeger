@@ -69,7 +69,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
 
 - `src/Engine/Yaeger.Core/` - Platform-agnostic engine assembly (no Silk.NET dependency): ECS, components/transforms, physics, prefabs & scenes, the platform-independent systems (animation, particles, parallax), and the platform-abstraction interfaces (render/text surfaces, input state, time source, asset resolver). These sources physically live under `src/Engine/Yaeger/` and are linked into `Yaeger.Core` via `<Compile Include>` globs (`Yaeger.Core.csproj`); `Yaeger.csproj` removes them and references `Yaeger.Core`.
 - `src/Engine/Yaeger/` - Native runtime (references `Yaeger.Core`): windowing, 2D/3D rendering, audio, input bindings, font runtime, UI + editor overlay, and model loaders — the Silk.NET/OpenGL/OpenAL-dependent pieces
-- `src/Engine/Yaeger.Browser/` - Browser runtime adapters (Canvas2D render surface, browser input/time sources)
+- `src/Engine/Yaeger.Browser/` - Browser runtime adapters (WebGL 2.0 render surface, browser input/time sources)
 - `tests/Yaeger.Tests/` - Unit test suite (ECS, Graphics, Physics, Assets, Font, Rendering, Systems, Browser)
 - `Samples/` - Example games and demos
   - `Pong/` - Classic Pong game implementation
@@ -91,7 +91,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
 
 `Yaeger.Core` is the platform-agnostic engine assembly — it contains the ECS, components, physics, prefabs & scenes, and the platform-independent systems, alongside the platform-abstraction interfaces, with no Silk.NET dependency. Reference it directly for headless simulation, gameplay logic, and unit tests.
 For desktop/native behavior (windowing, 2D/3D rendering, input, audio), reference `Yaeger`.
-For browser/WebAssembly behavior (Canvas2D rendering, browser input/frame timing), reference `Yaeger.Browser`.
+For browser/WebAssembly behavior (WebGL 2.0 rendering, browser input/frame timing), reference `Yaeger.Browser`.
 See the Pong sample for a minimal end-to-end native implementation.
 
 ## Contributing
