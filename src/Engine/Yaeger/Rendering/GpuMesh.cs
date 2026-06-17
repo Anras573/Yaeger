@@ -29,6 +29,9 @@ public sealed class GpuMesh : IDisposable
         SetupAttrib(1, 3, stride, OffsetOf(nameof(Vertex3D.Normal)));
         SetupAttrib(2, 2, stride, OffsetOf(nameof(Vertex3D.TexCoord)));
         SetupAttrib(3, 3, stride, OffsetOf(nameof(Vertex3D.Tangent)));
+        // Skinning attributes; zero for static meshes (ignored when uSkinned == 0 in the shader).
+        SetupAttrib(4, 4, stride, OffsetOf(nameof(Vertex3D.BoneIndices)));
+        SetupAttrib(5, 4, stride, OffsetOf(nameof(Vertex3D.BoneWeights)));
 
         _gl.BindVertexArray(0);
     }

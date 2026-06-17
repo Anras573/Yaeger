@@ -38,6 +38,7 @@ public class MeshRenderSystem(
         var light = GetDirectionalLight();
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
+        var paletteStore = world.GetStore<BonePalette>();
 
         // Collect first so the lazily-allocated buffers are populated before we slice them.
         var pointLightCount = CollectPointLights();
@@ -90,7 +91,23 @@ public class MeshRenderSystem(
                     continue;
             }
 
-            renderer.Draw(mesh, modelMatrix, viewProj, material, textureManager);
+            // Skinned meshes carry a per-frame bone palette (written by SkeletalAnimationSystem);
+            // route them through the skinning draw path. Static meshes fall through unchanged.
+            if (paletteStore.TryGet(entity, out var palette) && palette.Matrices is { Length: > 0 })
+            {
+                renderer.Draw(
+                    mesh,
+                    modelMatrix,
+                    viewProj,
+                    material,
+                    textureManager,
+                    palette.Matrices
+                );
+            }
+            else
+            {
+                renderer.Draw(mesh, modelMatrix, viewProj, material, textureManager);
+            }
         }
 
         if (skyboxRenderer != null && cubemapRegistry != null && hasCamera)

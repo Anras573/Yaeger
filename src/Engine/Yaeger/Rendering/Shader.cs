@@ -50,6 +50,20 @@ public class Shader : IDisposable
 
     public void Unbind() => _gl.UseProgram(0);
 
+    /// <summary>
+    /// Associates a uniform block in the program with a buffer binding point, so a uniform buffer
+    /// bound to that point (via <c>BindBufferBase</c>) feeds the block. Call once after linking.
+    /// </summary>
+    public void BindUniformBlock(string blockName, uint bindingPoint)
+    {
+        var index = _gl.GetUniformBlockIndex(_program, blockName);
+        const uint InvalidIndex = uint.MaxValue; // GL_INVALID_INDEX
+        if (index == InvalidIndex)
+            throw new Exception($"Uniform block '{blockName}' not found in shader program.");
+
+        _gl.UniformBlockBinding(_program, index, bindingPoint);
+    }
+
     private int GetUniformLocation(string name)
     {
         if (UniformLocations.TryGetValue(name, out var location))

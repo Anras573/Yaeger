@@ -511,3 +511,7 @@ fabric.properties
 # Sponza sample — fetched at build time, not committed
 Samples/Sponza/Assets/Sponza/
 Samples/Sponza/_sponza-fetch/
+
+# SkinnedMeshDemo sample — fetched at build time, not committed
+Samples/SkinnedMeshDemo/Assets/CesiumMan/
+Samples/SkinnedMeshDemo/_cesium-fetch/
