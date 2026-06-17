@@ -42,7 +42,13 @@ public sealed class Renderer3D : IDisposable
             mat4 skin = mat4(1.0);
             if (uSkinned != 0) {
                 float wSum = dot(aBoneWeights, vec4(1.0));
-                if (wSum > 1e-4) {
+                // Guard against out-of-range indices (e.g. a model with more bones than the palette
+                // holds): an OOB uBones[] read is undefined behaviour. Fall back to identity skin
+                // (bind pose) when any of the four indices is outside [0, MAX_BONES).
+                bool inRange =
+                    all(greaterThanEqual(aBoneIndices, vec4(0.0))) &&
+                    all(lessThan(aBoneIndices, vec4(float(MAX_BONES))));
+                if (wSum > 1e-4 && inRange) {
                     skin =
                         uBones[int(aBoneIndices.x)] * aBoneWeights.x +
                         uBones[int(aBoneIndices.y)] * aBoneWeights.y +

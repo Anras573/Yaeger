@@ -24,11 +24,15 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
         if (deltaTime < 0f)
             deltaTime = 0f;
 
+        // Force iteration over the SkeletonHandle store (index 0): the loop writes back the
+        // AnimationPlayer (and BonePalette) component, so enumerating the AnimationPlayer store
+        // would mutate the dictionary mid-iteration. Without forcing, Query auto-picks the smaller
+        // store, which could be AnimationPlayer.
         foreach (
             (Entity entity, SkeletonHandle handle, AnimationPlayer player) in world.Query<
                 SkeletonHandle,
                 AnimationPlayer
-            >()
+            >(0)
         )
         {
             if (!skeletons.TryGet(handle, out var skeleton))

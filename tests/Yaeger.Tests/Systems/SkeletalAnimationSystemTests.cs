@@ -129,6 +129,32 @@ public class SkeletalAnimationSystemTests
     }
 
     [Fact]
+    public void Update_WhenAnimationPlayerStoreIsSmaller_ShouldNotThrow()
+    {
+        // Regression: the system writes back AnimationPlayer while querying. If the query enumerated
+        // the (smaller) AnimationPlayer store, the write would mutate it mid-iteration and throw.
+        // Here there are more SkeletonHandle entities than AnimationPlayer entities, so an
+        // unforced query would pick AnimationPlayer to iterate.
+        var (registry, handle) = BuildRig();
+        var world = new World();
+
+        var animated = world.CreateEntity();
+        world.AddComponent(animated, handle);
+        world.AddComponent(animated, new AnimationPlayer("slide"));
+
+        // Extra SkeletonHandle-only entities make the SkeletonHandle store the larger one.
+        for (var i = 0; i < 3; i++)
+            world.AddComponent(world.CreateEntity(), handle);
+
+        var system = new SkeletalAnimationSystem(world, registry);
+
+        var ex = Record.Exception(() => system.Update(0.1f));
+
+        Assert.Null(ex);
+        Assert.True(world.TryGetComponent<BonePalette>(animated, out _));
+    }
+
+    [Fact]
     public void Update_ReusesPaletteArrayAcrossFrames()
     {
         var (registry, handle) = BuildRig();
