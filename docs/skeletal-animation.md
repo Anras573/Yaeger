@@ -60,7 +60,11 @@ window.OnRender += _ => meshRenderSystem.Render();
 
 ## Notes & limitations
 
-- **Bone cap** — the shader palette holds up to `Renderer3D.MaxBones` (128) matrices.
+- **Bone cap** — the shader palette holds up to `Renderer3D.MaxBones` (128) matrices. The skeleton
+  indexes every scene node (not just skinning joints), so this caps the total node count. If a vertex
+  references a bone index outside `[0, 128)`, the shader safely falls back to identity skin (bind
+  pose) for that vertex rather than reading out of bounds — so over-cap models degrade gracefully
+  rather than crashing. Models within typical joint counts (the CesiumMan sample has 22) are unaffected.
 - **Influences** — up to four bones per vertex; the loader keeps the heaviest four and renormalises.
 - **Shadows** — the shadow pass renders the bind pose (it samples only positions), so skinned meshes
   are not yet animated in shadow maps. Avoid combining skinned meshes with the shadow pass for now.
