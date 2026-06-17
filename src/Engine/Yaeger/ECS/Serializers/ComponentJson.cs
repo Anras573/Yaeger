@@ -16,7 +16,8 @@ namespace Yaeger.ECS.Serializers;
 ///   <item><see cref="Vector3"/> is read from <c>[x, y, z]</c> or <c>{ "x", "y", "z" }</c>.</item>
 ///   <item><see cref="Quaternion"/> is read from <c>[x, y, z, w]</c> or <c>{ "x", "y", "z", "w" }</c>.</item>
 ///   <item><see cref="Color"/> is read from a 3- (RGB) or 4-element (RGBA) integer array, matching
-///     the <c>Sprite</c> tint format.</item>
+///     the <c>Sprite</c> tint format, and is always written as a 4-element RGBA array (so saved
+///     JSON includes the alpha channel even when an example only shows RGB).</item>
 /// </list>
 /// All readers throw <see cref="PrefabLoadException"/> on malformed input, with the offending
 /// property name in the message.
@@ -150,7 +151,7 @@ internal static class ComponentJson
         }
 
         throw new PrefabLoadException(
-            $"Property '{propertyName}' must be a Quaternion represented as [x, y, z, w] or {{ \"x\", \"y\", \"z\", \"w\" }}."
+            $"Property '{propertyName}' must be a Quaternion represented as [x, y, z, w] or {{ \"x\": number, \"y\": number, \"z\": number, \"w\": number }}."
         );
     }
 
@@ -167,7 +168,7 @@ internal static class ComponentJson
     {
         if (el.ValueKind != JsonValueKind.Array)
             throw new PrefabLoadException(
-                $"Property '{propertyName}' must be a colour array of 3 (RGB) or 4 (RGBA) integers."
+                $"Property '{propertyName}' must be a 'color' array of 3 (RGB) or 4 (RGBA) integers."
             );
 
         Span<int> channels = stackalloc int[4];
