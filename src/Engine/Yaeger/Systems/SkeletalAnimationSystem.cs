@@ -49,16 +49,23 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
                 skeletons.TryGetClip(handle, player.CurrentClip, out clip);
 
             var updated = player;
-            // Keep time finite so the modulo/clamp logic and keyframe sampling stay well-defined
-            // even if a caller assigned a non-finite Time (or a prior bad delta crept in).
-            var timeSanitized = !float.IsFinite(updated.Time);
-            if (timeSanitized)
+            // Keep Time and Speed finite so the modulo/clamp logic and sampling stay well-defined,
+            // and so the stored component never holds NaN/Infinity for other systems to trip over.
+            var sanitized = false;
+            if (!float.IsFinite(updated.Time))
+            {
                 updated.Time = 0f;
+                sanitized = true;
+            }
+            if (!float.IsFinite(updated.Speed))
+            {
+                updated.Speed = 0f;
+                sanitized = true;
+            }
 
             if (clip is { Duration: > 0f })
             {
-                var speed = float.IsFinite(player.Speed) ? player.Speed : 0f;
-                updated.Time += deltaTime * speed;
+                updated.Time += deltaTime * updated.Speed;
 
                 if (updated.Loop)
                 {
@@ -73,10 +80,10 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
 
                 world.AddComponent(entity, updated);
             }
-            else if (timeSanitized)
+            else if (sanitized)
             {
-                // No clip is advancing this frame, but still persist the sanitized time so a
-                // non-finite value doesn't linger in the store and resurface when a clip is assigned.
+                // No clip is advancing this frame, but still persist the sanitized values so a
+                // non-finite Time/Speed doesn't linger in the store and resurface later.
                 world.AddComponent(entity, updated);
             }
 

@@ -231,6 +231,27 @@ public class SkeletalAnimationSystemTests
     }
 
     [Fact]
+    public void Update_NonFiniteSpeed_ShouldBeSanitizedAndPersisted()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: float.PositiveInfinity) { Time = 0.2f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.5f);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal(0f, player.Speed, 4); // sanitized to 0 and persisted
+        // Speed 0 means no advancement, so Time stays put.
+        Assert.Equal(0.2f, player.Time, 4);
+    }
+
+    [Fact]
     public void Update_ReusesPaletteArrayAcrossFrames()
     {
         var (registry, handle) = BuildRig();
