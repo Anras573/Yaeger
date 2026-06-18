@@ -49,7 +49,8 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
             var updated = player;
             // Keep time finite so the modulo/clamp logic and keyframe sampling stay well-defined
             // even if a caller assigned a non-finite Time (or a prior bad delta crept in).
-            if (!float.IsFinite(updated.Time))
+            var timeSanitized = !float.IsFinite(updated.Time);
+            if (timeSanitized)
                 updated.Time = 0f;
 
             if (clip is { Duration: > 0f })
@@ -68,6 +69,12 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
                     updated.Time = Math.Clamp(updated.Time, 0f, clip.Duration);
                 }
 
+                world.AddComponent(entity, updated);
+            }
+            else if (timeSanitized)
+            {
+                // No clip is advancing this frame, but still persist the sanitized time so a
+                // non-finite value doesn't linger in the store and resurface when a clip is assigned.
                 world.AddComponent(entity, updated);
             }
 

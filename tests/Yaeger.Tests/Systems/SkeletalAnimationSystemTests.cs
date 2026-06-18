@@ -194,6 +194,24 @@ public class SkeletalAnimationSystemTests
     }
 
     [Fact]
+    public void Update_NoClipWithNonFiniteTime_ShouldPersistSanitizedTime()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        // No clip is playing, but Time is non-finite: the sanitized value must be written back so it
+        // doesn't linger in the store.
+        world.AddComponent(entity, new AnimationPlayer(currentClip: null) { Time = float.NaN });
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.5f);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal(0f, player.Time, 4);
+    }
+
+    [Fact]
     public void Update_ReusesPaletteArrayAcrossFrames()
     {
         var (registry, handle) = BuildRig();
