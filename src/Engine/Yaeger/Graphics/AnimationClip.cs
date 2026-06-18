@@ -41,8 +41,19 @@ public record BoneTrack(
         if (time >= keys[^1].Time)
             return keys[^1].Value;
 
-        var (i, t) = FindSegment(time, keys.Length, k => keys[k].Time);
-        return Vector3.Lerp(keys[i].Value, keys[i + 1].Value, t);
+        // Inlined segment search (no Func<> closure) to keep per-frame sampling allocation-free.
+        for (var i = 0; i < keys.Length - 1; i++)
+        {
+            var t1 = keys[i + 1].Time;
+            if (time < t1)
+            {
+                var t0 = keys[i].Time;
+                var span = t1 - t0;
+                var t = span > 0f ? Math.Clamp((time - t0) / span, 0f, 1f) : 0f;
+                return Vector3.Lerp(keys[i].Value, keys[i + 1].Value, t);
+            }
+        }
+        return keys[^1].Value;
     }
 
     private static Quaternion SampleQuaternion(QuaternionKey[] keys, float time)
@@ -54,26 +65,19 @@ public record BoneTrack(
         if (time >= keys[^1].Time)
             return keys[^1].Value;
 
-        var (i, t) = FindSegment(time, keys.Length, k => keys[k].Time);
-        return Quaternion.Slerp(keys[i].Value, keys[i + 1].Value, t);
-    }
-
-    // Returns the index of the keyframe at or before `time` plus the [0,1] interpolation factor
-    // toward the next keyframe. Callers guarantee time is strictly inside the key time range.
-    private static (int Index, float T) FindSegment(float time, int count, Func<int, float> timeOf)
-    {
-        for (var i = 0; i < count - 1; i++)
+        // Inlined segment search (no Func<> closure) to keep per-frame sampling allocation-free.
+        for (var i = 0; i < keys.Length - 1; i++)
         {
-            var t0 = timeOf(i);
-            var t1 = timeOf(i + 1);
+            var t1 = keys[i + 1].Time;
             if (time < t1)
             {
+                var t0 = keys[i].Time;
                 var span = t1 - t0;
-                var t = span > 0f ? (time - t0) / span : 0f;
-                return (i, Math.Clamp(t, 0f, 1f));
+                var t = span > 0f ? Math.Clamp((time - t0) / span, 0f, 1f) : 0f;
+                return Quaternion.Slerp(keys[i].Value, keys[i + 1].Value, t);
             }
         }
-        return (count - 2, 1f);
+        return keys[^1].Value;
     }
 }
 
