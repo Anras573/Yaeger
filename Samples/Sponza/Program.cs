@@ -5,6 +5,7 @@ using Yaeger.Assets;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Input;
+using Yaeger.Inspector;
 using Yaeger.Rendering;
 using Yaeger.Systems;
 using Yaeger.Windowing;
@@ -73,12 +74,38 @@ world.AddComponent(
 );
 
 using var renderer3D = new Renderer3D(window.Gl);
-var meshRenderSystem = new MeshRenderSystem(renderer3D, registry, textures, world, window);
+using var shadowMapRenderer = new ShadowMapRenderer(
+    window.Gl,
+    new ShadowSettings
+    {
+        MapResolution = 2048,
+        OrthographicSize = 25f,
+        NearPlane = 0.1f,
+        FarPlane = 500f,
+        Bias = 0.004f,
+        EnablePcf = true,
+    }
+);
+var meshRenderSystem = new MeshRenderSystem(
+    renderer3D,
+    registry,
+    textures,
+    world,
+    window,
+    shadowMapRenderer: shadowMapRenderer
+);
 var freeFlySystem = new FreeFlySystem(world, cameraEntity);
 
+using var inspector = new ImGuiInspector(window, world);
+
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
+Keyboard.AddKeyDown(Keys.F1, inspector.Toggle);
 
 window.OnUpdate += deltaTime => freeFlySystem.Update((float)deltaTime);
-window.OnRender += _ => meshRenderSystem.Render();
+window.OnRender += delta =>
+{
+    meshRenderSystem.Render();
+    inspector.Render(delta);
+};
 
 window.Run();
