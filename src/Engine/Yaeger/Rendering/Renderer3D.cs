@@ -59,10 +59,14 @@ public sealed class Renderer3D : IDisposable
 
             vec4 skinnedPos = skin * vec4(aPosition, 1.0);
             mat3 skin3 = mat3(skin);
+            // Normals need the inverse-transpose of the skin matrix so non-uniform bone scale doesn't
+            // skew them; tangents are surface directions and use the skin matrix directly. Both are
+            // identity for static meshes (skin == identity).
+            mat3 skinNormal = transpose(inverse(skin3));
 
             vec4 worldPos = uModel * skinnedPos;
             vFragPos  = worldPos.xyz;
-            vNormal   = uNormalMatrix * (skin3 * aNormal);
+            vNormal   = uNormalMatrix * (skinNormal * aNormal);
             vTangent  = mat3(uModel) * (skin3 * aTangent);
             vTexCoord = aTexCoord;
             vLightSpacePos = uLightSpaceMatrix * worldPos;
@@ -893,7 +897,8 @@ public sealed class Renderer3D : IDisposable
 
     /// <summary>
     /// Uploads a skinning matrix palette to the bone UBO. At most <see cref="MaxBones"/> matrices are
-    /// used; extras are ignored. The static <see cref="Draw"/> overload calls this for you.
+    /// used; extras are ignored. The skinned <see cref="Draw(GpuMesh, Matrix4x4, Matrix4x4, Material3D, TextureManager, ReadOnlySpan{Matrix4x4})"/>
+    /// overload calls this for you.
     /// </summary>
     public unsafe void SetBoneMatrices(ReadOnlySpan<Matrix4x4> palette)
     {

@@ -16,7 +16,10 @@ public struct AnimationPlayer
     /// <summary>When <c>true</c>, playback wraps around the clip duration; otherwise it clamps to the end.</summary>
     public bool Loop;
 
-    /// <summary>Playback speed multiplier applied to delta time (1 = real time).</summary>
+    /// <summary>
+    /// Playback speed multiplier applied to delta time (1 = real time). A negative value plays the
+    /// clip in reverse; when looping, time wraps around the clip duration.
+    /// </summary>
     public float Speed;
 
     public AnimationPlayer(string? currentClip, bool loop = true, float speed = 1f)

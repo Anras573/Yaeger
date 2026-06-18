@@ -74,6 +74,25 @@ public class SkeletalAnimationSystemTests
     }
 
     [Fact]
+    public void Update_NegativeSpeedLooping_ShouldPlayInReverse()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: -1f) { Time = 0.2f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.5f); // 0.2 + (-1 * 0.5) = -0.3 -> wraps to 0.7
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal(0.7f, player.Time, 4);
+    }
+
+    [Fact]
     public void Update_NonLooping_ShouldClampAtDuration()
     {
         var (registry, handle) = BuildRig();

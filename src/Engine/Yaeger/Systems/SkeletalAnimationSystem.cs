@@ -20,7 +20,9 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
 
     public void Update(float deltaTime)
     {
-        // Never step backwards, and never let a non-finite delta poison playback time and sampling.
+        // Guard the per-frame delta: a negative or non-finite frame time would rewind or poison every
+        // player at once. (Intentional reverse playback is a per-player concern via a negative
+        // AnimationPlayer.Speed, applied below.)
         if (!float.IsFinite(deltaTime) || deltaTime < 0f)
             deltaTime = 0f;
 
