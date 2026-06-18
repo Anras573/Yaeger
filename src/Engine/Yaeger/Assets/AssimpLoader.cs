@@ -2,6 +2,11 @@ using System.Numerics;
 using Silk.NET.Assimp;
 using Yaeger.Graphics;
 using Yaeger.Rendering;
+// Disambiguate the engine's animation types from Assimp's identically-named native structs, which
+// are still referenced through Scene*/Mesh* pointer fields elsewhere in this file.
+using Bone = Yaeger.Graphics.Bone;
+using Skeleton = Yaeger.Graphics.Skeleton;
+using VectorKey = Yaeger.Graphics.VectorKey;
 
 namespace Yaeger.Assets;
 
@@ -44,6 +49,19 @@ public static class AssimpLoader
                 var meshes = new List<ModelMesh>();
                 var meshDataCache = new Dictionary<uint, MeshData>();
                 var materialCache = new Dictionary<uint, ModelMaterial>();
+
+                // Build the node hierarchy up front: vertex bone indices and animation channels both
+                // reference nodes by name, so we need a stable node -> index map (and parent links)
+                // before extracting any skinning data. Pre-order traversal guarantees a parent's
+                // index precedes its children's, which the skinning palette pass relies on.
+                var nodes = new List<(string Name, int ParentIndex, Matrix4x4 LocalTransform)>();
+                var nameToIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+                BuildNodeHierarchy(scene->MRootNode, -1, nodes, nameToIndex);
+
+                var inverseBindPoses = new Matrix4x4[nodes.Count];
+                Array.Fill(inverseBindPoses, Matrix4x4.Identity);
+                var hasSkin = false;
+
                 ProcessNode(
                     api,
                     scene,
@@ -52,15 +70,59 @@ public static class AssimpLoader
                     baseDir,
                     meshes,
                     meshDataCache,
-                    materialCache
+                    materialCache,
+                    nameToIndex,
+                    inverseBindPoses,
+                    ref hasSkin
                 );
-                return new ModelScene(meshes.AsReadOnly());
+
+                // Only surface a skeleton/animations for actually-skinned models; static meshes
+                // (e.g. OBJ) leave these null/empty so existing consumers are unaffected.
+                Skeleton? skeleton = null;
+                IReadOnlyList<AnimationClip>? animations = null;
+                if (hasSkin)
+                {
+                    var bones = new Bone[nodes.Count];
+                    for (var i = 0; i < nodes.Count; i++)
+                        bones[i] = new Bone(
+                            nodes[i].Name,
+                            nodes[i].ParentIndex,
+                            nodes[i].LocalTransform
+                        );
+                    skeleton = new Skeleton(bones, inverseBindPoses);
+                    animations = ExtractAnimations(scene, nameToIndex);
+                }
+
+                return new ModelScene(meshes.AsReadOnly(), skeleton, animations);
             }
             finally
             {
                 api.FreeScene(scene);
             }
         }
+    }
+
+    // Recursively walks the node tree, building the global node-name -> bone-index map and recording
+    // parent links in pre-order. Skinning data is keyed off these indices.
+    private static unsafe void BuildNodeHierarchy(
+        Node* node,
+        int parentIndex,
+        List<(string Name, int ParentIndex, Matrix4x4 LocalTransform)> nodes,
+        Dictionary<string, int> nameToIndex
+    )
+    {
+        var name = node->MName.AsString;
+        // Assimp uses column-vector convention; transpose into System.Numerics' row-vector layout.
+        var localTransform = Matrix4x4.Transpose(node->MTransformation);
+        var index = nodes.Count;
+        nodes.Add((name, parentIndex, localTransform));
+
+        // Keep the first occurrence if names collide (rare); bone/channel lookups expect uniqueness.
+        if (!string.IsNullOrEmpty(name))
+            nameToIndex.TryAdd(name, index);
+
+        for (var i = 0u; i < node->MNumChildren; i++)
+            BuildNodeHierarchy(node->MChildren[i], index, nodes, nameToIndex);
     }
 
     private static unsafe void ProcessNode(
@@ -71,7 +133,10 @@ public static class AssimpLoader
         string baseDir,
         List<ModelMesh> meshes,
         Dictionary<uint, MeshData> meshDataCache,
-        Dictionary<uint, ModelMaterial> materialCache
+        Dictionary<uint, ModelMaterial> materialCache,
+        Dictionary<string, int> nameToIndex,
+        Matrix4x4[] inverseBindPoses,
+        ref bool hasSkin
     )
     {
         // Assimp uses column-vector (OpenGL) convention; System.Numerics uses row-vector.
@@ -85,7 +150,7 @@ public static class AssimpLoader
             var assimpMesh = scene->MMeshes[meshIdx];
             if (!meshDataCache.TryGetValue(meshIdx, out var meshData))
             {
-                meshData = ExtractMeshData(assimpMesh);
+                meshData = ExtractMeshData(assimpMesh, nameToIndex, inverseBindPoses, ref hasSkin);
                 meshDataCache[meshIdx] = meshData;
             }
 
@@ -125,16 +190,28 @@ public static class AssimpLoader
                 baseDir,
                 meshes,
                 meshDataCache,
-                materialCache
+                materialCache,
+                nameToIndex,
+                inverseBindPoses,
+                ref hasSkin
             );
     }
 
-    private static unsafe MeshData ExtractMeshData(Mesh* mesh)
+    private static unsafe MeshData ExtractMeshData(
+        Mesh* mesh,
+        Dictionary<string, int> nameToIndex,
+        Matrix4x4[] inverseBindPoses,
+        ref bool hasSkin
+    )
     {
         var vertCount = mesh->MNumVertices;
         var vertices = new Vertex3D[vertCount];
         var uvChannel0 = mesh->MTextureCoords.Element0;
         var hasTangents = mesh->MTangents != null;
+
+        // Gather per-vertex bone influences (up to 4) when the mesh is skinned. Assimp stores skin
+        // weights per bone (each bone lists the vertices it affects); invert that into per-vertex.
+        var influences = ExtractInfluences(mesh, nameToIndex, inverseBindPoses, ref hasSkin);
 
         for (var i = 0u; i < vertCount; i++)
         {
@@ -144,7 +221,10 @@ public static class AssimpLoader
                 uvChannel0 != null ? new Vector2(uvChannel0[i].X, uvChannel0[i].Y) : Vector2.Zero;
             var tangent = hasTangents ? mesh->MTangents[i] : Vector3.Zero;
 
-            vertices[i] = new Vertex3D(pos, norm, uv, tangent);
+            var boneIndices = influences != null ? influences[i].Indices : Vector4.Zero;
+            var boneWeights = influences != null ? influences[i].NormalizedWeights() : Vector4.Zero;
+
+            vertices[i] = new Vertex3D(pos, norm, uv, tangent, boneIndices, boneWeights);
         }
 
         var indices = new List<uint>((int)mesh->MNumFaces * 3);
@@ -156,6 +236,180 @@ public static class AssimpLoader
         }
 
         return new MeshData(mesh->MName.AsString, vertices, indices.ToArray());
+    }
+
+    // Builds per-vertex bone influences and records each bone's inverse bind pose. Returns null for
+    // non-skinned meshes so the caller can fall back to identity skinning. Sets hasSkin when any
+    // bone is present.
+    private static unsafe VertexInfluences[]? ExtractInfluences(
+        Mesh* mesh,
+        Dictionary<string, int> nameToIndex,
+        Matrix4x4[] inverseBindPoses,
+        ref bool hasSkin
+    )
+    {
+        if (mesh->MNumBones == 0)
+            return null;
+
+        hasSkin = true;
+        var influences = new VertexInfluences[mesh->MNumVertices];
+
+        for (var b = 0u; b < mesh->MNumBones; b++)
+        {
+            var bone = mesh->MBones[b];
+            var name = bone->MName.AsString;
+            if (!nameToIndex.TryGetValue(name, out var boneIndex))
+                continue;
+
+            // The offset matrix transforms mesh space into this bone's space (the inverse bind pose).
+            inverseBindPoses[boneIndex] = Matrix4x4.Transpose(bone->MOffsetMatrix);
+
+            for (var w = 0u; w < bone->MNumWeights; w++)
+            {
+                var weight = bone->MWeights[w];
+                if (weight.MVertexId < influences.Length)
+                    influences[weight.MVertexId].Add(boneIndex, weight.MWeight);
+            }
+        }
+
+        return influences;
+    }
+
+    private static unsafe IReadOnlyList<AnimationClip> ExtractAnimations(
+        Scene* scene,
+        Dictionary<string, int> nameToIndex
+    )
+    {
+        var clips = new List<AnimationClip>((int)scene->MNumAnimations);
+
+        for (var a = 0u; a < scene->MNumAnimations; a++)
+        {
+            var anim = scene->MAnimations[a];
+            // Assimp expresses key times in "ticks"; convert to seconds. Default to 25 ticks/sec
+            // (Assimp's convention) when the rate is unspecified.
+            var ticksPerSecond = anim->MTicksPerSecond != 0.0 ? anim->MTicksPerSecond : 25.0;
+            var duration = (float)(anim->MDuration / ticksPerSecond);
+
+            var tracks = new List<BoneTrack>((int)anim->MNumChannels);
+            for (var c = 0u; c < anim->MNumChannels; c++)
+            {
+                var channel = anim->MChannels[c];
+                var nodeName = channel->MNodeName.AsString;
+                if (!nameToIndex.TryGetValue(nodeName, out var boneIndex))
+                    continue;
+
+                var positions = new VectorKey[channel->MNumPositionKeys];
+                for (var k = 0u; k < channel->MNumPositionKeys; k++)
+                {
+                    var key = channel->MPositionKeys[k];
+                    positions[k] = new VectorKey((float)(key.MTime / ticksPerSecond), key.MValue);
+                }
+
+                var rotations = new QuaternionKey[channel->MNumRotationKeys];
+                for (var k = 0u; k < channel->MNumRotationKeys; k++)
+                {
+                    var key = channel->MRotationKeys[k];
+                    rotations[k] = new QuaternionKey(
+                        (float)(key.MTime / ticksPerSecond),
+                        key.MValue
+                    );
+                }
+
+                var scales = new VectorKey[channel->MNumScalingKeys];
+                for (var k = 0u; k < channel->MNumScalingKeys; k++)
+                {
+                    var key = channel->MScalingKeys[k];
+                    scales[k] = new VectorKey((float)(key.MTime / ticksPerSecond), key.MValue);
+                }
+
+                tracks.Add(new BoneTrack(boneIndex, positions, rotations, scales));
+            }
+
+            var name = anim->MName.AsString;
+            clips.Add(
+                new AnimationClip(
+                    string.IsNullOrEmpty(name) ? $"animation{a}" : name,
+                    duration,
+                    tracks.ToArray()
+                )
+            );
+        }
+
+        return clips;
+    }
+
+    // Accumulates up to four bone influences for a single vertex, keeping the heaviest weights. Bone
+    // indices are stored as floats (the GPU reads them via vec4 attributes).
+    private struct VertexInfluences
+    {
+        private Vector4 _indices;
+        private Vector4 _weights;
+        private int _count;
+
+        public readonly Vector4 Indices => _indices;
+
+        public void Add(int boneIndex, float weight)
+        {
+            if (weight <= 0f)
+                return;
+
+            if (_count < 4)
+            {
+                SetSlot(_count, boneIndex, weight);
+                _count++;
+                return;
+            }
+
+            // Replace the smallest existing influence when this one is heavier.
+            var minSlot = 0;
+            var minWeight = _weights.X;
+            if (_weights.Y < minWeight)
+            {
+                minWeight = _weights.Y;
+                minSlot = 1;
+            }
+            if (_weights.Z < minWeight)
+            {
+                minWeight = _weights.Z;
+                minSlot = 2;
+            }
+            if (_weights.W < minWeight)
+            {
+                minWeight = _weights.W;
+                minSlot = 3;
+            }
+            if (weight > minWeight)
+                SetSlot(minSlot, boneIndex, weight);
+        }
+
+        public readonly Vector4 NormalizedWeights()
+        {
+            var sum = _weights.X + _weights.Y + _weights.Z + _weights.W;
+            return sum > 0f ? _weights / sum : _weights;
+        }
+
+        private void SetSlot(int slot, int boneIndex, float weight)
+        {
+            switch (slot)
+            {
+                case 0:
+                    _indices.X = boneIndex;
+                    _weights.X = weight;
+                    break;
+                case 1:
+                    _indices.Y = boneIndex;
+                    _weights.Y = weight;
+                    break;
+                case 2:
+                    _indices.Z = boneIndex;
+                    _weights.Z = weight;
+                    break;
+                default:
+                    _indices.W = boneIndex;
+                    _weights.W = weight;
+                    break;
+            }
+        }
     }
 
     private static unsafe ModelMaterial ExtractMaterial(Assimp api, Material* mat, string baseDir)

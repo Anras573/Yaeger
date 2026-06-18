@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SkinnedMeshDemo</RootNamespace>
+    <!-- Requires native libassimp at runtime. On Linux: apt install libassimp-dev -->
+    <!-- On Windows/macOS: place the native binary alongside the executable. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Engine\Yaeger\Yaeger.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!--
+    Fetch the KhronosGroup CesiumMan glTF (a rigged, animated humanoid) on first build using git
+    sparse-checkout. Skipped in CI (CI env var is set automatically by GitHub Actions). Mirrors the
+    approach used by the Sponza sample.
+  -->
+  <Target
+    Name="FetchCesiumManAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/CesiumMan/CesiumMan.gltf')"
+  >
+    <PropertyGroup>
+      <_CesiumDir>$(MSBuildProjectDirectory)/Assets/CesiumMan</_CesiumDir>
+      <_CesiumFetchDir>$(MSBuildProjectDirectory)/_cesium-fetch</_CesiumFetchDir>
+      <_CesiumGltfFetchPath>$(_CesiumFetchDir)/Models/CesiumMan/glTF/CesiumMan.gltf</_CesiumGltfFetchPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the clone is retried on the next build -->
+    <RemoveDir
+      Directories="$(_CesiumFetchDir)"
+      Condition="Exists('$(_CesiumFetchDir)') And !Exists('$(_CesiumGltfFetchPath)')"
+    />
+
+    <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
+    <Exec
+      Command="git clone --filter=blob:none --no-checkout --sparse --depth=1 https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_CesiumFetchDir)&quot; &amp;&amp; git -C &quot;$(_CesiumFetchDir)&quot; sparse-checkout set Models/CesiumMan/glTF &amp;&amp; git -C &quot;$(_CesiumFetchDir)&quot; checkout"
+      Condition="!Exists('$(_CesiumFetchDir)')"
+    />
+
+    <!-- Collect files after the clone so the glob finds them -->
+    <ItemGroup>
+      <_CesiumFiles Include="$(_CesiumFetchDir)/Models/CesiumMan/glTF/**/*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_CesiumDir)" Condition="!Exists('$(_CesiumDir)')" />
+    <Copy SourceFiles="@(_CesiumFiles)" DestinationFolder="$(_CesiumDir)/%(RecursiveDir)" />
+    <Copy
+      SourceFiles="@(_CesiumFiles)"
+      DestinationFolder="$(TargetDir)Assets/CesiumMan/%(RecursiveDir)"
+    />
+    <RemoveDir Directories="$(_CesiumFetchDir)" />
+    <Message Text="CesiumMan assets ready at $(_CesiumDir)" Importance="high" />
+  </Target>
+</Project>

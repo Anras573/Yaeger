@@ -81,6 +81,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
   - `SceneDemo/` - JSON scene loading
   - `CornellBox/` - 3D Cornell Box + F1 editor overlay
   - `Sponza/` - glTF Sponza scene rendered through the PBR path
+  - `SkinnedMeshDemo/` - glTF skeletal animation (GPU skinning) demo
   - `UiDemo/` - ImGui UI demo
   - `BrowserDemo/` - Blazor/WebAssembly browser loop + browser input/runtime integration
   - `RenderingStressTest/` - Renderer stress test (FPS vs sprite count)

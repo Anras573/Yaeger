@@ -16,11 +16,21 @@ public sealed class Renderer3D : IDisposable
         layout(location = 1) in vec3 aNormal;
         layout(location = 2) in vec2 aTexCoord;
         layout(location = 3) in vec3 aTangent;
+        layout(location = 4) in vec4 aBoneIndices;
+        layout(location = 5) in vec4 aBoneWeights;
 
         uniform mat4 uModel;
         uniform mat4 uViewProj;
         uniform mat3 uNormalMatrix;
         uniform mat4 uLightSpaceMatrix;
+
+        // GPU skinning: a palette of bone matrices supplied via a uniform buffer. uSkinned gates the
+        // whole path so static meshes (all weights zero) are unaffected.
+        const int MAX_BONES = 128;
+        layout(std140) uniform Bones {
+            mat4 uBones[MAX_BONES];
+        };
+        uniform int uSkinned;
 
         out vec3 vNormal;
         out vec2 vTexCoord;
@@ -29,10 +39,35 @@ public sealed class Renderer3D : IDisposable
         out vec4 vLightSpacePos;
 
         void main() {
-            vec4 worldPos = uModel * vec4(aPosition, 1.0);
+            mat4 skin = mat4(1.0);
+            if (uSkinned != 0) {
+                float wSum = dot(aBoneWeights, vec4(1.0));
+                // Guard against out-of-range indices (e.g. a model with more bones than the palette
+                // holds): an OOB uBones[] read is undefined behaviour. Fall back to identity skin
+                // (bind pose) when any of the four indices is outside [0, MAX_BONES).
+                bool inRange =
+                    all(greaterThanEqual(aBoneIndices, vec4(0.0))) &&
+                    all(lessThan(aBoneIndices, vec4(float(MAX_BONES))));
+                if (wSum > 1e-4 && inRange) {
+                    skin =
+                        uBones[int(aBoneIndices.x)] * aBoneWeights.x +
+                        uBones[int(aBoneIndices.y)] * aBoneWeights.y +
+                        uBones[int(aBoneIndices.z)] * aBoneWeights.z +
+                        uBones[int(aBoneIndices.w)] * aBoneWeights.w;
+                }
+            }
+
+            vec4 skinnedPos = skin * vec4(aPosition, 1.0);
+            mat3 skin3 = mat3(skin);
+            // Normals need the inverse-transpose of the skin matrix so non-uniform bone scale doesn't
+            // skew them; tangents are surface directions and use the skin matrix directly. Both are
+            // identity for static meshes (skin == identity).
+            mat3 skinNormal = transpose(inverse(skin3));
+
+            vec4 worldPos = uModel * skinnedPos;
             vFragPos  = worldPos.xyz;
-            vNormal   = uNormalMatrix * aNormal;
-            vTangent  = mat3(uModel) * aTangent;
+            vNormal   = uNormalMatrix * (skinNormal * aNormal);
+            vTangent  = mat3(uModel) * (skin3 * aTangent);
             vTexCoord = aTexCoord;
             vLightSpacePos = uLightSpaceMatrix * worldPos;
             gl_Position = uViewProj * worldPos;
@@ -356,6 +391,13 @@ public sealed class Renderer3D : IDisposable
         }
         """;
 
+    /// <summary>Maximum number of bones the vertex shader's skinning palette can hold (matches MAX_BONES in GLSL).</summary>
+    public const int MaxBones = 128;
+
+    // Binding point linking the "Bones" uniform block to the bone-matrix UBO. Arbitrary but must not
+    // collide with any other uniform block binding (the renderer has none).
+    private const uint BoneBlockBinding = 0;
+
     /// <summary>Maximum number of point lights the fragment shader can accumulate per frame.</summary>
     public const int MaxPointLights = 16;
 
@@ -404,6 +446,7 @@ public sealed class Renderer3D : IDisposable
     private readonly Shader _shader;
     private readonly uint _defaultTexture;
     private readonly uint _defaultNormalTexture;
+    private readonly uint _boneUbo;
 
     public Renderer3D(GL gl)
     {
@@ -411,10 +454,15 @@ public sealed class Renderer3D : IDisposable
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _defaultTexture = CreateWhiteTexture();
         _defaultNormalTexture = CreateFlatNormalTexture();
+        _boneUbo = CreateBoneUbo();
         BindSamplerUnits();
         BindDefaultPbrTextures();
         // DisableShadows also binds the default texture on unit 5, so no separate setup is needed.
         DisableShadows();
+        // Skinning is opt-in per draw; default to the static-mesh path.
+        _shader.Bind();
+        _shader.SetUniformInt("uSkinned", 0);
+        _shader.Unbind();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
         // Start with no point/spot lights so scenes that never call SetPointLights/SetSpotLights
         // (the pre-existing single-directional-light path) render exactly as before.
@@ -614,16 +662,44 @@ public sealed class Renderer3D : IDisposable
     private static float SanitizeNonNegative(float value) =>
         float.IsFinite(value) ? MathF.Max(value, 0f) : 0f;
 
-    /// <summary>Draws a single mesh with the supplied transform and material.</summary>
+    /// <summary>Draws a single static mesh with the supplied transform and material.</summary>
     public void Draw(
         GpuMesh mesh,
         Matrix4x4 model,
         Matrix4x4 viewProj,
         Material3D material,
         TextureManager textures
+    ) => DrawCore(mesh, model, viewProj, material, textures, skinned: false);
+
+    /// <summary>
+    /// Draws a single skinned mesh, uploading <paramref name="bonePalette"/> to the bone-matrix UBO
+    /// and enabling GPU skinning in the vertex shader. Up to <see cref="MaxBones"/> matrices are used.
+    /// </summary>
+    public void Draw(
+        GpuMesh mesh,
+        Matrix4x4 model,
+        Matrix4x4 viewProj,
+        Material3D material,
+        TextureManager textures,
+        ReadOnlySpan<Matrix4x4> bonePalette
+    )
+    {
+        SetBoneMatrices(bonePalette);
+        DrawCore(mesh, model, viewProj, material, textures, skinned: true);
+    }
+
+    private void DrawCore(
+        GpuMesh mesh,
+        Matrix4x4 model,
+        Matrix4x4 viewProj,
+        Material3D material,
+        TextureManager textures,
+        bool skinned
     )
     {
         _shader.Bind();
+
+        _shader.SetUniformInt("uSkinned", skinned ? 1 : 0);
 
         _shader.SetUniformMatrix4("uModel", model);
         _shader.SetUniformMatrix4("uViewProj", viewProj);
@@ -801,10 +877,53 @@ public sealed class Renderer3D : IDisposable
         return handle;
     }
 
+    // Allocates the bone-matrix uniform buffer (MaxBones mat4s) and links it to the shader's "Bones"
+    // block via a shared binding point. Filled per skinned draw by SetBoneMatrices.
+    private unsafe uint CreateBoneUbo()
+    {
+        var ubo = _gl.GenBuffer();
+        _gl.BindBuffer(BufferTargetARB.UniformBuffer, ubo);
+        _gl.BufferData(
+            BufferTargetARB.UniformBuffer,
+            (nuint)(MaxBones * sizeof(Matrix4x4)),
+            null,
+            BufferUsageARB.DynamicDraw
+        );
+        _gl.BindBufferBase(BufferTargetARB.UniformBuffer, BoneBlockBinding, ubo);
+        _gl.BindBuffer(BufferTargetARB.UniformBuffer, 0);
+        _shader.BindUniformBlock("Bones", BoneBlockBinding);
+        return ubo;
+    }
+
+    /// <summary>
+    /// Uploads a skinning matrix palette to the bone UBO. At most <see cref="MaxBones"/> matrices are
+    /// used; extras are ignored. The skinned <see cref="Draw(GpuMesh, Matrix4x4, Matrix4x4, Material3D, TextureManager, ReadOnlySpan{Matrix4x4})"/>
+    /// overload calls this for you.
+    /// </summary>
+    public unsafe void SetBoneMatrices(ReadOnlySpan<Matrix4x4> palette)
+    {
+        var count = Math.Min(palette.Length, MaxBones);
+        if (count <= 0)
+            return;
+
+        _gl.BindBuffer(BufferTargetARB.UniformBuffer, _boneUbo);
+        fixed (Matrix4x4* ptr = palette)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.UniformBuffer,
+                0,
+                (nuint)(count * sizeof(Matrix4x4)),
+                ptr
+            );
+        }
+        _gl.BindBuffer(BufferTargetARB.UniformBuffer, 0);
+    }
+
     public void Dispose()
     {
         _shader.Dispose();
         _gl.DeleteTexture(_defaultTexture);
         _gl.DeleteTexture(_defaultNormalTexture);
+        _gl.DeleteBuffer(_boneUbo);
     }
 }

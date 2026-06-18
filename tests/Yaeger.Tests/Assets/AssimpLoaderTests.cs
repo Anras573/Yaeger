@@ -265,6 +265,41 @@ public class AssimpLoaderTests
         }
     }
 
+    [SkippableFact]
+    public void LoadScene_StaticObj_ShouldHaveNoSkeletonOrAnimations()
+    {
+        Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
+
+        // OBJ has no bones or animations: the skeleton stays null and the animation list is empty,
+        // so existing static-mesh consumers are unaffected.
+        var obj = """
+            v 0.0 0.0 0.0
+            v 1.0 0.0 0.0
+            v 0.0 1.0 0.0
+            vn 0.0 0.0 1.0
+            vt 0.0 0.0
+            vt 1.0 0.0
+            vt 0.0 1.0
+            f 1/1/1 2/2/1 3/3/1
+            """;
+        var path = WriteTempObj(obj);
+        try
+        {
+            var scene = AssimpLoader.LoadScene(path);
+
+            Assert.Null(scene.Skeleton);
+            Assert.Empty(scene.Animations);
+
+            // Static vertices carry zero skin weights (identity skin in the shader).
+            foreach (var v in scene.Meshes[0].Mesh.Vertices)
+                Assert.Equal(Vector4.Zero, v.BoneWeights);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Fact]
     public void LoadScene_FileNotFound_ShouldThrowFileNotFoundException()
     {
