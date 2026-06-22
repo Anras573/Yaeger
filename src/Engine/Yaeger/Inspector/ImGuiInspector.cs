@@ -28,9 +28,21 @@ namespace Yaeger.Inspector;
 public sealed class ImGuiInspector : IDisposable
 {
     private readonly World _world;
+    private readonly Window _window;
     private readonly ComponentRegistry? _registry;
     private readonly SceneSaver? _sceneSaver;
     private readonly ImGuiController _controller;
+
+    // World-space overlay that visualises the selected entity (light direction/reach, mesh bounds,
+    // camera frustum, transform axes). Driven from Render once the ImGui panel has updated selection.
+    private readonly GizmoRenderer _gizmoRenderer;
+    private readonly GizmoBuilder _gizmoBuilder = new();
+
+    /// <summary>
+    /// When true (the default), the selected entity is highlighted in the 3D scene with gizmos.
+    /// Requires a <see cref="Camera3D"/> in the world; purely 2D scenes show no gizmos.
+    /// </summary>
+    public bool ShowGizmos { get; set; } = true;
 
     private bool _visible;
     private Entity? _selectedEntity;
@@ -102,9 +114,11 @@ public sealed class ImGuiInspector : IDisposable
     public ImGuiInspector(Window window, World world, ComponentRegistry? registry = null)
     {
         _world = world;
+        _window = window;
         _registry = registry;
         _sceneSaver = registry is not null ? new SceneSaver(registry) : null;
         _controller = new ImGuiController(window.Gl, window.InnerView, window.InputContext);
+        _gizmoRenderer = new GizmoRenderer(window.Gl);
     }
 
     /// <summary>Toggles the inspector overlay on or off.</summary>
@@ -125,8 +139,50 @@ public sealed class ImGuiInspector : IDisposable
 
         _controller.Update((float)delta);
         DrawInspectorWindow();
+        // Draw gizmos into the scene framebuffer first so the ImGui panel renders on top of them.
+        RenderGizmos();
         _controller.Render();
         FlushPendingCommands();
+    }
+
+    // ── Selection gizmos (world-space overlay) ────────────────────────────────
+
+    /// <summary>
+    /// Draws the world-space gizmos for the current selection so the user can see what they are
+    /// editing. Needs a <see cref="Camera3D"/> to know how to project; no-ops without one.
+    /// </summary>
+    private void RenderGizmos()
+    {
+        if (!ShowGizmos || !_selectedEntity.HasValue)
+            return;
+
+        var entity = _selectedEntity.Value;
+        if (!_world.Entities.Contains(entity))
+            return;
+
+        if (!TryGetSceneViewProjection(out var viewProj, out var aspectRatio))
+            return;
+
+        _gizmoBuilder.Clear();
+        EntityGizmos.Build(_world, entity, aspectRatio, _gizmoBuilder);
+        _gizmoRenderer.Render(_gizmoBuilder.Lines, viewProj);
+    }
+
+    // Resolves the active 3D camera's view-projection (and aspect) from the world, mirroring how
+    // MeshRenderSystem picks the first Camera3D. Returns false for purely 2D scenes.
+    private bool TryGetSceneViewProjection(out Matrix4x4 viewProj, out float aspectRatio)
+    {
+        var size = _window.Size;
+        aspectRatio = size.Y > 0f ? size.X / size.Y : 1f;
+
+        foreach (var (_, camera) in _world.GetStore<Camera3D>().All())
+        {
+            viewProj = camera.ViewMatrix * camera.ProjectionMatrix(aspectRatio);
+            return true;
+        }
+
+        viewProj = Matrix4x4.Identity;
+        return false;
     }
 
     // ── Main window ──────────────────────────────────────────────────────────────
@@ -161,6 +217,9 @@ public sealed class ImGuiInspector : IDisposable
         ImGui.Columns(1);
 
         ImGui.Separator();
+        var showGizmos = ShowGizmos;
+        if (ImGui.Checkbox("Show selection gizmos", ref showGizmos))
+            ShowGizmos = showGizmos;
         DrawSaveRow();
 
         ImGui.End();
@@ -982,5 +1041,9 @@ public sealed class ImGuiInspector : IDisposable
         }
     }
 
-    public void Dispose() => _controller.Dispose();
+    public void Dispose()
+    {
+        _gizmoRenderer.Dispose();
+        _controller.Dispose();
+    }
 }
