@@ -139,10 +139,14 @@ public sealed class ImGuiInspector : IDisposable
 
         _controller.Update((float)delta);
         DrawInspectorWindow();
+        // Apply queued edits now, before building gizmos, so the overlay reflects the value being
+        // dragged this frame rather than lagging a frame behind. Safe here: all world-iterating
+        // ImGui code (the entity list) ran in DrawInspectorWindow, and nothing below mutates or
+        // iterates the world during draw — so this can't invalidate an in-flight iterator.
+        FlushPendingCommands();
         // Draw gizmos into the scene framebuffer first so the ImGui panel renders on top of them.
         RenderGizmos();
         _controller.Render();
-        FlushPendingCommands();
     }
 
     // ── Selection gizmos (world-space overlay) ────────────────────────────────
