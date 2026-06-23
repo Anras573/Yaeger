@@ -30,12 +30,28 @@ public static class EntityGizmos
     public static void Build(World world, Entity entity, float aspectRatio, GizmoBuilder builder)
     {
         // 2D gizmos live in the Z = 0 plane and are projected through a Camera2D-derived (or
-        // identity) view-projection by the inspector, independently of the 3D path below.
+        // identity) view-projection by the inspector. An entity is treated as either 2D or 3D for
+        // gizmo purposes — never both — to stay consistent with
+        // ImGuiInspector.TryGetSceneViewProjection, which switches to that 2D view whenever a
+        // Transform2D/Camera2D is present. Emitting 3D gizmos too would draw them with the wrong
+        // (2D) projection for an entity that happens to carry both (the Add Component menu allows
+        // it), so once any 2D gizmo is emitted we skip the 3D path entirely.
+        var has2D = false;
+
         if (world.TryGetComponent<Transform2D>(entity, out var transform2D))
+        {
             BuildTransform2D(builder, transform2D);
+            has2D = true;
+        }
 
         if (world.TryGetComponent<Camera2D>(entity, out var camera2D))
+        {
             BuildCamera2D(builder, camera2D, aspectRatio);
+            has2D = true;
+        }
+
+        if (has2D)
+            return;
 
         var hasTransform = world.TryGetComponent<Transform3D>(entity, out var transform);
         var anchor = hasTransform ? transform.Position : Vector3.Zero;

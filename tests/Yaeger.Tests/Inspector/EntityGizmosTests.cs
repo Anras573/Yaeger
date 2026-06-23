@@ -151,6 +151,27 @@ public class EntityGizmosTests
     }
 
     [Fact]
+    public void MixedDimensions_EmitsOnly2DGizmos()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        // An entity carrying both 2D and 3D components (the Add Component menu allows this) is
+        // treated as 2D for gizmos, matching the 2D projection the inspector would pick — so the
+        // far-off 3D axes must not be emitted with a 2D view-projection.
+        world.AddComponent(entity, new Transform2D(Vector2.Zero, 0f, Vector2.One));
+        world.AddComponent(
+            entity,
+            new Transform3D(new Vector3(50, 0, 0), Quaternion.Identity, Vector3.One)
+        );
+
+        var lines = Build(world, entity);
+
+        // Only the 2D gizmos (2 axes + 4 bounds edges); the 3D axes anchored at X = 50 are skipped.
+        Assert.Equal(6, lines.Count);
+        Assert.DoesNotContain(lines, l => l.Start.X > 1f || l.End.X > 1f);
+    }
+
+    [Fact]
     public void Transform3D_DrawsOrientationAxes()
     {
         var world = new World();
