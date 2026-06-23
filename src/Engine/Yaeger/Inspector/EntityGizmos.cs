@@ -79,10 +79,12 @@ public static class EntityGizmos
 
     private static void BuildCamera2D(GizmoBuilder builder, Camera2D camera, float aspectRatio)
     {
-        // Mirror Camera2D.ViewProjection's guards so a default/invalid camera still draws a sane
-        // rectangle. At zoom z the visible world span is [-aspect/z, aspect/z] × [-1/z, 1/z].
+        // Mirror Camera2D.ViewProjection's zoom guard exactly (Zoom > 0 ? Zoom : 1) so the drawn
+        // rectangle agrees with what the camera actually frames. A +Infinity zoom is kept as-is,
+        // matching the renderer: aspect/∞ and 1/∞ both collapse to 0, so the viewport shrinks to a
+        // point while staying finite. Aspect is separately guarded against a non-finite value.
         var aspect = aspectRatio > 0f && float.IsFinite(aspectRatio) ? aspectRatio : 16f / 9f;
-        var zoom = camera.Zoom > 0f && float.IsFinite(camera.Zoom) ? camera.Zoom : 1f;
+        var zoom = camera.Zoom > 0f ? camera.Zoom : 1f;
 
         var halfExtents = new Vector2(aspect / zoom, 1f / zoom);
         builder.AddRect(camera.Position, halfExtents, camera.Rotation, CameraColor);

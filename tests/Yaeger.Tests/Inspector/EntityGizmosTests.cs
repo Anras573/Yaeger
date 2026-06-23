@@ -128,6 +128,29 @@ public class EntityGizmosTests
     }
 
     [Fact]
+    public void Camera2D_InfiniteZoom_CollapsesToFinitePoint()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        // Match Camera2D.ViewProjection: a +Infinity zoom is kept, collapsing the visible span to a
+        // point (aspect/∞ = 0). The emitted vertices must stay finite — and all coincide at the
+        // camera position.
+        world.AddComponent(entity, new Camera2D(new Vector2(3, 4), float.PositiveInfinity, 0f));
+
+        var lines = Build(world, entity);
+
+        Assert.Equal(4, lines.Count);
+        Assert.All(
+            lines,
+            l =>
+            {
+                Assert.Equal(new Vector3(3, 4, 0), l.Start);
+                Assert.Equal(new Vector3(3, 4, 0), l.End);
+            }
+        );
+    }
+
+    [Fact]
     public void Transform3D_DrawsOrientationAxes()
     {
         var world = new World();
