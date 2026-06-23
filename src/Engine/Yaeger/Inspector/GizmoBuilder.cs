@@ -42,6 +42,11 @@ public sealed class GizmoBuilder
     /// <summary>Adds an arrow from <paramref name="from"/> to <paramref name="to"/> with a small 3D arrowhead.</summary>
     public void AddArrow(Vector3 from, Vector3 to, Vector4 color, float headSize)
     {
+        // Reject non-finite endpoints up front: a NaN/Inf would slip past the length check below
+        // (comparisons against NaN are false) and flow into dir/Basis as NaN vertices.
+        if (!IsFinite(from) || !IsFinite(to))
+            return;
+
         AddLine(from, to, color);
 
         var shaft = to - from;
@@ -70,7 +75,7 @@ public sealed class GizmoBuilder
         int segments = 24
     )
     {
-        if (radius <= 0f || segments < 3)
+        if (!float.IsFinite(radius) || radius <= 0f || segments < 3)
             return;
 
         var step = MathF.Tau / segments;
@@ -105,8 +110,18 @@ public sealed class GizmoBuilder
         int segments = 24
     )
     {
+        // Bail on any non-finite input before normalizing: like AddArrow, the length/height checks
+        // below pass for NaN/Inf and would otherwise emit NaN vertices.
+        if (
+            !IsFinite(apex)
+            || !IsFinite(direction)
+            || !float.IsFinite(height)
+            || !float.IsFinite(baseRadius)
+        )
+            return;
+
         var lengthSq = direction.LengthSquared();
-        if (lengthSq < 1e-12f || height <= 0f)
+        if (lengthSq < 1e-12f || height <= 0f || baseRadius < 0f)
             return;
 
         var dir = direction / MathF.Sqrt(lengthSq);
@@ -154,6 +169,9 @@ public sealed class GizmoBuilder
         AddLine(c[2], c[6], color);
         AddLine(c[3], c[7], color);
     }
+
+    private static bool IsFinite(Vector3 v) =>
+        float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
 
     // Builds an orthonormal basis (u, v) spanning the plane perpendicular to the unit vector dir.
     private static void Basis(Vector3 dir, out Vector3 u, out Vector3 v)

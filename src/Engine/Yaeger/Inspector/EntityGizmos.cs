@@ -128,17 +128,25 @@ public static class EntityGizmos
 
     private static void BuildCamera(GizmoBuilder builder, Camera3D camera, float aspectRatio)
     {
+        // A non-finite position/target/up would survive SafeNormalize (which falls back) but still
+        // poison the frustum corners via camera.Position, so bail before computing anything.
+        if (!IsFinite(camera.Position) || !IsFinite(camera.Target) || !IsFinite(camera.Up))
+            return;
+
         var forward = SafeNormalize(camera.Target - camera.Position, -Vector3.UnitZ);
         var up = SafeNormalize(camera.Up, Vector3.UnitY);
         var right = SafeNormalize(Vector3.Cross(forward, up), Vector3.UnitX);
         up = Vector3.Cross(right, forward);
 
+        // Require finiteness too, not just > 0: a +Inf Fov/Near would flow into tan()/the corners
+        // and emit NaN vertices, matching the NaN/Inf guarding used elsewhere in this file.
         var aspect = aspectRatio > 0f && float.IsFinite(aspectRatio) ? aspectRatio : 16f / 9f;
-        var fov = camera.Fov > 0f ? camera.Fov : MathF.PI / 4f;
-        var near = camera.Near > 0f ? camera.Near : 0.1f;
+        var fov = camera.Fov > 0f && float.IsFinite(camera.Fov) ? camera.Fov : MathF.PI / 4f;
+        var near = camera.Near > 0f && float.IsFinite(camera.Near) ? camera.Near : 0.1f;
 
         // Cap the visualised far plane so a frustum drawn for a 1000-unit camera stays on screen.
-        var far = MathF.Min(camera.Far > near ? camera.Far : near + 1f, near + 3f);
+        var farRaw = camera.Far > near && float.IsFinite(camera.Far) ? camera.Far : near + 1f;
+        var far = MathF.Min(farRaw, near + 3f);
 
         var tanHalf = MathF.Tan(fov * 0.5f);
         var nearH = tanHalf * near;
@@ -180,6 +188,9 @@ public static class EntityGizmos
         var v = color.ToVector4();
         return new Vector4(v.X, v.Y, v.Z, 1f);
     }
+
+    private static bool IsFinite(Vector3 v) =>
+        float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
 
     private static Vector3 SafeNormalize(Vector3 value, Vector3 fallback)
     {

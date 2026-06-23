@@ -270,4 +270,41 @@ public class EntityGizmosTests
         Assert.Equal(12, lines.Count);
         Assert.All(lines, l => Assert.Equal(new Vector4(1, 1, 0.3f, 1), l.Color));
     }
+
+    [Fact]
+    public void Camera3D_NonFiniteFov_FallsBackToFiniteFrustum()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(
+            entity,
+            new Camera3D(
+                new Vector3(0, 0, 5),
+                Vector3.Zero,
+                Vector3.UnitY,
+                float.PositiveInfinity, // Fov
+                0.1f,
+                100f
+            )
+        );
+
+        var lines = Build(world, entity);
+
+        // Still a complete frustum, and no NaN/Inf leaked into the vertices.
+        Assert.Equal(12, lines.Count);
+        Assert.All(
+            lines,
+            l =>
+            {
+                Assert.True(
+                    float.IsFinite(l.Start.X)
+                        && float.IsFinite(l.Start.Y)
+                        && float.IsFinite(l.Start.Z)
+                );
+                Assert.True(
+                    float.IsFinite(l.End.X) && float.IsFinite(l.End.Y) && float.IsFinite(l.End.Z)
+                );
+            }
+        );
+    }
 }

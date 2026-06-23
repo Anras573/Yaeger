@@ -117,6 +117,58 @@ public class GizmoBuilderTests
     }
 
     [Fact]
+    public void AddCircle_NonFiniteRadius_EmitsNothing()
+    {
+        var builder = new GizmoBuilder();
+
+        builder.AddCircle(Vector3.Zero, Vector3.UnitX, Vector3.UnitZ, float.NaN, Vector4.One);
+        builder.AddCircle(
+            Vector3.Zero,
+            Vector3.UnitX,
+            Vector3.UnitZ,
+            float.PositiveInfinity,
+            Vector4.One
+        );
+
+        Assert.Empty(builder.Lines);
+    }
+
+    [Fact]
+    public void AddArrow_NonFiniteEndpoint_EmitsNothing()
+    {
+        var builder = new GizmoBuilder();
+
+        builder.AddArrow(Vector3.Zero, new Vector3(float.NaN, 0, 0), Vector4.One, 0.5f);
+        builder.AddArrow(new Vector3(float.PositiveInfinity, 0, 0), Vector3.One, Vector4.One, 0.5f);
+
+        Assert.Empty(builder.Lines);
+    }
+
+    [Fact]
+    public void AddWireCone_NonFiniteInput_EmitsNothing()
+    {
+        var builder = new GizmoBuilder();
+
+        // Non-finite direction, then non-finite base radius.
+        builder.AddWireCone(
+            Vector3.Zero,
+            new Vector3(float.NaN, 0, 0),
+            height: 4f,
+            baseRadius: 2f,
+            Vector4.One
+        );
+        builder.AddWireCone(
+            Vector3.Zero,
+            -Vector3.UnitY,
+            height: 4f,
+            baseRadius: float.PositiveInfinity,
+            Vector4.One
+        );
+
+        Assert.Empty(builder.Lines);
+    }
+
+    [Fact]
     public void AddWireSphere_EmitsThreeOrthogonalCircles()
     {
         var builder = new GizmoBuilder();
