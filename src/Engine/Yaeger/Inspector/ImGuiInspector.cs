@@ -39,8 +39,10 @@ public sealed class ImGuiInspector : IDisposable
     private readonly GizmoBuilder _gizmoBuilder = new();
 
     /// <summary>
-    /// When true (the default), the selected entity is highlighted in the 3D scene with gizmos.
-    /// Requires a <see cref="Camera3D"/> in the world; purely 2D scenes show no gizmos.
+    /// When true (the default), the selected entity is highlighted in the scene with gizmos.
+    /// 3D entities are projected through the world's <see cref="Camera3D"/>; 2D entities
+    /// (<see cref="Transform2D"/> / <see cref="Camera2D"/>) through the active <see cref="Camera2D"/>,
+    /// falling back to NDC-direct when the 2D scene has no camera.
     /// </summary>
     public bool ShowGizmos { get; set; } = true;
 
@@ -153,7 +155,9 @@ public sealed class ImGuiInspector : IDisposable
 
     /// <summary>
     /// Draws the world-space gizmos for the current selection so the user can see what they are
-    /// editing. Needs a <see cref="Camera3D"/> to know how to project; no-ops without one.
+    /// editing. Projects through the world's <see cref="Camera3D"/> for 3D entities and a
+    /// <see cref="Camera2D"/>-derived (or identity) matrix for 2D entities; no-ops when it can't
+    /// resolve a projection.
     /// </summary>
     private void RenderGizmos()
     {
@@ -164,7 +168,7 @@ public sealed class ImGuiInspector : IDisposable
         if (!_world.Entities.Contains(entity))
             return;
 
-        if (!TryGetSceneViewProjection(out var viewProj, out var aspectRatio))
+        if (!TryGetSceneViewProjection(entity, out var viewProj, out var aspectRatio))
             return;
 
         _gizmoBuilder.Clear();
@@ -172,12 +176,33 @@ public sealed class ImGuiInspector : IDisposable
         _gizmoRenderer.Render(_gizmoBuilder.Lines, viewProj);
     }
 
-    // Resolves the active 3D camera's view-projection (and aspect) from the world, mirroring how
-    // MeshRenderSystem picks the first Camera3D. Returns false for purely 2D scenes.
-    private bool TryGetSceneViewProjection(out Matrix4x4 viewProj, out float aspectRatio)
+    // Resolves the view-projection (and aspect) used to draw gizmos for the selected entity.
+    //
+    // A selected 2D entity is projected through the 2D pipeline regardless of any 3D camera, since
+    // the two live in different spaces: mirror RenderSystem — the first Camera2D wins, and a scene
+    // with no Camera2D falls back to identity (NDC-direct), exactly as the 2D renderer does. So
+    // even a camera-less Pong-style scene shows gizmos. Other entities project through the active
+    // 3D camera (mirroring MeshRenderSystem); a 3D scene with no Camera3D shows nothing.
+    private bool TryGetSceneViewProjection(
+        Entity entity,
+        out Matrix4x4 viewProj,
+        out float aspectRatio
+    )
     {
         var size = _window.Size;
         aspectRatio = size.Y > 0f ? size.X / size.Y : 1f;
+
+        if (IsTwoDimensional(entity))
+        {
+            foreach (var (_, camera) in _world.GetStore<Camera2D>().All())
+            {
+                viewProj = camera.ViewProjection(aspectRatio);
+                return true;
+            }
+
+            viewProj = Matrix4x4.Identity;
+            return true;
+        }
 
         foreach (var (_, camera) in _world.GetStore<Camera3D>().All())
         {
@@ -188,6 +213,10 @@ public sealed class ImGuiInspector : IDisposable
         viewProj = Matrix4x4.Identity;
         return false;
     }
+
+    private bool IsTwoDimensional(Entity entity) =>
+        _world.TryGetComponent<Transform2D>(entity, out _)
+        || _world.TryGetComponent<Camera2D>(entity, out _);
 
     // ── Main window ──────────────────────────────────────────────────────────────
 

@@ -13,6 +13,7 @@ namespace Yaeger.Inspector;
 public static class EntityGizmos
 {
     private const float AxisLength = 0.5f;
+    private const float Axis2DLength = 0.5f;
     private const float DirectionalArrowLength = 1.5f;
     private const float DirectionalSunRadius = 0.15f;
     private const float ArrowHeadSize = 0.18f;
@@ -23,11 +24,19 @@ public static class EntityGizmos
 
     /// <summary>
     /// Appends the gizmos for <paramref name="entity"/> to <paramref name="builder"/> based on the
-    /// components it carries. <paramref name="aspectRatio"/> is only used to shape a
-    /// <see cref="Camera3D"/> frustum.
+    /// components it carries. <paramref name="aspectRatio"/> shapes a <see cref="Camera3D"/> frustum
+    /// and a <see cref="Camera2D"/> viewport rectangle.
     /// </summary>
     public static void Build(World world, Entity entity, float aspectRatio, GizmoBuilder builder)
     {
+        // 2D gizmos live in the Z = 0 plane and are projected through a Camera2D-derived (or
+        // identity) view-projection by the inspector, independently of the 3D path below.
+        if (world.TryGetComponent<Transform2D>(entity, out var transform2D))
+            BuildTransform2D(builder, transform2D);
+
+        if (world.TryGetComponent<Camera2D>(entity, out var camera2D))
+            BuildCamera2D(builder, camera2D, aspectRatio);
+
         var hasTransform = world.TryGetComponent<Transform3D>(entity, out var transform);
         var anchor = hasTransform ? transform.Position : Vector3.Zero;
 
@@ -52,6 +61,31 @@ public static class EntityGizmos
 
         if (world.TryGetComponent<Camera3D>(entity, out var camera))
             BuildCamera(builder, camera, aspectRatio);
+    }
+
+    private static void BuildTransform2D(GizmoBuilder builder, Transform2D transform)
+    {
+        // Oriented X/Y axes mark the origin and facing; the bounds rectangle traces the sprite quad
+        // (the renderer draws a unit quad scaled by Transform2D.Scale), so it lines up with what is
+        // actually rendered.
+        builder.AddAxes2D(transform.Position, transform.Rotation, Axis2DLength);
+        builder.AddRect(
+            transform.Position,
+            transform.Scale * 0.5f,
+            transform.Rotation,
+            BoundsColor
+        );
+    }
+
+    private static void BuildCamera2D(GizmoBuilder builder, Camera2D camera, float aspectRatio)
+    {
+        // Mirror Camera2D.ViewProjection's guards so a default/invalid camera still draws a sane
+        // rectangle. At zoom z the visible world span is [-aspect/z, aspect/z] × [-1/z, 1/z].
+        var aspect = aspectRatio > 0f && float.IsFinite(aspectRatio) ? aspectRatio : 16f / 9f;
+        var zoom = camera.Zoom > 0f && float.IsFinite(camera.Zoom) ? camera.Zoom : 1f;
+
+        var halfExtents = new Vector2(aspect / zoom, 1f / zoom);
+        builder.AddRect(camera.Position, halfExtents, camera.Rotation, CameraColor);
     }
 
     private static void BuildDirectionalLight(

@@ -237,6 +237,86 @@ public class GizmoBuilderTests
         }
     }
 
+    [Fact]
+    public void AddAxes2D_Identity_EmitsRedXAndGreenYInZPlane()
+    {
+        var builder = new GizmoBuilder();
+
+        builder.AddAxes2D(Vector2.Zero, 0f, 2f);
+
+        Assert.Equal(2, builder.Lines.Count);
+        var x = builder.Lines[0];
+        var y = builder.Lines[1];
+
+        Assert.Equal(new Vector3(2, 0, 0), x.End);
+        Assert.Equal(new Vector3(0, 2, 0), y.End);
+        Assert.True(x.Color.X > x.Color.Y && x.Color.X > x.Color.Z); // red dominant
+        Assert.True(y.Color.Y > y.Color.X && y.Color.Y > y.Color.Z); // green dominant
+        Assert.Equal(0f, x.End.Z);
+        Assert.Equal(0f, y.End.Z);
+    }
+
+    [Fact]
+    public void AddAxes2D_NonFinite_EmitsNothing()
+    {
+        var builder = new GizmoBuilder();
+
+        builder.AddAxes2D(new Vector2(float.NaN, 0), 0f, 1f);
+        builder.AddAxes2D(Vector2.Zero, float.PositiveInfinity, 1f);
+
+        Assert.Empty(builder.Lines);
+    }
+
+    [Fact]
+    public void AddRect_EmitsFourClosedEdgesInZPlane()
+    {
+        var builder = new GizmoBuilder();
+
+        builder.AddRect(new Vector2(1, 2), new Vector2(3, 1), 0f, Vector4.One);
+
+        Assert.Equal(4, builder.Lines.Count);
+        // Corners sit at (1 ± 3, 2 ± 1), all in the Z = 0 plane.
+        foreach (var line in builder.Lines)
+        {
+            Assert.Equal(0f, line.Start.Z);
+            Assert.Equal(0f, line.End.Z);
+            Assert.InRange(line.Start.X, -2f, 4f);
+            Assert.InRange(line.Start.Y, 1f, 3f);
+        }
+        // The edges form a closed loop: each end meets the next start.
+        for (var i = 0; i < 4; i++)
+        {
+            var next = (i + 1) % 4;
+            Assert.Equal(builder.Lines[i].End, builder.Lines[next].Start);
+        }
+    }
+
+    [Fact]
+    public void AddRect_Rotation90_SwapsExtents()
+    {
+        var builder = new GizmoBuilder();
+
+        // 90° rotation maps the X half-extent (2) onto the Y axis.
+        builder.AddRect(Vector2.Zero, new Vector2(2, 1), MathF.PI / 2f, Vector4.One);
+
+        var maxY = builder.Lines.Max(l => MathF.Max(MathF.Abs(l.Start.Y), MathF.Abs(l.End.Y)));
+        var maxX = builder.Lines.Max(l => MathF.Max(MathF.Abs(l.Start.X), MathF.Abs(l.End.X)));
+        Assert.Equal(2f, maxY, 3);
+        Assert.Equal(1f, maxX, 3);
+    }
+
+    [Fact]
+    public void AddRect_NonFinite_EmitsNothing()
+    {
+        var builder = new GizmoBuilder();
+
+        builder.AddRect(new Vector2(float.NaN, 0), Vector2.One, 0f, Vector4.One);
+        builder.AddRect(Vector2.Zero, new Vector2(float.PositiveInfinity, 1), 0f, Vector4.One);
+        builder.AddRect(Vector2.Zero, Vector2.One, float.NaN, Vector4.One);
+
+        Assert.Empty(builder.Lines);
+    }
+
     private static void AssertWithinBounds(Vector3 point, Aabb3D box)
     {
         Assert.InRange(point.X, box.Min.X - 1e-4f, box.Max.X + 1e-4f);
