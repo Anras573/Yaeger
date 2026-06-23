@@ -55,9 +55,14 @@ public class EntityGizmosTests
 
         var lines = Build(world, entity);
 
-        // The box edges should sit around the world position (10 ± 1 on X).
-        Assert.Contains(lines, l => l.Start.X is >= 9f and <= 11f && l.Start.X > 1f);
+        // Verify the actual box extents are present (min X = 9, max X = 11). The 0.5-length
+        // Transform3D axes only reach X = 10.5, so hitting 9 and 11 proves the transformed Aabb3D
+        // bounds are drawn rather than just the axes.
+        Assert.Contains(lines, l => Near(l.Start.X, 9f) || Near(l.End.X, 9f));
+        Assert.Contains(lines, l => Near(l.Start.X, 11f) || Near(l.End.X, 11f));
     }
+
+    private static bool Near(float a, float b) => MathF.Abs(a - b) < 1e-3f;
 
     [Fact]
     public void DirectionalLight_DrawsRaysAlongTravelDirection()
@@ -127,6 +132,93 @@ public class EntityGizmosTests
         var maxExtent = lines.Max(l => MathF.Max(l.Start.Length(), l.End.Length()));
         Assert.Equal(5f, maxExtent, 2);
         Assert.Contains(lines, l => l.Color == new Vector4(1, 0, 0, 1));
+    }
+
+    [Fact]
+    public void PointLight_ZeroRange_DrawsOnlyPositionCoreNoReachSphere()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+        // Range 0 disables the light in the renderer, so no reach sphere should be drawn.
+        world.AddComponent(
+            entity,
+            new PointLight
+            {
+                Color = Color.Red,
+                Intensity = 1f,
+                Range = 0f,
+            }
+        );
+
+        var lines = Build(world, entity);
+
+        // Only the small position core remains (axes aside), so nothing extends near a 1-unit reach.
+        var maxExtent = lines.Max(l => MathF.Max(l.Start.Length(), l.End.Length()));
+        Assert.True(maxExtent < 0.6f, $"expected a small core, but a line reached {maxExtent}");
+    }
+
+    [Fact]
+    public void SpotLight_ZeroRange_DrawsNoCone()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+        world.AddComponent(
+            entity,
+            new SpotLight
+            {
+                Color = Color.White,
+                Intensity = 1f,
+                Direction = -Vector3.UnitY,
+                InnerConeAngle = MathF.PI / 12f,
+                OuterConeAngle = MathF.PI / 6f,
+                Range = 0f,
+            }
+        );
+
+        var lines = Build(world, entity);
+
+        // Only the Transform3D axes remain (length 0.5); the disabled cone is skipped.
+        Assert.All(lines, l => Assert.True(l.End.Length() <= 0.5f + 1e-3f));
+    }
+
+    [Fact]
+    public void SpotLight_NonFiniteOuterAngle_ProducesFiniteVertices()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+        world.AddComponent(
+            entity,
+            new SpotLight
+            {
+                Color = Color.White,
+                Intensity = 1f,
+                Direction = -Vector3.UnitY,
+                InnerConeAngle = 0f,
+                OuterConeAngle = float.NaN,
+                Range = 5f,
+            }
+        );
+
+        var lines = Build(world, entity);
+
+        Assert.NotEmpty(lines);
+        Assert.All(
+            lines,
+            l =>
+            {
+                Assert.True(
+                    float.IsFinite(l.Start.X)
+                        && float.IsFinite(l.Start.Y)
+                        && float.IsFinite(l.Start.Z)
+                );
+                Assert.True(
+                    float.IsFinite(l.End.X) && float.IsFinite(l.End.Y) && float.IsFinite(l.End.Z)
+                );
+            }
+        );
     }
 
     [Fact]

@@ -91,25 +91,39 @@ public static class EntityGizmos
     private static void BuildPointLight(GizmoBuilder builder, Vector3 anchor, PointLight light)
     {
         var color = OpaqueColor(light.Color);
-        var range = light.Range > 0f ? light.Range : 1f;
 
-        // The wire sphere traces the range (where the contribution falls to zero); a small core
-        // marks the exact position even when the range sphere is large.
-        builder.AddWireSphere(anchor, range, color);
-        builder.AddWireSphere(anchor, MathF.Min(0.1f, range * 0.1f), color, segments: 12);
+        // A non-positive (or non-finite) range disables the light in the renderer (attenuate
+        // returns 0), so don't draw a misleading reach sphere for it. The small core is always
+        // drawn so the light's position stays visible even when disabled.
+        if (float.IsFinite(light.Range) && light.Range > 0f)
+        {
+            builder.AddWireSphere(anchor, light.Range, color);
+            builder.AddWireSphere(anchor, MathF.Min(0.1f, light.Range * 0.1f), color, segments: 12);
+        }
+        else
+        {
+            builder.AddWireSphere(anchor, 0.1f, color, segments: 12);
+        }
     }
 
     private static void BuildSpotLight(GizmoBuilder builder, Vector3 anchor, SpotLight light)
     {
+        // A non-positive (or non-finite) range disables the light, so skip the cone entirely — the
+        // Transform3D axes still mark the light's position and orientation.
+        if (!(float.IsFinite(light.Range) && light.Range > 0f))
+            return;
+
         var color = OpaqueColor(light.Color);
-        var range = light.Range > 0f ? light.Range : 1f;
         var direction = SafeNormalize(light.Direction, -Vector3.UnitY);
 
-        // Base radius from the outer cone half-angle, clamped just below 90° so tan stays finite.
-        var outer = Math.Clamp(light.OuterConeAngle, 0f, 1.55f);
-        var baseRadius = range * MathF.Tan(outer);
+        // Coerce a non-finite outer angle to a safe default before clamping so a NaN/Inf set by a
+        // script can't propagate through tan() into the generated vertices. Clamp just below 90° so
+        // tan stays finite.
+        var outerRaw = float.IsFinite(light.OuterConeAngle) ? light.OuterConeAngle : MathF.PI / 6f;
+        var outer = Math.Clamp(outerRaw, 0f, 1.55f);
+        var baseRadius = light.Range * MathF.Tan(outer);
 
-        builder.AddWireCone(anchor, direction, range, baseRadius, color);
+        builder.AddWireCone(anchor, direction, light.Range, baseRadius, color);
     }
 
     private static void BuildCamera(GizmoBuilder builder, Camera3D camera, float aspectRatio)
