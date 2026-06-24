@@ -26,6 +26,152 @@ public class EntityGizmosTests
     }
 
     [Fact]
+    public void Transform2D_DrawsAxesAndScaledBounds()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        // Position (2,3), no rotation, scale (4,2) → the sprite quad spans X∈[0,4], Y∈[2,4].
+        world.AddComponent(entity, new Transform2D(new Vector2(2, 3), 0f, new Vector2(4, 2)));
+
+        var lines = Build(world, entity);
+
+        // Two axes (X, Y) + four bounds edges.
+        Assert.Equal(6, lines.Count);
+        // Axes anchored at the entity position.
+        Assert.Contains(lines, l => l.Start == new Vector3(2, 3, 0));
+        // Bounds reach the scaled sprite corners (half-extents 2 × 1 → X = 4, Y = 4).
+        Assert.Contains(lines, l => Near(l.Start.X, 4f) || Near(l.End.X, 4f));
+        Assert.Contains(lines, l => Near(l.Start.Y, 4f) || Near(l.End.Y, 4f));
+        // 2D gizmos live in the Z = 0 plane.
+        Assert.All(
+            lines,
+            l =>
+            {
+                Assert.Equal(0f, l.Start.Z);
+                Assert.Equal(0f, l.End.Z);
+            }
+        );
+        // Bounds rectangle is amber.
+        Assert.Contains(lines, l => l.Color == new Vector4(1f, 0.75f, 0.2f, 1f));
+    }
+
+    [Fact]
+    public void Transform2D_RotationOrientsAxesAndBounds()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        // 90° rotation maps the local +X axis onto world +Y.
+        world.AddComponent(entity, new Transform2D(Vector2.Zero, MathF.PI / 2f, new Vector2(2, 1)));
+
+        var lines = Build(world, entity);
+
+        // The red X axis (first line) now points up the Y axis.
+        var xAxis = lines[0];
+        Assert.True(xAxis.Color.X > xAxis.Color.Y && xAxis.Color.X > xAxis.Color.Z);
+        Assert.True(Near(xAxis.End.X, 0f) && xAxis.End.Y > 0.4f);
+    }
+
+    [Fact]
+    public void Camera2D_DrawsViewportRectangle()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Camera2D(Vector2.Zero, 1f, 0f));
+
+        var lines = Build(world, entity);
+
+        // A single rectangle (4 edges), coloured yellow.
+        Assert.Equal(4, lines.Count);
+        Assert.All(lines, l => Assert.Equal(new Vector4(1f, 1f, 0.3f, 1f), l.Color));
+        // At zoom 1 the visible span is [-aspect, aspect] × [-1, 1].
+        var maxX = lines.Max(l => MathF.Max(MathF.Abs(l.Start.X), MathF.Abs(l.End.X)));
+        var maxY = lines.Max(l => MathF.Max(MathF.Abs(l.Start.Y), MathF.Abs(l.End.Y)));
+        Assert.Equal(Aspect, maxX, 3);
+        Assert.Equal(1f, maxY, 3);
+    }
+
+    [Fact]
+    public void Camera2D_ZoomNarrowsViewport()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Camera2D(Vector2.Zero, 2f, 0f));
+
+        var lines = Build(world, entity);
+
+        // Zoom 2 halves the visible span: [-aspect/2, aspect/2] × [-0.5, 0.5].
+        var maxX = lines.Max(l => MathF.Max(MathF.Abs(l.Start.X), MathF.Abs(l.End.X)));
+        var maxY = lines.Max(l => MathF.Max(MathF.Abs(l.Start.Y), MathF.Abs(l.End.Y)));
+        Assert.Equal(Aspect / 2f, maxX, 3);
+        Assert.Equal(0.5f, maxY, 3);
+    }
+
+    [Fact]
+    public void Camera2D_DefaultZeroZoom_ProducesFiniteViewport()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        // default(Camera2D) has Zoom = 0, which Camera2D.ViewProjection treats as 1.
+        world.AddComponent(entity, default(Camera2D));
+
+        var lines = Build(world, entity);
+
+        Assert.Equal(4, lines.Count);
+        Assert.All(
+            lines,
+            l =>
+            {
+                Assert.True(float.IsFinite(l.Start.X) && float.IsFinite(l.Start.Y));
+                Assert.True(float.IsFinite(l.End.X) && float.IsFinite(l.End.Y));
+            }
+        );
+    }
+
+    [Fact]
+    public void Camera2D_InfiniteZoom_CollapsesToFinitePoint()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        // Match Camera2D.ViewProjection: a +Infinity zoom is kept, collapsing the visible span to a
+        // point (aspect/∞ = 0). The emitted vertices must stay finite — and all coincide at the
+        // camera position.
+        world.AddComponent(entity, new Camera2D(new Vector2(3, 4), float.PositiveInfinity, 0f));
+
+        var lines = Build(world, entity);
+
+        Assert.Equal(4, lines.Count);
+        Assert.All(
+            lines,
+            l =>
+            {
+                Assert.Equal(new Vector3(3, 4, 0), l.Start);
+                Assert.Equal(new Vector3(3, 4, 0), l.End);
+            }
+        );
+    }
+
+    [Fact]
+    public void MixedDimensions_EmitsOnly2DGizmos()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        // An entity carrying both 2D and 3D components (the Add Component menu allows this) is
+        // treated as 2D for gizmos, matching the 2D projection the inspector would pick — so the
+        // far-off 3D axes must not be emitted with a 2D view-projection.
+        world.AddComponent(entity, new Transform2D(Vector2.Zero, 0f, Vector2.One));
+        world.AddComponent(
+            entity,
+            new Transform3D(new Vector3(50, 0, 0), Quaternion.Identity, Vector3.One)
+        );
+
+        var lines = Build(world, entity);
+
+        // Only the 2D gizmos (2 axes + 4 bounds edges); the 3D axes anchored at X = 50 are skipped.
+        Assert.Equal(6, lines.Count);
+        Assert.DoesNotContain(lines, l => l.Start.X > 1f || l.End.X > 1f);
+    }
+
+    [Fact]
     public void Transform3D_DrawsOrientationAxes()
     {
         var world = new World();

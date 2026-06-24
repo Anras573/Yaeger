@@ -13,6 +13,7 @@ namespace Yaeger.Inspector;
 public static class EntityGizmos
 {
     private const float AxisLength = 0.5f;
+    private const float Axis2DLength = 0.5f;
     private const float DirectionalArrowLength = 1.5f;
     private const float DirectionalSunRadius = 0.15f;
     private const float ArrowHeadSize = 0.18f;
@@ -23,11 +24,35 @@ public static class EntityGizmos
 
     /// <summary>
     /// Appends the gizmos for <paramref name="entity"/> to <paramref name="builder"/> based on the
-    /// components it carries. <paramref name="aspectRatio"/> is only used to shape a
-    /// <see cref="Camera3D"/> frustum.
+    /// components it carries. <paramref name="aspectRatio"/> shapes a <see cref="Camera3D"/> frustum
+    /// and a <see cref="Camera2D"/> viewport rectangle.
     /// </summary>
     public static void Build(World world, Entity entity, float aspectRatio, GizmoBuilder builder)
     {
+        // 2D gizmos live in the Z = 0 plane and are projected through a Camera2D-derived (or
+        // identity) view-projection by the inspector. An entity is treated as either 2D or 3D for
+        // gizmo purposes — never both — to stay consistent with
+        // ImGuiInspector.TryGetSceneViewProjection, which switches to that 2D view whenever a
+        // Transform2D/Camera2D is present. Emitting 3D gizmos too would draw them with the wrong
+        // (2D) projection for an entity that happens to carry both (the Add Component menu allows
+        // it), so once any 2D gizmo is emitted we skip the 3D path entirely.
+        var has2D = false;
+
+        if (world.TryGetComponent<Transform2D>(entity, out var transform2D))
+        {
+            BuildTransform2D(builder, transform2D);
+            has2D = true;
+        }
+
+        if (world.TryGetComponent<Camera2D>(entity, out var camera2D))
+        {
+            BuildCamera2D(builder, camera2D, aspectRatio);
+            has2D = true;
+        }
+
+        if (has2D)
+            return;
+
         var hasTransform = world.TryGetComponent<Transform3D>(entity, out var transform);
         var anchor = hasTransform ? transform.Position : Vector3.Zero;
 
@@ -52,6 +77,33 @@ public static class EntityGizmos
 
         if (world.TryGetComponent<Camera3D>(entity, out var camera))
             BuildCamera(builder, camera, aspectRatio);
+    }
+
+    private static void BuildTransform2D(GizmoBuilder builder, Transform2D transform)
+    {
+        // Oriented X/Y axes mark the origin and facing; the bounds rectangle traces the sprite quad
+        // (the renderer draws a unit quad scaled by Transform2D.Scale), so it lines up with what is
+        // actually rendered.
+        builder.AddAxes2D(transform.Position, transform.Rotation, Axis2DLength);
+        builder.AddRect(
+            transform.Position,
+            transform.Scale * 0.5f,
+            transform.Rotation,
+            BoundsColor
+        );
+    }
+
+    private static void BuildCamera2D(GizmoBuilder builder, Camera2D camera, float aspectRatio)
+    {
+        // Mirror Camera2D.ViewProjection's zoom guard exactly (Zoom > 0 ? Zoom : 1) so the drawn
+        // rectangle agrees with what the camera actually frames. A +Infinity zoom is kept as-is,
+        // matching the renderer: aspect/∞ and 1/∞ both collapse to 0, so the viewport shrinks to a
+        // point while staying finite. Aspect is separately guarded against a non-finite value.
+        var aspect = aspectRatio > 0f && float.IsFinite(aspectRatio) ? aspectRatio : 16f / 9f;
+        var zoom = camera.Zoom > 0f ? camera.Zoom : 1f;
+
+        var halfExtents = new Vector2(aspect / zoom, 1f / zoom);
+        builder.AddRect(camera.Position, halfExtents, camera.Rotation, CameraColor);
     }
 
     private static void BuildDirectionalLight(

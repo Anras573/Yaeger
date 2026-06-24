@@ -61,11 +61,13 @@ cover the engine's built-in components:
 ## Seeing the selected entity in the world
 
 Editing a light by typing numbers is hard when you can't see what they do. Whenever an entity is
-selected, the inspector draws **selection gizmos** directly into the 3D scene so you can see *where*
+selected, the inspector draws **selection gizmos** directly into the scene so you can see *where*
 the entity is and *which way it faces* while you drag its values:
 
 | Component | Gizmo |
 | --- | --- |
+| `Transform2D` | red/green X/Y orientation axes at the entity's position plus an amber rectangle tracing the sprite's scaled, rotated bounds |
+| `Camera2D` | a yellow rectangle outlining the camera's visible viewport (derived from `Position`, `Zoom`, `Rotation`) |
 | `Transform3D` | RGB orientation axes (X red, Y green, Z blue) at the entity's position |
 | `Aabb3D` (meshes) | an amber wireframe box around the mesh's world-space bounds |
 | `DirectionalLight` | a small "sun" with a bundle of parallel rays pointing the way the light travels |
@@ -77,10 +79,13 @@ Lights and the camera are coloured to match, so a selected red point light shows
 Gizmos are drawn on top of the scene (no depth testing), so a light tucked behind a wall is still
 visible while you position it.
 
-Gizmos are projected through the first `Camera3D` in the world (the same camera `MeshRenderSystem`
-renders through), so they line up exactly with the rendered scene. Purely 2D scenes — which have no
-`Camera3D` — show no gizmos. The overlay is on by default; untick **Show selection gizmos** at the
-bottom of the inspector (or set `inspector.ShowGizmos = false`) to hide it.
+Each gizmo is projected so it lines up exactly with the rendered scene. A selected 3D entity is
+drawn through the first `Camera3D` in the world (the same camera `MeshRenderSystem` renders
+through). A selected 2D entity (`Transform2D` / `Camera2D`) is drawn through the first `Camera2D`,
+mirroring `RenderSystem`; if the 2D scene has no camera, gizmos fall back to NDC-direct exactly as
+the 2D renderer does, so even a camera-less Pong-style scene shows them. The overlay is on by
+default; untick **Show selection gizmos** at the bottom of the inspector (or set
+`inspector.ShowGizmos = false`) to hide it.
 
 > Because the gizmos read the live world every frame, dragging a `DirectionalLight`'s direction or a
 > `SpotLight`'s cone angle updates the gizmo immediately — no extra wiring beyond the standard

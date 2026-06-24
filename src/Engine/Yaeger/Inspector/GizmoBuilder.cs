@@ -39,6 +39,65 @@ public sealed class GizmoBuilder
         AddLine(origin, origin + forward, new Vector4(0.3f, 0.5f, 1f, 1f));
     }
 
+    /// <summary>
+    /// Adds 2D orientation axes (X red, Y green) of the given <paramref name="length"/> lying in the
+    /// Z = 0 plane, rotated by <paramref name="rotationRadians"/> about Z so they reflect a
+    /// <see cref="Yaeger.Graphics.Transform2D"/>'s orientation, anchored at <paramref name="origin"/>.
+    /// </summary>
+    public void AddAxes2D(Vector2 origin, float rotationRadians, float length)
+    {
+        if (!IsFinite(origin) || !float.IsFinite(rotationRadians) || !float.IsFinite(length))
+            return;
+
+        var cos = MathF.Cos(rotationRadians);
+        var sin = MathF.Sin(rotationRadians);
+        var o = new Vector3(origin.X, origin.Y, 0f);
+
+        // Rotated X/Y basis vectors in the Z = 0 plane. Colours match AddAxes (X red, Y green).
+        var right = new Vector3(cos, sin, 0f) * length;
+        var up = new Vector3(-sin, cos, 0f) * length;
+
+        AddLine(o, o + right, new Vector4(1f, 0.2f, 0.2f, 1f));
+        AddLine(o, o + up, new Vector4(0.2f, 1f, 0.2f, 1f));
+    }
+
+    /// <summary>
+    /// Adds the four edges of a rectangle lying in the Z = 0 plane, centred at
+    /// <paramref name="center"/> with the given <paramref name="halfExtents"/> and rotated by
+    /// <paramref name="rotationRadians"/> about Z. Used to outline 2D sprite bounds and the
+    /// <see cref="Yaeger.Graphics.Camera2D"/> viewport.
+    /// </summary>
+    public void AddRect(Vector2 center, Vector2 halfExtents, float rotationRadians, Vector4 color)
+    {
+        // Reject non-finite inputs up front, matching the other builders: a NaN/Inf would otherwise
+        // flow straight into the emitted vertices.
+        if (!IsFinite(center) || !IsFinite(halfExtents) || !float.IsFinite(rotationRadians))
+            return;
+
+        var cos = MathF.Cos(rotationRadians);
+        var sin = MathF.Sin(rotationRadians);
+
+        // Local corners (CCW), rotated into world space and lifted to Z = 0.
+        Span<Vector2> local =
+        [
+            new(-halfExtents.X, -halfExtents.Y),
+            new(halfExtents.X, -halfExtents.Y),
+            new(halfExtents.X, halfExtents.Y),
+            new(-halfExtents.X, halfExtents.Y),
+        ];
+
+        Span<Vector3> corners = stackalloc Vector3[4];
+        for (var i = 0; i < 4; i++)
+        {
+            var x = local[i].X * cos - local[i].Y * sin;
+            var y = local[i].X * sin + local[i].Y * cos;
+            corners[i] = new Vector3(center.X + x, center.Y + y, 0f);
+        }
+
+        for (var i = 0; i < 4; i++)
+            AddLine(corners[i], corners[(i + 1) % 4], color);
+    }
+
     /// <summary>Adds an arrow from <paramref name="from"/> to <paramref name="to"/> with a small 3D arrowhead.</summary>
     public void AddArrow(Vector3 from, Vector3 to, Vector4 color, float headSize)
     {
@@ -172,6 +231,8 @@ public sealed class GizmoBuilder
 
     private static bool IsFinite(Vector3 v) =>
         float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
+
+    private static bool IsFinite(Vector2 v) => float.IsFinite(v.X) && float.IsFinite(v.Y);
 
     // Builds an orthonormal basis (u, v) spanning the plane perpendicular to the unit vector dir.
     private static void Basis(Vector3 dir, out Vector3 u, out Vector3 v)
