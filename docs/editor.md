@@ -91,6 +91,35 @@ default; untick **Show selection gizmos** at the bottom of the inspector (or set
 > `SpotLight`'s cone angle updates the gizmo immediately — no extra wiring beyond the standard
 > *scene first, overlay last* render order.
 
+### Customising the gizmo appearance
+
+The default colours and sizes suit a roughly unit-scaled scene, but a 0.5-unit axis is invisible in a
+1000-unit world and the amber bounds may clash with a particular art style. `inspector.GizmoStyle`
+exposes a runtime [`GizmoStyle`](../src/Engine/Yaeger/Inspector/GizmoStyle.cs) you can retune — every
+value defaults to the look described above, so you only set what you want to change:
+
+```csharp
+// Make gizmos usable in a large-scale scene and tweak a couple of colours.
+inspector.GizmoStyle.SizeMultiplier = 50f;                 // scale axes, arrows, light cores
+inspector.GizmoStyle.BoundsColor = new Vector4(0, 1, 1, 1); // cyan mesh outlines
+inspector.GizmoStyle.DepthTest = true;                      // hide gizmos behind geometry
+inspector.GizmoStyle.LineWidth = 2f;                        // thicker lines
+```
+
+| Option(s) | Effect |
+| --- | --- |
+| `AxisXColor`, `AxisYColor`, `AxisZColor` | Colours of the 3D/2D orientation axes (default red / green / blue) |
+| `BoundsColor` | Mesh & sprite bounds outline colour (default amber) |
+| `CameraColor` | `Camera2D` viewport and `Camera3D` frustum colour (default yellow) |
+| `DirectionalLightColor`, `PointLightColor`, `SpotLightColor` | Override a light gizmo's colour; leave `null` (default) to keep using the light's own colour |
+| `SizeMultiplier` | Global scale for fixed-size elements (axes, directional arrows/rays/sun, point-light core). Range-driven shapes — the point-light reach sphere and the spot-light cone — keep showing the light's *actual* extent and are not scaled |
+| `AxisLength`, `Axis2DLength`, `DirectionalArrowLength`, `ArrowHeadSize`, `DirectionalRaySpread`, `DirectionalSunRadius`, `PointLightCoreSize` | Per-element base sizes (each then multiplied by `SizeMultiplier`) |
+| `SphereSegments`, `SunSphereSegments`, `PointLightCoreSegments`, `ConeSegments` | Tessellation of the circles/spheres/cone — raise for smoother shapes, lower to cut cost |
+| `DepthTest` | `false` (default) draws gizmos on top of everything; `true` lets scene geometry occlude them |
+| `LineWidth` | Gizmo line width in pixels (driver-dependent clamping applies) |
+
+The style is runtime-only — it is not saved with scenes.
+
 ### Adding, removing, and destroying
 
 - **Add Component** — pick a type from the drop-down and press **+**. The 3D components above all

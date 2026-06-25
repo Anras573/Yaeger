@@ -12,23 +12,22 @@ namespace Yaeger.Inspector;
 /// </summary>
 public static class EntityGizmos
 {
-    private const float AxisLength = 0.5f;
-    private const float Axis2DLength = 0.5f;
-    private const float DirectionalArrowLength = 1.5f;
-    private const float DirectionalSunRadius = 0.15f;
-    private const float ArrowHeadSize = 0.18f;
-
-    // Selected meshes are outlined in amber so they stand out against typical scene colours.
-    private static readonly Vector4 BoundsColor = new(1f, 0.75f, 0.2f, 1f);
-    private static readonly Vector4 CameraColor = new(1f, 1f, 0.3f, 1f);
-
     /// <summary>
     /// Appends the gizmos for <paramref name="entity"/> to <paramref name="builder"/> based on the
     /// components it carries. <paramref name="aspectRatio"/> shapes a <see cref="Camera3D"/> frustum
-    /// and a <see cref="Camera2D"/> viewport rectangle.
+    /// and a <see cref="Camera2D"/> viewport rectangle. <paramref name="style"/> tunes colours, sizes
+    /// and segment counts; when <c>null</c> a default style reproducing the original look is used.
     /// </summary>
-    public static void Build(World world, Entity entity, float aspectRatio, GizmoBuilder builder)
+    public static void Build(
+        World world,
+        Entity entity,
+        float aspectRatio,
+        GizmoBuilder builder,
+        GizmoStyle? style = null
+    )
     {
+        style ??= new GizmoStyle();
+        var scale = style.SizeMultiplier;
         // 2D gizmos live in the Z = 0 plane and are projected through a Camera2D-derived (or
         // identity) view-projection by the inspector. An entity is treated as either 2D or 3D for
         // gizmo purposes — never both — to stay consistent with
@@ -40,13 +39,13 @@ public static class EntityGizmos
 
         if (world.TryGetComponent<Transform2D>(entity, out var transform2D))
         {
-            BuildTransform2D(builder, transform2D);
+            BuildTransform2D(builder, transform2D, style, scale);
             has2D = true;
         }
 
         if (world.TryGetComponent<Camera2D>(entity, out var camera2D))
         {
-            BuildCamera2D(builder, camera2D, aspectRatio);
+            BuildCamera2D(builder, camera2D, aspectRatio, style);
             has2D = true;
         }
 
@@ -60,40 +59,63 @@ public static class EntityGizmos
         // especially. Drawn first so light/camera specific shapes layer on top.
         if (hasTransform)
         {
-            builder.AddAxes(anchor, transform.Rotation, AxisLength);
+            builder.AddAxes(
+                anchor,
+                transform.Rotation,
+                style.AxisLength * scale,
+                style.AxisXColor,
+                style.AxisYColor,
+                style.AxisZColor
+            );
 
             if (world.TryGetComponent<Aabb3D>(entity, out var aabb))
-                builder.AddTransformedBox(aabb, transform.ModelMatrix, BoundsColor);
+                builder.AddTransformedBox(aabb, transform.ModelMatrix, style.BoundsColor);
         }
 
         if (world.TryGetComponent<DirectionalLight>(entity, out var directional))
-            BuildDirectionalLight(builder, anchor, directional);
+            BuildDirectionalLight(builder, anchor, directional, style, scale);
 
         if (world.TryGetComponent<PointLight>(entity, out var point))
-            BuildPointLight(builder, anchor, point);
+            BuildPointLight(builder, anchor, point, style, scale);
 
         if (world.TryGetComponent<SpotLight>(entity, out var spot))
-            BuildSpotLight(builder, anchor, spot);
+            BuildSpotLight(builder, anchor, spot, style);
 
         if (world.TryGetComponent<Camera3D>(entity, out var camera))
-            BuildCamera(builder, camera, aspectRatio);
+            BuildCamera(builder, camera, aspectRatio, style);
     }
 
-    private static void BuildTransform2D(GizmoBuilder builder, Transform2D transform)
+    private static void BuildTransform2D(
+        GizmoBuilder builder,
+        Transform2D transform,
+        GizmoStyle style,
+        float scale
+    )
     {
         // Oriented X/Y axes mark the origin and facing; the bounds rectangle traces the sprite quad
         // (the renderer draws a unit quad scaled by Transform2D.Scale), so it lines up with what is
         // actually rendered.
-        builder.AddAxes2D(transform.Position, transform.Rotation, Axis2DLength);
+        builder.AddAxes2D(
+            transform.Position,
+            transform.Rotation,
+            style.Axis2DLength * scale,
+            style.AxisXColor,
+            style.AxisYColor
+        );
         builder.AddRect(
             transform.Position,
             transform.Scale * 0.5f,
             transform.Rotation,
-            BoundsColor
+            style.BoundsColor
         );
     }
 
-    private static void BuildCamera2D(GizmoBuilder builder, Camera2D camera, float aspectRatio)
+    private static void BuildCamera2D(
+        GizmoBuilder builder,
+        Camera2D camera,
+        float aspectRatio,
+        GizmoStyle style
+    )
     {
         // Mirror Camera2D.ViewProjection's zoom guard exactly (Zoom > 0 ? Zoom : 1) so the drawn
         // rectangle agrees with what the camera actually frames. A +Infinity zoom is kept as-is,
@@ -103,16 +125,18 @@ public static class EntityGizmos
         var zoom = camera.Zoom > 0f ? camera.Zoom : 1f;
 
         var halfExtents = new Vector2(aspect / zoom, 1f / zoom);
-        builder.AddRect(camera.Position, halfExtents, camera.Rotation, CameraColor);
+        builder.AddRect(camera.Position, halfExtents, camera.Rotation, style.CameraColor);
     }
 
     private static void BuildDirectionalLight(
         GizmoBuilder builder,
         Vector3 anchor,
-        DirectionalLight light
+        DirectionalLight light,
+        GizmoStyle style,
+        float scale
     )
     {
-        var color = OpaqueColor(light.Color);
+        var color = style.DirectionalLightColor ?? OpaqueColor(light.Color);
 
         // Direction points from the surface toward the source, so light *travels* the opposite way.
         // Visualise the travel direction as a bundle of parallel "sun ray" arrows — the standard
@@ -120,7 +144,12 @@ public static class EntityGizmos
         var travel = SafeNormalize(-light.Direction, -Vector3.UnitY);
         ParallelBasis(travel, out var u, out var v);
 
-        builder.AddWireSphere(anchor, DirectionalSunRadius, color, segments: 16);
+        builder.AddWireSphere(
+            anchor,
+            style.DirectionalSunRadius * scale,
+            color,
+            style.SunSphereSegments
+        );
 
         ReadOnlySpan<Vector2> offsets =
         [
@@ -131,41 +160,60 @@ public static class EntityGizmos
             new(0f, -1f),
         ];
 
-        const float spread = 0.18f;
+        var spread = style.DirectionalRaySpread * scale;
+        var arrowLength = style.DirectionalArrowLength * scale;
+        var headSize = style.ArrowHeadSize * scale;
         foreach (var offset in offsets)
         {
             var shift = (u * offset.X + v * offset.Y) * spread;
             var start = anchor + shift;
-            builder.AddArrow(start, start + travel * DirectionalArrowLength, color, ArrowHeadSize);
+            builder.AddArrow(start, start + travel * arrowLength, color, headSize);
         }
     }
 
-    private static void BuildPointLight(GizmoBuilder builder, Vector3 anchor, PointLight light)
+    private static void BuildPointLight(
+        GizmoBuilder builder,
+        Vector3 anchor,
+        PointLight light,
+        GizmoStyle style,
+        float scale
+    )
     {
-        var color = OpaqueColor(light.Color);
+        var color = style.PointLightColor ?? OpaqueColor(light.Color);
+        var coreSize = style.PointLightCoreSize * scale;
 
         // A non-positive (or non-finite) range disables the light in the renderer (attenuate
         // returns 0), so don't draw a misleading reach sphere for it. The small core is always
         // drawn so the light's position stays visible even when disabled.
         if (float.IsFinite(light.Range) && light.Range > 0f)
         {
-            builder.AddWireSphere(anchor, light.Range, color);
-            builder.AddWireSphere(anchor, MathF.Min(0.1f, light.Range * 0.1f), color, segments: 12);
+            builder.AddWireSphere(anchor, light.Range, color, style.SphereSegments);
+            builder.AddWireSphere(
+                anchor,
+                MathF.Min(coreSize, light.Range * 0.1f),
+                color,
+                style.PointLightCoreSegments
+            );
         }
         else
         {
-            builder.AddWireSphere(anchor, 0.1f, color, segments: 12);
+            builder.AddWireSphere(anchor, coreSize, color, style.PointLightCoreSegments);
         }
     }
 
-    private static void BuildSpotLight(GizmoBuilder builder, Vector3 anchor, SpotLight light)
+    private static void BuildSpotLight(
+        GizmoBuilder builder,
+        Vector3 anchor,
+        SpotLight light,
+        GizmoStyle style
+    )
     {
         // A non-positive (or non-finite) range disables the light, so skip the cone entirely — the
         // Transform3D axes still mark the light's position and orientation.
         if (!(float.IsFinite(light.Range) && light.Range > 0f))
             return;
 
-        var color = OpaqueColor(light.Color);
+        var color = style.SpotLightColor ?? OpaqueColor(light.Color);
         var direction = SafeNormalize(light.Direction, -Vector3.UnitY);
 
         // Coerce a non-finite outer angle to a safe default before clamping so a NaN/Inf set by a
@@ -175,10 +223,15 @@ public static class EntityGizmos
         var outer = Math.Clamp(outerRaw, 0f, 1.55f);
         var baseRadius = light.Range * MathF.Tan(outer);
 
-        builder.AddWireCone(anchor, direction, light.Range, baseRadius, color);
+        builder.AddWireCone(anchor, direction, light.Range, baseRadius, color, style.ConeSegments);
     }
 
-    private static void BuildCamera(GizmoBuilder builder, Camera3D camera, float aspectRatio)
+    private static void BuildCamera(
+        GizmoBuilder builder,
+        Camera3D camera,
+        float aspectRatio,
+        GizmoStyle style
+    )
     {
         // A non-finite position/target/up would survive SafeNormalize (which falls back) but still
         // poison the frustum corners via camera.Position, so bail before computing anything.
@@ -215,9 +268,9 @@ public static class EntityGizmos
         for (var i = 0; i < 4; i++)
         {
             var next = (i + 1) % 4;
-            builder.AddLine(nearCorners[i], nearCorners[next], CameraColor);
-            builder.AddLine(farCorners[i], farCorners[next], CameraColor);
-            builder.AddLine(nearCorners[i], farCorners[i], CameraColor);
+            builder.AddLine(nearCorners[i], nearCorners[next], style.CameraColor);
+            builder.AddLine(farCorners[i], farCorners[next], style.CameraColor);
+            builder.AddLine(nearCorners[i], farCorners[i], style.CameraColor);
         }
     }
 

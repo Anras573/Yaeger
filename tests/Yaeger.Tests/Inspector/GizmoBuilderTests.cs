@@ -55,6 +55,34 @@ public class GizmoBuilderTests
     }
 
     [Fact]
+    public void AddAxes_CustomColors_OverrideDefaults()
+    {
+        var builder = new GizmoBuilder();
+        var x = new Vector4(0.9f, 0.1f, 0.1f, 1f);
+        var y = new Vector4(0.1f, 0.9f, 0.1f, 1f);
+        var z = new Vector4(0.1f, 0.1f, 0.9f, 1f);
+
+        builder.AddAxes(Vector3.Zero, Quaternion.Identity, 1f, x, y, z);
+
+        Assert.Equal(x, builder.Lines[0].Color);
+        Assert.Equal(y, builder.Lines[1].Color);
+        Assert.Equal(z, builder.Lines[2].Color);
+    }
+
+    [Fact]
+    public void AddAxes2D_CustomColors_OverrideDefaults()
+    {
+        var builder = new GizmoBuilder();
+        var x = new Vector4(0.9f, 0.1f, 0.1f, 1f);
+        var y = new Vector4(0.1f, 0.9f, 0.1f, 1f);
+
+        builder.AddAxes2D(Vector2.Zero, 0f, 1f, x, y);
+
+        Assert.Equal(x, builder.Lines[0].Color);
+        Assert.Equal(y, builder.Lines[1].Color);
+    }
+
+    [Fact]
     public void AddArrow_EmitsShaftPlusFourHeadLines()
     {
         var builder = new GizmoBuilder();

@@ -46,6 +46,14 @@ public sealed class ImGuiInspector : IDisposable
     /// </summary>
     public bool ShowGizmos { get; set; } = true;
 
+    /// <summary>
+    /// Appearance of the selection gizmos — colours, sizes, segment counts, depth-test and line
+    /// width. Defaults reproduce the engine's original look. Mutate the properties in place or assign
+    /// a fresh <see cref="GizmoStyle"/> to retune the overlay (e.g. raise
+    /// <see cref="GizmoStyle.SizeMultiplier"/> for a large-scale scene).
+    /// </summary>
+    public GizmoStyle GizmoStyle { get; set; } = new();
+
     private bool _visible;
     private Entity? _selectedEntity;
     private int _addComponentComboIndex;
@@ -172,8 +180,13 @@ public sealed class ImGuiInspector : IDisposable
             return;
 
         _gizmoBuilder.Clear();
-        EntityGizmos.Build(_world, entity, aspectRatio, _gizmoBuilder);
-        _gizmoRenderer.Render(_gizmoBuilder.Lines, viewProj);
+        EntityGizmos.Build(_world, entity, aspectRatio, _gizmoBuilder, GizmoStyle);
+        _gizmoRenderer.Render(
+            _gizmoBuilder.Lines,
+            viewProj,
+            GizmoStyle.DepthTest,
+            GizmoStyle.LineWidth
+        );
     }
 
     // Resolves the view-projection (and aspect) used to draw gizmos for the selected entity.
