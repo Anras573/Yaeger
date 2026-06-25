@@ -42,6 +42,11 @@ public sealed class GizmoBuilder
         Vector4? zColor = null
     )
     {
+        // Reject non-finite inputs up front (mirroring AddAxes2D): a NaN/Inf length — e.g. from a
+        // bad style scale factor — would otherwise flow straight into the emitted vertices.
+        if (!IsFinite(origin) || !IsFinite(rotation) || !float.IsFinite(length))
+            return;
+
         var right = Vector3.Transform(Vector3.UnitX, rotation) * length;
         var up = Vector3.Transform(Vector3.UnitY, rotation) * length;
         var forward = Vector3.Transform(Vector3.UnitZ, rotation) * length;
@@ -129,7 +134,10 @@ public sealed class GizmoBuilder
 
         var shaft = to - from;
         var lengthSq = shaft.LengthSquared();
-        if (lengthSq < 1e-12f)
+        // Skip the arrowhead for a degenerate shaft or a non-finite head size (e.g. from a bad style
+        // scale): a NaN/Inf headSize would otherwise flow into the head vertices below as NaN lines.
+        // The finite shaft is still kept.
+        if (lengthSq < 1e-12f || !float.IsFinite(headSize))
             return;
 
         var dir = shaft / MathF.Sqrt(lengthSq);
@@ -252,6 +260,9 @@ public sealed class GizmoBuilder
         float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
 
     private static bool IsFinite(Vector2 v) => float.IsFinite(v.X) && float.IsFinite(v.Y);
+
+    private static bool IsFinite(Quaternion q) =>
+        float.IsFinite(q.X) && float.IsFinite(q.Y) && float.IsFinite(q.Z) && float.IsFinite(q.W);
 
     // Builds an orthonormal basis (u, v) spanning the plane perpendicular to the unit vector dir.
     private static void Basis(Vector3 dir, out Vector3 u, out Vector3 v)

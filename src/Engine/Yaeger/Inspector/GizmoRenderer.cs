@@ -146,6 +146,13 @@ public sealed class GizmoRenderer : IDisposable
 
         _gl.BindVertexArray(0);
         _shader.Unbind();
+
+        // Restore the baseline state the inspector path relies on: the 3D pass leaves depth testing
+        // off before gizmos draw, and the ImGui overlay rendered next expects the default line
+        // width. Undo whatever we changed so neither the overlay nor later passes inherit it.
+        if (depthTest)
+            _gl.Disable(EnableCap.DepthTest);
+        _gl.LineWidth(1f);
     }
 
     private void WriteVertex(int offset, Vector3 position, Vector4 color)

@@ -578,6 +578,30 @@ public class EntityGizmosTests
     }
 
     [Fact]
+    public void Style_NonFiniteSizeMultiplier_FallsBackToFiniteDefaultSizedGizmos()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+
+        // A NaN multiplier must not corrupt the line list: it falls back to the default scale, so
+        // the axes are still emitted at their default 0.5 length with finite vertices.
+        var lines = Build(world, entity, new GizmoStyle { SizeMultiplier = float.NaN });
+
+        Assert.Equal(3, lines.Count);
+        Assert.All(
+            lines,
+            l =>
+            {
+                Assert.True(float.IsFinite(l.End.X) && float.IsFinite(l.End.Y));
+                Assert.True(float.IsFinite(l.End.Z));
+            }
+        );
+        var maxAxisReach = MathF.Max(MathF.Max(lines[0].End.X, lines[1].End.Y), lines[2].End.Z);
+        Assert.Equal(0.5f, maxAxisReach, 3);
+    }
+
+    [Fact]
     public void Style_DefaultsReproduceOriginalColors()
     {
         var world = new World();
