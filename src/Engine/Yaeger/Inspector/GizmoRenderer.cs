@@ -128,7 +128,10 @@ public sealed class GizmoRenderer : IDisposable
         else
             _gl.Disable(EnableCap.DepthTest);
 
-        _gl.LineWidth(lineWidth > 0f ? lineWidth : 1f);
+        // Fall back to 1px for any non-positive or non-finite width: a NaN already fails the > 0
+        // test, but +Infinity would otherwise pass straight through to glLineWidth and produce a GL
+        // error / undefined rendering.
+        _gl.LineWidth(float.IsFinite(lineWidth) && lineWidth > 0f ? lineWidth : 1f);
 
         _shader.Bind();
         _shader.SetUniformMatrix4("uViewProj", viewProj);
