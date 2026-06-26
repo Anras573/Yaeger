@@ -12,6 +12,10 @@ namespace Yaeger.Inspector;
 /// </summary>
 public static class EntityGizmos
 {
+    // Shared fallback for the null-style case so a caller that omits the style (or passes null) each
+    // frame doesn't allocate a fresh GizmoStyle every call. Safe to share: Build only reads it.
+    private static readonly GizmoStyle DefaultStyle = new();
+
     /// <summary>
     /// Appends the gizmos for <paramref name="entity"/> to <paramref name="builder"/> based on the
     /// components it carries. <paramref name="aspectRatio"/> shapes a <see cref="Camera3D"/> frustum
@@ -26,7 +30,7 @@ public static class EntityGizmos
         GizmoStyle? style = null
     )
     {
-        style ??= new GizmoStyle();
+        style ??= DefaultStyle;
         // Guard the user-supplied multiplier: a non-finite value would propagate into every scaled
         // size and emit NaN vertices. Fall back to the default scale so a bad value degrades to the
         // stock look rather than corrupting the line list (the builders also guard finiteness, but
