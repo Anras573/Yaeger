@@ -23,10 +23,12 @@ public sealed class GizmoBuilder
     public void AddLine(Vector3 start, Vector3 end, Vector4 color) =>
         _lines.Add(new GizmoLine(start, end, color));
 
-    // Default axis colours (X red, Y green, Z blue) used when a caller doesn't override them.
-    private static readonly Vector4 DefaultAxisX = new(1f, 0.2f, 0.2f, 1f);
-    private static readonly Vector4 DefaultAxisY = new(0.2f, 1f, 0.2f, 1f);
-    private static readonly Vector4 DefaultAxisZ = new(0.3f, 0.5f, 1f, 1f);
+    // Canonical default axis colours (X red, Y green, Z blue) used when a caller doesn't override
+    // them. Exposed so GizmoStyle's defaults source from the same constants instead of duplicating
+    // the literals — keep this the single place the axis colours are defined.
+    public static readonly Vector4 DefaultAxisX = new(1f, 0.2f, 0.2f, 1f);
+    public static readonly Vector4 DefaultAxisY = new(0.2f, 1f, 0.2f, 1f);
+    public static readonly Vector4 DefaultAxisZ = new(0.3f, 0.5f, 1f, 1f);
 
     /// <summary>
     /// Adds three orientation axes of the given length, rotated by <paramref name="rotation"/> so

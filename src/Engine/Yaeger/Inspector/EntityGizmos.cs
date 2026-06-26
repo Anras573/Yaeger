@@ -31,11 +31,15 @@ public static class EntityGizmos
     )
     {
         style ??= DefaultStyle;
-        // Guard the user-supplied multiplier: a non-finite value would propagate into every scaled
-        // size and emit NaN vertices. Fall back to the default scale so a bad value degrades to the
-        // stock look rather than corrupting the line list (the builders also guard finiteness, but
-        // sanitising here keeps the gizmos visible instead of dropping them).
-        var scale = float.IsFinite(style.SizeMultiplier) ? style.SizeMultiplier : 1f;
+        // Guard the user-supplied multiplier: a non-finite OR non-positive value would propagate into
+        // every scaled size — emitting NaN vertices, or inverting/silently dropping shapes (a
+        // negative radius fails the builders' radius > 0 guards). Fall back to the default scale so
+        // any invalid value degrades to the stock look rather than corrupting the line list. A
+        // legitimate fractional scale (e.g. 0.5 for a small world) is positive and passes through.
+        var scale =
+            float.IsFinite(style.SizeMultiplier) && style.SizeMultiplier > 0f
+                ? style.SizeMultiplier
+                : 1f;
         // 2D gizmos live in the Z = 0 plane and are projected through a Camera2D-derived (or
         // identity) view-projection by the inspector. An entity is treated as either 2D or 3D for
         // gizmo purposes — never both — to stay consistent with

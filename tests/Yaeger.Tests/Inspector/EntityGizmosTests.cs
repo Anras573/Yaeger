@@ -577,16 +577,21 @@ public class EntityGizmosTests
         );
     }
 
-    [Fact]
-    public void Style_NonFiniteSizeMultiplier_FallsBackToFiniteDefaultSizedGizmos()
+    [Theory]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(0f)]
+    [InlineData(-2f)]
+    public void Style_InvalidSizeMultiplier_FallsBackToFiniteDefaultSizedGizmos(float multiplier)
     {
         var world = new World();
         var entity = world.CreateEntity();
         world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
 
-        // A NaN multiplier must not corrupt the line list: it falls back to the default scale, so
-        // the axes are still emitted at their default 0.5 length with finite vertices.
-        var lines = Build(world, entity, new GizmoStyle { SizeMultiplier = float.NaN });
+        // A non-finite or non-positive multiplier must not corrupt the line list: it falls back to
+        // the default scale, so the axes are still emitted at their default 0.5 length with finite
+        // vertices (rather than NaN, zero-length, or inverted axes).
+        var lines = Build(world, entity, new GizmoStyle { SizeMultiplier = multiplier });
 
         Assert.Equal(3, lines.Count);
         Assert.All(

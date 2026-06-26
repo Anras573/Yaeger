@@ -14,14 +14,16 @@ public sealed class GizmoStyle
 {
     // ── Colours ───────────────────────────────────────────────────────────────
 
+    // Axis colour defaults source from GizmoBuilder's canonical constants so the two never drift.
+
     /// <summary>Colour of the local +X orientation axis (3D and 2D). Default red.</summary>
-    public Vector4 AxisXColor { get; set; } = new(1f, 0.2f, 0.2f, 1f);
+    public Vector4 AxisXColor { get; set; } = GizmoBuilder.DefaultAxisX;
 
     /// <summary>Colour of the local +Y orientation axis (3D and 2D). Default green.</summary>
-    public Vector4 AxisYColor { get; set; } = new(0.2f, 1f, 0.2f, 1f);
+    public Vector4 AxisYColor { get; set; } = GizmoBuilder.DefaultAxisY;
 
     /// <summary>Colour of the local +Z orientation axis (3D only). Default blue.</summary>
-    public Vector4 AxisZColor { get; set; } = new(0.3f, 0.5f, 1f, 1f);
+    public Vector4 AxisZColor { get; set; } = GizmoBuilder.DefaultAxisZ;
 
     /// <summary>Colour of mesh / sprite bounds outlines. Default amber.</summary>
     public Vector4 BoundsColor { get; set; } = new(1f, 0.75f, 0.2f, 1f);
