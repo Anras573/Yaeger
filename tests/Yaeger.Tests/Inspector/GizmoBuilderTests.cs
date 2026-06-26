@@ -55,6 +55,58 @@ public class GizmoBuilderTests
     }
 
     [Fact]
+    public void AddAxes_CustomColors_OverrideDefaults()
+    {
+        var builder = new GizmoBuilder();
+        var x = new Vector4(0.9f, 0.1f, 0.1f, 1f);
+        var y = new Vector4(0.1f, 0.9f, 0.1f, 1f);
+        var z = new Vector4(0.1f, 0.1f, 0.9f, 1f);
+
+        builder.AddAxes(Vector3.Zero, Quaternion.Identity, 1f, x, y, z);
+
+        Assert.Equal(x, builder.Lines[0].Color);
+        Assert.Equal(y, builder.Lines[1].Color);
+        Assert.Equal(z, builder.Lines[2].Color);
+    }
+
+    [Fact]
+    public void AddAxes2D_CustomColors_OverrideDefaults()
+    {
+        var builder = new GizmoBuilder();
+        var x = new Vector4(0.9f, 0.1f, 0.1f, 1f);
+        var y = new Vector4(0.1f, 0.9f, 0.1f, 1f);
+
+        builder.AddAxes2D(Vector2.Zero, 0f, 1f, x, y);
+
+        Assert.Equal(x, builder.Lines[0].Color);
+        Assert.Equal(y, builder.Lines[1].Color);
+    }
+
+    [Fact]
+    public void AddAxes_NonFiniteLength_EmitsNothing()
+    {
+        var builder = new GizmoBuilder();
+
+        builder.AddAxes(Vector3.Zero, Quaternion.Identity, float.NaN);
+        builder.AddAxes(Vector3.Zero, Quaternion.Identity, float.PositiveInfinity);
+
+        Assert.Empty(builder.Lines);
+    }
+
+    [Fact]
+    public void AddArrow_NonFiniteHeadSize_EmitsOnlyShaft()
+    {
+        var builder = new GizmoBuilder();
+
+        builder.AddArrow(Vector3.Zero, new Vector3(0, 0, 5), Vector4.One, float.NaN);
+
+        // The finite shaft is kept; the arrowhead computed from the bad head size is skipped.
+        var shaft = Assert.Single(builder.Lines);
+        Assert.Equal(Vector3.Zero, shaft.Start);
+        Assert.Equal(new Vector3(0, 0, 5), shaft.End);
+    }
+
+    [Fact]
     public void AddArrow_EmitsShaftPlusFourHeadLines()
     {
         var builder = new GizmoBuilder();

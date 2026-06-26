@@ -23,28 +23,54 @@ public sealed class GizmoBuilder
     public void AddLine(Vector3 start, Vector3 end, Vector4 color) =>
         _lines.Add(new GizmoLine(start, end, color));
 
+    // Canonical default axis colours (X red, Y green, Z blue) used when a caller doesn't override
+    // them. Exposed so GizmoStyle's defaults source from the same constants instead of duplicating
+    // the literals — keep this the single place the axis colours are defined.
+    public static readonly Vector4 DefaultAxisX = new(1f, 0.2f, 0.2f, 1f);
+    public static readonly Vector4 DefaultAxisY = new(0.2f, 1f, 0.2f, 1f);
+    public static readonly Vector4 DefaultAxisZ = new(0.3f, 0.5f, 1f, 1f);
+
     /// <summary>
-    /// Adds three RGB axes (X red, Y green, Z blue) of the given length, rotated by
-    /// <paramref name="rotation"/> so they reflect the entity's orientation, anchored at
-    /// <paramref name="origin"/>.
+    /// Adds three orientation axes of the given length, rotated by <paramref name="rotation"/> so
+    /// they reflect the entity's orientation, anchored at <paramref name="origin"/>. Colours default
+    /// to X red, Y green, Z blue; pass overrides to recolour them.
     /// </summary>
-    public void AddAxes(Vector3 origin, Quaternion rotation, float length)
+    public void AddAxes(
+        Vector3 origin,
+        Quaternion rotation,
+        float length,
+        Vector4? xColor = null,
+        Vector4? yColor = null,
+        Vector4? zColor = null
+    )
     {
+        // Reject non-finite inputs up front (mirroring AddAxes2D): a NaN/Inf length — e.g. from a
+        // bad style scale factor — would otherwise flow straight into the emitted vertices.
+        if (!IsFinite(origin) || !IsFinite(rotation) || !float.IsFinite(length))
+            return;
+
         var right = Vector3.Transform(Vector3.UnitX, rotation) * length;
         var up = Vector3.Transform(Vector3.UnitY, rotation) * length;
         var forward = Vector3.Transform(Vector3.UnitZ, rotation) * length;
 
-        AddLine(origin, origin + right, new Vector4(1f, 0.2f, 0.2f, 1f));
-        AddLine(origin, origin + up, new Vector4(0.2f, 1f, 0.2f, 1f));
-        AddLine(origin, origin + forward, new Vector4(0.3f, 0.5f, 1f, 1f));
+        AddLine(origin, origin + right, xColor ?? DefaultAxisX);
+        AddLine(origin, origin + up, yColor ?? DefaultAxisY);
+        AddLine(origin, origin + forward, zColor ?? DefaultAxisZ);
     }
 
     /// <summary>
-    /// Adds 2D orientation axes (X red, Y green) of the given <paramref name="length"/> lying in the
-    /// Z = 0 plane, rotated by <paramref name="rotationRadians"/> about Z so they reflect a
-    /// <see cref="Yaeger.Graphics.Transform2D"/>'s orientation, anchored at <paramref name="origin"/>.
+    /// Adds 2D orientation axes (X red, Y green by default) of the given <paramref name="length"/>
+    /// lying in the Z = 0 plane, rotated by <paramref name="rotationRadians"/> about Z so they reflect
+    /// a <see cref="Yaeger.Graphics.Transform2D"/>'s orientation, anchored at <paramref name="origin"/>.
+    /// Pass colour overrides to recolour the axes.
     /// </summary>
-    public void AddAxes2D(Vector2 origin, float rotationRadians, float length)
+    public void AddAxes2D(
+        Vector2 origin,
+        float rotationRadians,
+        float length,
+        Vector4? xColor = null,
+        Vector4? yColor = null
+    )
     {
         if (!IsFinite(origin) || !float.IsFinite(rotationRadians) || !float.IsFinite(length))
             return;
@@ -57,8 +83,8 @@ public sealed class GizmoBuilder
         var right = new Vector3(cos, sin, 0f) * length;
         var up = new Vector3(-sin, cos, 0f) * length;
 
-        AddLine(o, o + right, new Vector4(1f, 0.2f, 0.2f, 1f));
-        AddLine(o, o + up, new Vector4(0.2f, 1f, 0.2f, 1f));
+        AddLine(o, o + right, xColor ?? DefaultAxisX);
+        AddLine(o, o + up, yColor ?? DefaultAxisY);
     }
 
     /// <summary>
@@ -110,7 +136,10 @@ public sealed class GizmoBuilder
 
         var shaft = to - from;
         var lengthSq = shaft.LengthSquared();
-        if (lengthSq < 1e-12f)
+        // Skip the arrowhead for a degenerate shaft or a non-finite head size (e.g. from a bad style
+        // scale): a NaN/Inf headSize would otherwise flow into the head vertices below as NaN lines.
+        // The finite shaft is still kept.
+        if (lengthSq < 1e-12f || !float.IsFinite(headSize))
             return;
 
         var dir = shaft / MathF.Sqrt(lengthSq);
@@ -233,6 +262,9 @@ public sealed class GizmoBuilder
         float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
 
     private static bool IsFinite(Vector2 v) => float.IsFinite(v.X) && float.IsFinite(v.Y);
+
+    private static bool IsFinite(Quaternion q) =>
+        float.IsFinite(q.X) && float.IsFinite(q.Y) && float.IsFinite(q.Z) && float.IsFinite(q.W);
 
     // Builds an orthonormal basis (u, v) spanning the plane perpendicular to the unit vector dir.
     private static void Basis(Vector3 dir, out Vector3 u, out Vector3 v)

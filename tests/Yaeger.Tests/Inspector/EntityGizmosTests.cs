@@ -9,10 +9,14 @@ public class EntityGizmosTests
 {
     private const float Aspect = 16f / 9f;
 
-    private static IReadOnlyList<GizmoLine> Build(World world, Entity entity)
+    private static IReadOnlyList<GizmoLine> Build(
+        World world,
+        Entity entity,
+        GizmoStyle? style = null
+    )
     {
         var builder = new GizmoBuilder();
-        EntityGizmos.Build(world, entity, Aspect, builder);
+        EntityGizmos.Build(world, entity, Aspect, builder, style);
         return builder.Lines;
     }
 
@@ -415,6 +419,213 @@ public class EntityGizmosTests
         // Near + far rectangles (4 edges each) plus 4 connecting edges = 12 lines.
         Assert.Equal(12, lines.Count);
         Assert.All(lines, l => Assert.Equal(new Vector4(1, 1, 0.3f, 1), l.Color));
+    }
+
+    // ── Style configurability (issue #123) ────────────────────────────────────
+
+    [Fact]
+    public void Style_CustomAxisColors_FlowIntoTransform3DAxes()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+
+        var style = new GizmoStyle
+        {
+            AxisXColor = new Vector4(0.9f, 0f, 0f, 1f),
+            AxisYColor = new Vector4(0f, 0.9f, 0f, 1f),
+            AxisZColor = new Vector4(0f, 0f, 0.9f, 1f),
+        };
+
+        var lines = Build(world, entity, style);
+
+        Assert.Equal(style.AxisXColor, lines[0].Color);
+        Assert.Equal(style.AxisYColor, lines[1].Color);
+        Assert.Equal(style.AxisZColor, lines[2].Color);
+    }
+
+    [Fact]
+    public void Style_SizeMultiplier_ScalesAxisLength()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+
+        // AxisLength 0.5 × multiplier 4 → 2-unit axes.
+        var style = new GizmoStyle { SizeMultiplier = 4f };
+
+        var lines = Build(world, entity, style);
+
+        var maxAxisReach = MathF.Max(MathF.Max(lines[0].End.X, lines[1].End.Y), lines[2].End.Z);
+        Assert.Equal(2f, maxAxisReach, 3);
+    }
+
+    [Fact]
+    public void Style_CustomBoundsColor_FlowsIntoMeshBox()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+        world.AddComponent(entity, new Aabb3D(new Vector3(-1, -1, -1), new Vector3(1, 1, 1)));
+
+        var bounds = new Vector4(0.2f, 0.4f, 0.6f, 1f);
+        var style = new GizmoStyle { BoundsColor = bounds };
+
+        var lines = Build(world, entity, style);
+
+        // The 12 box edges carry the custom bounds colour (axes aside).
+        Assert.Equal(12, lines.Count(l => l.Color == bounds));
+    }
+
+    [Fact]
+    public void Style_CustomCameraColor_FlowsIntoFrustum()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(
+            entity,
+            new Camera3D(
+                new Vector3(0, 0, 5),
+                Vector3.Zero,
+                Vector3.UnitY,
+                MathF.PI / 4f,
+                0.1f,
+                100f
+            )
+        );
+
+        var cameraColor = new Vector4(0.3f, 0.6f, 0.9f, 1f);
+        var style = new GizmoStyle { CameraColor = cameraColor };
+
+        var lines = Build(world, entity, style);
+
+        Assert.All(lines, l => Assert.Equal(cameraColor, l.Color));
+    }
+
+    [Fact]
+    public void Style_DirectionalLightColorOverride_ReplacesLightColor()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(
+            entity,
+            new DirectionalLight
+            {
+                Direction = Vector3.UnitY,
+                Color = Color.White,
+                Intensity = 1f,
+            }
+        );
+
+        var overrideColor = new Vector4(0.1f, 0.2f, 0.3f, 1f);
+        var style = new GizmoStyle { DirectionalLightColor = overrideColor };
+
+        var lines = Build(world, entity, style);
+
+        Assert.NotEmpty(lines);
+        Assert.All(lines, l => Assert.Equal(overrideColor, l.Color));
+    }
+
+    [Fact]
+    public void Style_PointLightSphereSegments_ControlLineCount()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+        world.AddComponent(
+            entity,
+            new PointLight
+            {
+                Color = Color.Red,
+                Intensity = 1f,
+                Range = 5f,
+            }
+        );
+
+        var style = new GizmoStyle { SphereSegments = 8, PointLightCoreSegments = 6 };
+
+        var lines = Build(world, entity, style);
+
+        // Reach sphere (3 circles × 8) + core (3 × 6) + 3 Transform3D axes.
+        Assert.Equal(8 * 3 + 6 * 3 + 3, lines.Count);
+    }
+
+    [Fact]
+    public void Style_SizeMultiplier_ScalesDirectionalArrowLength()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(
+            entity,
+            new DirectionalLight
+            {
+                Direction = Vector3.UnitY,
+                Color = Color.White,
+                Intensity = 1f,
+            }
+        );
+
+        var style = new GizmoStyle { SizeMultiplier = 2f };
+
+        var lines = Build(world, entity, style);
+
+        // Arrow length 1.5 × 2 = 3; a ray shaft (downward travel) should reach roughly that far.
+        var longestShaft = lines.Max(l => (l.End - l.Start).Length());
+        Assert.True(
+            longestShaft >= 3f - 1e-3f,
+            $"expected a ~3-unit ray, longest was {longestShaft}"
+        );
+    }
+
+    [Theory]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(0f)]
+    [InlineData(-2f)]
+    public void Style_InvalidSizeMultiplier_FallsBackToFiniteDefaultSizedGizmos(float multiplier)
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One));
+
+        // A non-finite or non-positive multiplier must not corrupt the line list: it falls back to
+        // the default scale, so the axes are still emitted at their default 0.5 length with finite
+        // vertices (rather than NaN, zero-length, or inverted axes).
+        var lines = Build(world, entity, new GizmoStyle { SizeMultiplier = multiplier });
+
+        Assert.Equal(3, lines.Count);
+        Assert.All(
+            lines,
+            l =>
+            {
+                Assert.True(float.IsFinite(l.End.X) && float.IsFinite(l.End.Y));
+                Assert.True(float.IsFinite(l.End.Z));
+            }
+        );
+        var maxAxisReach = MathF.Max(MathF.Max(lines[0].End.X, lines[1].End.Y), lines[2].End.Z);
+        Assert.Equal(0.5f, maxAxisReach, 3);
+    }
+
+    [Fact]
+    public void Style_DefaultsReproduceOriginalColors()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(new Vector2(2, 3), 0f, new Vector2(4, 2)));
+
+        // A null style must match an explicitly default-constructed one (today's look unchanged).
+        var withNull = Build(world, entity);
+        var withDefault = Build(world, entity, new GizmoStyle());
+
+        Assert.Equal(withDefault.Count, withNull.Count);
+        for (var i = 0; i < withNull.Count; i++)
+        {
+            Assert.Equal(withDefault[i].Start, withNull[i].Start);
+            Assert.Equal(withDefault[i].End, withNull[i].End);
+            Assert.Equal(withDefault[i].Color, withNull[i].Color);
+        }
+        // And the amber bounds colour is still the original.
+        Assert.Contains(withNull, l => l.Color == new Vector4(1f, 0.75f, 0.2f, 1f));
     }
 
     [Fact]

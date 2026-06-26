@@ -91,7 +91,17 @@ public sealed class GizmoRenderer : IDisposable
     /// Draws the supplied lines in world space using <paramref name="viewProj"/>. Lines beyond the
     /// internal capacity are dropped. A no-op when the list is empty.
     /// </summary>
-    public unsafe void Render(IReadOnlyList<GizmoLine> lines, Matrix4x4 viewProj)
+    /// <param name="depthTest">
+    /// When <c>false</c> (the default) gizmos draw on top of all geometry; when <c>true</c> they are
+    /// depth-tested against the scene so geometry in front occludes them.
+    /// </param>
+    /// <param name="lineWidth">Width of the drawn lines in pixels (driver-dependent clamping applies).</param>
+    public unsafe void Render(
+        IReadOnlyList<GizmoLine> lines,
+        Matrix4x4 viewProj,
+        bool depthTest = false,
+        float lineWidth = 1f
+    )
     {
         if (lines.Count == 0)
             return;
@@ -107,10 +117,21 @@ public sealed class GizmoRenderer : IDisposable
             WriteVertex(offset + FloatsPerVertex, line.End, line.Color);
         }
 
-        // Alpha-blend so coloured gizmos read well over the scene; the 3D pass already left depth
-        // testing off, so lines draw on top regardless of occluding geometry.
+        // Alpha-blend so coloured gizmos read well over the scene.
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+        // Depth testing is off by default (the 3D pass already left it off) so lines draw on top of
+        // occluding geometry; enable it when the caller wants gizmos hidden behind the scene.
+        if (depthTest)
+            _gl.Enable(EnableCap.DepthTest);
+        else
+            _gl.Disable(EnableCap.DepthTest);
+
+        // Fall back to 1px for any non-positive or non-finite width: a NaN already fails the > 0
+        // test, but +Infinity would otherwise pass straight through to glLineWidth and produce a GL
+        // error / undefined rendering.
+        _gl.LineWidth(float.IsFinite(lineWidth) && lineWidth > 0f ? lineWidth : 1f);
 
         _shader.Bind();
         _shader.SetUniformMatrix4("uViewProj", viewProj);
@@ -128,6 +149,13 @@ public sealed class GizmoRenderer : IDisposable
 
         _gl.BindVertexArray(0);
         _shader.Unbind();
+
+        // Restore the baseline state the inspector path relies on: the 3D pass leaves depth testing
+        // off before gizmos draw, and the ImGui overlay rendered next expects the default line
+        // width. Undo whatever we changed so neither the overlay nor later passes inherit it.
+        if (depthTest)
+            _gl.Disable(EnableCap.DepthTest);
+        _gl.LineWidth(1f);
     }
 
     private void WriteVertex(int offset, Vector3 position, Vector4 color)
