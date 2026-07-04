@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>FlightHelmet</RootNamespace>
+    <!-- Requires native libassimp at runtime. On Linux: apt install libassimp-dev -->
+    <!-- On Windows/macOS: place the native binary alongside the executable. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Engine\Yaeger\Yaeger.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!--
+    Fetch the KhronosGroup FlightHelmet assets on first build using git sparse-checkout.
+    Skipped in CI (CI env var is set automatically by GitHub Actions).
+    On first build the target copies directly to $(TargetDir); on subsequent builds
+    the <None Update="Assets\**"> rule above handles the output copy.
+  -->
+  <Target
+    Name="FetchFlightHelmetAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/FlightHelmet/FlightHelmet.gltf')"
+  >
+    <PropertyGroup>
+      <_HelmetDir>$(MSBuildProjectDirectory)/Assets/FlightHelmet</_HelmetDir>
+      <_HelmetFetchDir>$(MSBuildProjectDirectory)/_flighthelmet-fetch</_HelmetFetchDir>
+      <_HelmetGltfFetchPath>$(_HelmetFetchDir)/Models/FlightHelmet/glTF/FlightHelmet.gltf</_HelmetGltfFetchPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the clone is retried on the next build -->
+    <RemoveDir
+      Directories="$(_HelmetFetchDir)"
+      Condition="Exists('$(_HelmetFetchDir)') And !Exists('$(_HelmetGltfFetchPath)')"
+    />
+
+    <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
+    <Exec
+      Command="git clone --filter=blob:none --no-checkout --sparse --depth=1 https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_HelmetFetchDir)&quot; &amp;&amp; git -C &quot;$(_HelmetFetchDir)&quot; sparse-checkout set Models/FlightHelmet/glTF &amp;&amp; git -C &quot;$(_HelmetFetchDir)&quot; checkout"
+      Condition="!Exists('$(_HelmetFetchDir)')"
+    />
+
+    <!-- Collect files after the clone so the glob finds them -->
+    <ItemGroup>
+      <_HelmetFiles Include="$(_HelmetFetchDir)/Models/FlightHelmet/glTF/**/*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_HelmetDir)" Condition="!Exists('$(_HelmetDir)')" />
+    <Copy SourceFiles="@(_HelmetFiles)" DestinationFolder="$(_HelmetDir)/%(RecursiveDir)" />
+    <Copy
+      SourceFiles="@(_HelmetFiles)"
+      DestinationFolder="$(TargetDir)Assets/FlightHelmet/%(RecursiveDir)"
+    />
+    <RemoveDir Directories="$(_HelmetFetchDir)" />
+    <Message Text="FlightHelmet assets ready at $(_HelmetDir)" Importance="high" />
+  </Target>
+</Project>
