@@ -247,6 +247,21 @@ public class UnifiedRenderSystemTilemapTests
     }
 
     [Fact]
+    public void GetVisibleTileRange_NonPositiveTileSize_ShouldFallBackToFullMap()
+    {
+        // TileSize is a mutable field, so it can be zeroed after construction; culling must
+        // not divide by it in that case.
+        var map = new Tilemap(MakeTileset(), width: 10, height: 10);
+        map.TileSize = Vector2.Zero;
+        var transform = new Transform2D(Vector2.Zero);
+        var camera = new Camera2D(new Vector2(100f, 100f));
+
+        var range = UnifiedRenderSystem.GetVisibleTileRange(map, transform, camera, 1f);
+
+        Assert.Equal((0, 9, 0, 9), range);
+    }
+
+    [Fact]
     public void GetVisibleTileRange_RotatedMapTransform_ShouldFallBackToFullMap()
     {
         var map = new Tilemap(MakeTileset(), width: 10, height: 10);

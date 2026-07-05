@@ -60,11 +60,11 @@ public sealed class TilemapSerializer : IComponentSerializer
             );
         }
 
-        long cellCount = (long)width * height;
-        if (cellCount > int.MaxValue)
+        if ((long)width * height > int.MaxValue)
             throw new PrefabLoadException(
                 $"Tilemap 'width' ({width}) and 'height' ({height}) produce too many cells."
             );
+        var cellCount = width * height;
 
         int[]? tiles = null;
         if (element.TryGetProperty("tiles", out var tilesEl))

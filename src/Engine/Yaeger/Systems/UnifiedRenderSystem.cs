@@ -286,9 +286,9 @@ public class UnifiedRenderSystem(
     /// <summary>
     /// Computes the inclusive tile-cell range of <paramref name="map"/> that can intersect the
     /// camera's visible span, in (columnMin, columnMax, rowMin, rowMax) form. Falls back to the
-    /// full map when the map transform is rotated or non-positively scaled (conservative: never
-    /// culls a visible tile). Returns an empty range (min &gt; max) when the map is fully
-    /// off-screen.
+    /// full map when the map transform is rotated or non-positively scaled, or the tile size is
+    /// non-positive (conservative: never culls a visible tile). Returns an empty range
+    /// (min &gt; max) when the map is fully off-screen.
     /// </summary>
     internal static (int ColumnMin, int ColumnMax, int RowMin, int RowMax) GetVisibleTileRange(
         Tilemap map,
@@ -298,8 +298,16 @@ public class UnifiedRenderSystem(
     )
     {
         // Culling maps the camera's world-space AABB into tile cells, which is only valid for
-        // an axis-aligned, positively scaled map. Anything else renders the full map.
-        if (mapTransform.Rotation != 0f || mapTransform.Scale.X <= 0f || mapTransform.Scale.Y <= 0f)
+        // an axis-aligned, positively scaled map with a positive tile size (TileSize is a
+        // mutable field, so it can be zeroed after construction). Anything else renders the
+        // full map.
+        if (
+            mapTransform.Rotation != 0f
+            || mapTransform.Scale.X <= 0f
+            || mapTransform.Scale.Y <= 0f
+            || map.TileSize.X <= 0f
+            || map.TileSize.Y <= 0f
+        )
             return (0, map.Width - 1, 0, map.Height - 1);
 
         // Visible world region: a rect centred on the camera with half-extents
