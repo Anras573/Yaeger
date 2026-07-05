@@ -39,6 +39,16 @@ public class TilesetTests
     }
 
     [Fact]
+    public void Constructor_ColumnsTimesRowsOverflowingInt_ShouldThrow()
+    {
+        // 100000 * 100000 wraps to a positive-but-wrong int; the constructor must reject it
+        // instead of exposing a bogus TileCount.
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Tileset(TexturePath, columns: 100_000, rows: 100_000)
+        );
+    }
+
+    [Fact]
     public void Default_ShouldHaveZeroTileCount()
     {
         var tileset = default(Tileset);

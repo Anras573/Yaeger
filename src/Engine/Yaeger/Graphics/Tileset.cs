@@ -17,8 +17,19 @@ public readonly struct Tileset
     /// <param name="texturePath">Path to the tileset image file.</param>
     /// <param name="columns">Number of equally-wide columns in the tileset.</param>
     /// <param name="rows">Number of equally-tall rows in the tileset. Defaults to 1.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="columns"/> × <paramref name="rows"/> exceeds
+    /// <see cref="int.MaxValue"/> (SpriteSheet computes the product unchecked, so it would
+    /// silently wrap to a wrong tile count otherwise).
+    /// </exception>
     public Tileset(string texturePath, int columns, int rows = 1)
     {
+        if (columns > 0 && rows > 0 && (long)columns * rows > int.MaxValue)
+            throw new ArgumentOutOfRangeException(
+                nameof(columns),
+                $"'columns' ({columns}) x 'rows' ({rows}) must not exceed {int.MaxValue}."
+            );
+
         _sheet = new SpriteSheet(texturePath, columns, rows);
     }
 

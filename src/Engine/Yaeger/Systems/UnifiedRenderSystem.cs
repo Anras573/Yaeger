@@ -343,12 +343,15 @@ public class UnifiedRenderSystem(
         return (columnMin, columnMax, rowMin, rowMax);
     }
 
+    // Text must stay the last kind: it is the tie-break for commands on the same entity and
+    // layer, and text execution flushes queued quads before drawing — any quad kind sorted
+    // after it would paint over the text.
     private enum RenderCommandKind
     {
         Sprite = 0,
         SpriteSheet = 1,
-        Text = 2,
-        Tilemap = 3,
+        Tilemap = 2,
+        Text = 3,
     }
 
     private readonly record struct RenderCommand(

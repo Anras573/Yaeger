@@ -20,6 +20,8 @@ public class UnifiedRenderSystemTilemapTests
             Vector4 Color
         )> Quads = [];
 
+        public List<string>? CallLog { get; init; }
+
         public void BeginFrame() { }
 
         public void EndFrame() { }
@@ -28,8 +30,11 @@ public class UnifiedRenderSystemTilemapTests
 
         public void SetCamera(Matrix4x4 viewProjection) { }
 
-        public void SubmitQuad(Matrix4x4 transform, string texturePath, Vector4 color) =>
+        public void SubmitQuad(Matrix4x4 transform, string texturePath, Vector4 color)
+        {
+            CallLog?.Add("quad");
             Quads.Add((transform, texturePath, Vector2.Zero, Vector2.One, color));
+        }
 
         public void SubmitQuad(
             Matrix4x4 transform,
@@ -37,7 +42,30 @@ public class UnifiedRenderSystemTilemapTests
             Vector2 uvMin,
             Vector2 uvMax,
             Vector4 color
-        ) => Quads.Add((transform, texturePath, uvMin, uvMax, color));
+        )
+        {
+            CallLog?.Add("quad");
+            Quads.Add((transform, texturePath, uvMin, uvMax, color));
+        }
+    }
+
+    private sealed class FakeTextRenderSurface(List<string> callLog) : ITextRenderSurface
+    {
+        public void DrawText(
+            string text,
+            Matrix4x4 transform,
+            FontHandle font,
+            int fontSize,
+            Color color
+        ) => callLog.Add("text");
+
+        public void DrawText(
+            string text,
+            Matrix4x4 transform,
+            IFontHandle font,
+            int fontSize,
+            Color color
+        ) => callLog.Add("text");
     }
 
     private static Tileset MakeTileset() => new(TexturePath, columns: 2, rows: 2);
@@ -182,6 +210,24 @@ public class UnifiedRenderSystemTilemapTests
         Assert.Equal(2, surface.Quads.Count);
         Assert.Equal(TexturePath, surface.Quads[0].TexturePath);
         Assert.Equal("Assets/player.png", surface.Quads[1].TexturePath);
+    }
+
+    [Fact]
+    public void Render_EntityWithTilemapAndText_ShouldDrawTilesBeforeText()
+    {
+        // Text must sort after quad kinds on the same entity/layer: text execution flushes
+        // queued quads before drawing, so quads submitted afterwards would paint over it.
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(Vector2.Zero));
+        world.AddComponent(entity, new Tilemap(MakeTileset(), width: 1, height: 1, tiles: [0]));
+        world.AddComponent(entity, new Text("score", new FontHandle("test-font"), 12, Color.White));
+
+        var log = new List<string>();
+        var surface = new FakeRenderSurface { CallLog = log };
+        new UnifiedRenderSystem(surface, new FakeTextRenderSurface(log), world).Render();
+
+        Assert.Equal(["quad", "text"], log);
     }
 
     // ── Culling ──────────────────────────────────────────────────────────────
