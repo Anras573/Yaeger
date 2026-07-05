@@ -7,7 +7,7 @@ using Yaeger.Windowing;
 namespace Yaeger.Systems;
 
 /// <summary>
-/// Renders sprites, sprite sheets, and text in a shared deterministic order using
+/// Renders sprites, sprite sheets, tilemaps, and text in a shared deterministic order using
 /// <see cref="RenderLayer"/>, <see cref="Entity.Id"/>, and command kind as sort keys.
 /// </summary>
 public class UnifiedRenderSystem(
@@ -18,6 +18,10 @@ public class UnifiedRenderSystem(
 )
 {
     private readonly List<RenderCommand> _commands = Validate(renderer, textRenderer);
+
+    // Active camera state captured during UpdateCamera, used for tilemap culling.
+    private Camera2D? _activeCamera;
+    private float _aspectRatio = 1f;
 
     private static List<RenderCommand> Validate(
         IRenderSurface? renderer,
@@ -53,6 +57,9 @@ public class UnifiedRenderSystem(
                         command.UvMax,
                         command.Color
                     );
+                    break;
+                case RenderCommandKind.Tilemap:
+                    SubmitTilemap(command);
                     break;
                 case RenderCommandKind.Text:
                     renderer?.FlushQueuedQuads();
@@ -147,6 +154,28 @@ public class UnifiedRenderSystem(
                     )
                 );
             }
+
+            // One command per tilemap; individual tile quads are expanded at execution time
+            // so the per-frame sort stays proportional to entity count, not tile count.
+            foreach (
+                (Entity entity, Tilemap tilemap, Transform2D transform) in world.Query<
+                    Tilemap,
+                    Transform2D
+                >()
+            )
+            {
+                if (tilemap.Tiles is null || tilemap.Tileset.TileCount <= 0)
+                    continue;
+
+                _commands.Add(
+                    RenderCommand.ForTilemap(
+                        entity,
+                        GetRenderLayerValue(renderLayerStore, entity),
+                        transform,
+                        tilemap
+                    )
+                );
+            }
         }
 
         if (textRenderer != null)
@@ -194,6 +223,8 @@ public class UnifiedRenderSystem(
 
     private void UpdateCamera()
     {
+        _activeCamera = null;
+
         if (renderer is null || window is null)
             return;
 
@@ -201,6 +232,8 @@ public class UnifiedRenderSystem(
         {
             var size = window.Size;
             var aspectRatio = size.Y > 0 ? size.X / size.Y : 1f;
+            _activeCamera = camera;
+            _aspectRatio = aspectRatio;
             renderer.SetCamera(camera.ViewProjection(aspectRatio));
             return;
         }
@@ -208,11 +241,106 @@ public class UnifiedRenderSystem(
         renderer.SetCamera(Matrix4x4.Identity);
     }
 
+    private void SubmitTilemap(in RenderCommand command)
+    {
+        var map = command.TilemapComponent;
+        var mapTransform = command.SourceTransform;
+        var tint = map.Tint.ToVector4();
+
+        var (columnMin, columnMax, rowMin, rowMax) = _activeCamera is { } camera
+            ? GetVisibleTileRange(map, mapTransform, camera, _aspectRatio)
+            : (0, map.Width - 1, 0, map.Height - 1);
+
+        for (var row = rowMin; row <= rowMax; row++)
+        {
+            for (var column = columnMin; column <= columnMax; column++)
+            {
+                var tileIndex = map.Tiles[row * map.Width + column];
+                if (tileIndex == Tilemap.EmptyTile)
+                    continue;
+
+                var (uvMin, uvMax) = map.Tileset.GetTileUv(tileIndex);
+
+                // Tile quad in map-local space: the unit quad is centred on the origin, so
+                // scale it to tile size and translate to the cell centre (row 0 is the top
+                // row, hence the Height - 1 - row flip into the Y-up world).
+                var local =
+                    Matrix4x4.CreateScale(map.TileSize.X, map.TileSize.Y, 1f)
+                    * Matrix4x4.CreateTranslation(
+                        (column + 0.5f) * map.TileSize.X,
+                        (map.Height - 1 - row + 0.5f) * map.TileSize.Y,
+                        0f
+                    );
+
+                renderer!.SubmitQuad(
+                    local * command.Transform,
+                    map.Tileset.TexturePath,
+                    uvMin,
+                    uvMax,
+                    tint
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Computes the inclusive tile-cell range of <paramref name="map"/> that can intersect the
+    /// camera's visible span, in (columnMin, columnMax, rowMin, rowMax) form. Falls back to the
+    /// full map when the map transform is rotated or non-positively scaled (conservative: never
+    /// culls a visible tile). Returns an empty range (min &gt; max) when the map is fully
+    /// off-screen.
+    /// </summary>
+    internal static (int ColumnMin, int ColumnMax, int RowMin, int RowMax) GetVisibleTileRange(
+        Tilemap map,
+        Transform2D mapTransform,
+        Camera2D camera,
+        float aspectRatio
+    )
+    {
+        // Culling maps the camera's world-space AABB into tile cells, which is only valid for
+        // an axis-aligned, positively scaled map. Anything else renders the full map.
+        if (mapTransform.Rotation != 0f || mapTransform.Scale.X <= 0f || mapTransform.Scale.Y <= 0f)
+            return (0, map.Width - 1, 0, map.Height - 1);
+
+        // Visible world region: a rect centred on the camera with half-extents
+        // (aspect / zoom, 1 / zoom), rotated by the camera rotation. Use its AABB.
+        var zoom = camera.Zoom > 0f ? camera.Zoom : 1f;
+        var halfWidth = aspectRatio / zoom;
+        var halfHeight = 1f / zoom;
+        var cos = MathF.Abs(MathF.Cos(camera.Rotation));
+        var sin = MathF.Abs(MathF.Sin(camera.Rotation));
+        var extentX = cos * halfWidth + sin * halfHeight;
+        var extentY = sin * halfWidth + cos * halfHeight;
+
+        // View AABB in map-local units (map origin at the bottom-left corner).
+        var localMinX =
+            (camera.Position.X - extentX - mapTransform.Position.X) / mapTransform.Scale.X;
+        var localMaxX =
+            (camera.Position.X + extentX - mapTransform.Position.X) / mapTransform.Scale.X;
+        var localMinY =
+            (camera.Position.Y - extentY - mapTransform.Position.Y) / mapTransform.Scale.Y;
+        var localMaxY =
+            (camera.Position.Y + extentY - mapTransform.Position.Y) / mapTransform.Scale.Y;
+
+        var columnMin = Math.Max((int)MathF.Floor(localMinX / map.TileSize.X), 0);
+        var columnMax = Math.Min((int)MathF.Ceiling(localMaxX / map.TileSize.X) - 1, map.Width - 1);
+
+        // Row 0 is the top row: local Y grows towards row 0.
+        var rowMin = Math.Max(map.Height - (int)MathF.Ceiling(localMaxY / map.TileSize.Y), 0);
+        var rowMax = Math.Min(
+            map.Height - 1 - (int)MathF.Floor(localMinY / map.TileSize.Y),
+            map.Height - 1
+        );
+
+        return (columnMin, columnMax, rowMin, rowMax);
+    }
+
     private enum RenderCommandKind
     {
         Sprite = 0,
         SpriteSheet = 1,
         Text = 2,
+        Tilemap = 3,
     }
 
     private readonly record struct RenderCommand(
@@ -224,7 +352,9 @@ public class UnifiedRenderSystem(
         Vector2 UvMin,
         Vector2 UvMax,
         Vector4 Color,
-        Text TextComponent
+        Text TextComponent,
+        Tilemap TilemapComponent,
+        Transform2D SourceTransform
     )
     {
         public static RenderCommand ForSprite(
@@ -242,6 +372,8 @@ public class UnifiedRenderSystem(
                 Vector2.Zero,
                 Vector2.One,
                 sprite.Tint.ToVector4(),
+                default,
+                default,
                 default
             );
 
@@ -263,6 +395,8 @@ public class UnifiedRenderSystem(
                 uvMin,
                 uvMax,
                 color,
+                default,
+                default,
                 default
             );
 
@@ -281,7 +415,29 @@ public class UnifiedRenderSystem(
                 Vector2.Zero,
                 Vector2.One,
                 Vector4.Zero,
-                text
+                text,
+                default,
+                default
+            );
+
+        public static RenderCommand ForTilemap(
+            Entity entity,
+            int layer,
+            Transform2D transform,
+            Tilemap tilemap
+        ) =>
+            new(
+                entity,
+                layer,
+                RenderCommandKind.Tilemap,
+                transform.TransformMatrix,
+                null,
+                Vector2.Zero,
+                Vector2.One,
+                Vector4.Zero,
+                default,
+                tilemap,
+                transform
             );
     }
 }

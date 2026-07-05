@@ -16,6 +16,7 @@ public static class EngineComponentRegistryExtensions
     ///   <item><see cref="Yaeger.Graphics.Animation"/> – type id <c>"Animation"</c></item>
     ///   <item><see cref="Yaeger.Graphics.AnimationState"/> – type id <c>"AnimationState"</c></item>
     ///   <item><see cref="Yaeger.Graphics.RenderLayer"/> – type id <c>"RenderLayer"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.Tilemap"/> – type id <c>"Tilemap"</c></item>
     /// </list>
     /// <para>3D components:</para>
     /// <list type="bullet">
@@ -42,6 +43,7 @@ public static class EngineComponentRegistryExtensions
         registry.Register(new AnimationSerializer());
         registry.Register(new AnimationStateSerializer());
         registry.Register(new RenderLayerSerializer());
+        registry.Register(new TilemapSerializer());
 
         // 3D components
         registry.Register(new Transform3DSerializer());
