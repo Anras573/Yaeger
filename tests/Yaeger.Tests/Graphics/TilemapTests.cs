@@ -70,6 +70,22 @@ public class TilemapTests
     }
 
     [Fact]
+    public void Constructor_NonFiniteTileSize_ShouldThrow()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Tilemap(MakeTileset(), width: 1, height: 1, tileSize: new Vector2(float.NaN, 1f))
+        );
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Tilemap(
+                MakeTileset(),
+                width: 1,
+                height: 1,
+                tileSize: new Vector2(1f, float.PositiveInfinity)
+            )
+        );
+    }
+
+    [Fact]
     public void Constructor_WrongTileArrayLength_ShouldThrow()
     {
         Assert.Throws<ArgumentException>(() =>

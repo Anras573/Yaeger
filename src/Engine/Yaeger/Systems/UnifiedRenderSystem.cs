@@ -305,12 +305,15 @@ public class UnifiedRenderSystem(
         // an axis-aligned, positively scaled map with a positive tile size (TileSize is a
         // mutable field, so it can be zeroed after construction). Anything else renders the
         // full map.
+        // !(x > 0) rather than x <= 0 so NaN also falls back (NaN comparisons are false).
         if (
             mapTransform.Rotation != 0f
-            || mapTransform.Scale.X <= 0f
-            || mapTransform.Scale.Y <= 0f
-            || map.TileSize.X <= 0f
-            || map.TileSize.Y <= 0f
+            || !(mapTransform.Scale.X > 0f)
+            || !(mapTransform.Scale.Y > 0f)
+            || !float.IsFinite(map.TileSize.X)
+            || !float.IsFinite(map.TileSize.Y)
+            || !(map.TileSize.X > 0f)
+            || !(map.TileSize.Y > 0f)
         )
             return (0, map.Width - 1, 0, map.Height - 1);
 

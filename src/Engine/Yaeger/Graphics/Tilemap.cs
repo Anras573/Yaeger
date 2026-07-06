@@ -57,7 +57,7 @@ public struct Tilemap
     /// <param name="width">Width of the map in tiles. Must be at least 1.</param>
     /// <param name="height">Height of the map in tiles. Must be at least 1.</param>
     /// <param name="tileSize">
-    /// Size of one tile in world units. Both components must be greater than zero.
+    /// Size of one tile in world units. Both components must be positive finite numbers.
     /// Defaults to (1, 1).
     /// </param>
     /// <param name="tint">Tint colour applied during rendering. Defaults to <see cref="Color.White"/>.</param>
@@ -93,7 +93,7 @@ public struct Tilemap
     /// The array is used directly (not copied).
     /// </param>
     /// <param name="tileSize">
-    /// Size of one tile in world units. Both components must be greater than zero.
+    /// Size of one tile in world units. Both components must be positive finite numbers.
     /// Defaults to (1, 1).
     /// </param>
     /// <param name="tint">Tint colour applied during rendering. Defaults to <see cref="Color.White"/>.</param>
@@ -188,11 +188,17 @@ public struct Tilemap
         ArgumentOutOfRangeException.ThrowIfLessThan(width, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(height, 1);
 
-        if (tileSize is { } size && (size.X <= 0 || size.Y <= 0))
+        // !(x > 0) rather than x <= 0 so NaN is rejected too (NaN comparisons are false).
+        if (
+            tileSize is { } size
+            && (
+                !(size.X > 0) || !(size.Y > 0) || !float.IsFinite(size.X) || !float.IsFinite(size.Y)
+            )
+        )
             throw new ArgumentOutOfRangeException(
                 nameof(tileSize),
                 size,
-                "Tile size components must be greater than zero."
+                "Tile size components must be positive finite numbers."
             );
     }
 
