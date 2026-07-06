@@ -195,6 +195,19 @@ public class TilemapSerializerTests
     }
 
     [Fact]
+    public void Serialize_DefaultConstructedTilemap_ShouldFailWithClearMessage()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, default(Tilemap));
+
+        var ex = Assert.Throws<SceneSaveException>(() => new SceneSaver(registry).Serialize(world));
+
+        Assert.Contains("default-constructed", ex.InnerException?.Message);
+    }
+
+    [Fact]
     public void SceneSaver_TilemapComponent_ShouldRoundTrip()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();

@@ -116,6 +116,14 @@ public sealed class TilemapSerializer : IComponentSerializer
         if (!world.TryGetComponent<Tilemap>(entity, out var tilemap))
             return null;
 
+        // A default-constructed Tilemap has no tile array (and an empty tileset); fail with a
+        // clear message instead of a NullReferenceException from the tiles loop below.
+        if (tilemap.Tiles is null)
+            throw new InvalidOperationException(
+                "Tilemap component has no tile data — was it default-constructed? "
+                    + "Construct tilemaps through a Tilemap constructor before saving."
+            );
+
         var obj = new JsonObject
         {
             ["type"] = TypeId,
