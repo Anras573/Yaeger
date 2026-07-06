@@ -18,9 +18,10 @@ namespace Yaeger.Graphics;
 /// </para>
 /// <para>
 /// A cell holding <see cref="EmptyTile"/> renders nothing. All tiles share the tileset
-/// texture, so a tilemap collapses into a single draw call per map in the batched renderer.
-/// Use multiple tilemap entities with different <see cref="RenderLayer"/> values for
-/// background/foreground layering.
+/// texture, so the batched renderer draws a tilemap in as few draw calls as its batch
+/// capacity allows — typically one per map (it flushes every 1 000 quads, so very large
+/// visible regions may span multiple batches). Use multiple tilemap entities with
+/// different <see cref="RenderLayer"/> values for background/foreground layering.
 /// </para>
 /// </remarks>
 public struct Tilemap

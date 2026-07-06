@@ -251,6 +251,10 @@ public class UnifiedRenderSystem(
             ? GetVisibleTileRange(map, mapTransform, camera, _aspectRatio)
             : (0, map.Width - 1, 0, map.Height - 1);
 
+        // Fully off-screen map: skip without scanning rows.
+        if (columnMin > columnMax || rowMin > rowMax)
+            return;
+
         for (var row = rowMin; row <= rowMax; row++)
         {
             for (var column = columnMin; column <= columnMax; column++)

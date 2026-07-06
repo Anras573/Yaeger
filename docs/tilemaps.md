@@ -9,8 +9,9 @@ tileset texture, instead of one entity per tile. The engine provides:
   the tile size in world units, and a tint. Pair it with a `Transform2D`.
 - Rendering via **`UnifiedRenderSystem`** — tilemaps are drawn in the same
   `RenderLayer`-sorted pass as sprites and text, and all tiles of a map share the
-  tileset texture, so each map collapses into a single draw call in the batched
-  renderer.
+  tileset texture, so each map renders in as few draw calls as the batched renderer
+  allows — typically one (the renderer flushes every 1 000 quads, so a very large
+  visible region can span multiple batches).
 
 ## Coordinate conventions
 
