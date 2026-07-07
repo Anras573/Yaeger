@@ -33,6 +33,7 @@ nav:
       - Camera: camera.md
       - Particles: particles.md
       - Scenes: scenes.md
+      - Tilemaps: tilemaps.md
   - Contributing:
       - Testing Guide: testing.md
 

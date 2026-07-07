@@ -79,9 +79,11 @@ Subscribe to `physicsWorld.OnCollision` for collision events. Read `physicsWorld
 
 ### Graphics components (`Graphics/`)
 
-Value-type ECS components: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `SpriteSheet`, `Animation`, `AnimationState`, `Text`.
+Value-type ECS components: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `SpriteSheet`, `Animation`, `AnimationState`, `Text`, `Tilemap` (+ `Tileset`).
 
 `SpriteSheet` calculates normalised UV rectangles per frame index via `GetFrameUv(int frameIndex)`.
+
+`Tilemap` + `Transform2D` renders a grid of tiles from a `Tileset` texture through `UnifiedRenderSystem` — batched by the shared texture (typically one draw call per map, subject to the renderer's 1 000-quad batch limit), camera-culled, `RenderLayer`-ordered. Tile indices are row-major with row 0 at the **top**; the transform position is the map's **bottom-left corner**; `Tilemap.EmptyTile` (`-1`) marks empty cells. See `docs/tilemaps.md`.
 
 `Camera2D` is a `record struct` with `Position`, `Zoom`, `Rotation`. Attach it to an entity and construct `RenderSystem` with a `Window` (third arg) to activate camera-aware rendering. Without a `Window`, or without a `Camera2D` entity, the renderer falls back to identity view (NDC-direct — the pre-camera behaviour). `TextRenderer` is explicitly screen-space and does NOT honour the camera. See `docs/camera.md` and `Samples/CameraDemo`.
 
