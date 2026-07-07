@@ -188,6 +188,14 @@ public struct Tilemap
         ArgumentOutOfRangeException.ThrowIfLessThan(width, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(height, 1);
 
+        // width * height is used for array allocation and length validation; reject products
+        // that would wrap int arithmetic.
+        if ((long)width * height > int.MaxValue)
+            throw new ArgumentOutOfRangeException(
+                nameof(width),
+                $"'width' ({width}) x 'height' ({height}) must not exceed {int.MaxValue} cells."
+            );
+
         // !(x > 0) rather than x <= 0 so NaN is rejected too (NaN comparisons are false).
         if (
             tileSize is { } size

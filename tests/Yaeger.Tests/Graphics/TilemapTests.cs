@@ -70,6 +70,16 @@ public class TilemapTests
     }
 
     [Fact]
+    public void Constructor_WidthTimesHeightOverflowingInt_ShouldThrow()
+    {
+        // 100000 * 100000 wraps int arithmetic; the constructor must reject it before
+        // allocating or validating against a bogus product.
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Tilemap(MakeTileset(), width: 100_000, height: 100_000)
+        );
+    }
+
+    [Fact]
     public void Constructor_NonFiniteTileSize_ShouldThrow()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
