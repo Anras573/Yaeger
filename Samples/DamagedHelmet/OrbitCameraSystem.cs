@@ -4,7 +4,7 @@ using Yaeger.Graphics;
 using Yaeger.Input;
 using Yaeger.Systems;
 
-namespace FlightHelmet;
+namespace DamagedHelmet;
 
 /// <summary>
 /// Keeps a <see cref="Camera3D"/> orbiting around a fixed target point. The camera slowly

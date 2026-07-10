@@ -515,6 +515,6 @@ Samples/Sponza/_sponza-fetch/
 # SkinnedMeshDemo sample — fetched at build time, not committed
 Samples/SkinnedMeshDemo/Assets/CesiumMan/
 Samples/SkinnedMeshDemo/_cesium-fetch/
-# FlightHelmet sample — fetched at build time, not committed
-Samples/FlightHelmet/Assets/FlightHelmet/
-Samples/FlightHelmet/_flighthelmet-fetch/
+# DamagedHelmet sample — fetched at build time, not committed
+Samples/DamagedHelmet/Assets/DamagedHelmet/
+Samples/DamagedHelmet/_damagedhelmet-fetch/

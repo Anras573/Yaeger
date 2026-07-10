@@ -47,7 +47,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ParticleDemo", "Samples\Par
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UiDemo", "Samples\UiDemo\UiDemo.csproj", "{D1E2F3A4-B5C6-7891-ABCD-EF1234567892}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlightHelmet", "Samples\FlightHelmet\FlightHelmet.csproj", "{36051F66-421D-42C6-B75A-BC231432F00E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DamagedHelmet", "Samples\DamagedHelmet\DamagedHelmet.csproj", "{36051F66-421D-42C6-B75A-BC231432F00E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
