@@ -81,7 +81,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
   - `SceneDemo/` - JSON scene loading
   - `CornellBox/` - 3D Cornell Box + F1 editor overlay
   - `Sponza/` - glTF Sponza scene rendered through the PBR path
-  - `FlightHelmet/` - glTF FlightHelmet model with skybox, lights, and an orbiting camera
+  - `DamagedHelmet/` - glTF DamagedHelmet model with skybox, lights, and an orbiting camera
   - `SkinnedMeshDemo/` - glTF skeletal animation (GPU skinning) demo
   - `UiDemo/` - ImGui UI demo
   - `BrowserDemo/` - Blazor/WebAssembly browser loop + browser input/runtime integration

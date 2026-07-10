@@ -72,7 +72,7 @@ values are coerced to safe defaults, mirroring `SetSceneLighting`.
 `Samples/CornellBox` adds red, green, and blue `PointLight` entities inside the box to show
 multiple coloured sources mixing across the walls and boxes.
 
-`Samples/FlightHelmet` combines a directional sun with warm-fill and cool-rim `PointLight`
+`Samples/DamagedHelmet` combines a directional sun with warm-fill and cool-rim `PointLight`
 entities around a glTF model, and is the reference for the `Skybox` component: it registers a
 procedurally generated cubemap in a `CubemapRegistry` and passes a `SkyboxRenderer` to
 `MeshRenderSystem`.

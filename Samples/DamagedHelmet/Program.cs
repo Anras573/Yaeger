@@ -1,5 +1,5 @@
 using System.Numerics;
-using FlightHelmet;
+using DamagedHelmet;
 using Yaeger;
 using Yaeger.Assets;
 using Yaeger.ECS;
@@ -10,15 +10,15 @@ using Yaeger.Rendering;
 using Yaeger.Systems;
 using Yaeger.Windowing;
 
-// FlightHelmet demo — loads the KhronosGroup FlightHelmet glTF via AssimpLoader and renders it
+// DamagedHelmet demo — loads the KhronosGroup DamagedHelmet glTF via AssimpLoader and renders it
 // through Renderer3D's PBR metallic/roughness path, lit by a directional sun plus two point
 // lights, inside a procedurally generated sky cubemap (see ProceduralSkybox).
-// Assets are fetched automatically on first build via the FetchFlightHelmetAssets MSBuild target.
+// Assets are fetched automatically on first build via the FetchDamagedHelmetAssets MSBuild target.
 // Requires native libassimp at runtime (e.g. apt install libassimp-dev on Linux).
 // Controls: camera orbits the helmet on its own — left-mouse-drag to orbit manually,
 // scroll to zoom, Space to pause/resume the auto-orbit, F1 inspector, ESC exit.
 
-var modelPath = AssetPath.Resolve("Assets/FlightHelmet/FlightHelmet.gltf");
+var modelPath = AssetPath.Resolve("Assets/DamagedHelmet/DamagedHelmet.gltf");
 
 if (!File.Exists(modelPath))
 {
