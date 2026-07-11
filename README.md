@@ -11,11 +11,14 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It aims to pr
 - Entity-Component-System (ECS) architecture, with JSON prefabs and scenes
 - 2D rendering with Silk.NET (texture-batched sprites with deterministic, layered draw ordering via `RenderLayer` and `UnifiedRenderSystem`)
 - 3D rendering — mesh rendering with lighting, shadow mapping, and PBR materials (see [`docs/`](docs/index.md))
+- Skeletal animation — glTF bone hierarchies and clips played via GPU skinning
+- Tilemaps — batched, camera-culled tile grids
 - Opt-in 2D camera (pan / zoom / rotate; world-space sprites + screen-space text)
 - Frame-based animation and a pooled, batched particle system
-- 2D physics (AABB/circle collision detection + impulse-based resolution)
+- 2D physics (spatial-hash broadphase, AABB/circle collision detection + impulse-based resolution)
 - Audio playback via OpenAL and text rendering via HarfBuzz/Skia
-- In-game ImGui editor overlay for live entity/component editing
+- ECS-based screen-space UI (panels, buttons, labels — see [`docs/ui.md`](docs/ui.md))
+- In-game ImGui editor overlay for live entity/component editing, with in-world selection gizmos
 - Input handling (keyboard, mouse; browser runtime maps single-touch/pen to mouse-style input)
 - Sample games and demos (see [`Samples/`](Samples))
 - Extensible component and system design
@@ -83,7 +86,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
   - `Sponza/` - glTF Sponza scene rendered through the PBR path
   - `DamagedHelmet/` - glTF DamagedHelmet model with skybox, lights, and an orbiting camera
   - `SkinnedMeshDemo/` - glTF skeletal animation (GPU skinning) demo
-  - `UiDemo/` - ImGui UI demo
+  - `UiDemo/` - UI system demo (menu + HUD with buttons, panels, labels)
   - `BrowserDemo/` - Blazor/WebAssembly browser loop + browser input/runtime integration
   - `RenderingStressTest/` - Renderer stress test (FPS vs sprite count)
   - `TextRenderingExample/` - Text rendering demo

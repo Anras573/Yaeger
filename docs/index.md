@@ -13,9 +13,11 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a
 - **Opt-in 2D camera** (pan / zoom / rotate) — see [camera.md](camera.md)
 - **Animation system** with frame-based texture cycling ([animation-system.md](animation-system.md))
 - **Particle system** with pooled, batched emitters ([particles.md](particles.md))
-- **2D physics** — AABB/circle collision detection and impulse-based resolution
+- **Tilemaps** — batched, camera-culled tile grids ([tilemaps.md](tilemaps.md))
+- **2D physics** — spatial-hash broadphase, AABB/circle collision detection, impulse-based resolution
 - **Audio system** with OpenAL support ([audio-system.md](audio-system.md))
 - **Text rendering** via HarfBuzz/Skia
+- **UI system** — ECS-based screen-space panels, buttons, and labels ([ui.md](ui.md))
 - **Input handling** (keyboard, mouse)
 - **Editor overlay** — in-game ImGui inspector for live entity/component editing ([editor.md](editor.md))
 - Extensible component and system design
@@ -79,8 +81,9 @@ Samples/
 ├── SceneDemo/               # JSON scene loading demo
 ├── CornellBox/              # 3D Cornell Box + F1 editor overlay demo
 ├── Sponza/                  # glTF Sponza scene rendered through the PBR path
+├── DamagedHelmet/           # glTF DamagedHelmet model with skybox, lights, and orbit camera
 ├── SkinnedMeshDemo/         # glTF skeletal animation (GPU skinning) demo
-├── UiDemo/                  # ImGui UI demo
+├── UiDemo/                  # UI system demo (menu + HUD with buttons, panels, labels)
 ├── BrowserDemo/             # Blazor/WebAssembly browser loop demo
 ├── RenderingStressTest/     # Renderer stress test
 └── TextRenderingExample/    # Text rendering demo
