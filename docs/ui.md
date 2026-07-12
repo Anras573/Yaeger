@@ -13,7 +13,7 @@ a live-updating HUD.
 | Component | Fields | Purpose |
 | --- | --- | --- |
 | `UiRect` | `Position`, `Size` (pixels) | Placement — every UI entity has one |
-| `UiPanel` | `BackgroundColor`, `BorderRadius` | A solid-colour rectangle |
+| `UiPanel` | `BackgroundColor`, `BorderRadius` | A solid-colour rectangle (`BorderRadius` is reserved for future use — corners render square today) |
 | `UiButton` | `Normal`, `Hovered`, `Pressed` colours | A clickable rectangle |
 | `UiButtonState` | `IsHovered`, `IsPressed`, `WasClicked` | Written by `UiSystem` each frame — read, don't write |
 | `UiLabel` | `Text`, `Color`, `FontSize` | Text drawn at the rect's position |
