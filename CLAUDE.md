@@ -85,7 +85,7 @@ Systems implement `IUpdateSystem` (a single `void Update(float deltaTime)` metho
 
 ### Skeletal animation (`Graphics/`, `Systems/SkeletalAnimationSystem`)
 
-CPU-sampled, GPU-skinned. Entities carry `SkeletonHandle` + `AnimationPlayer` (clip index, time, speed, loop); `SkeletalAnimationSystem.Update(dt)` samples the clip, resolves the bone hierarchy, and writes a `BonePalette` component that `MeshRenderSystem` uploads. See `docs/skeletal-animation.md` and `Samples/SkinnedMeshDemo`.
+CPU-sampled, GPU-skinned. Entities carry `SkeletonHandle` + `AnimationPlayer` (clip name — `null` holds the bind pose — plus time, speed, loop); `SkeletalAnimationSystem.Update(dt)` samples the clip, resolves the bone hierarchy, and writes a `BonePalette` component that `MeshRenderSystem` uploads. See `docs/skeletal-animation.md` and `Samples/SkinnedMeshDemo`.
 
 ### Physics (`Physics/`)
 
