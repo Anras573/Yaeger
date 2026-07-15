@@ -4,7 +4,6 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "C#: UiDemo Debug",
             "type": "dotnet",
@@ -22,6 +21,12 @@
             "type": "dotnet",
             "request": "launch",
             "projectPath": "${workspaceFolder}/Samples/Sponza/Sponza.csproj"
+        },
+        {
+            "name": "C#: SkinnedMeshDemo Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/SkinnedMeshDemo/SkinnedMeshDemo.csproj"
         },
         {
             "name": "C#: SceneDemo Debug",
@@ -52,6 +57,12 @@
             "type": "dotnet",
             "request": "launch",
             "projectPath": "${workspaceFolder}/Samples/MouseDemo/MouseDemo.csproj"
+        },
+        {
+            "name": "C#: DamagedHelmet Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/DamagedHelmet/DamagedHelmet.csproj"
         },
         {
             "name": "C#: CornellBox Debug",
