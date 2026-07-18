@@ -133,3 +133,40 @@ so `Tilemap.EmptyTile` (`-1`) is always non-solid.
 
 Prefab/scene JSON marks solid tiles via an optional `"solidTiles"` array of tileset tile
 indices (not cell positions) — see the `Tilemap` serializer format above.
+
+## Importing from Tiled
+
+`TiledMapLoader` loads a level authored in [Tiled](https://www.mapeditor.org/)'s JSON export
+format (`.tmj`) and converts it into a `Scene`, so hand-writing a level's tile grid in code or
+JSON is no longer required:
+
+```csharp
+var prefabsByName = new Dictionary<string, Prefab>
+{
+    ["PlayerStart"] = playerPrefab,
+    ["Coin"] = coinPrefab,
+};
+
+var loader = new TiledMapLoader();
+var scene = loader.Load("Assets/Levels/level1.tmj", prefabsByName);
+
+var world = new World();
+world.Instantiate(scene);
+```
+
+- Each Tiled **tile layer** becomes one entity: a `Transform2D`, a `Tilemap` built from the
+  map's tileset, and a `RenderLayer` set to the layer's position in the map's `layers` array
+  (later layers draw on top). The layer's `name` becomes the entity's tag.
+- Each **object** in an object layer whose Tiled `class` (or legacy `type`) matches a key in
+  `prefabsByName` spawns that prefab, positioned at the object's location and tagged with the
+  object's `name`. Objects with no matching prefab, or marked `"visible": false` in Tiled, are
+  skipped — not every marker needs a corresponding prefab.
+- A tileset tile's custom boolean property named `solid` (set in Tiled's tileset editor) marks
+  that tile solid for `TilemapColliderSystem`, exactly like the `solidTiles` JSON field above.
+
+This first pass covers a common subset of the format: a single **embedded** tileset per map
+(no external `.tsj` references), orthogonal finite maps, and uncompressed tile layer data.
+Isometric/hexagonal/infinite maps, multiple tilesets, compressed or Base64-encoded layers,
+image layers, and group layers are out of scope — `TiledMapLoader` throws a
+`TiledMapLoadException` describing which unsupported feature was hit. It is import-only; there
+is no path back out to `.tmj`.

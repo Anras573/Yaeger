@@ -30,5 +30,10 @@
       CopyToOutputDirectory="PreserveNewest"
       Link="TestAssets\Roboto-Regular.ttf"
     />
+    <None
+      Include="Fixtures\Tiled\level.tmj"
+      CopyToOutputDirectory="PreserveNewest"
+      Link="TestAssets\Tiled\level.tmj"
+    />
   </ItemGroup>
 </Project>
