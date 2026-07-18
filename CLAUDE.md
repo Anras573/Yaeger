@@ -100,6 +100,8 @@ Components: `BoxCollider2D`, `CircleCollider2D`, `RigidBody2D` (`Dynamic`/`Stati
 
 Subscribe to `physicsWorld.OnCollision` for collision events. Read `physicsWorld.Manifolds` for the results of the last step.
 
+**Tilemap collision**: `PhysicsWorld2D.Update` runs a `TilemapColliderSystem` pass before the four subsystems above. It reads `Tilemap` + `Transform2D` entities, treats tiles whose index is in the `Tileset`'s `solidTileIndices` as solid (`Tileset.IsSolid`), and merges adjacent solid tiles into the fewest axis-aligned rectangles via `TilemapColliderMerger` (a standalone greedy-merge algorithm) — generating one static `BoxCollider2D` entity per rectangle instead of one per tile. This avoids both broadphase bloat and the tile-seam snag where a per-tile collider setup can hand `CollisionDetectionSystem.TestBoxBox` a spurious X-axis normal from an internal edge. Colliders are diffed and rebuilt whenever a tilemap's tiles change (e.g. breakable blocks via `SetTile`), and cleaned up when the tilemap entity is destroyed. See `docs/tilemaps.md`.
+
 ### Graphics components (`Graphics/`)
 
 Value-type ECS components — 2D: `Sprite`, `Transform2D`, `Camera2D`, `Color`, `SpriteSheet`, `Animation`, `AnimationState`, `Text`, `RenderLayer`, `ParallaxLayer`, `Tilemap` (+ `Tileset`); 3D: `Transform3D`, `Camera3D`, `Material3D`, `MeshHandle`, `Aabb3D`, `DirectionalLight`, `PointLight`, `SpotLight`, `Skybox`, `SkeletonHandle`, `AnimationPlayer`, `BonePalette`.

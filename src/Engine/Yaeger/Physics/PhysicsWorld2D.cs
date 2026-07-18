@@ -11,6 +11,7 @@ namespace Yaeger.Physics;
 /// </summary>
 public class PhysicsWorld2D : IUpdateSystem
 {
+    private readonly TilemapColliderSystem _tilemapColliderSystem;
     private readonly GravitySystem _gravitySystem;
     private readonly MovementSystem _movementSystem;
     private readonly CollisionDetectionSystem _collisionDetectionSystem;
@@ -56,6 +57,7 @@ public class PhysicsWorld2D : IUpdateSystem
             );
 
         var g = gravity ?? new Vector2(0, -9.81f);
+        _tilemapColliderSystem = new TilemapColliderSystem(world);
         _gravitySystem = new GravitySystem(world, g);
         _movementSystem = new MovementSystem(world);
         _collisionDetectionSystem = new CollisionDetectionSystem(world, broadphaseCellSize);
@@ -64,24 +66,28 @@ public class PhysicsWorld2D : IUpdateSystem
 
     /// <summary>
     /// Steps the physics simulation forward by deltaTime seconds.
-    /// Executes: Gravity -> Movement -> Collision Detection -> Collision Resolution.
+    /// Executes: Tilemap Collider Rebuild -> Gravity -> Movement -> Collision Detection ->
+    /// Collision Resolution.
     /// </summary>
     /// <param name="deltaTime">The time elapsed since the last step, in seconds.</param>
     public void Update(float deltaTime)
     {
-        // 1. Apply gravity to dynamic bodies
+        // 1. Rebuild tilemap-derived colliders for any tilemap whose tiles changed
+        _tilemapColliderSystem.Update(deltaTime);
+
+        // 2. Apply gravity to dynamic bodies
         _gravitySystem.Update(deltaTime);
 
-        // 2. Integrate velocity into position
+        // 3. Integrate velocity into position
         _movementSystem.Update(deltaTime);
 
-        // 3. Detect collisions
+        // 4. Detect collisions
         _collisionDetectionSystem.Detect();
 
-        // 4. Resolve collisions
+        // 5. Resolve collisions
         _collisionResolutionSystem.Resolve(_collisionDetectionSystem.Manifolds);
 
-        // 5. Fire collision events
+        // 6. Fire collision events
         var handler = OnCollision;
         if (handler is not null)
         {

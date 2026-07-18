@@ -21,13 +21,17 @@ namespace Yaeger.ECS.Serializers;
 ///   "tileWidth": 1.0,
 ///   "tileHeight": 1.0,
 ///   "tiles": [0, 1, -1, 2, 3, 3, 3, 3],
+///   "solidTiles": [1, 2, 3],
 ///   "tint": [255, 255, 255, 255]
 /// }
 /// </code>
 /// <c>rows</c> defaults to <c>1</c>, <c>tileWidth</c>/<c>tileHeight</c> default to <c>1.0</c>,
-/// <c>tiles</c> defaults to an all-empty map, and <c>tint</c> defaults to white when absent.
-/// The <c>tiles</c> array is row-major with row 0 at the top of the map; <c>-1</c> marks an
-/// empty cell.
+/// <c>tiles</c> defaults to an all-empty map, <c>solidTiles</c> defaults to no solid tiles, and
+/// <c>tint</c> defaults to white when absent. The <c>tiles</c> array is row-major with row 0 at
+/// the top of the map; <c>-1</c> marks an empty cell. <c>solidTiles</c> lists tileset tile
+/// indices (not cell positions) that are solid for collision purposes — see
+/// <see cref="Yaeger.Graphics.Tileset.IsSolid"/> and
+/// <see cref="Yaeger.Physics.Systems.TilemapColliderSystem"/>.
 /// </remarks>
 public sealed class TilemapSerializer : IComponentSerializer
 {
@@ -101,7 +105,31 @@ public sealed class TilemapSerializer : IComponentSerializer
         }
 
         var tint = ComponentJson.GetOptionalColor(element, "tint", Color.White);
-        var tileset = new Tileset(texturePath, columns, rows);
+
+        List<int>? solidTiles = null;
+        if (element.TryGetProperty("solidTiles", out var solidTilesEl))
+        {
+            if (solidTilesEl.ValueKind != JsonValueKind.Array)
+                throw new PrefabLoadException("Tilemap 'solidTiles' must be an array of integers.");
+
+            solidTiles = [];
+            foreach (var solidTileEl in solidTilesEl.EnumerateArray())
+            {
+                if (!solidTileEl.TryGetInt32(out var solidTileIndex))
+                    throw new PrefabLoadException(
+                        "Tilemap 'solidTiles' array elements must be integers."
+                    );
+
+                if (solidTileIndex < 0 || solidTileIndex >= tileCount)
+                    throw new PrefabLoadException(
+                        $"Tilemap solid tile index {solidTileIndex} must be within [0, {tileCount})."
+                    );
+
+                solidTiles.Add(solidTileIndex);
+            }
+        }
+
+        var tileset = new Tileset(texturePath, columns, rows, solidTiles);
         var tileSize = new Vector2(tileWidth, tileHeight);
 
         var component = tiles is null
@@ -145,6 +173,15 @@ public sealed class TilemapSerializer : IComponentSerializer
             tiles.Add(tileIndex);
         }
         obj["tiles"] = tiles;
+
+        var solidTileIndices = tilemap.Tileset.SolidTileIndices.ToList();
+        if (solidTileIndices.Count > 0)
+        {
+            var solidTiles = new JsonArray();
+            foreach (var solidTileIndex in solidTileIndices)
+                solidTiles.Add(solidTileIndex);
+            obj["solidTiles"] = solidTiles;
+        }
 
         if (
             tilemap.Tint.R != 255
