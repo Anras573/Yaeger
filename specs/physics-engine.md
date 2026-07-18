@@ -62,5 +62,11 @@ Extend the physics engine to support 3D simulations, reusing dimensionality-agno
   `CollisionDetectionSystem` filters candidate pairs by a symmetric layer/mask check before
   narrowphase. `IsTrigger` marks a collider as a non-resolving sensor: its manifolds are still
   produced and reported via `OnCollision`, but `CollisionResolutionSystem` skips them.
+- **Collision enter/exit/stay events (Complete)** — `PhysicsWorld2D` keeps the previous step's
+  contact pair set (keyed order-independently on the two entity IDs) and diffs it against the
+  current step's manifolds. `OnCollisionEnter` fires once when a pair starts overlapping,
+  `OnCollisionExit` fires once when a pair stops (including when either entity is destroyed
+  between steps, which drops its contacts out of the "current" set with no final manifold to
+  report), and `OnCollision` remains the per-step "stay" signal.
 - Joints and constraints (distance, hinge, spring) (Future)
 - Continuous collision detection (CCD) to prevent tunneling at high velocities (Future)
