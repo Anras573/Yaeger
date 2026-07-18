@@ -46,6 +46,22 @@ public struct BoxCollider2D
     public bool IsTrigger;
 
     /// <summary>
+    /// When <c>true</c>, this box behaves as a one-way ("jump-through") platform: a contact is
+    /// only resolved when the other body approaches from the <see cref="SurfaceDirection"/> side
+    /// and is not moving against that direction — e.g. a body jumping up through the platform's
+    /// underside passes through, but the same body falling onto its top surface lands normally.
+    /// See <see cref="Systems.CollisionResolutionSystem"/> and <c>PhysicsWorld2D.DropThrough</c>.
+    /// </summary>
+    public bool OneWay;
+
+    /// <summary>
+    /// Unit vector pointing away from the platform's solid side. Only meaningful when
+    /// <see cref="OneWay"/> is <c>true</c>. Defaults to <see cref="Vector2.UnitY"/> (up), the
+    /// standard "solid on top, pass-through from below" platform.
+    /// </summary>
+    public Vector2 SurfaceDirection;
+
+    /// <summary>
     /// Creates a box collider with the specified size and optional offset.
     /// </summary>
     /// <param name="size">Full width and height. Both components must be greater than zero.</param>
@@ -53,15 +69,23 @@ public struct BoxCollider2D
     /// <param name="layer">The collision layer this collider belongs to. Must be within [0, 31]. Defaults to 0.</param>
     /// <param name="collidesWith">Bitmask of layers this collider collides with. Defaults to <see cref="AllLayers"/>.</param>
     /// <param name="isTrigger">Whether this collider is a non-resolving trigger/sensor. Defaults to <c>false</c>.</param>
+    /// <param name="oneWay">Whether this box is a one-way ("jump-through") platform. Defaults to <c>false</c>.</param>
+    /// <param name="surfaceDirection">
+    /// The platform's solid-side direction; normalized on construction. Defaults to
+    /// <see cref="Vector2.UnitY"/> (up). Only meaningful when <paramref name="oneWay"/> is <c>true</c>.
+    /// </param>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when size has non-positive components, or <paramref name="layer"/> is outside [0, 31].
+    /// Thrown when size has non-positive components, <paramref name="layer"/> is outside
+    /// [0, 31], or <paramref name="surfaceDirection"/> is provided with near-zero length.
     /// </exception>
     public BoxCollider2D(
         Vector2 size,
         Vector2? offset = null,
         int layer = 0,
         uint collidesWith = AllLayers,
-        bool isTrigger = false
+        bool isTrigger = false,
+        bool oneWay = false,
+        Vector2? surfaceDirection = null
     )
     {
         if (size.X <= 0 || size.Y <= 0)
@@ -77,6 +101,8 @@ public struct BoxCollider2D
         Layer = layer;
         CollidesWith = collidesWith;
         IsTrigger = isTrigger;
+        OneWay = oneWay;
+        SurfaceDirection = NormalizeSurfaceDirection(surfaceDirection);
     }
 
     /// <summary>
@@ -87,16 +113,23 @@ public struct BoxCollider2D
     /// <param name="layer">The collision layer this collider belongs to. Must be within [0, 31]. Defaults to 0.</param>
     /// <param name="collidesWith">Bitmask of layers this collider collides with. Defaults to <see cref="AllLayers"/>.</param>
     /// <param name="isTrigger">Whether this collider is a non-resolving trigger/sensor. Defaults to <c>false</c>.</param>
+    /// <param name="oneWay">Whether this box is a one-way ("jump-through") platform. Defaults to <c>false</c>.</param>
+    /// <param name="surfaceDirection">
+    /// The platform's solid-side direction; normalized on construction. Defaults to
+    /// <see cref="Vector2.UnitY"/> (up). Only meaningful when <paramref name="oneWay"/> is <c>true</c>.
+    /// </param>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when width or height is less than or equal to zero, or <paramref name="layer"/> is
-    /// outside [0, 31].
+    /// Thrown when width or height is less than or equal to zero, <paramref name="layer"/> is
+    /// outside [0, 31], or <paramref name="surfaceDirection"/> is provided with near-zero length.
     /// </exception>
     public BoxCollider2D(
         float width,
         float height,
         int layer = 0,
         uint collidesWith = AllLayers,
-        bool isTrigger = false
+        bool isTrigger = false,
+        bool oneWay = false,
+        Vector2? surfaceDirection = null
     )
     {
         if (width <= 0)
@@ -118,6 +151,8 @@ public struct BoxCollider2D
         Layer = layer;
         CollidesWith = collidesWith;
         IsTrigger = isTrigger;
+        OneWay = oneWay;
+        SurfaceDirection = NormalizeSurfaceDirection(surfaceDirection);
     }
 
     /// <summary>
@@ -133,5 +168,21 @@ public struct BoxCollider2D
                 layer,
                 "Layer must be within [0, 31]."
             );
+    }
+
+    private static Vector2 NormalizeSurfaceDirection(Vector2? surfaceDirection)
+    {
+        if (surfaceDirection is not { } direction)
+            return Vector2.UnitY;
+
+        var lengthSq = direction.LengthSquared();
+        if (lengthSq < 1e-10f || !float.IsFinite(lengthSq))
+            throw new ArgumentOutOfRangeException(
+                nameof(surfaceDirection),
+                direction,
+                "Surface direction must be a non-zero, finite vector."
+            );
+
+        return direction / MathF.Sqrt(lengthSq);
     }
 }

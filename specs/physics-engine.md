@@ -68,5 +68,13 @@ Extend the physics engine to support 3D simulations, reusing dimensionality-agno
   `OnCollisionExit` fires once when a pair stops (including when either entity is destroyed
   between steps, which drops its contacts out of the "current" set with no final manifold to
   report), and `OnCollision` remains the per-step "stay" signal.
+- **One-way platforms (Complete)** — `BoxCollider2D` carries `OneWay` (bool) and
+  `SurfaceDirection` (unit `Vector2`, default up). `CollisionResolutionSystem` resolves a
+  one-way contact only when the positional-correction push on the other body aligns with
+  `SurfaceDirection` (contact on the solid side, not the underside) and that body's relative
+  velocity isn't moving against `SurfaceDirection` (not still rising through it) — either
+  condition failing skips resolution while still reporting the manifold via
+  `OnCollision`/enter/exit, exactly like a trigger. `PhysicsWorld2D.DropThrough(entity, duration)`
+  exempts an entity from one-way resolution for a window, for a down+jump drop-through input.
 - Joints and constraints (distance, hinge, spring) (Future)
 - Continuous collision detection (CCD) to prevent tunneling at high velocities (Future)
