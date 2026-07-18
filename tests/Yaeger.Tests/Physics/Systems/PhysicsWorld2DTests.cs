@@ -264,4 +264,169 @@ public class PhysicsWorld2DTests
         var ballVelocity = world.GetComponent<Velocity2D>(ball);
         Assert.Equal(new Vector2(0, -10), ballVelocity.Linear);
     }
+
+    // ── Collision enter/exit/stay events ─────────────────────────────────────
+
+    [Fact]
+    public void Update_OverlappingFor10Steps_ThenSeparating_ShouldFireOneEnterTenStaysOneExit()
+    {
+        // Arrange — two static, non-moving boxes overlapping from the start.
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, RigidBody2D.CreateStatic());
+        world.AddComponent(a, new BoxCollider2D(2, 2));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, RigidBody2D.CreateStatic());
+        world.AddComponent(b, new BoxCollider2D(2, 2));
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero);
+
+        var enters = new List<CollisionManifold>();
+        var stays = new List<CollisionManifold>();
+        var exits = new List<(Entity, Entity)>();
+        physics.OnCollisionEnter += m => enters.Add(m);
+        physics.OnCollision += m => stays.Add(m);
+        physics.OnCollisionExit += (ea, eb) => exits.Add((ea, eb));
+
+        // Act — 10 steps while the pair remains overlapping (dt=0 so nothing moves).
+        for (var i = 0; i < 10; i++)
+            physics.Update(0f);
+
+        // Assert — exactly one enter, ten stays, and zero exits so far.
+        Assert.Single(enters);
+        Assert.Equal(10, stays.Count);
+        Assert.Empty(exits);
+
+        // Act — separate the pair and step once more.
+        var transformB = world.GetComponent<Transform2D>(b);
+        transformB.Position = new Vector2(100, 100);
+        world.AddComponent(b, transformB);
+        physics.Update(0f);
+
+        // Assert — exactly one exit fires, with no further enters or stays.
+        Assert.Single(enters);
+        Assert.Equal(10, stays.Count);
+        var exit = Assert.Single(exits);
+        var exitEntities = new[] { exit.Item1, exit.Item2 };
+        Assert.Contains(a, exitEntities);
+        Assert.Contains(b, exitEntities);
+    }
+
+    [Fact]
+    public void Update_DestroyingOverlappingEntity_ShouldFireExitOnNextStep()
+    {
+        // Arrange
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, RigidBody2D.CreateStatic());
+        world.AddComponent(a, new BoxCollider2D(2, 2));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, RigidBody2D.CreateStatic());
+        world.AddComponent(b, new BoxCollider2D(2, 2));
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero);
+
+        var exits = new List<(Entity, Entity)>();
+        physics.OnCollisionExit += (ea, eb) => exits.Add((ea, eb));
+
+        physics.Update(0f); // establish contact
+        Assert.Empty(exits);
+
+        // Act — destroy one of the two contacting entities, then step again.
+        world.DestroyEntity(b);
+        physics.Update(0f);
+
+        // Assert — the destroyed entity's contact ends with an exit, not silently.
+        var exit = Assert.Single(exits);
+        var exitEntities = new[] { exit.Item1, exit.Item2 };
+        Assert.Contains(a, exitEntities);
+        Assert.Contains(b, exitEntities);
+    }
+
+    [Fact]
+    public void Update_SeparateThenReoverlap_ShouldFireEnterAgain()
+    {
+        // Arrange
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, RigidBody2D.CreateStatic());
+        world.AddComponent(a, new BoxCollider2D(2, 2));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, RigidBody2D.CreateStatic());
+        world.AddComponent(b, new BoxCollider2D(2, 2));
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero);
+
+        var enters = new List<CollisionManifold>();
+        var exits = new List<(Entity, Entity)>();
+        physics.OnCollisionEnter += m => enters.Add(m);
+        physics.OnCollisionExit += (ea, eb) => exits.Add((ea, eb));
+
+        // Act — overlap, separate, then re-overlap.
+        physics.Update(0f); // enter #1
+        Assert.Single(enters);
+
+        var transformB = world.GetComponent<Transform2D>(b);
+        transformB.Position = new Vector2(100, 100);
+        world.AddComponent(b, transformB);
+        physics.Update(0f); // exit #1
+        Assert.Single(exits);
+
+        transformB.Position = new Vector2(1, 0);
+        world.AddComponent(b, transformB);
+        physics.Update(0f); // enter #2
+
+        // Assert
+        Assert.Equal(2, enters.Count);
+        Assert.Single(exits);
+    }
+
+    [Fact]
+    public void Update_TriggerPair_ShouldFireEnterAndExit()
+    {
+        // Arrange — a trigger pair (coin pickup) should still fire enter/exit like a normal pair.
+        var world = new World();
+
+        var sensor = world.CreateEntity();
+        world.AddComponent(sensor, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(sensor, RigidBody2D.CreateStatic());
+        world.AddComponent(sensor, new CircleCollider2D(1f, isTrigger: true));
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(0.5f, 0)));
+        world.AddComponent(player, RigidBody2D.CreateStatic());
+        world.AddComponent(player, new CircleCollider2D(1f));
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero);
+
+        var enters = new List<CollisionManifold>();
+        var exits = new List<(Entity, Entity)>();
+        physics.OnCollisionEnter += m => enters.Add(m);
+        physics.OnCollisionExit += (ea, eb) => exits.Add((ea, eb));
+
+        // Act
+        physics.Update(0f);
+
+        var transformPlayer = world.GetComponent<Transform2D>(player);
+        transformPlayer.Position = new Vector2(100, 100);
+        world.AddComponent(player, transformPlayer);
+        physics.Update(0f);
+
+        // Assert
+        var enter = Assert.Single(enters);
+        Assert.True(enter.IsTrigger);
+        Assert.Single(exits);
+    }
 }
