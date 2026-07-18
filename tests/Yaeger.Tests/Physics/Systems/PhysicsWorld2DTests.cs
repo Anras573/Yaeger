@@ -138,6 +138,64 @@ public class PhysicsWorld2DTests
     }
 
     [Fact]
+    public void Update_TilemapFloor_ShouldGenerateMergedColliderCoveringTheWholeSpan()
+    {
+        // Arrange — a 6-wide, 1-tall solid floor made of individual 1x1 tiles.
+        var world = new World();
+        var tileset = new Tileset("Assets/tiles.png", columns: 1, solidTileIndices: [0]);
+        var tilemap = new Tilemap(tileset, width: 6, height: 1, tiles: [0, 0, 0, 0, 0, 0]);
+
+        var floor = world.CreateEntity();
+        world.AddComponent(floor, new Transform2D(Vector2.Zero));
+        world.AddComponent(floor, tilemap);
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero);
+
+        // Act
+        physics.Update(0f);
+
+        // Assert — a single merged BoxCollider2D spans the whole floor, not six per-tile ones.
+        var (_, box, transform) = world.Query<BoxCollider2D, Transform2D>().Single();
+        Assert.Equal(new Vector2(6, 1), box.Size);
+        Assert.Equal(new Vector2(3, 0.5f), transform.Position);
+    }
+
+    [Fact]
+    public void Update_BoxSlidingAcrossTileSeam_ShouldNeverReceiveXAxisNormal()
+    {
+        // Arrange — a 6-wide, 1-tall solid floor. A box straddles the seam between tile
+        // columns 2 and 3 (x = 3), the exact spot a naive per-tile collider setup would
+        // produce a spurious X-axis collision normal (the "tile-seam snag").
+        var world = new World();
+        var tileset = new Tileset("Assets/tiles.png", columns: 1, solidTileIndices: [0]);
+        var tilemap = new Tilemap(tileset, width: 6, height: 1, tiles: [0, 0, 0, 0, 0, 0]);
+
+        var floor = world.CreateEntity();
+        world.AddComponent(floor, new Transform2D(Vector2.Zero));
+        world.AddComponent(floor, tilemap);
+
+        // Box resting on top of the floor (top of floor is y = 1), straddling x = 3, and
+        // overlapping slightly so a manifold is produced.
+        var box = world.CreateEntity();
+        world.AddComponent(box, new Transform2D(new Vector2(3, 1.4f)));
+        world.AddComponent(box, new Velocity2D(5, 0));
+        world.AddComponent(box, RigidBody2D.CreateDynamic(1.0f));
+        world.AddComponent(box, new BoxCollider2D(1, 1));
+        world.AddComponent(box, PhysicsMaterial.Default);
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero);
+
+        // Act
+        physics.Update(0f);
+
+        // Assert — the only manifold's normal is purely vertical.
+        Assert.Single(physics.Manifolds);
+        var normal = physics.Manifolds[0].Normal;
+        Assert.Equal(0f, normal.X);
+        Assert.NotEqual(0f, normal.Y);
+    }
+
+    [Fact]
     public void Update_StaticFloor_DynamicBall_ShouldBounce()
     {
         // Arrange

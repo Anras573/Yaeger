@@ -96,3 +96,40 @@ type id `"Tilemap"`, so tilemaps load from prefab/scene JSON and round-trip thro
 
 `rows` defaults to `1`, `tileWidth`/`tileHeight` default to `1.0`, `tiles` defaults to
 an all-empty map, and `tint` defaults to white when absent.
+
+## Collision
+
+Mark which tileset tiles are solid via `Tileset`'s `solidTileIndices` constructor parameter,
+then pair the tilemap with a `PhysicsWorld2D`:
+
+```csharp
+// Tile indices 0 and 1 are solid ground/wall tiles; everything else (including -1) is not.
+var tileset = new Tileset("Assets/tiles.png", columns: 8, rows: 4, solidTileIndices: [0, 1]);
+var tilemap = new Tilemap(tileset, width: 20, height: 10, tiles: levelTiles);
+
+var level = world.CreateEntity("level");
+world.AddComponent(level, new Transform2D(Vector2.Zero));
+world.AddComponent(level, tilemap);
+
+var physics = new PhysicsWorld2D(world);
+```
+
+Every `PhysicsWorld2D.Update` call runs a `TilemapColliderSystem` pass first, which:
+
+- Merges adjacent solid tiles into the fewest axis-aligned rectangles (via
+  `TilemapColliderMerger`) and generates one static `BoxCollider2D` entity per rectangle —
+  instead of one collider per tile. A flat run of solid floor tiles becomes a single
+  collider, so `CollisionDetectionSystem` never picks up a spurious X-axis normal from the
+  internal seam between two adjacent tiles (the classic tile-seam "snag").
+- Rebuilds those collider entities whenever the tilemap's tile contents change (diffed each
+  step), so breaking a tile (`tilemap.SetTile(column, row, Tilemap.EmptyTile)`) updates
+  collision within the next physics step.
+- Cleans up generated colliders when their owning tilemap entity is destroyed.
+
+Only axis-aligned, unrotated/unscaled tilemaps are supported for collision generation — the
+tilemap entity's `Transform2D.Rotation` and `Transform2D.Scale` are ignored (matching
+`BoxCollider2D`'s own lack of rotation support). Solidity is defined per tileset tile index,
+so `Tilemap.EmptyTile` (`-1`) is always non-solid.
+
+Prefab/scene JSON marks solid tiles via an optional `"solidTiles"` array of tileset tile
+indices (not cell positions) — see the `Tilemap` serializer format above.

@@ -102,4 +102,67 @@ public class TilesetTests
         Assert.Throws<ArgumentOutOfRangeException>(() => tileset.GetTileUv(-1));
         Assert.Throws<ArgumentOutOfRangeException>(() => tileset.GetTileUv(4));
     }
+
+    [Fact]
+    public void IsSolid_NoSolidTilesSpecified_ShouldAlwaysBeFalse()
+    {
+        var tileset = new Tileset(TexturePath, columns: 4, rows: 2);
+
+        Assert.All(Enumerable.Range(0, tileset.TileCount), i => Assert.False(tileset.IsSolid(i)));
+    }
+
+    [Fact]
+    public void IsSolid_ListedIndices_ShouldBeTrueOnlyForThoseIndices()
+    {
+        var tileset = new Tileset(TexturePath, columns: 4, rows: 1, solidTileIndices: [1, 3]);
+
+        Assert.False(tileset.IsSolid(0));
+        Assert.True(tileset.IsSolid(1));
+        Assert.False(tileset.IsSolid(2));
+        Assert.True(tileset.IsSolid(3));
+    }
+
+    [Fact]
+    public void IsSolid_OutOfRangeIndex_ShouldReturnFalse()
+    {
+        var tileset = new Tileset(TexturePath, columns: 4, rows: 1, solidTileIndices: [0]);
+
+        Assert.False(tileset.IsSolid(-1));
+        Assert.False(tileset.IsSolid(4));
+    }
+
+    [Fact]
+    public void IsSolid_EmptyTileIndex_ShouldBeFalse()
+    {
+        var tileset = new Tileset(TexturePath, columns: 4, rows: 1, solidTileIndices: [0, 1, 2, 3]);
+
+        Assert.False(tileset.IsSolid(Tilemap.EmptyTile));
+    }
+
+    [Fact]
+    public void Constructor_SolidTileIndexOutOfRange_ShouldThrow()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Tileset(TexturePath, columns: 4, rows: 1, solidTileIndices: [4])
+        );
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Tileset(TexturePath, columns: 4, rows: 1, solidTileIndices: [-1])
+        );
+    }
+
+    [Fact]
+    public void SolidTileIndices_ShouldReturnAscendingListOfSolidIndices()
+    {
+        var tileset = new Tileset(TexturePath, columns: 4, rows: 1, solidTileIndices: [3, 1]);
+
+        Assert.Equal([1, 3], tileset.SolidTileIndices);
+    }
+
+    [Fact]
+    public void SolidTileIndices_NoSolidTilesSpecified_ShouldBeEmpty()
+    {
+        var tileset = new Tileset(TexturePath, columns: 4, rows: 1);
+
+        Assert.Empty(tileset.SolidTileIndices);
+    }
 }
