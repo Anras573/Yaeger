@@ -1,10 +1,25 @@
 using Yaeger.ECS.Serializers;
 using Yaeger.Graphics;
+using Yaeger.Physics.Components;
 
 namespace Yaeger.Tests.ECS;
 
 public class SerializerComponentTypeTests
 {
+    [Fact]
+    public void BoxCollider2DSerializer_ComponentType_ReturnsBoxCollider2DType()
+    {
+        var serializer = new BoxCollider2DSerializer();
+        Assert.Equal(typeof(BoxCollider2D), serializer.ComponentType);
+    }
+
+    [Fact]
+    public void CircleCollider2DSerializer_ComponentType_ReturnsCircleCollider2DType()
+    {
+        var serializer = new CircleCollider2DSerializer();
+        Assert.Equal(typeof(CircleCollider2D), serializer.ComponentType);
+    }
+
     [Fact]
     public void Transform2DSerializer_ComponentType_ReturnsTransform2DType()
     {

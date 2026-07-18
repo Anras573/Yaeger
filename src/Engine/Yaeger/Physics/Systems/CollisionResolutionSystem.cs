@@ -34,6 +34,10 @@ public class CollisionResolutionSystem(World world)
 
     private void ResolveManifold(CollisionManifold manifold)
     {
+        // Triggers/sensors are reported (manifold + OnCollision) but never physically resolved.
+        if (manifold.IsTrigger)
+            return;
+
         // Ensure Normal is a unit vector; skip degenerate manifolds
         var normalLenSq = manifold.Normal.LengthSquared();
         if (normalLenSq < 1e-10f)

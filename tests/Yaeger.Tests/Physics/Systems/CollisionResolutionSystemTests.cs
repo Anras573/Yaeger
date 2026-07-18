@@ -10,6 +10,49 @@ namespace Yaeger.Tests.Physics.Systems;
 public class CollisionResolutionSystemTests
 {
     [Fact]
+    public void Resolve_TriggerManifold_ShouldNotChangeVelocitiesOrPositions()
+    {
+        // Arrange — same overlapping setup as the non-trigger test below, but the manifold is
+        // marked as a trigger. Resolution must be a complete no-op: no impulse, no friction, no
+        // positional correction (the manifold itself, and OnCollision, are still reported
+        // upstream by PhysicsWorld2D — this system only owns resolution).
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, new Velocity2D(5, 0));
+        world.AddComponent(a, RigidBody2D.CreateDynamic(1.0f));
+        world.AddComponent(a, PhysicsMaterial.Default);
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1.5f, 0)));
+        world.AddComponent(b, new Velocity2D(-5, 0));
+        world.AddComponent(b, RigidBody2D.CreateDynamic(1.0f));
+        world.AddComponent(b, PhysicsMaterial.Default);
+
+        var manifold = new CollisionManifold
+        {
+            EntityA = a,
+            EntityB = b,
+            Normal = new Vector2(1, 0),
+            PenetrationDepth = 0.5f,
+            ContactPoint = new Vector2(0.75f, 0),
+            IsTrigger = true,
+        };
+
+        var system = new CollisionResolutionSystem(world);
+
+        // Act
+        system.Resolve([manifold]);
+
+        // Assert — velocities and positions are untouched.
+        Assert.Equal(new Vector2(5, 0), world.GetComponent<Velocity2D>(a).Linear);
+        Assert.Equal(new Vector2(-5, 0), world.GetComponent<Velocity2D>(b).Linear);
+        Assert.Equal(new Vector2(0, 0), world.GetComponent<Transform2D>(a).Position);
+        Assert.Equal(new Vector2(1.5f, 0), world.GetComponent<Transform2D>(b).Position);
+    }
+
+    [Fact]
     public void Resolve_ShouldSeparateOverlappingDynamicBodies()
     {
         // Arrange

@@ -520,6 +520,213 @@ public class CollisionDetectionSystemTests
 
     #endregion
 
+    #region Layer / mask filtering
+
+    [Fact]
+    public void Detect_BoxBox_DefaultLayersAndMasks_ShouldStillCollide()
+    {
+        // Arrange — default Layer=0 / CollidesWith=AllLayers on both sides.
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, new BoxCollider2D(2, 2));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, new BoxCollider2D(2, 2));
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert
+        Assert.Single(system.Manifolds);
+    }
+
+    [Fact]
+    public void Detect_BoxBox_NonIntersectingMasks_ShouldProduceNoManifold()
+    {
+        // Arrange — A is on layer 0 and only collides with layer 1; B is on layer 2 and only
+        // collides with layer 0. Neither mask includes the other's layer.
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, new BoxCollider2D(2, 2, layer: 0, collidesWith: 1u << 1));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, new BoxCollider2D(2, 2, layer: 2, collidesWith: 1u << 0));
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert
+        Assert.Empty(system.Manifolds);
+    }
+
+    [Fact]
+    public void Detect_BoxBox_AsymmetricMask_ShouldProduceNoManifold()
+    {
+        // Arrange — A wants to collide with B's layer, but B does not want to collide with A's
+        // layer. The filter is symmetric, so this must not produce a manifold either.
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(
+            a,
+            new BoxCollider2D(2, 2, layer: 0, collidesWith: BoxCollider2D.AllLayers)
+        );
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        // B is on layer 5 but only collides with layer 5 itself — not layer 0.
+        world.AddComponent(b, new BoxCollider2D(2, 2, layer: 5, collidesWith: 1u << 5));
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert
+        Assert.Empty(system.Manifolds);
+    }
+
+    [Fact]
+    public void Detect_CircleCircle_NonIntersectingMasks_ShouldProduceNoManifold()
+    {
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, new CircleCollider2D(1f, layer: 0, collidesWith: 1u << 1));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(0.5f, 0)));
+        world.AddComponent(b, new CircleCollider2D(1f, layer: 2, collidesWith: 1u << 0));
+
+        var system = new CollisionDetectionSystem(world);
+
+        system.Detect();
+
+        Assert.Empty(system.Manifolds);
+    }
+
+    [Fact]
+    public void Detect_BoxCircle_NonIntersectingMasks_ShouldProduceNoManifold()
+    {
+        var world = new World();
+
+        var box = world.CreateEntity();
+        world.AddComponent(box, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(box, new BoxCollider2D(2, 2, layer: 0, collidesWith: 1u << 1));
+
+        var circle = world.CreateEntity();
+        world.AddComponent(circle, new Transform2D(new Vector2(0.5f, 0)));
+        world.AddComponent(circle, new CircleCollider2D(1f, layer: 2, collidesWith: 1u << 0));
+
+        var system = new CollisionDetectionSystem(world);
+
+        system.Detect();
+
+        Assert.Empty(system.Manifolds);
+    }
+
+    #endregion
+
+    #region Trigger manifolds
+
+    [Fact]
+    public void Detect_BoxBox_EitherColliderIsTrigger_ShouldMarkManifoldAsTrigger()
+    {
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, new BoxCollider2D(2, 2, isTrigger: true));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, new BoxCollider2D(2, 2));
+
+        var system = new CollisionDetectionSystem(world);
+
+        system.Detect();
+
+        var manifold = Assert.Single(system.Manifolds);
+        Assert.True(manifold.IsTrigger);
+    }
+
+    [Fact]
+    public void Detect_BoxBox_NeitherColliderIsTrigger_ShouldNotMarkManifoldAsTrigger()
+    {
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, new BoxCollider2D(2, 2));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, new BoxCollider2D(2, 2));
+
+        var system = new CollisionDetectionSystem(world);
+
+        system.Detect();
+
+        var manifold = Assert.Single(system.Manifolds);
+        Assert.False(manifold.IsTrigger);
+    }
+
+    [Fact]
+    public void Detect_CircleCircle_EitherColliderIsTrigger_ShouldMarkManifoldAsTrigger()
+    {
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, new CircleCollider2D(1f));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(0.5f, 0)));
+        world.AddComponent(b, new CircleCollider2D(1f, isTrigger: true));
+
+        var system = new CollisionDetectionSystem(world);
+
+        system.Detect();
+
+        var manifold = Assert.Single(system.Manifolds);
+        Assert.True(manifold.IsTrigger);
+    }
+
+    [Fact]
+    public void Detect_BoxCircle_EitherColliderIsTrigger_ShouldMarkManifoldAsTrigger()
+    {
+        var world = new World();
+
+        var box = world.CreateEntity();
+        world.AddComponent(box, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(box, new BoxCollider2D(2, 2));
+
+        var circle = world.CreateEntity();
+        world.AddComponent(circle, new Transform2D(new Vector2(0.5f, 0)));
+        world.AddComponent(circle, new CircleCollider2D(1f, isTrigger: true));
+
+        var system = new CollisionDetectionSystem(world);
+
+        system.Detect();
+
+        var manifold = Assert.Single(system.Manifolds);
+        Assert.True(manifold.IsTrigger);
+    }
+
+    #endregion
+
     #region Constructor validation
 
     [Theory]
