@@ -76,5 +76,17 @@ Extend the physics engine to support 3D simulations, reusing dimensionality-agno
   condition failing skips resolution while still reporting the manifold via
   `OnCollision`/enter/exit, exactly like a trigger. `PhysicsWorld2D.DropThrough(entity, duration)`
   exempts an entity from one-way resolution for a window, for a down+jump drop-through input.
+- **CharacterController2D: kinematic move-and-slide controller (Complete)** — `CharacterController2D`
+  (box shape) + `CharacterControllerSystem` moves by axis-separated sweep-and-slide against solid
+  `BoxCollider2D`/tilemap-generated obstacles instead of `CollisionResolutionSystem`'s impulse
+  resolution: it integrates its own gravity (`GravityScale`, independent of `PhysicsWorld2D.Gravity`),
+  resolves X then Y using a min-penetration-axis gate so an embedded spawn depenetrates upward
+  rather than sideways and running across a seam between adjacent/merged colliders never snags,
+  and zeroes velocity into a contact instead of bouncing. Exposes per-step `IsGrounded`,
+  `IsTouchingWallLeft`/`IsTouchingWallRight`, `IsTouchingCeiling`, and `GroundNormal`; a small
+  `ContactSkin` tolerance keeps those flags reporting a contact resolved to exactly zero overlap
+  on later frames instead of dropping the moment velocity stops regenerating overlap. Respects
+  layers/masks and one-way platforms (shared `OneWayPlatformFilter` helper, reused by
+  `CollisionResolutionSystem`), and `StepHeight` auto-climbs short ledges.
 - Joints and constraints (distance, hinge, spring) (Future)
 - Continuous collision detection (CCD) to prevent tunneling at high velocities (Future)

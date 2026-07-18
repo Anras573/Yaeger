@@ -225,14 +225,16 @@ public class CollisionResolutionSystem(World world)
         // Direction the *other* body would be pushed by positional correction along this
         // manifold's normal (see ApplyPositionalCorrection: A moves along -Normal, B along +Normal).
         var pushOnOther = platformIsA ? normal : -normal;
-        if (Vector2.Dot(pushOnOther, surfaceDirection) <= 0f)
-            return true;
 
         world.TryGetComponent<Velocity2D>(other, out var otherVelocity);
         world.TryGetComponent<Velocity2D>(platform, out var platformVelocity);
         var relativeVelocity = otherVelocity.Linear - platformVelocity.Linear;
 
-        return Vector2.Dot(relativeVelocity, surfaceDirection) > 0f;
+        return OneWayPlatformFilter.ShouldPassThrough(
+            pushOnOther,
+            surfaceDirection,
+            relativeVelocity
+        );
     }
 
     private void ApplyFriction(
