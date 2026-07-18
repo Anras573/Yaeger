@@ -94,12 +94,14 @@ CPU-sampled, GPU-skinned. Entities carry `SkeletonHandle` + `AnimationPlayer` (c
 
 1. `GravitySystem` — applies `Gravity` to `RigidBody2D` + `Velocity2D`
 2. `MovementSystem` — integrates velocity into `Transform2D`
-3. `CollisionDetectionSystem` — spatial-hash broadphase, then AABB vs AABB and circle vs circle narrowphase, stores `CollisionManifold` list
-4. `CollisionResolutionSystem` — impulse-based resolution using `PhysicsMaterial` (restitution, friction)
+3. `CollisionDetectionSystem` — spatial-hash broadphase, then AABB vs AABB and circle vs circle narrowphase, stores `CollisionManifold` list. Before narrowphase, candidate pairs are filtered by each collider's `Layer`/`CollidesWith` bitmask (a symmetric check — both sides must include the other's layer); pairs that fail the check are skipped entirely (cheap early-out).
+4. `CollisionResolutionSystem` — impulse-based resolution using `PhysicsMaterial` (restitution, friction). Manifolds where either collider has `IsTrigger` set are skipped here (no impulse, no positional correction) but still appear in `Manifolds`/`OnCollision` — use triggers for coins, checkpoints, goal flags, and other sensors that should be detected without physically resolving.
 
-Components: `BoxCollider2D`, `CircleCollider2D`, `RigidBody2D` (`Dynamic`/`Static` body type), `Velocity2D`, `PhysicsMaterial`.
+Components: `BoxCollider2D`, `CircleCollider2D` (both carry `Layer` (int, [0, 31]), `CollidesWith` (bitmask, defaults to "every layer"), and `IsTrigger` (bool)), `RigidBody2D` (`Dynamic`/`Static` body type), `Velocity2D`, `PhysicsMaterial`.
 
-Subscribe to `physicsWorld.OnCollision` for collision events. Read `physicsWorld.Manifolds` for the results of the last step.
+Subscribe to `physicsWorld.OnCollision` for collision events. Read `physicsWorld.Manifolds` for the results of the last step — check `CollisionManifold.IsTrigger` to distinguish sensor overlaps from physically-resolved collisions.
+
+`BoxCollider2D`/`CircleCollider2D` are registered with `ComponentRegistry.RegisterEngineComponents()` (type ids `"BoxCollider2D"`/`"CircleCollider2D"`), so they load from prefab/scene JSON like any other component.
 
 **Tilemap collision**: `PhysicsWorld2D.Update` runs a `TilemapColliderSystem` pass before the four subsystems above. It reads `Tilemap` + `Transform2D` entities, treats tiles whose index is in the `Tileset`'s `solidTileIndices` as solid (`Tileset.IsSolid`), and merges adjacent solid tiles into the fewest axis-aligned rectangles via `TilemapColliderMerger` (a standalone greedy-merge algorithm) — generating one static `BoxCollider2D` entity per rectangle instead of one per tile. This avoids both broadphase bloat and the tile-seam snag where a per-tile collider setup can hand `CollisionDetectionSystem.TestBoxBox` a spurious X-axis normal from an internal edge. Colliders are diffed and rebuilt whenever a tilemap's tiles change (e.g. breakable blocks via `SetTile`), and cleaned up when the tilemap entity is destroyed. See `docs/tilemaps.md`.
 

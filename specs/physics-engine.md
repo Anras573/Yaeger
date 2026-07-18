@@ -55,8 +55,12 @@ Extend the physics engine to support 3D simulations, reusing dimensionality-agno
 - Octree for 3D spatial partitioning
 - GJK and/or SAT algorithms for convex collision detection
 
-### Phase 4: Advanced Features (Future)
+### Phase 4: Advanced Features
 
-- Joints and constraints (distance, hinge, spring)
-- Continuous collision detection (CCD) to prevent tunneling at high velocities
-- Collision layers and masks for filtering
+- **Collision layers, masks, and trigger colliders (Complete)** — `BoxCollider2D`/`CircleCollider2D`
+  carry `Layer` (int, [0, 31]) and `CollidesWith` (bitmask), defaulting to collide-with-everything.
+  `CollisionDetectionSystem` filters candidate pairs by a symmetric layer/mask check before
+  narrowphase. `IsTrigger` marks a collider as a non-resolving sensor: its manifolds are still
+  produced and reported via `OnCollision`, but `CollisionResolutionSystem` skips them.
+- Joints and constraints (distance, hinge, spring) (Future)
+- Continuous collision detection (CCD) to prevent tunneling at high velocities (Future)

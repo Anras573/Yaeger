@@ -34,4 +34,41 @@ public class CircleCollider2DTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new CircleCollider2D(-1.0f));
     }
+
+    [Fact]
+    public void Constructor_ShouldDefaultToLayerZeroAllLayersNonTrigger()
+    {
+        var collider = new CircleCollider2D(5.0f);
+
+        Assert.Equal(0, collider.Layer);
+        Assert.Equal(CircleCollider2D.AllLayers, collider.CollidesWith);
+        Assert.False(collider.IsTrigger);
+    }
+
+    [Fact]
+    public void Constructor_ShouldSetLayerMaskAndTrigger()
+    {
+        var collider = new CircleCollider2D(5.0f, layer: 5, collidesWith: 0b1010, isTrigger: true);
+
+        Assert.Equal(5, collider.Layer);
+        Assert.Equal(0b1010u, collider.CollidesWith);
+        Assert.True(collider.IsTrigger);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(32)]
+    public void Constructor_InvalidLayer_ShouldThrow(int layer)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new CircleCollider2D(1f, layer: layer));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(31)]
+    public void Constructor_BoundaryLayers_ShouldNotThrow(int layer)
+    {
+        var collider = new CircleCollider2D(1f, layer: layer);
+        Assert.Equal(layer, collider.Layer);
+    }
 }

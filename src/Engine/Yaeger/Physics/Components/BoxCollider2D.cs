@@ -9,6 +9,11 @@ namespace Yaeger.Physics.Components;
 public struct BoxCollider2D
 {
     /// <summary>
+    /// Bitmask meaning "collides with every layer" — the default for <see cref="CollidesWith"/>.
+    /// </summary>
+    public const uint AllLayers = uint.MaxValue;
+
+    /// <summary>
     /// Full width and height of the box.
     /// </summary>
     public Vector2 Size;
@@ -19,12 +24,45 @@ public struct BoxCollider2D
     public Vector2 Offset;
 
     /// <summary>
+    /// The collision layer (bit index, [0, 31]) this collider belongs to. Defaults to 0.
+    /// </summary>
+    public int Layer;
+
+    /// <summary>
+    /// Bitmask of layers this collider collides with. Two colliders A and B are only tested
+    /// against each other when both <c>A.CollidesWith</c> includes B's layer and
+    /// <c>B.CollidesWith</c> includes A's layer (a symmetric check). Defaults to
+    /// <see cref="AllLayers"/>, so an unconfigured collider collides with everything —
+    /// matching pre-filtering behavior.
+    /// </summary>
+    public uint CollidesWith;
+
+    /// <summary>
+    /// When <c>true</c>, this collider still produces <see cref="Physics.CollisionManifold"/>s
+    /// (and fires <c>PhysicsWorld2D.OnCollision</c>) but is skipped by
+    /// <see cref="Systems.CollisionResolutionSystem"/> — useful for coins, checkpoints, goal
+    /// flags, and other sensors that should be detected without physically resolving.
+    /// </summary>
+    public bool IsTrigger;
+
+    /// <summary>
     /// Creates a box collider with the specified size and optional offset.
     /// </summary>
     /// <param name="size">Full width and height. Both components must be greater than zero.</param>
     /// <param name="offset">Offset from the entity's position. Defaults to zero.</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when size has non-positive components.</exception>
-    public BoxCollider2D(Vector2 size, Vector2? offset = null)
+    /// <param name="layer">The collision layer this collider belongs to. Must be within [0, 31]. Defaults to 0.</param>
+    /// <param name="collidesWith">Bitmask of layers this collider collides with. Defaults to <see cref="AllLayers"/>.</param>
+    /// <param name="isTrigger">Whether this collider is a non-resolving trigger/sensor. Defaults to <c>false</c>.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when size has non-positive components, or <paramref name="layer"/> is outside [0, 31].
+    /// </exception>
+    public BoxCollider2D(
+        Vector2 size,
+        Vector2? offset = null,
+        int layer = 0,
+        uint collidesWith = AllLayers,
+        bool isTrigger = false
+    )
     {
         if (size.X <= 0 || size.Y <= 0)
             throw new ArgumentOutOfRangeException(
@@ -32,9 +70,13 @@ public struct BoxCollider2D
                 size,
                 "Size components must be greater than zero."
             );
+        ValidateLayer(layer);
 
         Size = size;
         Offset = offset ?? Vector2.Zero;
+        Layer = layer;
+        CollidesWith = collidesWith;
+        IsTrigger = isTrigger;
     }
 
     /// <summary>
@@ -42,8 +84,20 @@ public struct BoxCollider2D
     /// </summary>
     /// <param name="width">Width of the box. Must be greater than zero.</param>
     /// <param name="height">Height of the box. Must be greater than zero.</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when width or height is less than or equal to zero.</exception>
-    public BoxCollider2D(float width, float height)
+    /// <param name="layer">The collision layer this collider belongs to. Must be within [0, 31]. Defaults to 0.</param>
+    /// <param name="collidesWith">Bitmask of layers this collider collides with. Defaults to <see cref="AllLayers"/>.</param>
+    /// <param name="isTrigger">Whether this collider is a non-resolving trigger/sensor. Defaults to <c>false</c>.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when width or height is less than or equal to zero, or <paramref name="layer"/> is
+    /// outside [0, 31].
+    /// </exception>
+    public BoxCollider2D(
+        float width,
+        float height,
+        int layer = 0,
+        uint collidesWith = AllLayers,
+        bool isTrigger = false
+    )
     {
         if (width <= 0)
             throw new ArgumentOutOfRangeException(
@@ -57,13 +111,27 @@ public struct BoxCollider2D
                 height,
                 "Height must be greater than zero."
             );
+        ValidateLayer(layer);
 
         Size = new Vector2(width, height);
         Offset = Vector2.Zero;
+        Layer = layer;
+        CollidesWith = collidesWith;
+        IsTrigger = isTrigger;
     }
 
     /// <summary>
     /// Half of the size, useful for AABB calculations.
     /// </summary>
     public readonly Vector2 HalfSize => Size / 2.0f;
+
+    private static void ValidateLayer(int layer)
+    {
+        if (layer < 0 || layer > 31)
+            throw new ArgumentOutOfRangeException(
+                nameof(layer),
+                layer,
+                "Layer must be within [0, 31]."
+            );
+    }
 }

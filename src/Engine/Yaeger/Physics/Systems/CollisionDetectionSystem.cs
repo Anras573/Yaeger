@@ -102,18 +102,38 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
 
             if (aIsBox && bIsBox)
             {
-                if (TestBoxBox(_boxEntities[ia], _boxEntities[ib], out var manifold))
+                var a = _boxEntities[ia];
+                var b = _boxEntities[ib];
+
+                if (
+                    !ShouldCollide(
+                        a.Collider.Layer,
+                        a.Collider.CollidesWith,
+                        b.Collider.Layer,
+                        b.Collider.CollidesWith
+                    )
+                )
+                    continue;
+
+                if (TestBoxBox(a, b, out var manifold))
                     _manifolds.Add(manifold);
             }
             else if (!aIsBox && !bIsBox)
             {
+                var a = _circleEntities[ia - boxCount];
+                var b = _circleEntities[ib - boxCount];
+
                 if (
-                    TestCircleCircle(
-                        _circleEntities[ia - boxCount],
-                        _circleEntities[ib - boxCount],
-                        out var manifold
+                    !ShouldCollide(
+                        a.Collider.Layer,
+                        a.Collider.CollidesWith,
+                        b.Collider.Layer,
+                        b.Collider.CollidesWith
                     )
                 )
+                    continue;
+
+                if (TestCircleCircle(a, b, out var manifold))
                     _manifolds.Add(manifold);
             }
             else
@@ -126,11 +146,33 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
                 if (box.Entity == circle.Entity)
                     continue;
 
+                if (
+                    !ShouldCollide(
+                        box.Collider.Layer,
+                        box.Collider.CollidesWith,
+                        circle.Collider.Layer,
+                        circle.Collider.CollidesWith
+                    )
+                )
+                    continue;
+
                 if (TestBoxCircle(box, circle, out var manifold))
                     _manifolds.Add(manifold);
             }
         }
     }
+
+    /// <summary>
+    /// Cheap early-out layer/mask filter run before narrowphase: two colliders are only tested
+    /// against each other when each side's <c>CollidesWith</c> mask includes the other side's
+    /// <c>Layer</c> bit (a symmetric check).
+    /// </summary>
+    private static bool ShouldCollide(
+        int layerA,
+        uint collidesWithA,
+        int layerB,
+        uint collidesWithB
+    ) => (collidesWithA & (1u << layerB)) != 0 && (collidesWithB & (1u << layerA)) != 0;
 
     /// <summary>
     /// Tests AABB overlap between two box colliders.
@@ -153,6 +195,8 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
         if (overlapX <= 0 || overlapY <= 0)
             return false;
 
+        var isTrigger = a.Collider.IsTrigger || b.Collider.IsTrigger;
+
         // Use the axis of minimum penetration
         if (overlapX < overlapY)
         {
@@ -167,6 +211,7 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
                     a.Center.X + halfA.X * normalX,
                     (a.Center.Y + b.Center.Y) / 2.0f
                 ),
+                IsTrigger = isTrigger,
             };
         }
         else
@@ -182,6 +227,7 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
                     (a.Center.X + b.Center.X) / 2.0f,
                     a.Center.Y + halfA.Y * normalY
                 ),
+                IsTrigger = isTrigger,
             };
         }
 
@@ -216,6 +262,7 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
             Normal = normal,
             PenetrationDepth = radiusSum - distance,
             ContactPoint = a.Center + normal * a.Collider.Radius,
+            IsTrigger = a.Collider.IsTrigger || b.Collider.IsTrigger,
         };
 
         return true;
@@ -289,6 +336,7 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
             Normal = normal,
             PenetrationDepth = penetration,
             ContactPoint = contactPoint,
+            IsTrigger = box.Collider.IsTrigger || circle.Collider.IsTrigger,
         };
 
         return true;

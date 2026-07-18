@@ -228,4 +228,40 @@ public class PhysicsWorld2DTests
         // The ball was going down at -10, after bouncing off a bouncy floor it should reverse
         Assert.True(ballVel.Linear.Y > -10);
     }
+
+    [Fact]
+    public void Update_DynamicBodyOverlappingTrigger_ShouldPassThroughUnimpededButFireOnCollision()
+    {
+        // Arrange — a coin-style trigger sitting where a falling ball will pass straight
+        // through it (no gravity here — velocity alone drives the overlap).
+        var world = new World();
+
+        var coin = world.CreateEntity();
+        world.AddComponent(coin, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(coin, RigidBody2D.CreateStatic());
+        world.AddComponent(coin, new CircleCollider2D(0.5f, isTrigger: true));
+
+        var ball = world.CreateEntity();
+        world.AddComponent(ball, new Transform2D(new Vector2(0, 0.2f)));
+        world.AddComponent(ball, new Velocity2D(0, -10));
+        world.AddComponent(ball, RigidBody2D.CreateDynamic(1.0f));
+        world.AddComponent(ball, new CircleCollider2D(0.5f));
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero);
+
+        var firedEvents = new List<CollisionManifold>();
+        physics.OnCollision += manifold => firedEvents.Add(manifold);
+
+        // Act
+        physics.Update(0.001f);
+
+        // Assert — the overlap is still reported...
+        Assert.Single(firedEvents);
+        Assert.True(firedEvents[0].IsTrigger);
+
+        // ...but the ball's velocity is completely unaffected (no impulse, no positional
+        // correction) — it passes through the trigger exactly as if it were not there.
+        var ballVelocity = world.GetComponent<Velocity2D>(ball);
+        Assert.Equal(new Vector2(0, -10), ballVelocity.Linear);
+    }
 }

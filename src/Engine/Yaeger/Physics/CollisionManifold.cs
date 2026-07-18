@@ -33,4 +33,12 @@ public struct CollisionManifold
     /// The point of contact between the two colliders.
     /// </summary>
     public Vector2 ContactPoint;
+
+    /// <summary>
+    /// True when either collider involved is a trigger/sensor (<c>IsTrigger</c> on
+    /// <c>BoxCollider2D</c>/<c>CircleCollider2D</c>). Trigger manifolds are still reported via
+    /// <c>PhysicsWorld2D.OnCollision</c> but are skipped by
+    /// <see cref="Systems.CollisionResolutionSystem"/>.
+    /// </summary>
+    public bool IsTrigger;
 }
