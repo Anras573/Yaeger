@@ -61,6 +61,20 @@ internal static class ComponentJson2D
     public static JsonArray Write(Vector2 v) => new(JsonValue.Create(v.X), JsonValue.Create(v.Y));
 
     /// <summary>
+    /// Reads an optional boolean property, returning <paramref name="defaultValue"/> when absent.
+    /// </summary>
+    public static bool ReadOptionalBool(JsonElement element, string propertyName, bool defaultValue)
+    {
+        if (!element.TryGetProperty(propertyName, out var el))
+            return defaultValue;
+
+        if (el.ValueKind != JsonValueKind.True && el.ValueKind != JsonValueKind.False)
+            throw new PrefabLoadException($"Property '{propertyName}' must be a boolean.");
+
+        return el.GetBoolean();
+    }
+
+    /// <summary>
     /// Reads the shared collision-filtering properties (<c>layer</c>, <c>collidesWith</c>,
     /// <c>isTrigger</c>) common to <see cref="BoxCollider2D"/> and <see cref="CircleCollider2D"/>.
     /// </summary>
@@ -81,17 +95,7 @@ internal static class ComponentJson2D
                 "Property 'collidesWith' must be a non-negative integer bitmask."
             );
 
-        var isTrigger = false;
-        if (element.TryGetProperty("isTrigger", out var isTriggerEl))
-        {
-            if (
-                isTriggerEl.ValueKind != JsonValueKind.True
-                && isTriggerEl.ValueKind != JsonValueKind.False
-            )
-                throw new PrefabLoadException("Property 'isTrigger' must be a boolean.");
-
-            isTrigger = isTriggerEl.GetBoolean();
-        }
+        var isTrigger = ReadOptionalBool(element, "isTrigger", false);
 
         return (layer, collidesWith, isTrigger);
     }

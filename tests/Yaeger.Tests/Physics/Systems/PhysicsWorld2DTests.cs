@@ -429,4 +429,128 @@ public class PhysicsWorld2DTests
         Assert.True(enter.IsTrigger);
         Assert.Single(exits);
     }
+
+    // ── One-way platforms ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void Update_OneWayPlatform_JumpingBodyPassesThroughThenLandsOnTheWayDown()
+    {
+        // Arrange — a wide, thin one-way platform (default "up" surface); a body below it
+        // jumps with enough velocity to clear it, then must fall back and land on top.
+        var world = new World();
+
+        var platform = world.CreateEntity();
+        world.AddComponent(platform, new Transform2D(new Vector2(0, 2)));
+        world.AddComponent(platform, RigidBody2D.CreateStatic());
+        world.AddComponent(platform, new BoxCollider2D(new Vector2(10, 0.5f), oneWay: true));
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(player, new Velocity2D(0, 12)); // strong jump
+        world.AddComponent(player, RigidBody2D.CreateDynamic(1.0f));
+        world.AddComponent(player, new BoxCollider2D(1, 1));
+        world.AddComponent(player, PhysicsMaterial.Sticky); // no bounce, for a clean landing
+
+        var physics = new PhysicsWorld2D(world, new Vector2(0, -20));
+
+        var maxHeightReached = float.NegativeInfinity;
+        const float dt = 1f / 60f;
+        const int steps = 240; // 4 simulated seconds — well past the full jump arc
+
+        // Act
+        for (var i = 0; i < steps; i++)
+        {
+            physics.Update(dt);
+            var y = world.GetComponent<Transform2D>(player).Position.Y;
+            if (y > maxHeightReached)
+                maxHeightReached = y;
+        }
+
+        // Assert — passed cleanly through and above the platform (a solid platform this size
+        // would have stopped it around y ≈ 1.25; reaching well past the platform's top proves
+        // it jumped through rather than being blocked).
+        Assert.True(maxHeightReached > 3.0f);
+
+        // ...then fell back and landed to rest on top of the platform (top at y = 2.25, plus
+        // the player's half-height of 0.5).
+        var finalPosition = world.GetComponent<Transform2D>(player).Position;
+        var finalVelocity = world.GetComponent<Velocity2D>(player);
+        Assert.Equal(2.75f, finalPosition.Y, 0.1f);
+        Assert.Equal(0f, finalVelocity.Linear.Y, 0.3f);
+    }
+
+    [Fact]
+    public void Update_OneWayPlatform_WalkingOffEdgeAndFallingBackOn_ShouldBehaveNormally()
+    {
+        // Arrange — falling onto the platform while moving sideways (as if having walked off
+        // an edge elsewhere and dropped back down) must resolve exactly like any other landing.
+        var world = new World();
+
+        var platform = world.CreateEntity();
+        world.AddComponent(platform, new Transform2D(new Vector2(0, 2)));
+        world.AddComponent(platform, RigidBody2D.CreateStatic());
+        world.AddComponent(platform, new BoxCollider2D(new Vector2(10, 0.5f), oneWay: true));
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(-2, 4)));
+        world.AddComponent(player, new Velocity2D(1, 0));
+        world.AddComponent(player, RigidBody2D.CreateDynamic(1.0f));
+        world.AddComponent(player, new BoxCollider2D(1, 1));
+        world.AddComponent(player, PhysicsMaterial.Sticky);
+
+        var physics = new PhysicsWorld2D(world, new Vector2(0, -20));
+
+        for (var i = 0; i < 120; i++) // 2 seconds
+            physics.Update(1f / 60f);
+
+        // Assert — settled on top of the platform.
+        var finalPosition = world.GetComponent<Transform2D>(player).Position;
+        Assert.Equal(2.75f, finalPosition.Y, 0.1f);
+    }
+
+    [Fact]
+    public void DropThrough_ShouldLetEntityFallThroughOneWayPlatformOnDemand()
+    {
+        // Arrange — a body resting on a one-way platform normally cannot fall through it; the
+        // drop-through API is the down+jump escape hatch that lets it do so on demand.
+        var world = new World();
+
+        var platform = world.CreateEntity();
+        world.AddComponent(platform, new Transform2D(new Vector2(0, 2)));
+        world.AddComponent(platform, RigidBody2D.CreateStatic());
+        world.AddComponent(platform, new BoxCollider2D(new Vector2(10, 0.5f), oneWay: true));
+
+        var player = world.CreateEntity();
+        // Resting right at the platform's top surface (slightly overlapping).
+        world.AddComponent(player, new Transform2D(new Vector2(0, 2.7f)));
+        world.AddComponent(player, Velocity2D.Zero);
+        world.AddComponent(player, RigidBody2D.CreateDynamic(1.0f));
+        world.AddComponent(player, new BoxCollider2D(1, 1));
+
+        var physics = new PhysicsWorld2D(world, new Vector2(0, -20));
+
+        // Act
+        physics.DropThrough(player, 0.5f);
+        for (var i = 0; i < 30; i++) // 0.5 simulated seconds
+            physics.Update(1f / 60f);
+
+        // Assert — fell well below the platform instead of resting on top of it.
+        var position = world.GetComponent<Transform2D>(player).Position;
+        Assert.True(position.Y < 2.0f);
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-1f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(float.NegativeInfinity)]
+    public void DropThrough_InvalidDuration_ShouldThrow(float duration)
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        var physics = new PhysicsWorld2D(world);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => physics.DropThrough(entity, duration));
+    }
 }

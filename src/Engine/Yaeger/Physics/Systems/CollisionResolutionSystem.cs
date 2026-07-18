@@ -24,18 +24,37 @@ public class CollisionResolutionSystem(World world)
     /// <summary>
     /// Resolves a list of collision manifolds by applying impulses and positional corrections.
     /// </summary>
-    public void Resolve(IReadOnlyList<CollisionManifold> manifolds)
+    /// <param name="manifolds">The manifolds to resolve, typically from the last detection step.</param>
+    /// <param name="droppingThroughEntities">
+    /// Entities currently "dropping through" one-way platforms (see
+    /// <c>PhysicsWorld2D.DropThrough</c>): any manifold where one side is a one-way
+    /// <see cref="BoxCollider2D"/> and the other is in this set is skipped unconditionally,
+    /// regardless of approach direction. Pass <c>null</c> (the default) when no entities are
+    /// currently dropping through.
+    /// </param>
+    public void Resolve(
+        IReadOnlyList<CollisionManifold> manifolds,
+        IReadOnlySet<Entity>? droppingThroughEntities = null
+    )
     {
         foreach (var manifold in manifolds)
         {
-            ResolveManifold(manifold);
+            ResolveManifold(manifold, droppingThroughEntities);
         }
     }
 
-    private void ResolveManifold(CollisionManifold manifold)
+    private void ResolveManifold(
+        CollisionManifold manifold,
+        IReadOnlySet<Entity>? droppingThroughEntities
+    )
     {
         // Triggers/sensors are reported (manifold + OnCollision) but never physically resolved.
         if (manifold.IsTrigger)
+            return;
+
+        // One-way platforms are reported (manifold + OnCollision) but only resolved when the
+        // other body approaches from the platform's solid side while not moving against it.
+        if (ShouldSkipOneWayPlatform(manifold, droppingThroughEntities))
             return;
 
         // Ensure Normal is a unit vector; skip degenerate manifolds
@@ -138,6 +157,82 @@ public class CollisionResolutionSystem(World world)
             inverseMassB,
             inverseMassSum
         );
+    }
+
+    /// <summary>
+    /// Determines whether a manifold involving a one-way <see cref="BoxCollider2D"/> should be
+    /// skipped: true when either side is a one-way platform and the contact should currently
+    /// pass through it.
+    /// </summary>
+    private bool ShouldSkipOneWayPlatform(
+        CollisionManifold manifold,
+        IReadOnlySet<Entity>? droppingThroughEntities
+    )
+    {
+        var aIsOneWay =
+            world.TryGetComponent<BoxCollider2D>(manifold.EntityA, out var boxA) && boxA.OneWay;
+        var bIsOneWay =
+            world.TryGetComponent<BoxCollider2D>(manifold.EntityB, out var boxB) && boxB.OneWay;
+
+        if (
+            aIsOneWay
+            && ShouldPassThroughOneWayPlatform(
+                manifold.Normal,
+                boxA.SurfaceDirection,
+                platformIsA: true,
+                platform: manifold.EntityA,
+                other: manifold.EntityB,
+                droppingThroughEntities
+            )
+        )
+            return true;
+
+        if (
+            bIsOneWay
+            && ShouldPassThroughOneWayPlatform(
+                manifold.Normal,
+                boxB.SurfaceDirection,
+                platformIsA: false,
+                platform: manifold.EntityB,
+                other: manifold.EntityA,
+                droppingThroughEntities
+            )
+        )
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// A contact with a one-way platform is only resolved when the other body is on the
+    /// platform's solid side (the resolution push points the same way as
+    /// <paramref name="surfaceDirection"/>) and its velocity relative to the platform is not
+    /// moving against that direction (i.e. not still rising up through it). Either condition
+    /// failing — or an active drop-through — means the contact passes through.
+    /// </summary>
+    private bool ShouldPassThroughOneWayPlatform(
+        Vector2 normal,
+        Vector2 surfaceDirection,
+        bool platformIsA,
+        Entity platform,
+        Entity other,
+        IReadOnlySet<Entity>? droppingThroughEntities
+    )
+    {
+        if (droppingThroughEntities is not null && droppingThroughEntities.Contains(other))
+            return true;
+
+        // Direction the *other* body would be pushed by positional correction along this
+        // manifold's normal (see ApplyPositionalCorrection: A moves along -Normal, B along +Normal).
+        var pushOnOther = platformIsA ? normal : -normal;
+        if (Vector2.Dot(pushOnOther, surfaceDirection) <= 0f)
+            return true;
+
+        world.TryGetComponent<Velocity2D>(other, out var otherVelocity);
+        world.TryGetComponent<Velocity2D>(platform, out var platformVelocity);
+        var relativeVelocity = otherVelocity.Linear - platformVelocity.Linear;
+
+        return Vector2.Dot(relativeVelocity, surfaceDirection) > 0f;
     }
 
     private void ApplyFriction(

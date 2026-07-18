@@ -17,14 +17,18 @@ namespace Yaeger.ECS.Serializers;
 ///   "offset": [0.0, 0.0],
 ///   "layer": 0,
 ///   "collidesWith": 4294967295,
-///   "isTrigger": false
+///   "isTrigger": false,
+///   "oneWay": false,
+///   "surfaceDirection": [0.0, 1.0]
 /// }
 /// </code>
 /// <c>size</c> is required (a two-element <c>[width, height]</c> array or
 /// <c>{ "x": number, "y": number }</c> object; both components must be greater than zero).
 /// <c>offset</c> defaults to zero, <c>layer</c> defaults to <c>0</c>, <c>collidesWith</c>
-/// defaults to <see cref="BoxCollider2D.AllLayers"/> (collides with everything), and
-/// <c>isTrigger</c> defaults to <c>false</c>.
+/// defaults to <see cref="BoxCollider2D.AllLayers"/> (collides with everything),
+/// <c>isTrigger</c> defaults to <c>false</c>, <c>oneWay</c> defaults to <c>false</c>, and
+/// <c>surfaceDirection</c> (only meaningful when <c>oneWay</c> is <c>true</c>) defaults to
+/// <c>[0, 1]</c> (up) and is normalized on load.
 /// </remarks>
 public sealed class BoxCollider2DSerializer : IComponentSerializer
 {
@@ -47,10 +51,23 @@ public sealed class BoxCollider2DSerializer : IComponentSerializer
 
         var (layer, collidesWith, isTrigger) = ComponentJson2D.ReadCollisionFiltering(element);
 
+        var oneWay = ComponentJson2D.ReadOptionalBool(element, "oneWay", false);
+        var surfaceDirection = element.TryGetProperty("surfaceDirection", out var surfaceDirEl)
+            ? ComponentJson2D.ReadVector2(surfaceDirEl, "surfaceDirection")
+            : (Vector2?)null;
+
         BoxCollider2D component;
         try
         {
-            component = new BoxCollider2D(size, offset, layer, collidesWith, isTrigger);
+            component = new BoxCollider2D(
+                size,
+                offset,
+                layer,
+                collidesWith,
+                isTrigger,
+                oneWay,
+                surfaceDirection
+            );
         }
         catch (ArgumentOutOfRangeException ex)
         {
@@ -84,6 +101,13 @@ public sealed class BoxCollider2DSerializer : IComponentSerializer
             collider.CollidesWith,
             collider.IsTrigger
         );
+
+        if (collider.OneWay)
+        {
+            obj["oneWay"] = true;
+            if (collider.SurfaceDirection != Vector2.UnitY)
+                obj["surfaceDirection"] = ComponentJson2D.Write(collider.SurfaceDirection);
+        }
 
         return obj;
     }

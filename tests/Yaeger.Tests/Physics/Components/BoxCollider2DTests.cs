@@ -130,4 +130,55 @@ public class BoxCollider2DTests
         var collider = new BoxCollider2D(1, 1, layer: layer);
         Assert.Equal(layer, collider.Layer);
     }
+
+    [Fact]
+    public void Constructor_ShouldDefaultToNotOneWayWithUpSurfaceDirection()
+    {
+        var sized = new BoxCollider2D(new Vector2(2, 3));
+        var widthHeight = new BoxCollider2D(4, 5);
+
+        Assert.False(sized.OneWay);
+        Assert.Equal(Vector2.UnitY, sized.SurfaceDirection);
+
+        Assert.False(widthHeight.OneWay);
+        Assert.Equal(Vector2.UnitY, widthHeight.SurfaceDirection);
+    }
+
+    [Fact]
+    public void Constructor_WithSize_ShouldSetOneWayAndSurfaceDirection()
+    {
+        var collider = new BoxCollider2D(
+            new Vector2(2, 3),
+            oneWay: true,
+            surfaceDirection: new Vector2(0, 2) // non-unit — should be normalized
+        );
+
+        Assert.True(collider.OneWay);
+        Assert.Equal(Vector2.UnitY, collider.SurfaceDirection);
+    }
+
+    [Fact]
+    public void Constructor_WithWidthHeight_ShouldSetOneWayAndSurfaceDirection()
+    {
+        var collider = new BoxCollider2D(
+            4,
+            5,
+            oneWay: true,
+            surfaceDirection: new Vector2(3, 4) // length 5 — should normalize to (0.6, 0.8)
+        );
+
+        Assert.True(collider.OneWay);
+        Assert.Equal(new Vector2(0.6f, 0.8f), collider.SurfaceDirection);
+    }
+
+    [Fact]
+    public void Constructor_ZeroLengthSurfaceDirection_ShouldThrow()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new BoxCollider2D(new Vector2(1, 1), surfaceDirection: Vector2.Zero)
+        );
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new BoxCollider2D(1, 1, surfaceDirection: Vector2.Zero)
+        );
+    }
 }

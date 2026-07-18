@@ -31,6 +31,11 @@ public class PhysicsWorld2D : IUpdateSystem
     // wholesale (not mutated) at the end of each Update — see the comment there.
     private Dictionary<(Entity A, Entity B), CollisionManifold> _activePairs = new();
 
+    // Entities currently dropping through one-way platforms, and when each expires. Checked
+    // (and pruned) once per Update — see DropThrough.
+    private readonly Dictionary<Entity, float> _dropThroughUntil = new();
+    private float _elapsedTime;
+
     /// <summary>
     /// Fired for each collision detected during a step — including the first step a pair
     /// overlaps (alongside <see cref="OnCollisionEnter"/>) and every step after
@@ -89,6 +94,26 @@ public class PhysicsWorld2D : IUpdateSystem
     }
 
     /// <summary>
+    /// Makes <paramref name="entity"/> ignore one-way platform contacts for
+    /// <paramref name="duration"/> seconds — the "drop-through" escape hatch for a down+jump
+    /// input on a one-way platform. Has no effect on regular (non-one-way) colliders. Calling
+    /// this again before the previous window expires replaces it rather than stacking.
+    /// </summary>
+    /// <param name="entity">The entity that should fall through any one-way platform it is on.</param>
+    /// <param name="duration">How long the drop-through lasts, in seconds. Must be positive.</param>
+    public void DropThrough(Entity entity, float duration = 0.25f)
+    {
+        if (duration <= 0 || !float.IsFinite(duration))
+            throw new ArgumentOutOfRangeException(
+                nameof(duration),
+                duration,
+                "Duration must be a positive finite value."
+            );
+
+        _dropThroughUntil[entity] = _elapsedTime + duration;
+    }
+
+    /// <summary>
     /// Steps the physics simulation forward by deltaTime seconds.
     /// Executes: Tilemap Collider Rebuild -> Gravity -> Movement -> Collision Detection ->
     /// Collision Resolution -> Collision Events (<see cref="OnCollisionEnter"/>, then
@@ -98,6 +123,8 @@ public class PhysicsWorld2D : IUpdateSystem
     /// <param name="deltaTime">The time elapsed since the last step, in seconds.</param>
     public void Update(float deltaTime)
     {
+        _elapsedTime += deltaTime;
+
         // 1. Rebuild tilemap-derived colliders for any tilemap whose tiles changed
         _tilemapColliderSystem.Update(deltaTime);
 
@@ -110,8 +137,10 @@ public class PhysicsWorld2D : IUpdateSystem
         // 4. Detect collisions
         _collisionDetectionSystem.Detect();
 
-        // 5. Resolve collisions
-        _collisionResolutionSystem.Resolve(_collisionDetectionSystem.Manifolds);
+        // 5. Resolve collisions (entities currently dropping through a one-way platform are
+        // exempted from one-way resolution for the remainder of their drop-through window)
+        var droppingThrough = GetActiveDropThroughEntities();
+        _collisionResolutionSystem.Resolve(_collisionDetectionSystem.Manifolds, droppingThrough);
 
         // 6. Fire collision events: enter (new pairs) and stay (every current pair) first, then
         // exit (pairs from last step no longer present — including pairs where an entity was
@@ -162,4 +191,39 @@ public class PhysicsWorld2D : IUpdateSystem
     /// </summary>
     private static (Entity A, Entity B) NormalizePair(Entity a, Entity b) =>
         a.Id <= b.Id ? (a, b) : (b, a);
+
+    /// <summary>
+    /// Returns the set of entities whose <see cref="DropThrough"/> window is still active,
+    /// pruning any that have expired.
+    /// </summary>
+    private HashSet<Entity>? GetActiveDropThroughEntities()
+    {
+        if (_dropThroughUntil.Count == 0)
+            return null;
+
+        HashSet<Entity>? active = null;
+        List<Entity>? expired = null;
+
+        foreach (var (entity, until) in _dropThroughUntil)
+        {
+            if (until <= _elapsedTime)
+            {
+                expired ??= [];
+                expired.Add(entity);
+            }
+            else
+            {
+                active ??= [];
+                active.Add(entity);
+            }
+        }
+
+        if (expired is not null)
+        {
+            foreach (var entity in expired)
+                _dropThroughUntil.Remove(entity);
+        }
+
+        return active;
+    }
 }
