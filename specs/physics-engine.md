@@ -88,5 +88,19 @@ Extend the physics engine to support 3D simulations, reusing dimensionality-agno
   on later frames instead of dropping the moment velocity stops regenerating overlap. Respects
   layers/masks and one-way platforms (shared `OneWayPlatformFilter` helper, reused by
   `CollisionResolutionSystem`), and `StepHeight` auto-climbs short ledges.
+- **Fixed-timestep stepping and tunneling prevention (Complete)** — `PhysicsWorld2D.Update`
+  runs a fixed-timestep accumulator (`FixedTimeStep`, default 1/120s; `MaxSubSteps`, default 8):
+  callers keep calling `Update` with their own frame delta, and the world sub-steps internally by
+  whole `FixedTimeStep` increments, carrying over the remainder (`InterpolationAlpha`, for
+  render-side interpolation) and capping sub-steps per call at `MaxSubSteps` (a spiral-of-death
+  guard — a long stall discards the backlog instead of bursting through it). This makes
+  simulation results independent of frame rate. A `deltaTime` of zero or less bypasses the
+  accumulator and runs exactly one step immediately. Tunneling — a fast body's discrete,
+  post-integration collision check missing a thin obstacle entirely — is addressed two ways:
+  fixed-timestep sub-stepping itself shrinks per-step displacement, and `MovementSystem`
+  additionally sweeps each dynamic body's planned displacement against solid, non-trigger,
+  non-one-way `BoxCollider2D` obstacles (box-vs-box only) via `SweptAabb` (a Minkowski-sum
+  ray-vs-box test), clamping displacement to just past the earliest contact — with a small fixed
+  overshoot so the same step's discrete detection still finds a genuine overlap and resolves it
+  normally — instead of letting the naive displacement pass clean through. See `docs/physics.md`.
 - Joints and constraints (distance, hinge, spring) (Future)
-- Continuous collision detection (CCD) to prevent tunneling at high velocities (Future)

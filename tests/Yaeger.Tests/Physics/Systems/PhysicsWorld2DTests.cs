@@ -220,8 +220,9 @@ public class PhysicsWorld2DTests
 
         var physics = new PhysicsWorld2D(world, Vector2.Zero); // No gravity for simplicity
 
-        // Act
-        physics.Update(0.001f); // Very small step to minimize movement before collision
+        // Act — one fixed timestep (the smallest step that reliably runs the physics
+        // pipeline at the default 120 Hz), to minimize movement before collision.
+        physics.Update(physics.FixedTimeStep);
 
         // Assert — ball should have bounced (velocity Y should be positive or less negative)
         var ballVel = world.GetComponent<Velocity2D>(ball);
@@ -252,8 +253,9 @@ public class PhysicsWorld2DTests
         var firedEvents = new List<CollisionManifold>();
         physics.OnCollision += manifold => firedEvents.Add(manifold);
 
-        // Act
-        physics.Update(0.001f);
+        // Act — one fixed timestep, the smallest step that reliably runs the physics pipeline
+        // at the default 120 Hz.
+        physics.Update(physics.FixedTimeStep);
 
         // Assert — the overlap is still reported...
         Assert.Single(firedEvents);
@@ -552,5 +554,245 @@ public class PhysicsWorld2DTests
         var physics = new PhysicsWorld2D(world);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => physics.DropThrough(entity, duration));
+    }
+
+    // ── Fixed-timestep accumulator ───────────────────────────────────────────
+
+    [Fact]
+    public void Constructor_ShouldDefaultFixedTimeStepAndMaxSubSteps()
+    {
+        // Arrange & Act
+        var world = new World();
+        var physics = new PhysicsWorld2D(world);
+
+        // Assert
+        Assert.Equal(1f / 120f, physics.FixedTimeStep, 0.00001f);
+        Assert.Equal(8, physics.MaxSubSteps);
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-1f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(float.NegativeInfinity)]
+    public void Constructor_InvalidFixedTimeStep_ShouldThrow(float fixedTimeStep)
+    {
+        var world = new World();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PhysicsWorld2D(world, fixedTimeStep: fixedTimeStep)
+        );
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Constructor_InvalidMaxSubSteps_ShouldThrow(int maxSubSteps)
+    {
+        var world = new World();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PhysicsWorld2D(world, maxSubSteps: maxSubSteps)
+        );
+    }
+
+    [Fact]
+    public void Update_DeltaTimeBelowFixedTimeStep_ShouldNotStepYet()
+    {
+        // Arrange — fixedTimeStep = 0.1; feeding less than that shouldn't run any physics yet.
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(Vector2.Zero));
+        world.AddComponent(entity, Velocity2D.Zero);
+        world.AddComponent(entity, RigidBody2D.CreateDynamic(1.0f));
+
+        var physics = new PhysicsWorld2D(world, new Vector2(0, -10), fixedTimeStep: 0.1f);
+
+        // Act — two calls of 0.04s each accumulate to 0.08s, still under the 0.1s fixed step.
+        physics.Update(0.04f);
+        physics.Update(0.04f);
+
+        // Assert — no step has run, so gravity hasn't been applied at all yet.
+        var velocity = world.GetComponent<Velocity2D>(entity);
+        Assert.Equal(0f, velocity.Linear.Y);
+    }
+
+    [Fact]
+    public void Update_AccumulatedTimeCrossingFixedTimeStep_ShouldRunExactlyOneStep()
+    {
+        // Arrange
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(Vector2.Zero));
+        world.AddComponent(entity, Velocity2D.Zero);
+        world.AddComponent(entity, RigidBody2D.CreateDynamic(1.0f));
+
+        var physics = new PhysicsWorld2D(world, new Vector2(0, -10), fixedTimeStep: 0.1f);
+
+        // Act — 0.04 + 0.04 + 0.04 = 0.12, crossing the 0.1s fixed step exactly once, leaving
+        // 0.02s carried over.
+        physics.Update(0.04f);
+        physics.Update(0.04f);
+        physics.Update(0.04f);
+
+        // Assert — exactly one fixed step's worth of gravity applied (-10 * 0.1 = -1.0), not
+        // more, not less.
+        var velocity = world.GetComponent<Velocity2D>(entity);
+        Assert.Equal(-1.0f, velocity.Linear.Y, 0.0001f);
+
+        // The leftover 0.02s shows up as a 0.2 interpolation fraction of the next step.
+        Assert.Equal(0.2f, physics.InterpolationAlpha, 0.0001f);
+    }
+
+    [Fact]
+    public void Update_MultipleFixedTimeStepsInOneCall_ShouldRunThatManySubSteps()
+    {
+        // Arrange
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(Vector2.Zero));
+        world.AddComponent(entity, Velocity2D.Zero);
+        world.AddComponent(entity, RigidBody2D.CreateDynamic(1.0f));
+
+        var physics = new PhysicsWorld2D(world, new Vector2(0, -10), fixedTimeStep: 0.1f);
+
+        // Act — a single 0.25s call spans two full 0.1s steps, leaving 0.05s over.
+        physics.Update(0.25f);
+
+        // Assert — two steps' worth of gravity (-10 * 0.1 * 2 = -2.0).
+        var velocity = world.GetComponent<Velocity2D>(entity);
+        Assert.Equal(-2.0f, velocity.Linear.Y, 0.0001f);
+        Assert.Equal(0.5f, physics.InterpolationAlpha, 0.0001f);
+    }
+
+    [Fact]
+    public void Update_HugeDeltaTime_ShouldClampToMaxSubSteps()
+    {
+        // Arrange — a huge delta (as if from a debugger pause or a massive hitch) should not
+        // make the world try to fully catch up; it's capped at maxSubSteps steps and the rest
+        // of the backlog is discarded, not carried forward.
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(Vector2.Zero));
+        world.AddComponent(entity, Velocity2D.Zero);
+        world.AddComponent(entity, RigidBody2D.CreateDynamic(1.0f));
+
+        var physics = new PhysicsWorld2D(
+            world,
+            new Vector2(0, -10),
+            fixedTimeStep: 0.125f,
+            maxSubSteps: 4
+        );
+
+        // Act — 100 simulated seconds in one call; only 4 * 0.125 = 0.5s of it should run.
+        physics.Update(100f);
+
+        // Assert — exactly 4 steps' worth of gravity (-10 * 0.125 * 4 = -5.0), nowhere near the
+        // ~-1000 a full 100-second catch-up would produce.
+        var velocity = world.GetComponent<Velocity2D>(entity);
+        Assert.Equal(-5.0f, velocity.Linear.Y, 0.0001f);
+        Assert.Equal(0f, physics.InterpolationAlpha, 0.0001f);
+    }
+
+    [Fact]
+    public void Update_SameScenarioAtDifferentFrameRates_ShouldProduceIdenticalResults()
+    {
+        // Arrange — free-falling body, simulated for exactly one second, once fed in 30 fps
+        // frame deltas and once fed in 240 fps frame deltas. The default 120 Hz fixed step
+        // divides evenly into both (4 sub-steps per call at 30 fps; one sub-step per two calls
+        // at 240 fps), so both should advance the exact same 120 physics steps overall —
+        // the whole point of fixed-timestep stepping.
+        var worldA = new World();
+        var entityA = worldA.CreateEntity();
+        worldA.AddComponent(entityA, new Transform2D(new Vector2(0, 1000)));
+        worldA.AddComponent(entityA, Velocity2D.Zero);
+        worldA.AddComponent(entityA, RigidBody2D.CreateDynamic(1.0f));
+        var physicsA = new PhysicsWorld2D(worldA, new Vector2(0, -10));
+
+        var worldB = new World();
+        var entityB = worldB.CreateEntity();
+        worldB.AddComponent(entityB, new Transform2D(new Vector2(0, 1000)));
+        worldB.AddComponent(entityB, Velocity2D.Zero);
+        worldB.AddComponent(entityB, RigidBody2D.CreateDynamic(1.0f));
+        var physicsB = new PhysicsWorld2D(worldB, new Vector2(0, -10));
+
+        // Act
+        for (var i = 0; i < 30; i++)
+            physicsA.Update(1f / 30f);
+
+        for (var i = 0; i < 240; i++)
+            physicsB.Update(1f / 240f);
+
+        // Assert
+        var velocityA = worldA.GetComponent<Velocity2D>(entityA).Linear.Y;
+        var velocityB = worldB.GetComponent<Velocity2D>(entityB).Linear.Y;
+        Assert.Equal(velocityA, velocityB, 0.001f);
+
+        var positionA = worldA.GetComponent<Transform2D>(entityA).Position.Y;
+        var positionB = worldB.GetComponent<Transform2D>(entityB).Position.Y;
+        Assert.Equal(positionA, positionB, 0.001f);
+    }
+
+    [Fact]
+    public void Update_ZeroDeltaTime_ShouldRunOneImmediateStepBypassingAccumulator()
+    {
+        // Arrange — a zero delta must still run detection/resolution/events immediately (the
+        // pattern many tests in this file rely on), not silently do nothing while it waits for
+        // the accumulator to fill.
+        var world = new World();
+
+        var a = world.CreateEntity();
+        world.AddComponent(a, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(a, RigidBody2D.CreateStatic());
+        world.AddComponent(a, new BoxCollider2D(2, 2));
+
+        var b = world.CreateEntity();
+        world.AddComponent(b, new Transform2D(new Vector2(1, 0)));
+        world.AddComponent(b, RigidBody2D.CreateStatic());
+        world.AddComponent(b, new BoxCollider2D(2, 2));
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero);
+
+        // Act
+        physics.Update(0f);
+
+        // Assert
+        Assert.NotEmpty(physics.Manifolds);
+        Assert.Equal(0f, physics.InterpolationAlpha);
+    }
+
+    // ── Tunneling prevention ──────────────────────────────────────────────────
+
+    [Fact]
+    public void Update_FastFallingBody_ShouldNotTunnelThroughThinFloor()
+    {
+        // Arrange — a one-unit-thick floor, and a body falling so fast that even a single fixed
+        // sub-step (1/120s by default) would naively carry it clean through to below the floor:
+        // at 2000 units/s, one sub-step covers ~16.7 units, far more than the floor's thickness.
+        var world = new World();
+
+        var floor = world.CreateEntity();
+        world.AddComponent(floor, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(floor, RigidBody2D.CreateStatic());
+        world.AddComponent(floor, new BoxCollider2D(20, 1));
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(0, 20)));
+        world.AddComponent(player, new Velocity2D(0, -2000)); // extremely fast fall
+        world.AddComponent(player, RigidBody2D.CreateDynamic(1.0f));
+        world.AddComponent(player, new BoxCollider2D(1, 1));
+        world.AddComponent(player, PhysicsMaterial.Sticky);
+
+        var physics = new PhysicsWorld2D(world, Vector2.Zero); // no gravity; velocity alone
+
+        // Act — the fall itself only takes 0.01s; run well past that so it has time to land.
+        for (var i = 0; i < 30; i++)
+            physics.Update(1f / 60f);
+
+        // Assert — landed on top of the floor (top at y=0.5, plus the player's half-height of
+        // 0.5), not somewhere far below it, which is what a tunneled-through body would show.
+        var position = world.GetComponent<Transform2D>(player).Position;
+        Assert.Equal(1.0f, position.Y, 0.01f);
     }
 }
