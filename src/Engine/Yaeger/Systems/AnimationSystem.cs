@@ -98,7 +98,20 @@ public class AnimationSystem(World world)
                 && !world.TryGetComponent<SpriteSheet>(entity, out _)
             )
             {
-                var sprite = new Sprite(currentFrame.TexturePath);
+                // Preserve Tint/FlipX/FlipY from the existing Sprite (if any) — only the
+                // texture path changes as the animation advances frames.
+                var hasExistingSprite = world.TryGetComponent<Sprite>(
+                    entity,
+                    out var existingSprite
+                );
+                var sprite = hasExistingSprite
+                    ? new Sprite(
+                        currentFrame.TexturePath,
+                        existingSprite.Tint,
+                        existingSprite.FlipX,
+                        existingSprite.FlipY
+                    )
+                    : new Sprite(currentFrame.TexturePath);
                 world.AddComponent(entity, sprite);
             }
         }

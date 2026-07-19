@@ -179,7 +179,7 @@ public class AnimationSystem(World world)
 
 ### Changing Animations at Runtime
 
-You can change an entity's animation by updating its `Animation` component:
+You can change an entity's animation by updating its `Animation` component directly:
 
 ```csharp
 // Switch to idle animation
@@ -191,6 +191,9 @@ var idleFrames = new AnimationFrame[]
 world.AddComponent(entity, new Animation(idleFrames));
 world.AddComponent(entity, new AnimationState()); // Reset state
 ```
+
+For more than a couple of named states, `AnimationStateMachine` (below) turns this manual
+swap-both-components pattern into a declarative `Play("idle")` call.
 
 ### Checking Animation Completion
 
@@ -214,4 +217,93 @@ animationSystem.Update((float)deltaTime * 0.5f);
 
 // Play animation at double speed
 animationSystem.Update((float)deltaTime * 2.0f);
+```
+
+## Sprite Flipping
+
+`Sprite.FlipX`/`Sprite.FlipY` mirror the rendered image horizontally/vertically without touching
+`Transform2D` — the classic platformer "face left/right" need, decoupled from scale so it doesn't
+conflate facing with actual size or leak into colliders. The renderer implements this by swapping
+the submitted quad's UV coordinates, so a flipped sprite stays on the same batched draw path as an
+unflipped one (no extra draw calls).
+
+```csharp
+// A character facing left, at normal size.
+world.AddComponent(entity, new Sprite("Assets/player.png", flipX: true));
+```
+
+For an entity animated via `SpriteSheet` + `AnimationState` rather than a plain `Sprite`, attach a
+`Sprite` alongside them purely to carry the flip flags — `UnifiedRenderSystem` reads it for flip
+state only; its `TexturePath` is ignored in that case (the `SpriteSheet`'s texture is authoritative):
+
+```csharp
+world.AddComponent(entity, spriteSheet);
+world.AddComponent(entity, animationState);
+world.AddComponent(entity, new Sprite("unused", flipX: facingLeft));
+```
+
+`AnimationSystem` preserves `FlipX`/`FlipY` (and `Tint`) on the `Sprite` component it writes back
+each time a plain-`Sprite` animation advances a frame, so flip state survives frame changes.
+
+`Sprite` serializes `flipX`/`flipY` as optional JSON fields (omitted when `false`):
+
+```json
+{ "type": "Sprite", "texturePath": "Assets/player.png", "flipX": true }
+```
+
+## AnimationStateMachine
+
+`AnimationStateMachine` is a small helper for switching between named animation states (idle, run,
+jump, fall, ...) without game code manually swapping `Animation`/`AnimationState` components. A
+"state" is simply a name mapped to an `Animation` clip — the same clip type that already drives
+frame timing for both `Sprite` and `SpriteSheet` rendering paths. It is deliberately minimal: no
+blend trees, no transition-condition DSL. Game code decides *when* to switch (by calling `Play`);
+the helper only handles switching cleanly (resetting the frame timer, swapping the clip).
+
+```csharp
+using Yaeger.Graphics;
+using Yaeger.Systems;
+
+var states = new Dictionary<string, Animation>
+{
+    ["idle"] = new(idleFrames, loop: true),
+    ["jump"] = new(jumpFrames, loop: false),
+};
+
+var entity = world.CreateEntity();
+world.AddComponent(entity, new AnimationStateMachine(states, initialState: "idle"));
+
+var stateMachineSystem = new AnimationStateMachineSystem(world);
+var animationSystem = new AnimationSystem(world);
+
+// Game code decides when to switch:
+stateMachineSystem.Play(entity, "jump");
+
+// Run the state machine system BEFORE AnimationSystem each frame, so a switch requested
+// this frame takes effect immediately rather than advancing the old clip one more step first.
+window.OnUpdate += deltaTime =>
+{
+    stateMachineSystem.Update((float)deltaTime);
+    animationSystem.Update((float)deltaTime);
+};
+```
+
+Switching to a different state always restarts it at frame 0. Calling `Play` again with the name
+of the state that's already active does *not* restart it — unless `RestartOnReplay` is set to
+`true` at construction — so re-confirming "yes, still idle" every frame doesn't visibly stutter a
+looping animation. Completion of a non-looping state (e.g. "jump" landing, "attack" finishing) is
+reported the same way any `Animation` reports it: read `AnimationState.IsFinished` on the entity.
+
+`AnimationStateMachine` serializes to/from prefab and scene JSON:
+
+```json
+{
+  "type": "AnimationStateMachine",
+  "currentState": "idle",
+  "restartOnReplay": false,
+  "states": {
+    "idle": { "loop": true, "frames": [{ "texturePath": "Assets/idle0.png", "duration": 0.2 }] },
+    "jump": { "loop": false, "frames": [{ "texturePath": "Assets/jump0.png", "duration": 0.15 }] }
+  }
+}
 ```

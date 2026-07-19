@@ -330,6 +330,70 @@ public class PrefabLoaderTests
     }
 
     [Fact]
+    public void SpriteSerializer_WithFlipFlags_DeserializesCorrectly()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png", "flipX": true, "flipY": true } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<Sprite>(entity, out var sprite));
+        Assert.True(sprite.FlipX);
+        Assert.True(sprite.FlipY);
+    }
+
+    [Fact]
+    public void SpriteSerializer_WithoutFlipFlags_DefaultsToFalse()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """{ "components": [ { "type": "Sprite", "texturePath": "Assets/ball.png" } ] }"""
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<Sprite>(entity, out var sprite));
+        Assert.False(sprite.FlipX);
+        Assert.False(sprite.FlipY);
+    }
+
+    [Fact]
+    public void SpriteSerializer_TrySerialize_OmitsFlipFlagsWhenFalse()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Sprite("Assets/ball.png"));
+
+        var node = new SpriteSerializer().TrySerialize(world, entity);
+
+        Assert.NotNull(node);
+        var obj = node!.AsObject();
+        Assert.False(obj.ContainsKey("flipX"));
+        Assert.False(obj.ContainsKey("flipY"));
+    }
+
+    [Fact]
+    public void SpriteSerializer_TrySerialize_IncludesFlipFlagsWhenTrue()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Sprite("Assets/ball.png", flipX: true, flipY: true));
+
+        var node = new SpriteSerializer().TrySerialize(world, entity);
+
+        Assert.NotNull(node);
+        var obj = node!.AsObject();
+        Assert.True(obj["flipX"]!.GetValue<bool>());
+        Assert.True(obj["flipY"]!.GetValue<bool>());
+    }
+
+    [Fact]
     public void SpriteSheetSerializer_MissingTexturePath_ThrowsPrefabLoadException()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
@@ -611,6 +675,190 @@ public class PrefabLoaderTests
             )
         );
         Assert.Contains("duration", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationStateMachineSerializer_RoundTrip()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """
+            {
+              "components": [
+                {
+                  "type": "AnimationStateMachine",
+                  "currentState": "idle",
+                  "restartOnReplay": true,
+                  "states": {
+                    "idle": { "loop": true, "frames": [ { "texturePath": "Assets/idle0.png", "duration": 0.2 } ] },
+                    "jump": { "loop": false, "frames": [ { "texturePath": "Assets/jump0.png", "duration": 0.15 } ] }
+                  }
+                }
+              ]
+            }
+            """
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<AnimationStateMachine>(entity, out var machine));
+        Assert.Equal("idle", machine.CurrentState);
+        Assert.True(machine.RestartOnReplay);
+        Assert.Equal(2, machine.States.Count);
+        Assert.True(machine.States["idle"].Loop);
+        Assert.Equal("Assets/idle0.png", machine.States["idle"].Frames[0].TexturePath);
+        Assert.False(machine.States["jump"].Loop);
+        Assert.Equal("Assets/jump0.png", machine.States["jump"].Frames[0].TexturePath);
+    }
+
+    [Fact]
+    public void AnimationStateMachineSerializer_DefaultsRestartOnReplayToFalse()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+        var prefab = loader.Parse(
+            """
+            {
+              "components": [
+                {
+                  "type": "AnimationStateMachine",
+                  "currentState": "idle",
+                  "states": {
+                    "idle": { "frames": [ { "texturePath": "Assets/idle0.png", "duration": 0.2 } ] }
+                  }
+                }
+              ]
+            }
+            """
+        );
+
+        var world = new World();
+        var entity = world.Instantiate(prefab);
+
+        Assert.True(world.TryGetComponent<AnimationStateMachine>(entity, out var machine));
+        Assert.False(machine.RestartOnReplay);
+    }
+
+    [Fact]
+    public void AnimationStateMachineSerializer_MissingStates_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "AnimationStateMachine", "currentState": "idle" } ] }"""
+            )
+        );
+        Assert.Contains("states", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationStateMachineSerializer_EmptyStates_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "AnimationStateMachine", "currentState": "idle", "states": {} } ] }"""
+            )
+        );
+        Assert.Contains("states", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationStateMachineSerializer_MissingCurrentState_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """
+                {
+                  "components": [
+                    {
+                      "type": "AnimationStateMachine",
+                      "states": {
+                        "idle": { "frames": [ { "texturePath": "Assets/idle0.png", "duration": 0.2 } ] }
+                      }
+                    }
+                  ]
+                }
+                """
+            )
+        );
+        Assert.Contains("currentState", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationStateMachineSerializer_CurrentStateNotInStates_ThrowsPrefabLoadException()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        var ex = Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """
+                {
+                  "components": [
+                    {
+                      "type": "AnimationStateMachine",
+                      "currentState": "run",
+                      "states": {
+                        "idle": { "frames": [ { "texturePath": "Assets/idle0.png", "duration": 0.2 } ] }
+                      }
+                    }
+                  ]
+                }
+                """
+            )
+        );
+        Assert.Contains("currentState", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnimationStateMachineSerializer_TrySerialize_OmitsRestartOnReplayWhenFalse()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        var states = new Dictionary<string, Animation>
+        {
+            ["idle"] = new([new AnimationFrame("Assets/idle0.png", 0.2f)]),
+        };
+        world.AddComponent(entity, new AnimationStateMachine(states, "idle"));
+
+        var node = new AnimationStateMachineSerializer().TrySerialize(world, entity);
+
+        Assert.NotNull(node);
+        var obj = node!.AsObject();
+        Assert.False(obj.ContainsKey("restartOnReplay"));
+        Assert.Equal("idle", obj["currentState"]!.GetValue<string>());
+        Assert.True(obj["states"]!.AsObject().ContainsKey("idle"));
+    }
+
+    [Fact]
+    public void AnimationStateMachineSerializer_TrySerialize_IncludesRestartOnReplayWhenTrue()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        var states = new Dictionary<string, Animation>
+        {
+            ["idle"] = new([new AnimationFrame("Assets/idle0.png", 0.2f)]),
+        };
+        world.AddComponent(
+            entity,
+            new AnimationStateMachine(states, "idle", restartOnReplay: true)
+        );
+
+        var node = new AnimationStateMachineSerializer().TrySerialize(world, entity);
+
+        Assert.NotNull(node);
+        var obj = node!.AsObject();
+        Assert.True(obj["restartOnReplay"]!.GetValue<bool>());
     }
 
     [Fact]

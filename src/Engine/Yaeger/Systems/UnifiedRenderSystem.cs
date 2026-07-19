@@ -47,8 +47,6 @@ public class UnifiedRenderSystem(
             switch (command.Kind)
             {
                 case RenderCommandKind.Sprite:
-                    renderer!.SubmitQuad(command.Transform, command.TexturePath!, command.Color);
-                    break;
                 case RenderCommandKind.SpriteSheet:
                     renderer!.SubmitQuad(
                         command.Transform,
@@ -100,6 +98,7 @@ public class UnifiedRenderSystem(
 
         if (renderer != null)
         {
+            var spriteStore = world.GetStore<Sprite>();
             var spriteSheetStore = world.GetStore<SpriteSheet>();
             var animationStateStore = world.GetStore<AnimationState>();
             var renderLayerStore = world.GetStore<RenderLayer>();
@@ -141,6 +140,17 @@ public class UnifiedRenderSystem(
 
                 var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
                 var (uvMin, uvMax) = sheet.GetFrameUv(frameIndex);
+
+                // An optional co-located Sprite carries facing/flip state for an animated
+                // entity — its own TexturePath is unused here (SpriteSheet's is authoritative),
+                // only FlipX/FlipY apply.
+                if (spriteStore.TryGet(entity, out var spriteForFlip))
+                    (uvMin, uvMax) = Sprite.ApplyFlip(
+                        uvMin,
+                        uvMax,
+                        spriteForFlip.FlipX,
+                        spriteForFlip.FlipY
+                    );
 
                 _commands.Add(
                     RenderCommand.ForSpriteSheet(
@@ -380,20 +390,28 @@ public class UnifiedRenderSystem(
             int layer,
             Matrix4x4 transform,
             Sprite sprite
-        ) =>
-            new(
+        )
+        {
+            var (uvMin, uvMax) = Sprite.ApplyFlip(
+                Vector2.Zero,
+                Vector2.One,
+                sprite.FlipX,
+                sprite.FlipY
+            );
+            return new(
                 entity,
                 layer,
                 RenderCommandKind.Sprite,
                 transform,
                 sprite.TexturePath,
-                Vector2.Zero,
-                Vector2.One,
+                uvMin,
+                uvMax,
                 sprite.Tint.ToVector4(),
                 default,
                 default,
                 default
             );
+        }
 
         public static RenderCommand ForSpriteSheet(
             Entity entity,

@@ -15,6 +15,7 @@ public static class EngineComponentRegistryExtensions
     ///   <item><see cref="Yaeger.Graphics.SpriteSheet"/> – type id <c>"SpriteSheet"</c></item>
     ///   <item><see cref="Yaeger.Graphics.Animation"/> – type id <c>"Animation"</c></item>
     ///   <item><see cref="Yaeger.Graphics.AnimationState"/> – type id <c>"AnimationState"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.AnimationStateMachine"/> – type id <c>"AnimationStateMachine"</c></item>
     ///   <item><see cref="Yaeger.Graphics.RenderLayer"/> – type id <c>"RenderLayer"</c></item>
     ///   <item><see cref="Yaeger.Graphics.Tilemap"/> – type id <c>"Tilemap"</c></item>
     ///   <item><see cref="Yaeger.Physics.Components.BoxCollider2D"/> – type id <c>"BoxCollider2D"</c></item>
@@ -44,6 +45,7 @@ public static class EngineComponentRegistryExtensions
         registry.Register(new SpriteSheetSerializer());
         registry.Register(new AnimationSerializer());
         registry.Register(new AnimationStateSerializer());
+        registry.Register(new AnimationStateMachineSerializer());
         registry.Register(new RenderLayerSerializer());
         registry.Register(new TilemapSerializer());
         registry.Register(new BoxCollider2DSerializer());
