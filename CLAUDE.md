@@ -151,7 +151,11 @@ Three static classes initialised by `Window`:
 
 ### Audio (`Audio/`)
 
-`AudioContext` wraps OpenAL via Silk.NET.OpenAL. `SoundBuffer.FromFile()` loads `.wav` files; `SoundSource` controls playback and looping.
+`AudioContext` wraps OpenAL via Silk.NET.OpenAL and owns a shared `Mixer` (`AudioMixer`, see below). `SoundBuffer.FromFile()` loads a whole file into an OpenAL buffer — `.wav` (PCM, mono/stereo, 8/16-bit) or `.ogg` (Vorbis, decoded fully via `OggVorbisLoader`/NVorbis — a pure-managed decoder, no native dependency) by extension; `SoundSource` controls playback and looping for a buffer-backed source. This path suits short SFX; a multi-minute OGG track fully decoded this way would sit in memory at ~10 MB/minute.
+
+**Streaming**: `StreamingSoundSource.FromFile(context, path)` streams an OGG Vorbis file through a small ring of 4 OpenAL buffers instead — call `Update()` regularly (e.g. once per frame) to decode the next chunk into whichever buffers OpenAL has finished playing and re-queue them; `Looping = true` seeks back to the start the moment the stream runs dry, mid-`Update()` if necessary, so the loop point never gaps. Same `Play`/`Pause`/`Stop`/`Gain`/`GetState()` shape as `SoundSource`; `Stop()` also rewinds so a later `Play()` restarts from the beginning. This is the path for background music.
+
+**Volume groups**: `AudioMixer` (`AudioContext.Mixer`) exposes `MasterVolume`/`MusicVolume`/`SfxVolume` (each clamped to [0, 1], default 1). `SoundSource.Create`/`StreamingSoundSource.FromFile` take an `AudioGroup` (`Music` or `Sfx`; `SoundSource` defaults to `Sfx`, `StreamingSoundSource` to `Music`). A source's `Gain` is its own logical volume — the value actually sent to OpenAL is `Gain * MasterVolume * (group's volume)`, recomputed and re-applied automatically via `AudioMixer.VolumeChanged` whenever a mixer volume changes, so adjusting music/SFX/master volume at runtime affects already-playing sources immediately. Because of this, `Gain`'s getter returns the logical value you set, not whatever OpenAL currently reports.
 
 ---
 

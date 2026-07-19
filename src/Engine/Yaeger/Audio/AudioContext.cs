@@ -34,6 +34,12 @@ public sealed class AudioContext : IDisposable
     }
 
     /// <summary>
+    /// The master/music/SFX volume mixer shared by every <see cref="SoundSource"/> and
+    /// <see cref="StreamingSoundSource"/> created through this context.
+    /// </summary>
+    public AudioMixer Mixer { get; } = new();
+
+    /// <summary>
     /// Creates and initializes a new audio context.
     /// </summary>
     /// <returns>A new AudioContext instance.</returns>

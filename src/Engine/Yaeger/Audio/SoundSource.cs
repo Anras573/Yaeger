@@ -6,16 +6,31 @@ namespace Yaeger.Audio;
 /// <summary>
 /// Represents an audio source that can play sound buffers.
 /// </summary>
+/// <remarks>
+/// <see cref="Gain"/> is the source's own logical volume; the value actually sent to OpenAL is
+/// <c>Gain * AudioContext.Mixer</c>'s multiplier for this source's <see cref="AudioGroup"/>, kept
+/// in sync automatically whenever the mixer's volumes change (see
+/// <see cref="AudioMixer.VolumeChanged"/>) — so changing e.g. music volume at runtime affects
+/// already-playing sources immediately, without touching them directly. Because of this, the
+/// <see cref="Gain"/> getter returns the logical value you set, not whatever OpenAL currently
+/// reports (which reflects the mixed value).
+/// </remarks>
 public sealed class SoundSource : IDisposable
 {
     private readonly AL _al;
     private readonly uint _sourceId;
+    private readonly AudioMixer _mixer;
+    private readonly AudioGroup _group;
+    private float _gain = 1f;
     private bool _disposed;
 
-    private SoundSource(AL al, uint sourceId)
+    private SoundSource(AL al, uint sourceId, AudioMixer mixer, AudioGroup group)
     {
         _al = al;
         _sourceId = sourceId;
+        _mixer = mixer;
+        _group = group;
+        _mixer.VolumeChanged += PushGain;
     }
 
     /// <summary>
@@ -34,8 +49,12 @@ public sealed class SoundSource : IDisposable
     /// Creates a new sound source.
     /// </summary>
     /// <param name="context">The audio context.</param>
+    /// <param name="group">
+    /// The volume group this source belongs to, for <see cref="AudioContext.Mixer"/>. Defaults
+    /// to <see cref="AudioGroup.Sfx"/>.
+    /// </param>
     /// <returns>A new SoundSource instance.</returns>
-    public static SoundSource Create(AudioContext context)
+    public static SoundSource Create(AudioContext context, AudioGroup group = AudioGroup.Sfx)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -45,7 +64,9 @@ public sealed class SoundSource : IDisposable
         try
         {
             sourceId = al.GenSource();
-            return new SoundSource(al, sourceId);
+            var source = new SoundSource(al, sourceId, context.Mixer, group);
+            source.PushGain();
+            return source;
         }
         catch
         {
@@ -164,22 +185,38 @@ public sealed class SoundSource : IDisposable
     }
 
     /// <summary>
-    /// Gets or sets the gain/volume (0.0 to 1.0).
-    /// Values outside this range will be automatically clamped to the valid range.
+    /// Gets or sets this source's own gain/volume (0.0 to 1.0), independent of
+    /// <see cref="AudioContext.Mixer"/>. Values outside this range are automatically clamped.
+    /// The value actually sent to OpenAL is this multiplied by the mixer's gain for this
+    /// source's <see cref="AudioGroup"/> — see the type-level remarks.
     /// </summary>
     public float Gain
     {
         get
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            _al.GetSourceProperty(_sourceId, SourceFloat.Gain, out float value);
-            return value;
+            return _gain;
         }
         set
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            _al.SetSourceProperty(_sourceId, SourceFloat.Gain, Math.Clamp(value, 0f, 1f));
+            _gain = Math.Clamp(value, 0f, 1f);
+            PushGain();
         }
+    }
+
+    /// <summary>
+    /// Recomputes this source's effective gain (<see cref="Gain"/> × the mixer's multiplier for
+    /// this source's <see cref="AudioGroup"/>) and sends it to OpenAL. Called automatically
+    /// whenever <see cref="Gain"/> is set or the mixer's volumes change.
+    /// </summary>
+    private void PushGain()
+    {
+        if (_disposed)
+            return;
+
+        var effective = _gain * _mixer.GetGroupMultiplier(_group);
+        _al.SetSourceProperty(_sourceId, SourceFloat.Gain, Math.Clamp(effective, 0f, 1f));
     }
 
     /// <summary>
@@ -230,6 +267,7 @@ public sealed class SoundSource : IDisposable
             return;
 
         _disposed = true;
+        _mixer.VolumeChanged -= PushGain;
         System.GC.SuppressFinalize(this);
         _al.DeleteSource(_sourceId);
     }
