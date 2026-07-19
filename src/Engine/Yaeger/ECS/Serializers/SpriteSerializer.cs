@@ -10,9 +10,10 @@ namespace Yaeger.ECS.Serializers;
 /// <remarks>
 /// JSON format:
 /// <code>
-/// { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0, 0, 255] }
+/// { "type": "Sprite", "texturePath": "Assets/ball.png", "tint": [255, 0, 0, 255], "flipX": false, "flipY": false }
 /// </code>
-/// The tint field is optional and defaults to white (255, 255, 255, 255).
+/// The tint field is optional and defaults to white (255, 255, 255, 255). <c>flipX</c>/<c>flipY</c>
+/// are optional and default to <c>false</c>.
 /// </remarks>
 public sealed class SpriteSerializer : IComponentSerializer
 {
@@ -27,8 +28,10 @@ public sealed class SpriteSerializer : IComponentSerializer
     {
         var texturePath = GetRequiredTexturePath(element);
         var tint = ParseOptionalTint(element);
+        var flipX = ComponentJson2D.ReadOptionalBool(element, "flipX", false);
+        var flipY = ComponentJson2D.ReadOptionalBool(element, "flipY", false);
 
-        var component = new Sprite(texturePath, tint);
+        var component = new Sprite(texturePath, tint, flipX, flipY);
         return (world, entity) => world.AddComponent(entity, component);
     }
 
@@ -41,6 +44,10 @@ public sealed class SpriteSerializer : IComponentSerializer
         var json = new JsonObject { ["type"] = TypeId, ["texturePath"] = sprite.TexturePath };
 
         WriteTintIfNonDefault(json, sprite.Tint);
+        if (sprite.FlipX)
+            json["flipX"] = true;
+        if (sprite.FlipY)
+            json["flipY"] = true;
 
         return json;
     }

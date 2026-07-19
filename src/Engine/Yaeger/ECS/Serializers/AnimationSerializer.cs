@@ -32,6 +32,32 @@ public sealed class AnimationSerializer : IComponentSerializer
     /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
+        var component = ParseAnimationBody(element);
+        return (world, entity) => world.AddComponent(entity, component);
+    }
+
+    /// <inheritdoc/>
+    public JsonNode? TrySerialize(World world, Entity entity)
+    {
+        if (!world.TryGetComponent<Animation>(entity, out var anim))
+            return null;
+
+        var json = WriteAnimationBody(anim);
+        json["type"] = TypeId;
+        return json;
+    }
+
+    /// <summary>
+    /// Parses an <see cref="Animation"/> from its <c>loop</c>/<c>frames</c> fields — the same
+    /// shape used both standalone (this serializer) and nested under a named state in
+    /// <see cref="AnimationStateMachineSerializer"/>.
+    /// </summary>
+    /// <param name="element">
+    /// A JSON object containing <c>frames</c> (required) and <c>loop</c> (optional, defaults to
+    /// <c>true</c>). A <c>"type"</c> field, if present, is ignored.
+    /// </param>
+    internal static Animation ParseAnimationBody(JsonElement element)
+    {
         var loop = true;
         if (element.TryGetProperty("loop", out var loopEl))
         {
@@ -96,18 +122,17 @@ public sealed class AnimationSerializer : IComponentSerializer
             frames[i] = new AnimationFrame(texturePath, duration);
         }
 
-        var component = new Animation(frames, loop);
-        return (world, entity) => world.AddComponent(entity, component);
+        return new Animation(frames, loop);
     }
 
-    /// <inheritdoc/>
-    public JsonNode? TrySerialize(World world, Entity entity)
+    /// <summary>
+    /// Writes an <see cref="Animation"/>'s <c>loop</c>/<c>frames</c> fields (without a
+    /// <c>"type"</c> wrapper), the counterpart to <see cref="ParseAnimationBody"/>.
+    /// </summary>
+    internal static JsonObject WriteAnimationBody(Animation animation)
     {
-        if (!world.TryGetComponent<Animation>(entity, out var anim))
-            return null;
-
         var frames = new JsonArray();
-        foreach (var frame in anim.Frames)
+        foreach (var frame in animation.Frames)
         {
             frames.Add(
                 new JsonObject
@@ -118,11 +143,6 @@ public sealed class AnimationSerializer : IComponentSerializer
             );
         }
 
-        return new JsonObject
-        {
-            ["type"] = TypeId,
-            ["loop"] = anim.Loop,
-            ["frames"] = frames,
-        };
+        return new JsonObject { ["loop"] = animation.Loop, ["frames"] = frames };
     }
 }
