@@ -48,11 +48,12 @@ public sealed class Window : IDisposable
         Gl.Viewport(0, 0, (uint)_innerWindow.Size.X, (uint)_innerWindow.Size.Y);
         _innerWindow.Resize += size => Gl.Viewport(0, 0, (uint)size.X, (uint)size.Y);
 
-        // Initialize keyboard and mouse. Mouse needs the window size to expose NDC coords;
-        // seed it now and update on resize.
+        // Initialize keyboard, mouse, and gamepad. Mouse needs the window size to expose NDC
+        // coords; seed it now and update on resize.
         _inputContext = _innerWindow.CreateInput();
         Keyboard.Initialize(_inputContext);
         Mouse.Initialize(_inputContext);
+        Gamepad.Initialize(_inputContext);
         Mouse.SetWindowSize(new Vector2(_innerWindow.Size.X, _innerWindow.Size.Y));
         _innerWindow.Resize += size => Mouse.SetWindowSize(new Vector2(size.X, size.Y));
         // Note: _inputContext lifecycle is managed by _innerWindow, which will dispose it
