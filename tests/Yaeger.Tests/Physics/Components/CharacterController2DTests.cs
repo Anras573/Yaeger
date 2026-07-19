@@ -52,6 +52,7 @@ public class CharacterController2DTests
         Assert.False(controller.IsTouchingWallRight);
         Assert.False(controller.IsTouchingCeiling);
         Assert.Equal(Vector2.Zero, controller.GroundNormal);
+        Assert.Null(controller.GroundEntity);
     }
 
     [Fact]

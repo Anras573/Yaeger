@@ -103,4 +103,21 @@ Extend the physics engine to support 3D simulations, reusing dimensionality-agno
   ray-vs-box test), clamping displacement to just past the earliest contact — with a small fixed
   overshoot so the same step's discrete detection still finds a genuine overlap and resolves it
   normally — instead of letting the naive displacement pass clean through. See `docs/physics.md`.
+- **Moving platforms: kinematic velocity and rider carrying (Complete)** — a kinematic
+  `BoxCollider2D` entity moves via its own `Velocity2D` through `MovementSystem` (already ignored
+  by `GravitySystem` and never impulse-resolved by `CollisionResolutionSystem`, which treats it
+  like a static body). `CharacterControllerSystem` carries a grounded controller along with its
+  ground entity (`CharacterController2D.GroundEntity`, written whenever `MoveVertical` resolves a
+  ground contact): before anything else each step, the controller's position shifts by the
+  ground entity's displacement since the previous step, tracked via a per-entity position
+  snapshot the system refreshes at the end of every `Update` call. A stationary ground produces
+  zero displacement, so the carry is always safe to apply unconditionally. Running the carry
+  before this step's own move-and-slide resolution gets rider-into-wall pinning and flicker-free
+  vertical riding for free: a wall in the carried path depenetrates the same way any embedded
+  overlap does, and a descending platform's riders are shifted down with it before gravity's
+  contribution is re-resolved, instead of momentarily losing contact and re-landing every step.
+  `PlatformPath` (waypoints, speed, ping-pong or loop) + `PlatformPathSystem` is an optional
+  helper that sets a kinematic platform's `Velocity2D` towards its current waypoint each step,
+  advancing when within an arrival tolerance — games can drive kinematic velocity themselves
+  instead. See `docs/physics.md`.
 - Joints and constraints (distance, hinge, spring) (Future)

@@ -32,6 +32,21 @@ namespace Yaeger.Physics.Systems;
 /// Candidate obstacles are queried brute-force each axis, each step (no broadphase) — adequate
 /// for typical level sizes; revisit if profiling shows otherwise.
 /// </para>
+/// <para>
+/// <b>Rider carrying</b>: before anything else each step, a grounded controller inherits its
+/// ground entity's displacement since the last step (<see cref="CharacterController2D.GroundEntity"/>,
+/// tracked via a per-entity position snapshot taken at the end of every <see cref="Update"/>
+/// call). This is what lets a controller stand still on a moving platform (an elevator, a
+/// horizontal ferry) without sliding off — call this system <i>after</i> whatever moves the
+/// platform (typically <c>PhysicsWorld2D.Update</c>, for a kinematic <see cref="BoxCollider2D"/>
+/// platform) in the same frame, so the platform has already moved before its riders are carried.
+/// The carry is a no-op for a stationary ground (zero displacement), so it's always safe to
+/// apply regardless of what the controller happens to be standing on. Because the carry runs
+/// before this step's own move-and-slide resolution, riding into a wall depenetrates normally
+/// (the platform can't push the rider through it) and a vertically moving platform doesn't cause
+/// grounded-state flicker (the rider is carried down with it instead of momentarily being left
+/// behind and re-falling into contact every step).
+/// </para>
 /// </remarks>
 public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSystem
 {
@@ -44,6 +59,12 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
     /// obstacle.
     /// </summary>
     private const float ContactSkin = 0.001f;
+
+    // Every collidable entity's position as of the end of the last Update call, so this step
+    // can compute how far a controller's ground entity has moved since then — see
+    // ApplyGroundCarry. Rebuilt from scratch every call (not incrementally patched), so a
+    // destroyed entity simply falls out rather than needing explicit pruning.
+    private readonly Dictionary<Entity, Vector2> _lastPositions = new();
 
     /// <summary>
     /// The gravity vector applied to every <see cref="CharacterController2D"/> (scaled by each
@@ -69,6 +90,9 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             var transform = transformSnapshot;
             world.TryGetComponent<Velocity2D>(entity, out var velocity);
 
+            var position = transform.Position;
+            ApplyGroundCarry(ref controller, ref position);
+
             velocity.Linear += Gravity * controller.GravityScale * deltaTime;
 
             controller.IsGrounded = false;
@@ -76,8 +100,7 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             controller.IsTouchingWallRight = false;
             controller.IsTouchingCeiling = false;
             controller.GroundNormal = Vector2.Zero;
-
-            var position = transform.Position;
+            controller.GroundEntity = null;
 
             // X-axis first, then Y — see the type-level remarks for why this ordering avoids
             // tile-seam snags.
@@ -88,6 +111,47 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             world.AddComponent(entity, transform);
             world.AddComponent(entity, velocity);
             world.AddComponent(entity, controller);
+        }
+
+        RefreshLastPositions();
+    }
+
+    /// <summary>
+    /// Shifts <paramref name="position"/> by however far the controller's ground entity (if any)
+    /// has moved since the last step — see the type-level remarks on rider carrying.
+    /// </summary>
+    private void ApplyGroundCarry(ref CharacterController2D controller, ref Vector2 position)
+    {
+        if (controller.GroundEntity is not { } groundEntity)
+            return;
+
+        if (!world.TryGetComponent<Transform2D>(groundEntity, out var groundTransform))
+        {
+            // The ground entity was destroyed since last step — nothing to carry from.
+            controller.GroundEntity = null;
+            return;
+        }
+
+        if (_lastPositions.TryGetValue(groundEntity, out var lastPosition))
+            position += groundTransform.Position - lastPosition;
+    }
+
+    /// <summary>
+    /// Snapshots every collidable entity's current position for the next call's
+    /// <see cref="ApplyGroundCarry"/> to diff against.
+    /// </summary>
+    private void RefreshLastPositions()
+    {
+        _lastPositions.Clear();
+
+        foreach (
+            (Entity entity, BoxCollider2D _, Transform2D transform) in world.Query<
+                BoxCollider2D,
+                Transform2D
+            >()
+        )
+        {
+            _lastPositions[entity] = transform.Position;
         }
     }
 
@@ -182,7 +246,9 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
 
         var halfSize = controller.HalfSize;
 
-        foreach (var (_, collider, colliderCenter) in SolidCandidates(entity, controller))
+        foreach (
+            var (candidateEntity, collider, colliderCenter) in SolidCandidates(entity, controller)
+        )
         {
             var center = position + controller.Offset;
             var colliderHalf = collider.HalfSize;
@@ -223,6 +289,7 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             {
                 controller.IsGrounded = true;
                 controller.GroundNormal = Vector2.UnitY;
+                controller.GroundEntity = candidateEntity;
             }
             else
             {

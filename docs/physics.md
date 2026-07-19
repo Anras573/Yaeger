@@ -12,7 +12,8 @@ window.OnUpdate += delta => physics.Update((float)delta);
 
 See `CLAUDE.md`'s Physics section for the full component/system rundown (colliders, triggers,
 layers/masks, one-way platforms, tilemap collision, `CharacterController2D`). This page covers
-two cross-cutting concerns: fixed-timestep stepping and tunneling prevention.
+three cross-cutting concerns: fixed-timestep stepping, tunneling prevention, and moving
+platforms/rider carrying.
 
 ## Fixed-timestep stepping
 
@@ -96,3 +97,55 @@ afterward in the same `PhysicsWorld2D` step — not from the sweep itself.
 
 Candidate obstacles are queried brute-force each `MovementSystem.Update` call (no broadphase) —
 adequate for typical level sizes; revisit if profiling shows otherwise.
+
+## Moving platforms and rider carrying
+
+A moving platform is just a kinematic `BoxCollider2D` entity: give it a `RigidBody2D` created via
+`RigidBody2D.CreateKinematic()` and a `Velocity2D`, and `MovementSystem` integrates its position
+every step (kinematic bodies are ignored by `GravitySystem` and never impulse-resolved by
+`CollisionResolutionSystem`, which treats a kinematic body like a static one — infinite mass,
+immovable from the other side's perspective).
+
+That alone isn't enough for a `CharacterController2D` standing on it, though: without extra
+help, a character resting on a platform that moves out from under it doesn't move too — its own
+velocity is whatever the player's input says (often zero), so the platform simply slides away
+underneath. `CharacterControllerSystem` closes this gap with rider carrying:
+
+- Whenever `MoveVertical` resolves a ground contact, it records the contact's entity on
+  `CharacterController2D.GroundEntity`.
+- At the very start of the next `Update` call, before gravity, before move-and-slide, before
+  anything else — if `GroundEntity` is set, the controller's position is shifted by however far
+  that entity has moved since the previous step. This displacement comes from a per-entity
+  position snapshot the system keeps internally (every collidable entity, not just platforms)
+  and refreshes at the end of every `Update` call.
+- A stationary ground produces exactly zero displacement, so the carry is unconditionally safe —
+  there's no need to distinguish "is this actually a moving platform" from "is this an ordinary
+  static floor" before applying it.
+
+Two of the trickier platformer behaviors fall out of this for free, simply because the carry
+happens *before* this step's own resolution runs against the (already-carried) position:
+
+- **Riding into a wall pins the rider instead of pushing them through it.** If the carried
+  position now overlaps a wall, `MoveHorizontal` depenetrates it the same way it would any other
+  embedded overlap — the platform can keep trying to carry the rider forward every step, but the
+  wall keeps stopping it at the same spot.
+- **A descending platform doesn't cause grounded-state flicker.** Without carrying, a
+  controller's own gravity only barely closes the gap to a platform that's *also* falling out
+  from under it every step, repeatedly losing and re-acquiring ground contact. With carrying, the
+  controller moves down with the platform first, and gravity's small per-step contribution is
+  what the usual ground-contact resolution absorbs — exactly as if the ground were stationary.
+
+Call `CharacterControllerSystem.Update` *after* whatever moves the platform in the same frame
+(typically `PhysicsWorld2D.Update`, so `MovementSystem` has already integrated the platform's
+kinematic velocity) — otherwise the carry is computed against last frame's platform position
+instead of this frame's.
+
+### PlatformPath (optional)
+
+`PlatformPath` + `PlatformPathSystem` is a convenience for the common "moves between two or more
+points" platform, so games don't have to hand-roll it: give an entity a `PlatformPath` (a list of
+waypoints, a speed, and whether to ping-pong or loop) alongside its `Transform2D`/`Velocity2D`/
+kinematic `RigidBody2D`, and `PlatformPathSystem.Update` sets its `Velocity2D` towards the current
+waypoint every step, advancing (reversing for ping-pong, wrapping for loop) once within an
+arrival tolerance. This is entirely optional — nothing about rider carrying depends on it, and a
+game is free to drive a kinematic platform's velocity however it wants.
