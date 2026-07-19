@@ -35,5 +35,10 @@
       CopyToOutputDirectory="PreserveNewest"
       Link="TestAssets\Tiled\level.tmj"
     />
+    <None
+      Include="Fixtures\Audio\tone.ogg"
+      CopyToOutputDirectory="PreserveNewest"
+      Link="TestAssets\Audio\tone.ogg"
+    />
   </ItemGroup>
 </Project>

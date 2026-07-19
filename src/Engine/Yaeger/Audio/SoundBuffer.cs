@@ -81,10 +81,13 @@ public sealed class SoundBuffer : IDisposable
     }
 
     /// <summary>
-    /// Loads a sound buffer from a WAV file.
+    /// Loads a sound buffer from a WAV or OGG Vorbis file (by extension — <c>.ogg</c> decodes via
+    /// <see cref="OggVorbisLoader"/>; anything else is parsed as WAV). OGG is fully decoded into
+    /// memory here, same as WAV — for streaming playback of long OGG tracks without loading the
+    /// whole decoded file into memory, use <see cref="StreamingSoundSource"/> instead.
     /// </summary>
     /// <param name="context">The audio context.</param>
-    /// <param name="filePath">The path to the WAV file.</param>
+    /// <param name="filePath">The path to the audio file.</param>
     /// <returns>A new SoundBuffer instance.</returns>
     public static SoundBuffer FromFile(AudioContext context, string filePath)
     {
@@ -101,7 +104,10 @@ public sealed class SoundBuffer : IDisposable
             );
         }
 
-        var (data, format, sampleRate) = LoadWavFile(resolvedPath);
+        var (data, format, sampleRate) = Path.GetExtension(resolvedPath)
+            .Equals(".ogg", StringComparison.OrdinalIgnoreCase)
+            ? OggVorbisLoader.LoadFully(resolvedPath)
+            : LoadWavFile(resolvedPath);
         return Create(context, data, format, sampleRate);
     }
 
