@@ -1,4 +1,5 @@
 using System.Numerics;
+using Yaeger.ECS;
 
 namespace Yaeger.Physics.Components;
 
@@ -74,6 +75,15 @@ public struct CharacterController2D
     public Vector2 GroundNormal;
 
     /// <summary>
+    /// The entity the controller is currently resting on, or <c>null</c> when
+    /// <see cref="IsGrounded"/> is <c>false</c>. Written by the system. Used to carry the
+    /// controller along with a moving ground entity's own displacement each step — see
+    /// <see cref="Systems.CharacterControllerSystem"/>'s remarks — so a controller doesn't slide
+    /// off a moving platform (elevator, ferry) it's standing still on.
+    /// </summary>
+    public Entity? GroundEntity;
+
+    /// <summary>
     /// Creates a character controller with the specified box size and optional offset.
     /// </summary>
     /// <param name="size">Full width and height. Both components must be greater than zero.</param>
@@ -125,6 +135,7 @@ public struct CharacterController2D
         IsTouchingWallRight = false;
         IsTouchingCeiling = false;
         GroundNormal = Vector2.Zero;
+        GroundEntity = null;
     }
 
     /// <summary>

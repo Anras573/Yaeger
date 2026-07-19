@@ -449,4 +449,191 @@ public class CharacterControllerSystemTests
 
         Assert.Equal(new Vector2(0, -9.81f), system.Gravity);
     }
+
+    // ── Rider carrying (moving platforms) ─────────────────────────────────────
+
+    [Fact]
+    public void Update_RestingOnHorizontallyMovingPlatform_ShouldBeCarriedAlong()
+    {
+        // Arrange — a platform moving right at 2 units/s, and a controller resting on top with
+        // no input of its own. Without carrying, the controller would stay put while the
+        // platform slides out from under it.
+        var world = new World();
+
+        var platform = world.CreateEntity();
+        world.AddComponent(platform, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(platform, Velocity2D.Zero); // stationary until contact is established
+        world.AddComponent(platform, RigidBody2D.CreateKinematic());
+        world.AddComponent(platform, new BoxCollider2D(10, 1));
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(0, 1.0f))); // resting on top
+        world.AddComponent(player, Velocity2D.Zero);
+        world.AddComponent(player, new CharacterController2D(1, 1));
+
+        var movementSystem = new MovementSystem(world);
+        var controllerSystem = new CharacterControllerSystem(world, Vector2.Zero); // isolate carry
+
+        // Establish contact first, with the platform still stationary — a controller can't be
+        // carried by a platform it hasn't landed on yet.
+        controllerSystem.Update(0f);
+        Assert.True(world.GetComponent<CharacterController2D>(player).IsGrounded);
+
+        // Act — now start the platform moving and ride it for 1 simulated second (2 units).
+        // Move the platform first, then the rider, each step — the documented calling order for
+        // carrying to work.
+        world.AddComponent(platform, new Velocity2D(2, 0));
+
+        const float dt = 1f / 60f;
+        for (var i = 0; i < 60; i++)
+        {
+            movementSystem.Update(dt);
+            controllerSystem.Update(dt);
+        }
+
+        // Assert — carried to (approximately) the same x the platform reached, and never lost
+        // its footing along the way.
+        var platformX = world.GetComponent<Transform2D>(platform).Position.X;
+        var playerPosition = world.GetComponent<Transform2D>(player).Position;
+        Assert.Equal(2.0f, platformX, 0.01f);
+        Assert.Equal(platformX, playerPosition.X, 0.01f);
+        Assert.Equal(1.0f, playerPosition.Y, 0.01f);
+        Assert.True(world.GetComponent<CharacterController2D>(player).IsGrounded);
+    }
+
+    [Fact]
+    public void Update_RestingOnDownwardMovingPlatform_ShouldNotFlickerUngrounded()
+    {
+        // Arrange — a platform descending at 2 units/s under a controller already resting on it,
+        // with gravity constantly adding downward velocity every step. Without carrying, the
+        // controller would repeatedly fall behind the descending platform (losing contact),
+        // then catch back up under gravity, then fall behind again.
+        var world = new World();
+
+        var platform = world.CreateEntity();
+        world.AddComponent(platform, new Transform2D(new Vector2(0, 10)));
+        world.AddComponent(platform, Velocity2D.Zero); // stationary until contact is established
+        world.AddComponent(platform, RigidBody2D.CreateKinematic());
+        world.AddComponent(platform, new BoxCollider2D(10, 1));
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(0, 11.0f))); // resting on top
+        world.AddComponent(player, Velocity2D.Zero);
+        world.AddComponent(player, new CharacterController2D(1, 1));
+
+        var movementSystem = new MovementSystem(world);
+        var controllerSystem = new CharacterControllerSystem(world, new Vector2(0, -10));
+
+        // Establish contact first, with the platform still stationary — a controller can't be
+        // carried by a platform it hasn't landed on yet.
+        controllerSystem.Update(0f);
+        Assert.True(world.GetComponent<CharacterController2D>(player).IsGrounded);
+
+        // Act — now start the platform descending and ride it down for 1 simulated second.
+        world.AddComponent(platform, new Velocity2D(0, -2));
+
+        const float dt = 1f / 60f;
+        for (var i = 0; i < 60; i++)
+        {
+            movementSystem.Update(dt);
+            controllerSystem.Update(dt);
+
+            // Assert — grounded every single step; never flickers false while riding down.
+            Assert.True(
+                world.GetComponent<CharacterController2D>(player).IsGrounded,
+                $"Flickered ungrounded at step {i}"
+            );
+        }
+
+        // Assert — descended together with the platform (top of platform + half the
+        // controller's height).
+        var platformY = world.GetComponent<Transform2D>(platform).Position.Y;
+        var playerY = world.GetComponent<Transform2D>(player).Position.Y;
+        Assert.Equal(8.0f, platformY, 0.01f);
+        Assert.Equal(platformY + 1.0f, playerY, 0.01f);
+    }
+
+    [Fact]
+    public void Update_RidingPlatformIntoWall_ShouldPinRiderInsteadOfPushingThrough()
+    {
+        // Arrange — a platform carrying a stationary rider straight into a wall ahead.
+        var world = new World();
+
+        var platform = world.CreateEntity();
+        world.AddComponent(platform, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(platform, new Velocity2D(2, 0));
+        world.AddComponent(platform, RigidBody2D.CreateKinematic());
+        world.AddComponent(platform, new BoxCollider2D(10, 1));
+
+        var wall = world.CreateEntity();
+        world.AddComponent(wall, new Transform2D(new Vector2(2, 0)));
+        world.AddComponent(wall, RigidBody2D.CreateStatic());
+        world.AddComponent(wall, new BoxCollider2D(1, 10)); // spans x=[1.5, 2.5], y=[-5, 5]
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(0, 1.0f))); // resting on platform
+        world.AddComponent(player, Velocity2D.Zero);
+        world.AddComponent(player, new CharacterController2D(1, 1));
+
+        var movementSystem = new MovementSystem(world);
+        var controllerSystem = new CharacterControllerSystem(world, Vector2.Zero);
+
+        const float dt = 1f / 60f;
+
+        // Act — 1.5 simulated seconds; unobstructed, the platform (and an unimpeded rider)
+        // would travel 3 units, well past the wall.
+        for (var i = 0; i < 90; i++)
+        {
+            movementSystem.Update(dt);
+            controllerSystem.Update(dt);
+        }
+
+        // Assert — pinned at the wall's near face (1.5 - half-width 0.5 = 1.0), not carried
+        // through it, and still resting on the platform underneath.
+        var playerPosition = world.GetComponent<Transform2D>(player).Position;
+        Assert.Equal(1.0f, playerPosition.X, 0.05f);
+        Assert.True(
+            playerPosition.X < 1.5f,
+            $"Expected to stay clear of the wall, got x={playerPosition.X}"
+        );
+
+        var controller = world.GetComponent<CharacterController2D>(player);
+        Assert.True(controller.IsTouchingWallRight);
+        Assert.True(controller.IsGrounded);
+    }
+
+    [Fact]
+    public void Update_GroundEntityDestroyed_ShouldStopCarryingWithoutThrowing()
+    {
+        // Arrange
+        var world = new World();
+
+        var platform = world.CreateEntity();
+        world.AddComponent(platform, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(platform, new Velocity2D(2, 0));
+        world.AddComponent(platform, RigidBody2D.CreateKinematic());
+        world.AddComponent(platform, new BoxCollider2D(10, 1));
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(0, 1.0f)));
+        world.AddComponent(player, Velocity2D.Zero);
+        world.AddComponent(player, new CharacterController2D(1, 1));
+
+        var movementSystem = new MovementSystem(world);
+        var controllerSystem = new CharacterControllerSystem(world, new Vector2(0, -10));
+
+        movementSystem.Update(1f / 60f);
+        controllerSystem.Update(1f / 60f);
+        Assert.NotNull(world.GetComponent<CharacterController2D>(player).GroundEntity);
+
+        // Act — destroy the platform out from under the rider, then step again.
+        world.DestroyEntity(platform);
+        var exception = Record.Exception(() => controllerSystem.Update(1f / 60f));
+
+        // Assert — no crash, ground entity cleared, and (with gravity now unopposed) falling.
+        Assert.Null(exception);
+        var controller = world.GetComponent<CharacterController2D>(player);
+        Assert.Null(controller.GroundEntity);
+        Assert.False(controller.IsGrounded);
+    }
 }
