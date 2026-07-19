@@ -73,6 +73,7 @@ src/Engine/
 ```
 Samples/
 ├── Pong/                    # Classic Pong game
+├── Platformer/              # Full 2D platformer level — the platformer-support epic's integration proof
 ├── BouncingBalls/           # Physics demo
 ├── Animation2D/             # Sprite-sheet animation demo
 ├── CameraDemo/              # Opt-in 2D camera demo
