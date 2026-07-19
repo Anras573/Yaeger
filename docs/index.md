@@ -18,7 +18,7 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a
 - **Audio system** with OpenAL support ([audio-system.md](audio-system.md))
 - **Text rendering** via HarfBuzz/Skia
 - **UI system** — ECS-based screen-space panels, buttons, and labels ([ui.md](ui.md))
-- **Input handling** (keyboard, mouse)
+- **Input handling** (keyboard, mouse, gamepad — native only for now)
 - **Editor overlay** — in-game ImGui inspector for live entity/component editing ([editor.md](editor.md))
 - Extensible component and system design
 

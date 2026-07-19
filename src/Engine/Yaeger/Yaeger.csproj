@@ -41,6 +41,7 @@
     <Compile Remove="Systems\ParticleSystem.cs" />
     <Compile Remove="Input\Keys.cs" />
     <Compile Remove="Input\MouseButton.cs" />
+    <Compile Remove="Input\GamepadButton.cs" />
     <Compile Include="Physics\PhysicsDebugRenderer.cs" />
     <Compile Include="Graphics\Text.cs" />
   </ItemGroup>

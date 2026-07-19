@@ -143,10 +143,11 @@ Wraps Silk.NET's `IWindow`. The public surface is event-based: `OnLoad`, `OnUpda
 
 ### Input (`Input/`)
 
-Two static classes initialised by `Window`:
+Three static classes initialised by `Window`:
 
 - **`Keyboard`** — `IsKeyPressed(Keys)` for polling, `AddKeyDown` / `AddKeyUp` for events. `Keys` enum is a curated subset; extend it plus `KeyMapper` when new keys are needed.
 - **`Mouse`** — `IsButtonPressed(MouseButton)`, `AddButtonDown` / `AddButtonUp`, plus `Position` (client pixels), `PositionNdc` (OpenGL NDC), `PositionDelta`, `ScrollDelta`, `AddScroll`. World-space mouse is the caller's job via an inverse `Camera2D.ViewProjection`.
+- **`Gamepad`** — native-only (no browser backend yet; the `Yaeger.Platform.IInputState` seam in `Yaeger.Core` doesn't expose gamepad state either). `IsButtonPressed(GamepadButton)`, `AddButtonDown` / `AddButtonUp` for the curated `GamepadButton` set (A/B/X/Y, bumpers, back/start/home, stick-click, d-pad, plus `LeftTrigger`/`RightTrigger` synthesized from analog trigger values crossing a 0.5 threshold — Silk.NET's own button list has no trigger entries). `LeftStick`/`RightStick` apply a configurable radial `Deadzone` (default 0.15, rescaled so output ramps from 0 at the deadzone edge to 1 at full deflection); `LeftStickRaw`/`RightStickRaw`/`LeftTriggerValue`/`RightTriggerValue` expose the unfiltered analog values. First connected pad wins, matching `Keyboard`'s first-device approach; `AddConnected`/`AddDisconnected` fire as the active pad connects/disconnects, and disconnecting mid-game promotes another already-connected pad (if any) rather than throwing.
 
 ### Audio (`Audio/`)
 
