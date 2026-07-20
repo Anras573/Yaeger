@@ -61,7 +61,7 @@ saver.Save(world, "Scenes/level1.json");   // writes an indented JSON scene file
 
 `SceneSaver` enumerates `world.Entities`, sorts them by ascending `Entity.Id`, and, for each entity, asks every registered `IComponentSerializer` to serialize its component via `TrySerialize(world, entity)`. Serializers that return `null` (e.g. when the entity does not carry that component type) are silently skipped. Paths passed to `Save` are resolved via `AssetPath.Resolve` (against `AppContext.BaseDirectory`), matching the `SceneLoader.Load` convention so a relative path like `"Scenes/level1.json"` targets the same file in both directions.
 
-All engine-provided serializers support the write direction. `RegisterEngineComponents()` registers serializers for the 2D components (`Sprite`, `Transform2D`, `SpriteSheet`, `Animation`, `AnimationState`, `AnimationStateMachine`, `RenderLayer`, `Tilemap`, `Camera2D`, `ParticleEmitter`, `ParallaxLayer`, `BoxCollider2D`, `CircleCollider2D`, `RigidBody2D`, `Velocity2D`, `PhysicsMaterial`) and the 3D components (`Transform3D`, `Camera3D`, `Material3D`, `DirectionalLight`, `PointLight`, `SpotLight`). `MeshHandle` is deliberately excluded — its `Id` is a runtime-assigned `GpuMeshRegistry` key that isn't portable across runs, so meshes are re-assigned in code rather than persisted. The screen-space UI components (`UiRect`, `UiPanel`, `UiButton`, `UiLabel`) are not yet registered — whether screen-space UI belongs in world scenes is still an open design question. Custom serializers opt in by overriding the default `TrySerialize` method on `IComponentSerializer`; they must return a `JsonObject` that includes a non-empty `"type"` field — `SceneSaver` throws `SceneSaveException` if that contract is violated.
+All engine-provided serializers support the write direction. `RegisterEngineComponents()` registers serializers for the 2D components (`Sprite`, `Transform2D`, `SpriteSheet`, `Animation`, `AnimationState`, `AnimationStateMachine`, `RenderLayer`, `Tilemap`, `Camera2D`, `ParticleEmitter`, `ParallaxLayer`, `BoxCollider2D`, `CircleCollider2D`, `RigidBody2D`, `Velocity2D`, `PhysicsMaterial`, `LocalTransform2D`), the 3D components (`Transform3D`, `Camera3D`, `Material3D`, `DirectionalLight`, `PointLight`, `SpotLight`, `LocalTransform3D`), and the hierarchy component `Parent` (see [hierarchy.md](hierarchy.md) — saving one requires the parent entity to be tagged, since a tag is the only way to express the reference in JSON). `MeshHandle` is deliberately excluded — its `Id` is a runtime-assigned `GpuMeshRegistry` key that isn't portable across runs, so meshes are re-assigned in code rather than persisted. The screen-space UI components (`UiRect`, `UiPanel`, `UiButton`, `UiLabel`) are not yet registered — whether screen-space UI belongs in world scenes is still an open design question. Custom serializers opt in by overriding the default `TrySerialize` method on `IComponentSerializer`; they must return a `JsonObject` that includes a non-empty `"type"` field — `SceneSaver` throws `SceneSaveException` if that contract is violated.
 
 `Text` is a special case: it holds a native `Yaeger.Font.Font` reference with no `Yaeger.Core` equivalent, so its serializer can only compile into the native runtime and isn't part of the shared `RegisterEngineComponents()`. Native games that want `Text` to round-trip through scenes should call `RegisterNativeEngineComponents()` instead — it registers everything `RegisterEngineComponents()` does, plus `Text`. Like `Sprite.TexturePath`, `Text` round-trips its `FontHandle` by *path*, not the native `Font` instance it may have been constructed with; the path is resolved into a font the same way at load time.
 
@@ -90,9 +90,19 @@ fresh.Instantiate(new SceneLoader(registry).Load("Scenes/checkpoint.json"));
 
 Tag collisions are detected by `World.CreateEntity(string)` — if a scene uses a tag already bound to an existing entity, `Scene.Apply` lets that exception propagate. This is deliberate: the scene file shouldn't silently drop tags or reuse entities that the user might depend on.
 
+## Cross-entity references
+
+`Scene.Apply` creates every entity in the file (registering its tag) before applying any
+component, so a component can resolve another entity's tag at apply time regardless of where that
+entity appears in the file — including later than itself. `Parent` (see [hierarchy.md](hierarchy.md))
+is the built-in example: its `parentTag` field is resolved via `World.GetEntity` when the
+component is applied, so a child can be listed before its parent in the scene file. Custom
+serializers can use the same technique for other entity-to-entity references — there's no generic
+`entityRef` JSON shape, but tags plus deferred resolution inside the `Action<World, Entity>`
+returned from `Deserialize` cover it.
+
 ## Not yet supported
 
-- **Cross-entity references** — if entity A should reference entity B, the reference has to be resolved in runtime code after the scene loads. The scene format doesn't support an `entityRef` style yet.
 - **Hot reload** — watching the scene file for changes and re-instantiating. Nothing stops you from calling `loader.Load(...)` again manually, but there's no built-in watcher.
 - **Scene composition / inheritance** — one scene extending or overriding another. Intentionally deferred.
 

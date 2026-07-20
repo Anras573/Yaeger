@@ -36,12 +36,21 @@ public sealed class Scene
     /// </summary>
     /// <returns>The created entities in scene-file order.</returns>
     /// <remarks>
+    /// <para>
     /// Tag collisions are handled by <see cref="World.CreateEntity(string)"/>'s existing
     /// rebind semantics: if a scene tag is already bound to an entity in the world, the tag
     /// is silently transferred to the newly created entity and the previous entity loses its
     /// reverse mapping. The scene loader doesn't try to prevent this — callers that need
     /// collision detection should check for existing tags before calling
     /// <c>world.Instantiate(scene)</c>.
+    /// </para>
+    /// <para>
+    /// Application happens in two passes: every entity in the scene is created (and its tag
+    /// registered) first, and only then are component adders run, entity by entity in scene-file
+    /// order. This lets a component adder resolve a tag belonging to <i>any</i> entity in the
+    /// same scene — including one that appears later in the file — via <see cref="World.GetEntity"/>/
+    /// <see cref="World.TryGetEntity"/>, which is how <c>Parent</c> supports forward references.
+    /// </para>
     /// </remarks>
     internal IReadOnlyList<Entity> Apply(World world)
     {
@@ -51,14 +60,17 @@ public sealed class Scene
             var entity = string.IsNullOrWhiteSpace(entry.Tag)
                 ? world.CreateEntity()
                 : world.CreateEntity(entry.Tag);
-
-            foreach (var adder in entry.ComponentAdders)
-            {
-                adder(world, entity);
-            }
-
             created.Add(entity);
         }
+
+        for (var i = 0; i < _entities.Count; i++)
+        {
+            foreach (var adder in _entities[i].ComponentAdders)
+            {
+                adder(world, created[i]);
+            }
+        }
+
         return created.AsReadOnly();
     }
 
