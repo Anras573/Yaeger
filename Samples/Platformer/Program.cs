@@ -104,7 +104,7 @@ world.AddComponent(tilemapEntity, new RenderLayer(0));
 // ---------------------------------------------------------------------------------------------
 // Player
 // ---------------------------------------------------------------------------------------------
-var playerHalfSize = new Vector2(0.4f, 0.8f);
+var playerHalfSize = new Vector2(0.5f, 0.5f);
 var spawnPosition = new Vector2(2.5f, TopOfGroundAt(2) + playerHalfSize.Y);
 
 var sheets = new Dictionary<string, SpriteSheet>
