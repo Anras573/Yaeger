@@ -65,11 +65,7 @@ public sealed class ParticleEmitterSerializer : IComponentSerializer
                 "initialSpeed",
                 defaults.InitialSpeed
             ),
-            StartColor = ComponentJson.GetOptionalColor(
-                element,
-                "startColor",
-                defaults.StartColor
-            ),
+            StartColor = ComponentJson.GetOptionalColor(element, "startColor", defaults.StartColor),
             EndColor = ComponentJson.GetOptionalColor(element, "endColor", defaults.EndColor),
             StartSize = ComponentJson2D.ReadOptionalSingle(
                 element,

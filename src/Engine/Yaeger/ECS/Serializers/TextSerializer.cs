@@ -47,10 +47,7 @@ public sealed class TextSerializer : IComponentSerializer
         }
         catch (ArgumentException ex)
         {
-            throw new PrefabLoadException(
-                $"Text has an invalid 'font' property: {ex.Message}",
-                ex
-            );
+            throw new PrefabLoadException($"Text has an invalid 'font' property: {ex.Message}", ex);
         }
 
         var component = new Text(content, fontHandle, fontSize, color);
