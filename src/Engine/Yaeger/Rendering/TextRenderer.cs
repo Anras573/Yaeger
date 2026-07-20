@@ -191,7 +191,7 @@ public class TextRenderer : ITextRenderSurface, IDisposable
         var atlas = GetOrCreateAtlas(nativeFont, fontSize);
         atlas.AddGlyphsForText(text);
 
-        var glyphs = nativeFont.Shape(text);
+        var glyphs = nativeFont.Shape(text, fontSize);
 
         _quadCount = 0;
         float x = 0;

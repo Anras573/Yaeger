@@ -66,7 +66,7 @@ public class GlyphAtlas : IGlyphAtlas
         if (string.IsNullOrEmpty(text))
             return [];
 
-        var glyphs = _font.Shape(text);
+        var glyphs = _font.Shape(text, _fontSize);
 
         return glyphs.Select(g => AddGlyph(g.Codepoint)).ToArray();
     }

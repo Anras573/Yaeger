@@ -46,12 +46,21 @@ public class Font : IFontHandle, IDisposable
 
     public string Id { get; }
 
-    public GlyphInfo[] Shape(string text)
+    /// <summary>
+    /// Shapes <paramref name="text"/> with this font's glyph outlines scaled to
+    /// <paramref name="fontSize"/> pixels, so the returned advances/offsets are in the
+    /// same 26.6 fixed-point (1/64 pixel) convention callers already divide out.
+    /// Without this, HarfBuzz defaults to a scale equal to the face's units-per-em,
+    /// which is unrelated to the pixel size glyphs are rasterized at.
+    /// </summary>
+    public GlyphInfo[] Shape(string text, int fontSize)
     {
         if (string.IsNullOrEmpty(text))
         {
             return [];
         }
+
+        _font.SetScale(fontSize * 64, fontSize * 64);
 
         using var buffer = new Buffer();
         buffer.AddUtf16(text);
