@@ -134,9 +134,13 @@ internal sealed class BallMovementSystem(World world) : IUpdateSystem
 {
     public void Update(float deltaTime)
     {
+        // Declared outside the && so it's definitely assigned even when the short-circuit
+        // skips TryGetComponent (the compiler can't otherwise prove that from `hasPaddle` alone
+        // once it's read back later in a separate `if`).
+        var paddleTransform = default(Transform2D);
         var hasPaddle =
             world.TryGetEntity("paddle", out var paddleEntity)
-            && world.TryGetComponent<Transform2D>(paddleEntity, out var paddleTransform);
+            && world.TryGetComponent(paddleEntity, out paddleTransform);
 
         foreach (var (entity, velocity, transform) in world.Query<Velocity2D, Transform2D>())
         {
