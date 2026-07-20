@@ -31,6 +31,7 @@ nav:
       - Animation System: animation-system.md
       - Audio System: audio-system.md
       - Camera: camera.md
+      - Entity Hierarchy: hierarchy.md
       - Particles: particles.md
       - Scenes: scenes.md
       - Tilemaps: tilemaps.md

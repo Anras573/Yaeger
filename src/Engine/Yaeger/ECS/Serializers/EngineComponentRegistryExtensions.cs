@@ -26,6 +26,7 @@ public static class EngineComponentRegistryExtensions
     ///   <item><see cref="Yaeger.Physics.Components.RigidBody2D"/> – type id <c>"RigidBody2D"</c></item>
     ///   <item><see cref="Yaeger.Physics.Components.Velocity2D"/> – type id <c>"Velocity2D"</c></item>
     ///   <item><see cref="Yaeger.Physics.Components.PhysicsMaterial"/> – type id <c>"PhysicsMaterial"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.LocalTransform2D"/> – type id <c>"LocalTransform2D"</c></item>
     /// </list>
     /// <para>3D components:</para>
     /// <list type="bullet">
@@ -35,6 +36,11 @@ public static class EngineComponentRegistryExtensions
     ///   <item><see cref="Yaeger.Graphics.DirectionalLight"/> – type id <c>"DirectionalLight"</c></item>
     ///   <item><see cref="Yaeger.Graphics.PointLight"/> – type id <c>"PointLight"</c></item>
     ///   <item><see cref="Yaeger.Graphics.SpotLight"/> – type id <c>"SpotLight"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.LocalTransform3D"/> – type id <c>"LocalTransform3D"</c></item>
+    /// </list>
+    /// <para>Hierarchy:</para>
+    /// <list type="bullet">
+    ///   <item><see cref="Parent"/> – type id <c>"Parent"</c></item>
     /// </list>
     /// <para>
     /// <see cref="Yaeger.Graphics.MeshHandle"/> is intentionally not registered: its <c>Id</c> is an
@@ -72,6 +78,7 @@ public static class EngineComponentRegistryExtensions
         registry.Register(new RigidBody2DSerializer());
         registry.Register(new Velocity2DSerializer());
         registry.Register(new PhysicsMaterialSerializer());
+        registry.Register(new LocalTransform2DSerializer());
 
         // 3D components
         registry.Register(new Transform3DSerializer());
@@ -80,6 +87,10 @@ public static class EngineComponentRegistryExtensions
         registry.Register(new DirectionalLightSerializer());
         registry.Register(new PointLightSerializer());
         registry.Register(new SpotLightSerializer());
+        registry.Register(new LocalTransform3DSerializer());
+
+        // Hierarchy
+        registry.Register(new ParentSerializer());
 
         return registry;
     }

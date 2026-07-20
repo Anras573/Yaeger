@@ -166,6 +166,34 @@ public class SceneLoaderTests
         Assert.Equal(new[] { 1, 2 }, recorder.Invocations);
     }
 
+    [Fact]
+    public void Instantiate_AllEntitiesAndTagsExistBeforeAnyComponentIsApplied()
+    {
+        // Every entity in the scene (and its tag) is created before any component adder runs,
+        // so a component on an earlier entity can resolve the tag of a later one — the contract
+        // Parent's forward-reference support relies on.
+        var registry = new ComponentRegistry();
+        var lookup = new TagLookupSerializer("L");
+        registry.Register(lookup);
+
+        var loader = new SceneLoader(registry);
+        var scene = loader.Parse(
+            """
+            {
+              "entities": [
+                { "tag": "first", "components": [ { "type": "L", "lookupTag": "second" } ] },
+                { "tag": "second", "components": [] }
+              ]
+            }
+            """
+        );
+        var world = new World();
+
+        var created = world.Instantiate(scene);
+
+        Assert.Equal(created[1], lookup.ResolvedEntities[0]);
+    }
+
     // ── SceneLoader.Parse — error paths ──────────────────────────────────────
 
     [Fact]
@@ -382,6 +410,28 @@ public class SceneLoaderTests
         {
             var mark = element.GetProperty("mark").GetInt32();
             return (_, _) => Invocations.Add(mark);
+        }
+    }
+
+    /// <summary>
+    /// Serializer that resolves a "lookupTag" property against the world at apply time,
+    /// recording the resolved entity. Lets us verify that every scene entity's tag is already
+    /// registered before any component is applied, regardless of file order.
+    /// </summary>
+    private sealed class TagLookupSerializer : IComponentSerializer
+    {
+        public TagLookupSerializer(string typeId)
+        {
+            TypeId = typeId;
+        }
+
+        public string TypeId { get; }
+        public List<Entity> ResolvedEntities { get; } = [];
+
+        public Action<World, Entity> Deserialize(JsonElement element)
+        {
+            var lookupTag = element.GetProperty("lookupTag").GetString()!;
+            return (world, _) => ResolvedEntities.Add(world.GetEntity(lookupTag));
         }
     }
 }
