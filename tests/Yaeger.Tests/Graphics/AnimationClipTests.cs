@@ -105,4 +105,56 @@ public class AnimationClipTests
 
         Assert.Equal(Matrix4x4.Identity, locals[0]);
     }
+
+    [Fact]
+    public void BoneTrack_SampleTRS_MatchesComposedSampleMatrix()
+    {
+        var track = new BoneTrack(
+            0,
+            [new VectorKey(0f, Vector3.Zero), new VectorKey(1f, new Vector3(10f, 0f, 0f))],
+            [
+                new QuaternionKey(0f, Quaternion.Identity),
+                new QuaternionKey(1f, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI / 2f)),
+            ],
+            [new VectorKey(0f, Vector3.One), new VectorKey(1f, new Vector3(2f, 2f, 2f))]
+        );
+
+        var (translation, rotation, scale) = track.SampleTRS(0.5f);
+        var expected =
+            Matrix4x4.CreateScale(scale)
+            * Matrix4x4.CreateFromQuaternion(rotation)
+            * Matrix4x4.CreateTranslation(translation);
+
+        Assert.Equal(expected, track.Sample(0.5f));
+    }
+
+    [Fact]
+    public void Clip_SampleTRS_ShouldOnlyOverrideTrackedBones()
+    {
+        var translations = new Vector3[2];
+        var rotations = new[] { Quaternion.Identity, Quaternion.Identity };
+        var scales = new[] { Vector3.One, Vector3.One };
+
+        // Only bone 1 has a track.
+        var clip = new AnimationClip("walk", 1f, [TranslationTrack(1)]);
+        clip.SampleTRS(0.5f, translations, rotations, scales);
+
+        // Bone 0 keeps its seeded values; bone 1 is replaced by the sampled track.
+        Assert.Equal(Vector3.Zero, translations[0]);
+        Assert.Equal(5f, translations[1].X, 4);
+    }
+
+    [Fact]
+    public void Clip_SampleTRS_ShouldIgnoreOutOfRangeBoneIndex()
+    {
+        var translations = new[] { new Vector3(1f, 2f, 3f) };
+        var rotations = new[] { Quaternion.Identity };
+        var scales = new[] { Vector3.One };
+        var clip = new AnimationClip("x", 1f, [TranslationTrack(5)]);
+
+        // Should not throw even though the track references a bone outside the spans.
+        clip.SampleTRS(0.5f, translations, rotations, scales);
+
+        Assert.Equal(new Vector3(1f, 2f, 3f), translations[0]);
+    }
 }

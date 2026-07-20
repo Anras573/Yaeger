@@ -23,14 +23,25 @@ public record BoneTrack(
     /// <summary>Samples the track at <paramref name="time"/> (seconds) into a local transform matrix.</summary>
     public Matrix4x4 Sample(float time)
     {
-        var translation = SampleVector(Positions, time, Vector3.Zero);
-        var rotation = SampleQuaternion(Rotations, time);
-        var scale = SampleVector(Scales, time, Vector3.One);
+        var (translation, rotation, scale) = SampleTRS(time);
 
         return Matrix4x4.CreateScale(scale)
             * Matrix4x4.CreateFromQuaternion(rotation)
             * Matrix4x4.CreateTranslation(translation);
     }
+
+    /// <summary>
+    /// Samples the track's translation/rotation/scale channels independently at
+    /// <paramref name="time"/> (seconds), without recomposing them into a matrix. Used to blend two
+    /// clips' poses (lerp translation/scale, slerp rotation) during a crossfade — see
+    /// <see cref="Yaeger.Systems.SkeletalAnimationSystem"/>.
+    /// </summary>
+    public (Vector3 Translation, Quaternion Rotation, Vector3 Scale) SampleTRS(float time) =>
+        (
+            SampleVector(Positions, time, Vector3.Zero),
+            SampleQuaternion(Rotations, time),
+            SampleVector(Scales, time, Vector3.One)
+        );
 
     private static Vector3 SampleVector(VectorKey[] keys, float time, Vector3 fallback)
     {
@@ -99,6 +110,32 @@ public record AnimationClip(string Name, float Duration, BoneTrack[] Tracks)
         {
             if (track.BoneIndex >= 0 && track.BoneIndex < localTransforms.Length)
                 localTransforms[track.BoneIndex] = track.Sample(time);
+        }
+    }
+
+    /// <summary>
+    /// Samples every track's translation/rotation/scale at <paramref name="time"/> (seconds) into
+    /// per-bone spans, for callers that need to blend against another clip's pose (crossfading —
+    /// see <see cref="Yaeger.Systems.SkeletalAnimationSystem"/>) rather than a composed matrix.
+    /// Bones without a track are left untouched, so callers should pre-seed the spans with a
+    /// fallback pose (typically the skeleton's bind pose, decomposed).
+    /// </summary>
+    public void SampleTRS(
+        float time,
+        Span<Vector3> translations,
+        Span<Quaternion> rotations,
+        Span<Vector3> scales
+    )
+    {
+        foreach (var track in Tracks)
+        {
+            if (track.BoneIndex < 0 || track.BoneIndex >= translations.Length)
+                continue;
+
+            var (translation, rotation, scale) = track.SampleTRS(time);
+            translations[track.BoneIndex] = translation;
+            rotations[track.BoneIndex] = rotation;
+            scales[track.BoneIndex] = scale;
         }
     }
 }
