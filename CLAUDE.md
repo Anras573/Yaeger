@@ -49,6 +49,8 @@ Three engine assemblies under `src/Engine/`:
 - **`Yaeger.Browser`** — browser/WebAssembly runtime adapters (WebGL 2.0 surface, browser input/time).
 
 > **Where the code physically lives**: most platform-agnostic sources sit on disk under `src/Engine/Yaeger/` (e.g. `Yaeger/ECS`, `Yaeger/Graphics`, `Yaeger/Physics`) but are linked into **`Yaeger.Core`** via `<Compile Include>` globs in `Yaeger.Core.csproj`; `Yaeger.csproj` then `<Compile Remove>`s them and references `Yaeger.Core`. So the folder a file sits in does not always match the assembly it compiles into — check `Yaeger.Core.csproj` before assuming.
+>
+> **Adding a native-only file to an otherwise-shared folder** (e.g. a component serializer for a component — like `Text` — that itself can't compile into `Yaeger.Core`): put it under that folder's `Native/` subfolder (see `ECS/Serializers/Native/`) rather than excluding it file-by-file. `Yaeger.Core.csproj`'s glob for that folder already excludes `<folder>/Native/**/*.cs` wholesale, and `Yaeger.csproj` re-includes that same subfolder — no further `.csproj` edits needed. `Yaeger.Core` also declares `InternalsVisibleTo("Yaeger")` (see `Yaeger.Core/Properties/AssemblyInfo.cs`), so `Native/` files can still call internal helpers like `ComponentJson`/`ComponentJson2D` instead of duplicating their logic.
 
 ### ECS (`ECS/`)
 

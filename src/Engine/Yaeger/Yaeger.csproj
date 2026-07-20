@@ -45,8 +45,7 @@
     <Compile Remove="Input\GamepadButton.cs" />
     <Compile Include="Physics\PhysicsDebugRenderer.cs" />
     <Compile Include="Graphics\Text.cs" />
-    <Compile Include="ECS\Serializers\TextSerializer.cs" />
-    <Compile Include="ECS\Serializers\NativeComponentRegistryExtensions.cs" />
+    <Compile Include="ECS\Serializers\Native\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
