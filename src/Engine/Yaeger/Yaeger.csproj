@@ -50,6 +50,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Rendering\Shaders\*.vert;Rendering\Shaders\*.frag;Rendering\Shaders\*.glsl">
+      <LogicalName>Shaders.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="HarfBuzzSharp" Version="8.3.1.2" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="Silk.NET.Assimp" Version="2.22.0" />

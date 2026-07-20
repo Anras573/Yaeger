@@ -21,22 +21,10 @@ public sealed class ShadowMapRenderer : IDisposable
 {
     // Depth-only pass: transform vertices into light clip space; no fragment output is needed, the
     // depth buffer is captured automatically.
-    private const string VertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec3 aPosition;
-
-        uniform mat4 uLightSpace;
-        uniform mat4 uModel;
-
-        void main() {
-            gl_Position = uLightSpace * uModel * vec4(aPosition, 1.0);
-        }
-        """;
-
-    private const string FragmentShaderSource = """
-        #version 330 core
-        void main() { }
-        """;
+    private static readonly string VertexShaderSource = EmbeddedShaderSource.Load("ShadowMap.vert");
+    private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load(
+        "ShadowMap.frag"
+    );
 
     private readonly GL _gl;
     private readonly Shader _shader;

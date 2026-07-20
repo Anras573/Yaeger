@@ -32,26 +32,12 @@ public class PhysicsDebugRenderer : IDisposable
     /// </summary>
     public Vector4 ColliderColor { get; set; } = new(0.0f, 1.0f, 0.0f, 1.0f);
 
-    private const string VertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec3 aPosition;
-
-        void main()
-        {
-            gl_Position = vec4(aPosition, 1.0);
-        }
-        """;
-
-    private const string FragmentShaderSource = """
-        #version 330 core
-        uniform vec4 uColor;
-        out vec4 FragColor;
-
-        void main()
-        {
-            FragColor = uColor;
-        }
-        """;
+    private static readonly string VertexShaderSource = EmbeddedShaderSource.Load(
+        "PhysicsDebug.vert"
+    );
+    private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load(
+        "PhysicsDebug.frag"
+    );
 
     public PhysicsDebugRenderer(Window window, World world)
     {

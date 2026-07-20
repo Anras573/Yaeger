@@ -34,57 +34,15 @@ public class TextRenderer : ITextRenderSurface, IDisposable
     private readonly float[] _vertexBuffer;
     private int _quadCount;
 
-    private const string VertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec3 aPosition;
-        layout(location = 1) in vec2 aTexCoord;
-        layout(location = 2) in vec4 aColor;
-
-        out vec2 vTexCoord;
-        out vec4 vColor;
-
-        void main()
-        {
-            gl_Position = vec4(aPosition, 1.0);
-            vTexCoord = aTexCoord;
-            vColor = aColor;
-        }
-        """;
-
-    private const string FragmentShaderSource = """
-        #version 330 core
-        in vec2 vTexCoord;
-        in vec4 vColor;
-        out vec4 FragColor;
-
-        uniform sampler2D uTexture;
-
-        void main()
-        {
-            float alpha = texture(uTexture, vTexCoord).r;
-            FragColor = vec4(vColor.rgb, vColor.a * alpha);
-        }
-        """;
+    private static readonly string VertexShaderSource = EmbeddedShaderSource.Load("Text.vert");
+    private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load("Text.frag");
 
     // SDF shader: the atlas stores a signed distance field where 0.5 == the glyph edge.
     // fwidth() gives the screen-space derivative of the distance value, yielding an AA
     // band that is exactly one pixel wide regardless of zoom level.
-    private const string SdfFragmentShaderSource = """
-        #version 330 core
-        in vec2 vTexCoord;
-        in vec4 vColor;
-        out vec4 FragColor;
-
-        uniform sampler2D uTexture;
-
-        void main()
-        {
-            float dist  = texture(uTexture, vTexCoord).r;
-            float width = fwidth(dist);
-            float alpha = smoothstep(0.5 - width, 0.5 + width, dist);
-            FragColor = vec4(vColor.rgb, vColor.a * alpha);
-        }
-        """;
+    private static readonly string SdfFragmentShaderSource = EmbeddedShaderSource.Load(
+        "TextSdf.frag"
+    );
 
     public TextRenderer(Window window)
         : this(window, fontManager: null, TextRenderMode.Standard) { }

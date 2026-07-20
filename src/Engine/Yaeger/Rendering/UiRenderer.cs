@@ -19,30 +19,8 @@ public class UiRenderer : IDisposable
     private const int IndicesPerQuad = QuadIndexing.IndicesPerQuad;
     private const int FloatsPerVertex = 6; // 2 NDC position + 4 RGBA color
 
-    private const string VertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec2 aPosition;
-        layout(location = 1) in vec4 aColor;
-
-        out vec4 vColor;
-
-        void main()
-        {
-            gl_Position = vec4(aPosition, 0.0, 1.0);
-            vColor = aColor;
-        }
-        """;
-
-    private const string FragmentShaderSource = """
-        #version 330 core
-        in vec4 vColor;
-        out vec4 FragColor;
-
-        void main()
-        {
-            FragColor = vColor;
-        }
-        """;
+    private static readonly string VertexShaderSource = EmbeddedShaderSource.Load("Ui.vert");
+    private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load("Ui.frag");
 
     private readonly GL _gl;
     private readonly Shader _shader;

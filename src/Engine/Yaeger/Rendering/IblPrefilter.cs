@@ -123,201 +123,41 @@ public sealed class IblPrefilter : IDisposable
     // capture view-projection, and hands the (unnormalised) cube position to the fragment shader
     // as both the sample direction and the surface normal (the cube is a unit sphere-of-directions
     // proxy, not real geometry).
-    private const string CubeVertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec3 aPosition;
-
-        uniform mat4 uViewProj;
-
-        out vec3 vLocalPos;
-
-        void main() {
-            vLocalPos = aPosition;
-            gl_Position = uViewProj * vec4(aPosition, 1.0);
-        }
-        """;
+    private static readonly string CubeVertexShaderSource = EmbeddedShaderSource.Load(
+        "IblCube.vert"
+    );
 
     // Diffuse irradiance convolution: for each output direction N, integrates incoming radiance
     // over the cosine-weighted hemisphere. Low frequency by nature, so a modest angular step keeps
     // this fast even at IrradianceResolution.
-    private const string IrradianceFragmentShaderSource = """
-        #version 330 core
-        in  vec3 vLocalPos;
-        out vec4 FragColor;
-
-        uniform samplerCube uSource;
-
-        const float PI = 3.14159265359;
-
-        void main() {
-            vec3 N = normalize(vLocalPos);
-            vec3 up = abs(N.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-            vec3 right = normalize(cross(up, N));
-            up = normalize(cross(N, right));
-
-            vec3 irradiance = vec3(0.0);
-            float sampleDelta = 0.05;
-            float sampleCount = 0.0;
-            for (float phi = 0.0; phi < 2.0 * PI; phi += sampleDelta) {
-                for (float theta = 0.0; theta < 0.5 * PI; theta += sampleDelta) {
-                    // Spherical -> tangent-space direction, then into world space around N.
-                    vec3 tangentSample = vec3(
-                        sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)
-                    );
-                    vec3 sampleDir =
-                        tangentSample.x * right + tangentSample.y * up + tangentSample.z * N;
-
-                    vec3 radiance = pow(texture(uSource, sampleDir).rgb, vec3(2.2));
-                    irradiance += radiance * cos(theta) * sin(theta);
-                    sampleCount += 1.0;
-                }
-            }
-            irradiance = PI * irradiance / sampleCount;
-
-            FragColor = vec4(irradiance, 1.0);
-        }
-        """;
+    private static readonly string IrradianceFragmentShaderSource = EmbeddedShaderSource.Load(
+        "IblIrradiance.frag"
+    );
 
     // Shared low-discrepancy sampling helpers (Hammersley sequence + GGX importance sampling),
-    // duplicated verbatim into both the specular prefilter and BRDF LUT shaders below since GLSL
+    // injected verbatim into both the specular prefilter and BRDF LUT shaders below since GLSL
     // has no cross-shader include mechanism at this GL version.
-    private const string ImportanceSamplingGlsl = """
-        float radicalInverseVdC(uint bits) {
-            bits = (bits << 16u) | (bits >> 16u);
-            bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
-            bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-            bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
-            bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-            return float(bits) * 2.3283064365386963e-10;
-        }
-
-        vec2 hammersley(uint i, uint n) {
-            return vec2(float(i) / float(n), radicalInverseVdC(i));
-        }
-
-        vec3 importanceSampleGGX(vec2 Xi, vec3 N, float roughness) {
-            float a = roughness * roughness;
-
-            float phi = 2.0 * 3.14159265359 * Xi.x;
-            float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a * a - 1.0) * Xi.y));
-            float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
-
-            vec3 H = vec3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
-
-            vec3 up = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-            vec3 tangent = normalize(cross(up, N));
-            vec3 bitangent = cross(N, tangent);
-            return normalize(tangent * H.x + bitangent * H.y + N * H.z);
-        }
-        """;
+    private static readonly string ImportanceSamplingGlsl = EmbeddedShaderSource.Load(
+        "IblImportanceSampling.glsl"
+    );
 
     // Specular prefilter: for a given roughness (one draw per mip level), importance-samples GGX
     // reflection vectors around N (approximated as N == V == R, the standard split-sum
     // assumption) and accumulates NdotL-weighted incoming radiance.
-    private const string PrefilterFragmentShaderSource = """
-        #version 330 core
-        in  vec3 vLocalPos;
-        out vec4 FragColor;
+    private static readonly string PrefilterFragmentShaderSource = EmbeddedShaderSource.Load(
+        "IblPrefilter.frag"
+    );
 
-        uniform samplerCube uSource;
-        uniform float uRoughness;
-
-        IMPORTANCE_SAMPLING_GLSL
-
-        void main() {
-            vec3 N = normalize(vLocalPos);
-            vec3 R = N;
-            vec3 V = R;
-
-            const uint SAMPLE_COUNT = 64u;
-            vec3 prefilteredColor = vec3(0.0);
-            float totalWeight = 0.0;
-
-            for (uint i = 0u; i < SAMPLE_COUNT; i++) {
-                vec2 Xi = hammersley(i, SAMPLE_COUNT);
-                vec3 H = importanceSampleGGX(Xi, N, uRoughness);
-                vec3 L = normalize(2.0 * dot(V, H) * H - V);
-
-                float NdotL = max(dot(N, L), 0.0);
-                if (NdotL > 0.0) {
-                    vec3 radiance = pow(texture(uSource, L).rgb, vec3(2.2));
-                    prefilteredColor += radiance * NdotL;
-                    totalWeight += NdotL;
-                }
-            }
-            prefilteredColor = totalWeight > 0.0 ? prefilteredColor / totalWeight : vec3(0.0);
-
-            FragColor = vec4(prefilteredColor, 1.0);
-        }
-        """;
-
-    private const string QuadVertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec2 aPosition;
-        layout(location = 1) in vec2 aTexCoord;
-
-        out vec2 vTexCoord;
-
-        void main() {
-            vTexCoord = aTexCoord;
-            gl_Position = vec4(aPosition, 0.0, 1.0);
-        }
-        """;
+    private static readonly string QuadVertexShaderSource = EmbeddedShaderSource.Load(
+        "IblQuad.vert"
+    );
 
     // Split-sum BRDF LUT: integrates the specular BRDF's scale/bias (Karis, "Real Shading in
     // Unreal Engine 4") over (NdotV, roughness), independent of any environment — this is why one
     // LUT can be shared across every prefiltered skybox.
-    private const string BrdfLutFragmentShaderSource = """
-        #version 330 core
-        in  vec2 vTexCoord;
-        out vec4 FragColor;
-
-        IMPORTANCE_SAMPLING_GLSL
-
-        float geometrySchlickGGXIbl(float NdotX, float roughness) {
-            float k = (roughness * roughness) / 2.0;
-            return NdotX / (NdotX * (1.0 - k) + k);
-        }
-
-        float geometrySmithIbl(vec3 N, vec3 V, vec3 L, float roughness) {
-            float NdotV = max(dot(N, V), 0.0);
-            float NdotL = max(dot(N, L), 0.0);
-            return geometrySchlickGGXIbl(NdotV, roughness) * geometrySchlickGGXIbl(NdotL, roughness);
-        }
-
-        vec2 integrateBRDF(float NdotV, float roughness) {
-            vec3 V = vec3(sqrt(1.0 - NdotV * NdotV), 0.0, NdotV);
-            vec3 N = vec3(0.0, 0.0, 1.0);
-
-            float A = 0.0;
-            float B = 0.0;
-
-            const uint SAMPLE_COUNT = 1024u;
-            for (uint i = 0u; i < SAMPLE_COUNT; i++) {
-                vec2 Xi = hammersley(i, SAMPLE_COUNT);
-                vec3 H = importanceSampleGGX(Xi, N, roughness);
-                vec3 L = normalize(2.0 * dot(V, H) * H - V);
-
-                float NdotL = max(L.z, 0.0);
-                float NdotH = max(H.z, 0.0);
-                float VdotH = max(dot(V, H), 0.0);
-
-                if (NdotL > 0.0) {
-                    float G = geometrySmithIbl(N, V, L, roughness);
-                    float G_Vis = (G * VdotH) / max(NdotH * NdotV, 1e-4);
-                    float Fc = pow(1.0 - VdotH, 5.0);
-                    A += (1.0 - Fc) * G_Vis;
-                    B += Fc * G_Vis;
-                }
-            }
-            return vec2(A, B) / float(SAMPLE_COUNT);
-        }
-
-        void main() {
-            vec2 integrated = integrateBRDF(vTexCoord.x, vTexCoord.y);
-            FragColor = vec4(integrated, 0.0, 1.0);
-        }
-        """;
+    private static readonly string BrdfLutFragmentShaderSource = EmbeddedShaderSource.Load(
+        "IblBrdfLut.frag"
+    );
 
     private static readonly float[] QuadVertices =
     [

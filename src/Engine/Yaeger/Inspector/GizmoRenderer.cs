@@ -18,32 +18,8 @@ public sealed class GizmoRenderer : IDisposable
     private const int FloatsPerVertex = 7; // xyz + rgba
     private const int VerticesPerLine = 2;
 
-    private const string VertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec3 aPosition;
-        layout(location = 1) in vec4 aColor;
-
-        uniform mat4 uViewProj;
-
-        out vec4 vColor;
-
-        void main()
-        {
-            vColor = aColor;
-            gl_Position = uViewProj * vec4(aPosition, 1.0);
-        }
-        """;
-
-    private const string FragmentShaderSource = """
-        #version 330 core
-        in vec4 vColor;
-        out vec4 FragColor;
-
-        void main()
-        {
-            FragColor = vColor;
-        }
-        """;
+    private static readonly string VertexShaderSource = EmbeddedShaderSource.Load("Gizmo.vert");
+    private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load("Gizmo.frag");
 
     private readonly GL _gl;
     private readonly Shader _shader;
