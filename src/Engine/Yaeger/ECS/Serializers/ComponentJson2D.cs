@@ -61,6 +61,19 @@ internal static class ComponentJson2D
     public static JsonArray Write(Vector2 v) => new(JsonValue.Create(v.X), JsonValue.Create(v.Y));
 
     /// <summary>
+    /// Reads an optional single-precision float property, returning <paramref name="defaultValue"/>
+    /// when absent.
+    /// </summary>
+    public static float ReadOptionalSingle(
+        JsonElement element,
+        string propertyName,
+        float defaultValue
+    ) =>
+        element.TryGetProperty(propertyName, out var el)
+            ? ReadSingle(el, propertyName)
+            : defaultValue;
+
+    /// <summary>
     /// Reads an optional boolean property, returning <paramref name="defaultValue"/> when absent.
     /// </summary>
     public static bool ReadOptionalBool(JsonElement element, string propertyName, bool defaultValue)

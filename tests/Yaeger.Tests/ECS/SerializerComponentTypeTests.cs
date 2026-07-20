@@ -103,4 +103,53 @@ public class SerializerComponentTypeTests
         var serializer = new SpotLightSerializer();
         Assert.Equal(typeof(SpotLight), serializer.ComponentType);
     }
+
+    [Fact]
+    public void Camera2DSerializer_ComponentType_ReturnsCamera2DType()
+    {
+        var serializer = new Camera2DSerializer();
+        Assert.Equal(typeof(Camera2D), serializer.ComponentType);
+    }
+
+    [Fact]
+    public void TextSerializer_ComponentType_ReturnsTextType()
+    {
+        var serializer = new TextSerializer();
+        Assert.Equal(typeof(Text), serializer.ComponentType);
+    }
+
+    [Fact]
+    public void ParticleEmitterSerializer_ComponentType_ReturnsParticleEmitterType()
+    {
+        var serializer = new ParticleEmitterSerializer();
+        Assert.Equal(typeof(ParticleEmitter), serializer.ComponentType);
+    }
+
+    [Fact]
+    public void ParallaxLayerSerializer_ComponentType_ReturnsParallaxLayerType()
+    {
+        var serializer = new ParallaxLayerSerializer();
+        Assert.Equal(typeof(ParallaxLayer), serializer.ComponentType);
+    }
+
+    [Fact]
+    public void RigidBody2DSerializer_ComponentType_ReturnsRigidBody2DType()
+    {
+        var serializer = new RigidBody2DSerializer();
+        Assert.Equal(typeof(RigidBody2D), serializer.ComponentType);
+    }
+
+    [Fact]
+    public void Velocity2DSerializer_ComponentType_ReturnsVelocity2DType()
+    {
+        var serializer = new Velocity2DSerializer();
+        Assert.Equal(typeof(Velocity2D), serializer.ComponentType);
+    }
+
+    [Fact]
+    public void PhysicsMaterialSerializer_ComponentType_ReturnsPhysicsMaterialType()
+    {
+        var serializer = new PhysicsMaterialSerializer();
+        Assert.Equal(typeof(PhysicsMaterial), serializer.ComponentType);
+    }
 }

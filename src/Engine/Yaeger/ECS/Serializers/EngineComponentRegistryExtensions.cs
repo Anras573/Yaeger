@@ -18,8 +18,14 @@ public static class EngineComponentRegistryExtensions
     ///   <item><see cref="Yaeger.Graphics.AnimationStateMachine"/> – type id <c>"AnimationStateMachine"</c></item>
     ///   <item><see cref="Yaeger.Graphics.RenderLayer"/> – type id <c>"RenderLayer"</c></item>
     ///   <item><see cref="Yaeger.Graphics.Tilemap"/> – type id <c>"Tilemap"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.Camera2D"/> – type id <c>"Camera2D"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.ParticleEmitter"/> – type id <c>"ParticleEmitter"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.ParallaxLayer"/> – type id <c>"ParallaxLayer"</c></item>
     ///   <item><see cref="Yaeger.Physics.Components.BoxCollider2D"/> – type id <c>"BoxCollider2D"</c></item>
     ///   <item><see cref="Yaeger.Physics.Components.CircleCollider2D"/> – type id <c>"CircleCollider2D"</c></item>
+    ///   <item><see cref="Yaeger.Physics.Components.RigidBody2D"/> – type id <c>"RigidBody2D"</c></item>
+    ///   <item><see cref="Yaeger.Physics.Components.Velocity2D"/> – type id <c>"Velocity2D"</c></item>
+    ///   <item><see cref="Yaeger.Physics.Components.PhysicsMaterial"/> – type id <c>"PhysicsMaterial"</c></item>
     /// </list>
     /// <para>3D components:</para>
     /// <list type="bullet">
@@ -35,6 +41,16 @@ public static class EngineComponentRegistryExtensions
     /// opaque, runtime-assigned key into a <c>GpuMeshRegistry</c> and is not portable across runs,
     /// so it is treated as code-assigned rather than persisted.
     /// </para>
+    /// <para>
+    /// <see cref="Yaeger.Graphics.Text"/> is also not registered here, for a different reason: it
+    /// holds a native <c>Yaeger.Font.Font</c> reference, which has no <c>Yaeger.Core</c> equivalent,
+    /// so <see cref="Yaeger.ECS.Serializers.TextSerializer"/> can only compile into the native
+    /// runtime. This method lives in the shared <c>ECS/Serializers</c> source (compiled into both
+    /// <c>Yaeger.Core</c> and <c>Yaeger</c>), so it can't reference native-only types. Native games
+    /// that want <c>Text</c> to round-trip through scenes should call
+    /// <see cref="NativeComponentRegistryExtensions.RegisterNativeEngineComponents"/> instead, which
+    /// registers everything this method does plus <see cref="Yaeger.ECS.Serializers.TextSerializer"/>.
+    /// </para>
     /// </summary>
     /// <returns>The same <paramref name="registry"/> for method chaining.</returns>
     public static ComponentRegistry RegisterEngineComponents(this ComponentRegistry registry)
@@ -48,8 +64,14 @@ public static class EngineComponentRegistryExtensions
         registry.Register(new AnimationStateMachineSerializer());
         registry.Register(new RenderLayerSerializer());
         registry.Register(new TilemapSerializer());
+        registry.Register(new Camera2DSerializer());
+        registry.Register(new ParticleEmitterSerializer());
+        registry.Register(new ParallaxLayerSerializer());
         registry.Register(new BoxCollider2DSerializer());
         registry.Register(new CircleCollider2DSerializer());
+        registry.Register(new RigidBody2DSerializer());
+        registry.Register(new Velocity2DSerializer());
+        registry.Register(new PhysicsMaterialSerializer());
 
         // 3D components
         registry.Register(new Transform3DSerializer());
