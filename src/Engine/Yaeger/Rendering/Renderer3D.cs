@@ -113,6 +113,12 @@ public sealed class Renderer3D : IDisposable
         uniform float uLightIntensity;
         uniform vec3  uCameraPos;
 
+        uniform samplerCube uIrradianceMap;
+        uniform samplerCube uPrefilteredMap;
+        uniform sampler2D   uBrdfLut;
+        uniform int         uUseIBL;
+        uniform float       uMaxReflectionLod;
+
         #define MAX_POINT_LIGHTS 16
         #define MAX_SPOT_LIGHTS 8
 
@@ -181,6 +187,14 @@ public sealed class Renderer3D : IDisposable
 
         vec3 fresnelSchlick(float cosTheta, vec3 F0) {
             return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+        }
+
+        // Roughness-aware Fresnel (Sébastien Lagarde) for ambient/IBL use: widens the
+        // grazing-angle reflectance term so rough surfaces don't show an unnaturally sharp
+        // Fresnel rim the way the direct-light fresnelSchlick would.
+        vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
+            vec3 maxReflectance = max(vec3(1.0 - roughness), F0);
+            return F0 + (maxReflectance - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
         }
 
         // Cook-Torrance contribution of a single light. `L` points from the fragment toward the
@@ -339,7 +353,29 @@ public sealed class Renderer3D : IDisposable
                     Lo += pbrContribution(N, V, Ls, radiance, albedo, metallic, roughness, F0);
                 }
 
-                vec3 ambient = vec3(0.03) * albedo * ao;
+                vec3 ambient;
+                if (uUseIBL != 0) {
+                    // Split-sum image-based lighting (Karis, "Real Shading in Unreal Engine 4"):
+                    // uIrradianceMap/uPrefilteredMap/uBrdfLut are pre-baked by IblPrefilter and
+                    // already linear, so no further colour-space conversion is needed here.
+                    vec3 Fr = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+                    vec3 kD = (vec3(1.0) - Fr) * (1.0 - metallic);
+
+                    vec3 irradiance = texture(uIrradianceMap, N).rgb;
+                    vec3 diffuseIBL = irradiance * albedo;
+
+                    vec3 R = reflect(-V, N);
+                    vec3 prefilteredColor =
+                        textureLod(uPrefilteredMap, R, roughness * uMaxReflectionLod).rgb;
+                    vec2 envBRDF = texture(uBrdfLut, vec2(max(dot(N, V), 0.0), roughness)).rg;
+                    vec3 specularIBL = prefilteredColor * (Fr * envBRDF.x + envBRDF.y);
+
+                    ambient = (kD * diffuseIBL + specularIBL) * ao;
+                } else {
+                    // Flat ambient fallback for scenes without a skybox — unchanged from the
+                    // pre-IBL behaviour.
+                    ambient = vec3(0.03) * albedo * ao;
+                }
                 vec3 color = ambient + Lo + emissive;
 
                 // Reinhard tone-map, then gamma encode back to sRGB.
@@ -446,6 +482,7 @@ public sealed class Renderer3D : IDisposable
     private readonly Shader _shader;
     private readonly uint _defaultTexture;
     private readonly uint _defaultNormalTexture;
+    private readonly uint _defaultCubemap;
     private readonly uint _boneUbo;
 
     public Renderer3D(GL gl)
@@ -454,11 +491,14 @@ public sealed class Renderer3D : IDisposable
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _defaultTexture = CreateWhiteTexture();
         _defaultNormalTexture = CreateFlatNormalTexture();
+        _defaultCubemap = CreateWhiteCubemap();
         _boneUbo = CreateBoneUbo();
         BindSamplerUnits();
         BindDefaultPbrTextures();
         // DisableShadows also binds the default texture on unit 5, so no separate setup is needed.
         DisableShadows();
+        // DisableIBL also binds the default cubemap/texture on units 6-8.
+        DisableIBL();
         // Skinning is opt-in per draw; default to the static-mesh path.
         _shader.Bind();
         _shader.SetUniformInt("uSkinned", 0);
@@ -481,6 +521,9 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformInt("uAoMap", 3);
         _shader.SetUniformInt("uEmissiveMap", 4);
         _shader.SetUniformInt("uShadowMap", 5);
+        _shader.SetUniformInt("uIrradianceMap", 6);
+        _shader.SetUniformInt("uPrefilteredMap", 7);
+        _shader.SetUniformInt("uBrdfLut", 8);
         _shader.Unbind();
     }
 
@@ -556,6 +599,73 @@ public sealed class Renderer3D : IDisposable
         // unit may still point at a depth texture that gets deleted when its ShadowMapRenderer is
         // disposed, leaving the statically-used sampler incomplete even though sampling is gated off.
         BindDefaultShadowTexture();
+    }
+
+    // The IBL samplers (irradiance/prefiltered cubemaps, BRDF LUT) are statically used by the
+    // fragment shader, so — like the PBR and shadow fallbacks above — they must point at complete
+    // textures even when uUseIBL is 0. Bind the 1x1 white cubemap to units 6/7 and reuse the
+    // existing 1x1 white 2D texture for unit 8 until SetEnvironmentMap swaps in real resources.
+    private void BindDefaultIblTextures()
+    {
+        foreach (
+            var unit in (ReadOnlySpan<TextureUnit>)[TextureUnit.Texture6, TextureUnit.Texture7]
+        )
+        {
+            _gl.ActiveTexture(unit);
+            _gl.BindTexture(TextureTarget.TextureCubeMap, _defaultCubemap);
+        }
+
+        _gl.ActiveTexture(TextureUnit.Texture8);
+        _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
+
+        _gl.ActiveTexture(TextureUnit.Texture0);
+    }
+
+    /// <summary>
+    /// Binds a prefiltered <see cref="EnvironmentMap"/> (irradiance + prefiltered specular + BRDF
+    /// LUT) and enables image-based lighting for the PBR path. Call once per frame, before the
+    /// draw loop, whenever the scene has a skybox with a registered <see cref="EnvironmentMap"/>.
+    /// Has no effect on the Blinn-Phong path.
+    /// </summary>
+    public void SetEnvironmentMap(EnvironmentMap environmentMap)
+    {
+        ArgumentNullException.ThrowIfNull(environmentMap);
+
+        _shader.Bind();
+        _shader.SetUniformInt("uUseIBL", 1);
+        _shader.SetUniformFloat(
+            "uMaxReflectionLod",
+            Math.Max(environmentMap.PrefilteredMipCount - 1, 0)
+        );
+
+        _gl.ActiveTexture(TextureUnit.Texture6);
+        _gl.BindTexture(TextureTarget.TextureCubeMap, environmentMap.IrradianceMap);
+        _gl.ActiveTexture(TextureUnit.Texture7);
+        _gl.BindTexture(TextureTarget.TextureCubeMap, environmentMap.PrefilteredMap);
+        _gl.ActiveTexture(TextureUnit.Texture8);
+        _gl.BindTexture(TextureTarget.Texture2D, environmentMap.BrdfLut);
+        _gl.ActiveTexture(TextureUnit.Texture0);
+
+        _shader.Unbind();
+    }
+
+    /// <summary>
+    /// Disables image-based lighting: the PBR path falls back to the flat constant ambient term
+    /// used before this feature existed. This is the default state until
+    /// <see cref="SetEnvironmentMap"/> is called; scenes without a skybox never need to call this
+    /// explicitly.
+    /// </summary>
+    public void DisableIBL()
+    {
+        _shader.Bind();
+        _shader.SetUniformInt("uUseIBL", 0);
+        _shader.Unbind();
+
+        // Restore the default (complete) IBL textures. After a prior SetEnvironmentMap the units
+        // may still point at textures owned by an EnvironmentMap that has since been disposed,
+        // leaving the statically-used samplers incomplete even though sampling is gated off
+        // (mirrors BindDefaultShadowTexture's reasoning in DisableShadows).
+        BindDefaultIblTextures();
     }
 
     /// <summary>
@@ -877,6 +987,68 @@ public sealed class Renderer3D : IDisposable
         return handle;
     }
 
+    // 1x1 white cubemap: a complete fallback for the IBL cubemap samplers when no EnvironmentMap
+    // is bound (mirrors CreateWhiteTexture's role for the 2D PBR/shadow fallbacks).
+    private unsafe uint CreateWhiteCubemap()
+    {
+        var handle = _gl.GenTexture();
+        _gl.BindTexture(TextureTarget.TextureCubeMap, handle);
+        byte[] white = [255, 255, 255, 255];
+        TextureTarget[] faces =
+        [
+            TextureTarget.TextureCubeMapPositiveX,
+            TextureTarget.TextureCubeMapNegativeX,
+            TextureTarget.TextureCubeMapPositiveY,
+            TextureTarget.TextureCubeMapNegativeY,
+            TextureTarget.TextureCubeMapPositiveZ,
+            TextureTarget.TextureCubeMapNegativeZ,
+        ];
+        fixed (byte* ptr = white)
+        {
+            foreach (var face in faces)
+            {
+                _gl.TexImage2D(
+                    face,
+                    0,
+                    (int)InternalFormat.Rgba,
+                    1,
+                    1,
+                    0,
+                    PixelFormat.Rgba,
+                    PixelType.UnsignedByte,
+                    ptr
+                );
+            }
+        }
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.Nearest
+        );
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Nearest
+        );
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureWrapS,
+            (int)GLEnum.ClampToEdge
+        );
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureWrapT,
+            (int)GLEnum.ClampToEdge
+        );
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureWrapR,
+            (int)GLEnum.ClampToEdge
+        );
+        _gl.BindTexture(TextureTarget.TextureCubeMap, 0);
+        return handle;
+    }
+
     // Allocates the bone-matrix uniform buffer (MaxBones mat4s) and links it to the shader's "Bones"
     // block via a shared binding point. Filled per skinned draw by SetBoneMatrices.
     private unsafe uint CreateBoneUbo()
@@ -924,6 +1096,7 @@ public sealed class Renderer3D : IDisposable
         _shader.Dispose();
         _gl.DeleteTexture(_defaultTexture);
         _gl.DeleteTexture(_defaultNormalTexture);
+        _gl.DeleteTexture(_defaultCubemap);
         _gl.DeleteBuffer(_boneUbo);
     }
 }
