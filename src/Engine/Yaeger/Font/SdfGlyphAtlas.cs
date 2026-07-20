@@ -75,7 +75,7 @@ public class SdfGlyphAtlas : IGlyphAtlas
         if (string.IsNullOrEmpty(text))
             return [];
 
-        return _font.Shape(text).Select(g => AddGlyph(g.Codepoint)).ToArray();
+        return _font.Shape(text, _fontSize).Select(g => AddGlyph(g.Codepoint)).ToArray();
     }
 
     public AtlasGlyph? GetGlyph(uint codepoint) =>
