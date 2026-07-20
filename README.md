@@ -87,7 +87,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
   - `DamagedHelmet/` - glTF DamagedHelmet model with skybox, lights, and an orbiting camera
   - `SkinnedMeshDemo/` - glTF skeletal animation (GPU skinning) demo
   - `UiDemo/` - UI system demo (menu + HUD with buttons, panels, labels)
-  - `BrowserDemo/` - Blazor/WebAssembly browser loop + browser input/runtime integration
+  - `BrowserDemo/` - Blazor/WebAssembly interactive paddle-and-ball demo (keyboard, mouse & touch)
   - `RenderingStressTest/` - Renderer stress test (FPS vs sprite count)
   - `TextRenderingExample/` - Text rendering demo
 - `docs/` - Documentation (see [`docs/index.md`](docs/index.md))

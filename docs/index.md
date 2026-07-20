@@ -85,7 +85,7 @@ Samples/
 ├── DamagedHelmet/           # glTF DamagedHelmet model with skybox, lights, and orbit camera
 ├── SkinnedMeshDemo/         # glTF skeletal animation (GPU skinning) demo
 ├── UiDemo/                  # UI system demo (menu + HUD with buttons, panels, labels)
-├── BrowserDemo/             # Blazor/WebAssembly browser loop demo
+├── BrowserDemo/             # Blazor/WebAssembly interactive paddle-and-ball demo
 ├── RenderingStressTest/     # Renderer stress test
 └── TextRenderingExample/    # Text rendering demo
 ```

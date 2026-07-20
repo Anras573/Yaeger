@@ -3,7 +3,9 @@ using Microsoft.JSInterop;
 using Yaeger.Browser;
 using Yaeger.ECS;
 using Yaeger.Graphics;
+using Yaeger.Input;
 using Yaeger.Physics.Components;
+using Yaeger.Platform;
 using Yaeger.Systems;
 
 namespace BrowserDemo;
@@ -16,6 +18,8 @@ public sealed class GameController
 {
     private readonly World _world;
     private readonly BrowserRenderSurface _renderSurface;
+    private readonly IInputState _input = new BrowserInputState();
+    private readonly PaddleControlSystem _paddleSystem;
     private readonly BallMovementSystem _movementSystem;
     private readonly BrowserTimeSource _timeSource = new();
 
@@ -23,17 +27,30 @@ public sealed class GameController
     {
         _renderSurface = renderSurface;
         _world = new World();
+        _paddleSystem = new PaddleControlSystem(_world, _input);
         _movementSystem = new BallMovementSystem(_world);
         BuildScene();
     }
 
     private void BuildScene()
     {
-        // A single orange square that bounces around the canvas.
+        // A paddle the player drives along the bottom edge...
+        var paddle = _world.CreateEntity("paddle");
+        _world.AddComponent(
+            paddle,
+            new Transform2D(new Vector2(0f, -0.85f), scale: new Vector2(0.34f, 0.06f))
+        );
+        _world.AddComponent(paddle, new Sprite("", new Color(80, 200, 255)));
+
+        // ...and an orange ball that bounces around the canvas, off the paddle when it's there
+        // to catch it, or back to serve from the top when it isn't.
         var ball = _world.CreateEntity("ball");
-        _world.AddComponent(ball, new Transform2D(Vector2.Zero, scale: new Vector2(0.15f, 0.15f)));
+        _world.AddComponent(
+            ball,
+            new Transform2D(new Vector2(0f, 0.6f), scale: new Vector2(0.08f, 0.08f))
+        );
         _world.AddComponent(ball, new Sprite("", new Color(255, 140, 0)));
-        _world.AddComponent(ball, new Velocity2D(0.4f, 0.6f));
+        _world.AddComponent(ball, new Velocity2D(0.45f, -0.6f));
     }
 
     /// <summary>
@@ -45,10 +62,11 @@ public sealed class GameController
     {
         _timeSource.Advance(timestampMs);
 
-        // Snapshot scroll input at the tick boundary so all game systems within this tick
-        // see a stable ScrollDelta value, matching native input behavior.
+        // Snapshot keyboard/mouse/scroll input at the tick boundary so all game systems within
+        // this tick see stable values, matching native input behavior.
         BrowserInputState.BeginFrame();
 
+        _paddleSystem.Update(_timeSource.DeltaTime);
         _movementSystem.Update(_timeSource.DeltaTime);
         Render();
     }
@@ -69,13 +87,57 @@ public sealed class GameController
 }
 
 /// <summary>
-/// Moves entities with <see cref="Velocity2D"/> and <see cref="Transform2D"/>, reflecting off
-/// the NDC edges (±1) to keep the entity on screen.
+/// Drives the paddle entity from keyboard (arrow keys / A-D) or, while the left mouse button
+/// or a touch is held, directly under the pointer — giving desktop and touch players an equally
+/// direct way to play.
+/// </summary>
+internal sealed class PaddleControlSystem(World world, IInputState input) : IUpdateSystem
+{
+    private const float Speed = 1.6f;
+
+    public void Update(float deltaTime)
+    {
+        if (
+            !world.TryGetEntity("paddle", out var paddle)
+            || !world.TryGetComponent<Transform2D>(paddle, out var transform)
+        )
+            return;
+
+        var halfWidth = transform.Scale.X * 0.5f;
+        var x = transform.Position.X;
+
+        if (input.IsMouseButtonPressed(MouseButton.Left))
+        {
+            x = input.MousePositionNdc.X;
+        }
+        else
+        {
+            if (input.IsKeyPressed(Keys.Left) || input.IsKeyPressed(Keys.A))
+                x -= Speed * deltaTime;
+            if (input.IsKeyPressed(Keys.Right) || input.IsKeyPressed(Keys.D))
+                x += Speed * deltaTime;
+        }
+
+        var clampedX = Math.Clamp(x, -1f + halfWidth, 1f - halfWidth);
+        transform.Position = new Vector2(clampedX, transform.Position.Y);
+        world.AddComponent(paddle, transform);
+    }
+}
+
+/// <summary>
+/// Moves the ball via its <see cref="Velocity2D"/>, bouncing it off the side/top NDC edges
+/// (±1) and off the paddle when it's there to catch it. A ball that gets past the paddle is
+/// re-served from the top rather than ending the game — this is a bounce-practice toy, not a
+/// scored game.
 /// </summary>
 internal sealed class BallMovementSystem(World world) : IUpdateSystem
 {
     public void Update(float deltaTime)
     {
+        var hasPaddle =
+            world.TryGetEntity("paddle", out var paddleEntity)
+            && world.TryGetComponent<Transform2D>(paddleEntity, out var paddleTransform);
+
         foreach (var (entity, velocity, transform) in world.Query<Velocity2D, Transform2D>())
         {
             var pos = transform.Position;
@@ -84,17 +146,43 @@ internal sealed class BallMovementSystem(World world) : IUpdateSystem
 
             pos += vel * deltaTime;
 
-            // Reflect off NDC edges (±1) and clamp to prevent tunnelling.
+            // Reflect off the side and top NDC edges (±1) and clamp to prevent tunnelling.
             if (pos.X - halfScale.X < -1f || pos.X + halfScale.X > 1f)
             {
                 vel.X = -vel.X;
                 pos.X = Math.Clamp(pos.X, -1f + halfScale.X, 1f - halfScale.X);
             }
 
-            if (pos.Y - halfScale.Y < -1f || pos.Y + halfScale.Y > 1f)
+            if (pos.Y + halfScale.Y > 1f)
             {
                 vel.Y = -vel.Y;
-                pos.Y = Math.Clamp(pos.Y, -1f + halfScale.Y, 1f - halfScale.Y);
+                pos.Y = 1f - halfScale.Y;
+            }
+
+            // Bounce off the paddle: reflect upward and nudge the X velocity based on where it
+            // was hit, Breakout-style, so the player can aim the return.
+            if (hasPaddle && vel.Y < 0f)
+            {
+                var paddleHalf = paddleTransform.Scale * 0.5f;
+                var paddlePos = paddleTransform.Position;
+                var overlapsX =
+                    pos.X + halfScale.X > paddlePos.X - paddleHalf.X
+                    && pos.X - halfScale.X < paddlePos.X + paddleHalf.X;
+                var paddleTop = paddlePos.Y + paddleHalf.Y;
+
+                if (overlapsX && pos.Y - halfScale.Y <= paddleTop && pos.Y >= paddlePos.Y)
+                {
+                    vel.Y = -vel.Y;
+                    pos.Y = paddleTop + halfScale.Y;
+                    vel.X += (pos.X - paddlePos.X) / paddleHalf.X * 0.5f;
+                }
+            }
+
+            // Missed the paddle: serve a fresh ball back in from the top.
+            if (pos.Y + halfScale.Y < -1f)
+            {
+                pos = new Vector2(0f, 0.6f);
+                vel = new Vector2(vel.X >= 0f ? 0.45f : -0.45f, -0.6f);
             }
 
             var newTransform = transform;
