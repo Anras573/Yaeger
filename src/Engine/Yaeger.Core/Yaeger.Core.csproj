@@ -12,7 +12,7 @@
     <Compile Include="..\Yaeger\Assets\ModelMaterial.cs" Link="Assets\ModelMaterial.cs" />
     <Compile
       Include="..\Yaeger\ECS\**\*.cs"
-      Exclude="..\Yaeger\ECS\Serializers\TextSerializer.cs;..\Yaeger\ECS\Serializers\NativeComponentRegistryExtensions.cs"
+      Exclude="..\Yaeger\ECS\Serializers\Native\**\*.cs"
       Link="ECS\%(RecursiveDir)%(Filename)%(Extension)"
     />
     <Compile
