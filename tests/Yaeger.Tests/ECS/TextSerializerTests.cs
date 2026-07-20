@@ -9,7 +9,7 @@ public class TextSerializerTests
     [Fact]
     public void Deserializes_ThroughPrefabLoader()
     {
-        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
         var loader = new PrefabLoader(registry);
         var prefab = loader.Parse(
             """
@@ -42,7 +42,7 @@ public class TextSerializerTests
     [Fact]
     public void MissingColor_ShouldDefaultToWhite()
     {
-        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
         var loader = new PrefabLoader(registry);
         var prefab = loader.Parse(
             """
@@ -67,7 +67,7 @@ public class TextSerializerTests
     [Fact]
     public void MissingContent_ShouldThrowPrefabLoadException()
     {
-        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
         var loader = new PrefabLoader(registry);
 
         Assert.Throws<PrefabLoadException>(() =>
@@ -80,7 +80,7 @@ public class TextSerializerTests
     [Fact]
     public void MissingFont_ShouldThrowPrefabLoadException()
     {
-        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
         var loader = new PrefabLoader(registry);
 
         Assert.Throws<PrefabLoadException>(() =>
@@ -93,7 +93,7 @@ public class TextSerializerTests
     [Fact]
     public void BlankFont_ShouldThrowPrefabLoadException()
     {
-        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
         var loader = new PrefabLoader(registry);
 
         Assert.Throws<PrefabLoadException>(() =>
@@ -108,7 +108,7 @@ public class TextSerializerTests
     [Fact]
     public void MissingFontSize_ShouldThrowPrefabLoadException()
     {
-        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
         var loader = new PrefabLoader(registry);
 
         Assert.Throws<PrefabLoadException>(() =>
@@ -121,7 +121,7 @@ public class TextSerializerTests
     [Fact]
     public void SceneSaver_TextComponent_ShouldRoundTrip()
     {
-        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
         var world = new World();
         var entity = world.CreateEntity("hud");
         world.AddComponent(
@@ -147,7 +147,7 @@ public class TextSerializerTests
     [Fact]
     public void SceneSaver_WhiteText_ShouldOmitColor()
     {
-        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
         var world = new World();
         var entity = world.CreateEntity("label");
         world.AddComponent(
@@ -158,5 +158,24 @@ public class TextSerializerTests
         var json = new SceneSaver(registry).Serialize(world);
 
         Assert.DoesNotContain("\"color\"", json);
+    }
+
+    [Fact]
+    public void RegisterEngineComponents_DoesNotRegisterText()
+    {
+        // Text holds a native Yaeger.Font.Font reference with no Yaeger.Core equivalent, so its
+        // serializer can't be part of the shared RegisterEngineComponents().
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+
+        Assert.DoesNotContain("Text", registry.RegisteredTypeIds);
+    }
+
+    [Fact]
+    public void RegisterNativeEngineComponents_RegistersEverythingPlusText()
+    {
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
+
+        Assert.Contains("Text", registry.RegisteredTypeIds);
+        Assert.Contains("Sprite", registry.RegisteredTypeIds);
     }
 }
