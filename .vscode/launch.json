@@ -47,6 +47,12 @@
             "projectPath": "${workspaceFolder}/Samples/Pong/Pong.csproj"
         },
         {
+            "name": "C#: Platformer Debug",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/Samples/Platformer/Platformer.csproj"
+        },
+        {
             "name": "C#: ParticleDemo Debug",
             "type": "dotnet",
             "request": "launch",
