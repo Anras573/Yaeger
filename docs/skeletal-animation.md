@@ -15,7 +15,9 @@ they simply carry zero skin weights and take the identity-skin path in the shade
    (current clip, time, loop, speed) alongside the usual `MeshHandle` / `Transform3D` / `Material3D`.
 4. **Update** — `SkeletalAnimationSystem.Update(dt)` advances the player, samples the clip into
    per-bone local transforms, resolves the world-space matrix palette through the hierarchy, and
-   writes it to a `BonePalette` component.
+   writes it to a `BonePalette` component. Call `SkeletalAnimationSystem.CrossFadeTo(entity, clip,
+   duration)` instead of assigning `AnimationPlayer.CurrentClip` directly to blend into the new
+   clip over `duration` seconds rather than popping to it — see [Crossfading](#crossfading) below.
 5. **Render** — `MeshRenderSystem` detects the `BonePalette` and routes the entity through
    `Renderer3D`'s skinning draw, uploading the palette to a bone-matrix uniform buffer (UBO). The
    vertex shader blends up to four bone matrices per vertex.
@@ -28,8 +30,8 @@ they simply carry zero skin weights and take the identity-skin path in the shade
 | `Skeleton(Bones, InverseBindPoses)` | Bone array + inverse bind poses; `ComputeMatrixPalette` resolves a pose. |
 | `VectorKey` / `QuaternionKey` | Keyframes (time in seconds) for translation/scale and rotation. |
 | `BoneTrack(BoneIndex, Positions, Rotations, Scales)` | Per-bone keyframe tracks; `Sample(time)` → local matrix. |
-| `AnimationClip(Name, Duration, Tracks)` | A named clip; `Sample(time, locals)` fills per-bone locals. |
-| `SkeletonHandle` / `AnimationPlayer` / `BonePalette` | ECS components. |
+| `AnimationClip(Name, Duration, Tracks)` | A named clip; `Sample(time, locals)` fills per-bone locals; `SampleTRS(time, ...)` fills separate translation/rotation/scale spans for blending. |
+| `SkeletonHandle` / `AnimationPlayer` / `BonePalette` | ECS components. `AnimationPlayer` also holds in-progress crossfade state (`PreviousClip`/`PreviousTime`/`FadeDuration`/`FadeElapsed`), set by `CrossFadeTo` rather than by hand. |
 | `SkeletonRegistry` | Stores skeletons + clips, keyed by handle. |
 | `SkeletalAnimationSystem` | `IUpdateSystem` that drives playback and writes the palette. |
 
@@ -57,6 +59,33 @@ var animationSystem = new SkeletalAnimationSystem(world, skeletonRegistry);
 window.OnUpdate += dt => animationSystem.Update((float)dt);
 window.OnRender += _ => meshRenderSystem.Render();
 ```
+
+## Crossfading
+
+Assigning `AnimationPlayer.CurrentClip` directly snaps the skeleton to the new clip's pose on the
+next `Update` — fine for something like a hit reaction, but a visible pop for everyday transitions
+like idle→walk. `CrossFadeTo` blends into the new clip over a short duration instead:
+
+```csharp
+animationSystem.CrossFadeTo(entity, "Walk", duration: 0.2f);
+```
+
+This captures the entity's current clip and playback time as the fade-out source, then switches
+`CurrentClip` to `"Walk"` starting at time zero. While the fade is in progress, `Update` samples
+both clips into per-bone translation/rotation/scale (not composed matrices — see
+`AnimationClip.SampleTRS`), blends them per bone (`Vector3.Lerp` for translation/scale,
+`Quaternion.Slerp` for rotation), and resolves the palette from the blended pose. Both clips keep
+advancing their own playback time during the fade — a looping fade-out source doesn't freeze on
+whatever pose it happened to be in when the fade began. Once `FadeElapsed` reaches `FadeDuration`,
+the next `Update` drops back to the ordinary single-clip path.
+
+A `duration` of zero (or negative, or non-finite) skips the fade entirely: it's the same hard
+switch as assigning `CurrentClip` directly, and clears any fade already in progress. Passing
+`null` as the clip name fades to the bind pose.
+
+Bones that lack a track in one of the two clips fall back to the skeleton's bind pose
+(`Bone.LocalTransform`, decomposed into translation/rotation/scale) for that clip's contribution to
+the blend — the same fallback the single-clip path uses for untracked bones.
 
 ## Notes & limitations
 

@@ -92,7 +92,7 @@ Systems implement `IUpdateSystem` (a single `void Update(float deltaTime)` metho
 
 ### Skeletal animation (`Graphics/`, `Systems/SkeletalAnimationSystem`)
 
-CPU-sampled, GPU-skinned. Entities carry `SkeletonHandle` + `AnimationPlayer` (clip name — `null` holds the bind pose — plus time, speed, loop); `SkeletalAnimationSystem.Update(dt)` samples the clip, resolves the bone hierarchy, and writes a `BonePalette` component that `MeshRenderSystem` uploads. See `docs/skeletal-animation.md` and `Samples/SkinnedMeshDemo`.
+CPU-sampled, GPU-skinned. Entities carry `SkeletonHandle` + `AnimationPlayer` (clip name — `null` holds the bind pose — plus time, speed, loop); `SkeletalAnimationSystem.Update(dt)` samples the clip, resolves the bone hierarchy, and writes a `BonePalette` component that `MeshRenderSystem` uploads. Call `SkeletalAnimationSystem.CrossFadeTo(entity, clipName, duration)` instead of assigning `CurrentClip` directly to blend into a clip over `duration` seconds instead of popping to it: it captures the current clip/time as the fade-out source into `AnimationPlayer`'s `PreviousClip`/`PreviousTime`/`FadeDuration`/`FadeElapsed` fields, and while `FadeElapsed < FadeDuration`, `Update` samples both clips via `AnimationClip.SampleTRS` (translation/scale/rotation kept separate, not a composed matrix), blends per bone (`Vector3.Lerp`/`Quaternion.Slerp`), and resolves the palette from the blended pose — both clips keep advancing their own time during the fade, so a looping fade-out source doesn't freeze. A non-positive/non-finite `duration` is a hard switch, same as assigning `CurrentClip` directly. See `docs/skeletal-animation.md` and `Samples/SkinnedMeshDemo`.
 
 ### Physics (`Physics/`)
 

@@ -268,4 +268,248 @@ public class SkeletalAnimationSystemTests
 
         Assert.Same(first.Matrices, second.Matrices);
     }
+
+    // ── Crossfade ───────────────────────────────────────────────────────────
+
+    // Single bone at the origin; "slide" moves +10 on X over 1s (from BuildRig), "rise" moves +10
+    // on Y over 1s — independent axes make it easy to tell each clip's contribution to a blend
+    // apart.
+    private static (SkeletonRegistry Registry, SkeletonHandle Handle) BuildCrossfadeRig()
+    {
+        var registry = new SkeletonRegistry();
+        var skeleton = new Skeleton(
+            [new Bone("root", -1, Matrix4x4.Identity)],
+            [Matrix4x4.Identity]
+        );
+        var slide = new AnimationClip(
+            "slide",
+            1f,
+            [
+                new BoneTrack(
+                    0,
+                    [new VectorKey(0f, Vector3.Zero), new VectorKey(1f, new Vector3(10f, 0f, 0f))],
+                    [],
+                    []
+                ),
+            ]
+        );
+        var rise = new AnimationClip(
+            "rise",
+            1f,
+            [
+                new BoneTrack(
+                    0,
+                    [new VectorKey(0f, Vector3.Zero), new VectorKey(1f, new Vector3(0f, 10f, 0f))],
+                    [],
+                    []
+                ),
+            ]
+        );
+        var handle = registry.Register(skeleton, [slide, rise]);
+        return (registry, handle);
+    }
+
+    [Fact]
+    public void CrossFadeTo_EntityWithoutAnimationPlayer_ThrowsInvalidOperationException()
+    {
+        var (registry, handle) = BuildCrossfadeRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle); // no AnimationPlayer
+
+        var system = new SkeletalAnimationSystem(world, registry);
+
+        Assert.Throws<InvalidOperationException>(() => system.CrossFadeTo(entity, "rise", 0.2f));
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-1f)]
+    [InlineData(float.NaN)]
+    public void CrossFadeTo_NonPositiveOrNonFiniteDuration_ActsAsHardSwitch(float duration)
+    {
+        var (registry, handle) = BuildCrossfadeRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = 0.4f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.CrossFadeTo(entity, "rise", duration);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal("rise", player.CurrentClip);
+        Assert.Equal(0f, player.Time);
+        Assert.Null(player.PreviousClip);
+        Assert.Equal(0f, player.FadeDuration);
+        Assert.Equal(0f, player.FadeElapsed);
+
+        // No blending: the palette should reflect only the new clip's pose after one update.
+        system.Update(0.3f);
+        Assert.True(world.TryGetComponent<BonePalette>(entity, out var palette));
+        Assert.Equal(0f, palette.Matrices[0].Translation.X, 4);
+        Assert.Equal(3f, palette.Matrices[0].Translation.Y, 4);
+    }
+
+    [Fact]
+    public void CrossFadeTo_PositiveDuration_CapturesCurrentClipAndTimeAsFadeSource()
+    {
+        var (registry, handle) = BuildCrossfadeRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = 0.4f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.CrossFadeTo(entity, "rise", 0.2f);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal("rise", player.CurrentClip);
+        Assert.Equal(0f, player.Time);
+        Assert.Equal("slide", player.PreviousClip);
+        Assert.Equal(0.4f, player.PreviousTime, 4);
+        Assert.Equal(0.2f, player.FadeDuration, 4);
+        Assert.Equal(0f, player.FadeElapsed);
+    }
+
+    [Fact]
+    public void Update_DuringFade_BlendsBothClipsByElapsedFraction()
+    {
+        var (registry, handle) = BuildCrossfadeRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = 0f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.CrossFadeTo(entity, "rise", duration: 1f);
+
+        // Halfway through a 1s fade: both clips have also advanced to t=0.5 (from 0), so
+        // slide.X = 5, rise.Y = 5; blended at alpha 0.5 -> (2.5, 2.5).
+        system.Update(0.5f);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal(0.5f, player.FadeElapsed, 4);
+        Assert.False(player.FadeDuration <= player.FadeElapsed); // still fading
+
+        Assert.True(world.TryGetComponent<BonePalette>(entity, out var palette));
+        Assert.Equal(2.5f, palette.Matrices[0].Translation.X, 3);
+        Assert.Equal(2.5f, palette.Matrices[0].Translation.Y, 3);
+    }
+
+    [Fact]
+    public void Update_FadeElapses_DropsBackToSingleClipPathWithNoResidualBlend()
+    {
+        var (registry, handle) = BuildCrossfadeRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = 0f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.CrossFadeTo(entity, "rise", duration: 0.2f);
+
+        // deltaTime exceeds the fade duration, so the fade completes within this single update.
+        system.Update(0.3f);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Null(player.PreviousClip);
+        Assert.Equal(0f, player.FadeDuration);
+        Assert.Equal(0f, player.FadeElapsed);
+
+        // Pure "rise" pose: no trace of "slide"'s X contribution.
+        Assert.True(world.TryGetComponent<BonePalette>(entity, out var palette));
+        Assert.Equal(0f, palette.Matrices[0].Translation.X, 4);
+        Assert.Equal(3f, palette.Matrices[0].Translation.Y, 4);
+    }
+
+    [Fact]
+    public void Update_DuringFade_LoopingFadeSourceKeepsAdvancingInsteadOfFreezing()
+    {
+        var (registry, handle) = BuildCrossfadeRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = 0.8f }
+        );
+        world.AddComponent(entity, handle);
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        // A fade duration longer than the 1s source clip forces a wrap mid-fade if it's still
+        // advancing.
+        system.CrossFadeTo(entity, "rise", duration: 2f);
+
+        system.Update(0.5f); // 0.8 + 0.5 = 1.3 -> wraps to 0.3, not frozen at 0.8
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal(0.3f, player.PreviousTime, 4);
+    }
+
+    [Fact]
+    public void Update_DuringFade_RotationBlendsViaSlerpNotLinearInterpolation()
+    {
+        var registry = new SkeletonRegistry();
+        var skeleton = new Skeleton(
+            [new Bone("root", -1, Matrix4x4.Identity)],
+            [Matrix4x4.Identity]
+        );
+        var identity = new AnimationClip(
+            "identity",
+            1f,
+            [new BoneTrack(0, [], [new QuaternionKey(0f, Quaternion.Identity)], [])]
+        );
+        var rotated = new AnimationClip(
+            "rotated",
+            1f,
+            [
+                new BoneTrack(
+                    0,
+                    [],
+                    [
+                        new QuaternionKey(
+                            0f,
+                            Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI / 2f)
+                        ),
+                    ],
+                    []
+                ),
+            ]
+        );
+        var handle = registry.Register(skeleton, [identity, rotated]);
+
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("identity", loop: true, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.CrossFadeTo(entity, "rotated", duration: 1f);
+        system.Update(0.5f); // alpha = 0.5
+
+        var expectedRotation = Quaternion.Slerp(
+            Quaternion.Identity,
+            Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI / 2f),
+            0.5f
+        );
+        var expected = Vector3.Transform(Vector3.UnitZ, expectedRotation);
+
+        Assert.True(world.TryGetComponent<BonePalette>(entity, out var palette));
+        var actual = Vector3.Transform(Vector3.UnitZ, palette.Matrices[0]);
+        Assert.Equal(expected.X, actual.X, 4);
+        Assert.Equal(expected.Y, actual.Y, 4);
+        Assert.Equal(expected.Z, actual.Z, 4);
+    }
 }
