@@ -112,7 +112,7 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-// Roughness-aware Fresnel (Sébastien Lagarde) for ambient/IBL use: widens the
+// Roughness-aware Fresnel (Sebastien Lagarde) for ambient/IBL use: widens the
 // grazing-angle reflectance term so rough surfaces don't show an unnaturally sharp
 // Fresnel rim the way the direct-light fresnelSchlick would.
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
@@ -295,7 +295,7 @@ void main() {
 
             ambient = (kD * diffuseIBL + specularIBL) * ao;
         } else {
-            // Flat ambient fallback for scenes without a skybox — unchanged from the
+            // Flat ambient fallback for scenes without a skybox - unchanged from the
             // pre-IBL behaviour.
             ambient = vec3(0.03) * albedo * ao;
         }
