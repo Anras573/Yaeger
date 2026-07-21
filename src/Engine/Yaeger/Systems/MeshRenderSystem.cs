@@ -12,7 +12,9 @@ namespace Yaeger.Systems;
 /// Wire this to <see cref="Window.OnRender"/>, not <see cref="Window.OnUpdate"/>.
 /// Pass a <see cref="SkyboxRenderer"/> and <see cref="CubemapRegistry"/> to render any
 /// <see cref="Skybox"/> entity automatically. Pass a <see cref="ShadowMapRenderer"/> to render
-/// directional-light shadows via an extra depth pre-pass.
+/// directional-light shadows via an extra depth pre-pass. Pass an <see cref="EnvironmentMapRegistry"/>
+/// to light PBR materials from that same skybox (image-based lighting); scenes without a skybox,
+/// or without a registered <see cref="EnvironmentMap"/> for it, keep the flat ambient term.
 /// </summary>
 public class MeshRenderSystem(
     Renderer3D renderer,
@@ -22,7 +24,8 @@ public class MeshRenderSystem(
     Window window,
     SkyboxRenderer? skyboxRenderer = null,
     CubemapRegistry? cubemapRegistry = null,
-    ShadowMapRenderer? shadowMapRenderer = null
+    ShadowMapRenderer? shadowMapRenderer = null,
+    EnvironmentMapRegistry? environmentMaps = null
 )
 {
     // Reused across frames so collecting lights doesn't allocate per render call. Sized to the
@@ -36,6 +39,7 @@ public class MeshRenderSystem(
         var (view, projection, cameraPos, sceneCenter, hasCamera) = GetCameraMatrices();
         var viewProj = view * projection;
         var light = GetDirectionalLight();
+        var hasSkybox = TryGetFirstSkybox(out var skybox);
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
         var paletteStore = world.GetStore<BonePalette>();
@@ -69,6 +73,21 @@ public class MeshRenderSystem(
             // Keep the opt-in robust when a Renderer3D is shared with a shadow-casting system: clear
             // any stale shadow state so this scene doesn't sample a leftover/deleted depth texture.
             renderer.DisableShadows();
+        }
+
+        if (
+            environmentMaps != null
+            && hasSkybox
+            && environmentMaps.TryGet(skybox, out var environmentMap)
+        )
+        {
+            renderer.SetEnvironmentMap(environmentMap!);
+        }
+        else
+        {
+            // Keep the opt-in robust the same way the shadow branch above does: clear any stale
+            // environment-map state so this scene doesn't sample a leftover/deleted texture.
+            renderer.DisableIBL();
         }
 
         foreach (
@@ -110,19 +129,27 @@ public class MeshRenderSystem(
             }
         }
 
-        if (skyboxRenderer != null && cubemapRegistry != null && hasCamera)
+        if (skyboxRenderer != null && cubemapRegistry != null && hasCamera && hasSkybox)
         {
-            foreach (var (_, skybox) in world.GetStore<Skybox>().All())
-            {
-                if (cubemapRegistry.TryGet(skybox, out var cubemap))
-                {
-                    skyboxRenderer.Draw(cubemap, view, projection);
-                    break;
-                }
-            }
+            if (cubemapRegistry.TryGet(skybox, out var cubemap))
+                skyboxRenderer.Draw(cubemap, view, projection);
         }
 
         renderer.EndFrame3D();
+    }
+
+    // Returns the first Skybox entity found (enumeration order is the store's, same as every
+    // other "first X in the world" lookup here — see GetDirectionalLight/GetCameraMatrices).
+    private bool TryGetFirstSkybox(out Skybox skybox)
+    {
+        foreach (var (_, sky) in world.GetStore<Skybox>().All())
+        {
+            skybox = sky;
+            return true;
+        }
+
+        skybox = default;
+        return false;
     }
 
     // Renders every shadow caster into the shadow map from the light's perspective. Casters are not

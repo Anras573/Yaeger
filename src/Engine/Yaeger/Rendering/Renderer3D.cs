@@ -10,386 +10,12 @@ namespace Yaeger.Rendering;
 /// </summary>
 public sealed class Renderer3D : IDisposable
 {
-    private const string VertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec3 aPosition;
-        layout(location = 1) in vec3 aNormal;
-        layout(location = 2) in vec2 aTexCoord;
-        layout(location = 3) in vec3 aTangent;
-        layout(location = 4) in vec4 aBoneIndices;
-        layout(location = 5) in vec4 aBoneWeights;
-
-        uniform mat4 uModel;
-        uniform mat4 uViewProj;
-        uniform mat3 uNormalMatrix;
-        uniform mat4 uLightSpaceMatrix;
-
-        // GPU skinning: a palette of bone matrices supplied via a uniform buffer. uSkinned gates the
-        // whole path so static meshes (all weights zero) are unaffected.
-        const int MAX_BONES = 128;
-        layout(std140) uniform Bones {
-            mat4 uBones[MAX_BONES];
-        };
-        uniform int uSkinned;
-
-        out vec3 vNormal;
-        out vec2 vTexCoord;
-        out vec3 vFragPos;
-        out vec3 vTangent;
-        out vec4 vLightSpacePos;
-
-        void main() {
-            mat4 skin = mat4(1.0);
-            if (uSkinned != 0) {
-                float wSum = dot(aBoneWeights, vec4(1.0));
-                // Guard against out-of-range indices (e.g. a model with more bones than the palette
-                // holds): an OOB uBones[] read is undefined behaviour. Fall back to identity skin
-                // (bind pose) when any of the four indices is outside [0, MAX_BONES).
-                bool inRange =
-                    all(greaterThanEqual(aBoneIndices, vec4(0.0))) &&
-                    all(lessThan(aBoneIndices, vec4(float(MAX_BONES))));
-                if (wSum > 1e-4 && inRange) {
-                    skin =
-                        uBones[int(aBoneIndices.x)] * aBoneWeights.x +
-                        uBones[int(aBoneIndices.y)] * aBoneWeights.y +
-                        uBones[int(aBoneIndices.z)] * aBoneWeights.z +
-                        uBones[int(aBoneIndices.w)] * aBoneWeights.w;
-                }
-            }
-
-            vec4 skinnedPos = skin * vec4(aPosition, 1.0);
-            mat3 skin3 = mat3(skin);
-            // Normals need the inverse-transpose of the skin matrix so non-uniform bone scale doesn't
-            // skew them; tangents are surface directions and use the skin matrix directly. Both are
-            // identity for static meshes (skin == identity).
-            mat3 skinNormal = transpose(inverse(skin3));
-
-            vec4 worldPos = uModel * skinnedPos;
-            vFragPos  = worldPos.xyz;
-            vNormal   = uNormalMatrix * (skinNormal * aNormal);
-            vTangent  = mat3(uModel) * (skin3 * aTangent);
-            vTexCoord = aTexCoord;
-            vLightSpacePos = uLightSpaceMatrix * worldPos;
-            gl_Position = uViewProj * worldPos;
-        }
-        """;
-
-    private const string FragmentShaderSource = """
-        #version 330 core
-        in  vec3 vNormal;
-        in  vec2 vTexCoord;
-        in  vec3 vFragPos;
-        in  vec3 vTangent;
-        in  vec4 vLightSpacePos;
-        out vec4 FragColor;
-
-        uniform sampler2D uDiffuse;
-        uniform sampler2D uNormalMap;
-        uniform sampler2D uMetallicRoughnessMap;
-        uniform sampler2D uAoMap;
-        uniform sampler2D uEmissiveMap;
-        uniform sampler2D uShadowMap;
-        uniform int       uHasNormalMap;
-        uniform int       uHasMetallicRoughnessMap;
-        uniform int       uHasAoMap;
-        uniform int       uHasEmissiveMap;
-
-        uniform int   uShadowsEnabled;
-        uniform float uShadowBias;
-        uniform int   uUsePcf;
-
-        uniform vec4  uDiffuseColor;
-        uniform vec4  uAmbientColor;
-        uniform vec4  uSpecularColor;
-        uniform float uShininess;
-
-        uniform int   uUsePbr;
-        uniform float uMetallicFactor;
-        uniform float uRoughnessFactor;
-        uniform vec4  uEmissiveColor;
-
-        uniform vec3  uLightDir;
-        uniform vec4  uLightColor;
-        uniform float uLightIntensity;
-        uniform vec3  uCameraPos;
-
-        #define MAX_POINT_LIGHTS 16
-        #define MAX_SPOT_LIGHTS 8
-
-        struct PointLight {
-            vec3  position;
-            vec4  color;
-            float intensity;
-            float range;
-        };
-
-        struct SpotLight {
-            vec3  position;
-            vec3  direction;  // beam axis, from the light outward (normalised)
-            vec4  color;
-            float intensity;
-            float innerCos;   // cos(innerConeAngle); fully lit at or below this angle
-            float outerCos;   // cos(outerConeAngle); fully dark beyond this angle
-            float range;
-        };
-
-        uniform int        uPointLightCount;
-        uniform PointLight uPointLights[MAX_POINT_LIGHTS];
-        uniform int        uSpotLightCount;
-        uniform SpotLight  uSpotLights[MAX_SPOT_LIGHTS];
-
-        const float PI = 3.14159265359;
-
-        // Smooth, range-based distance attenuation (UE4-style): an inverse-square falloff windowed
-        // so the contribution reaches exactly zero at `range`, avoiding a hard cutoff edge.
-        float attenuate(float dist, float range) {
-            if (range <= 0.0) return 0.0;
-            float ratio = dist / range;
-            float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
-            return (window * window) / (dist * dist + 1.0);
-        }
-
-        // Cone falloff for a spot light. `L` points from the fragment toward the light. Equivalent
-        // to smoothstep(outerCos, innerCos, cosAngle) but guards the edge0==edge1 case (a zero-width
-        // cone edge) that would otherwise divide by zero.
-        float spotFactor(vec3 L, vec3 spotDir, float innerCos, float outerCos) {
-            float cosAngle = dot(-L, spotDir);
-            float t = clamp((cosAngle - outerCos) / max(innerCos - outerCos, 1e-4), 0.0, 1.0);
-            return t * t * (3.0 - 2.0 * t);
-        }
-
-        float distributionGGX(vec3 N, vec3 H, float roughness) {
-            float a = roughness * roughness;
-            float a2 = a * a;
-            float NdotH = max(dot(N, H), 0.0);
-            float denom = NdotH * NdotH * (a2 - 1.0) + 1.0;
-            denom = PI * denom * denom;
-            return a2 / max(denom, 1e-7);
-        }
-
-        float geometrySchlickGGX(float NdotX, float roughness) {
-            float r = roughness + 1.0;
-            float k = (r * r) / 8.0;
-            return NdotX / (NdotX * (1.0 - k) + k);
-        }
-
-        float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
-            float NdotV = max(dot(N, V), 0.0);
-            float NdotL = max(dot(N, L), 0.0);
-            return geometrySchlickGGX(NdotV, roughness) * geometrySchlickGGX(NdotL, roughness);
-        }
-
-        vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-            return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
-        }
-
-        // Cook-Torrance contribution of a single light. `L` points from the fragment toward the
-        // light; `radiance` already folds in the light's colour, intensity and any attenuation.
-        vec3 pbrContribution(
-            vec3 N, vec3 V, vec3 L, vec3 radiance,
-            vec3 albedo, float metallic, float roughness, vec3 F0
-        ) {
-            vec3 halfDir = L + V;
-            vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
-
-            float NDF = distributionGGX(N, H, roughness);
-            float G   = geometrySmith(N, V, L, roughness);
-            vec3  F   = fresnelSchlick(max(dot(H, V), 0.0), F0);
-
-            float NdotL = max(dot(N, L), 0.0);
-            vec3  numerator = NDF * G * F;
-            float denom = 4.0 * max(dot(N, V), 0.0) * NdotL + 1e-4;
-            vec3  specular = numerator / denom;
-
-            vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
-            return (kD * albedo / PI + specular) * radiance * NdotL;
-        }
-
-        // Blinn-Phong contribution of a single light. `radiance` already folds in the light's
-        // colour, intensity and any attenuation.
-        vec3 phongContribution(
-            vec3 N, vec3 V, vec3 L, vec3 radiance,
-            vec3 texColor, vec3 specColor, float shininess
-        ) {
-            vec3 halfDir = L + V;
-            vec3 H = halfDir * inversesqrt(max(dot(halfDir, halfDir), 1e-10));
-            float diff = max(dot(N, L), 0.0);
-            float spec = diff > 0.0 ? pow(max(dot(N, H), 0.0), shininess) : 0.0;
-            return (texColor * diff + specColor * spec) * radiance;
-        }
-
-        // Directional-light visibility in [0, 1]: 1 = fully lit, 0 = fully shadowed. Projects the
-        // fragment into light space, compares its depth against the shadow map, and (optionally)
-        // averages a 3x3 PCF kernel for soft edges. Only the directional light casts shadows in v1.
-        float directionalShadow(vec3 N, vec3 L) {
-            if (uShadowsEnabled == 0) return 1.0;
-
-            // Back-facing to the light: both shading paths clamp the directional term to zero, so
-            // the shadow factor is irrelevant (shadow * 0 == 0). Skip the (PCF) texture reads.
-            if (dot(N, L) <= 0.0) return 1.0;
-
-            // Perspective divide, then map NDC -> [0, 1] texture/depth space.
-            vec3 proj = vLightSpacePos.xyz / vLightSpacePos.w;
-            proj = proj * 0.5 + 0.5;
-
-            // Outside the light's depth range (in front of its near plane or beyond the far
-            // plane) or outside the map footprint: treat as lit.
-            if (proj.z < 0.0 || proj.z > 1.0) return 1.0;
-            if (proj.x < 0.0 || proj.x > 1.0 || proj.y < 0.0 || proj.y > 1.0) return 1.0;
-
-            // Slope-scaled bias: grazing angles need more offset to avoid shadow acne.
-            float bias = max(uShadowBias * (1.0 - dot(N, L)), uShadowBias * 0.1);
-            float current = proj.z;
-
-            if (uUsePcf != 0) {
-                float sum = 0.0;
-                vec2 texel = 1.0 / vec2(textureSize(uShadowMap, 0));
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        float closest = texture(uShadowMap, proj.xy + vec2(x, y) * texel).r;
-                        sum += current - bias > closest ? 1.0 : 0.0;
-                    }
-                }
-                return 1.0 - sum / 9.0;
-            }
-
-            float closest = texture(uShadowMap, proj.xy).r;
-            return current - bias > closest ? 0.0 : 1.0;
-        }
-
-        void main() {
-            vec3 N = normalize(vNormal);
-
-            if (uHasNormalMap != 0) {
-                float tLenSq = dot(vTangent, vTangent);
-                if (tLenSq > 1e-10) {
-                    vec3 T = vTangent * inversesqrt(tLenSq);
-                    vec3 Tproj = T - dot(T, N) * N;
-                    float projLenSq = dot(Tproj, Tproj);
-                    if (projLenSq > 1e-10) {
-                        vec3 Tn = Tproj * inversesqrt(projLenSq);
-                        vec3 B = cross(N, Tn);
-                        mat3 TBN = mat3(Tn, B, N);
-                        vec3 sampledN = texture(uNormalMap, vTexCoord).rgb * 2.0 - 1.0;
-                        N = normalize(TBN * sampledN);
-                    }
-                }
-            }
-
-            vec3 L = normalize(uLightDir);
-            vec3 viewDir = uCameraPos - vFragPos;
-            vec3 V = viewDir * inversesqrt(max(dot(viewDir, viewDir), 1e-10));
-
-            // Directional shadowing (1 = lit, 0 = shadowed); only the directional light casts.
-            float shadow = directionalShadow(N, L);
-
-            vec4 rawTex = texture(uDiffuse, vTexCoord);
-
-            if (uUsePbr != 0) {
-                // glTF base colour texture is sRGB-encoded; linearise it before applying the
-                // base-colour factor, which glTF defines in linear space.
-                vec3 albedo = pow(rawTex.rgb, vec3(2.2)) * uDiffuseColor.rgb;
-
-                float metallic  = uMetallicFactor;
-                float roughness = uRoughnessFactor;
-                if (uHasMetallicRoughnessMap != 0) {
-                    // glTF packs roughness in G and metallic in B.
-                    vec3 mr = texture(uMetallicRoughnessMap, vTexCoord).rgb;
-                    roughness *= mr.g;
-                    metallic  *= mr.b;
-                }
-                roughness = clamp(roughness, 0.04, 1.0);
-                metallic  = clamp(metallic, 0.0, 1.0);
-
-                float ao = uHasAoMap != 0 ? texture(uAoMap, vTexCoord).r : 1.0;
-
-                vec3 emissive = uEmissiveColor.rgb;
-                if (uHasEmissiveMap != 0)
-                    emissive *= pow(texture(uEmissiveMap, vTexCoord).rgb, vec3(2.2));
-
-                vec3 F0 = mix(vec3(0.04), albedo, metallic);
-
-                // Directional light (shadowed).
-                vec3 Lo = pbrContribution(
-                    N, V, L, uLightColor.rgb * uLightIntensity,
-                    albedo, metallic, roughness, F0
-                ) * shadow;
-
-                // Point lights.
-                for (int i = 0; i < uPointLightCount; i++) {
-                    vec3 toLight = uPointLights[i].position - vFragPos;
-                    float dist = length(toLight);
-                    vec3 Lp = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
-                    float att = attenuate(dist, uPointLights[i].range);
-                    vec3 radiance = uPointLights[i].color.rgb * uPointLights[i].intensity * att;
-                    Lo += pbrContribution(N, V, Lp, radiance, albedo, metallic, roughness, F0);
-                }
-
-                // Spot lights.
-                for (int i = 0; i < uSpotLightCount; i++) {
-                    vec3 toLight = uSpotLights[i].position - vFragPos;
-                    float dist = length(toLight);
-                    vec3 Ls = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
-                    float att = attenuate(dist, uSpotLights[i].range);
-                    float spot = spotFactor(
-                        Ls, uSpotLights[i].direction,
-                        uSpotLights[i].innerCos, uSpotLights[i].outerCos
-                    );
-                    vec3 radiance = uSpotLights[i].color.rgb * uSpotLights[i].intensity * att * spot;
-                    Lo += pbrContribution(N, V, Ls, radiance, albedo, metallic, roughness, F0);
-                }
-
-                vec3 ambient = vec3(0.03) * albedo * ao;
-                vec3 color = ambient + Lo + emissive;
-
-                // Reinhard tone-map, then gamma encode back to sRGB.
-                color = color / (color + vec3(1.0));
-                color = pow(color, vec3(1.0 / 2.2));
-
-                FragColor = vec4(color, rawTex.a * uDiffuseColor.a);
-            } else {
-                vec4 texColor = rawTex * uDiffuseColor;
-
-                // Directional light (shadowed).
-                vec3 lit = phongContribution(
-                    N, V, L, uLightColor.rgb * uLightIntensity,
-                    texColor.rgb, uSpecularColor.rgb, uShininess
-                ) * shadow;
-
-                // Point lights.
-                for (int i = 0; i < uPointLightCount; i++) {
-                    vec3 toLight = uPointLights[i].position - vFragPos;
-                    float dist = length(toLight);
-                    vec3 Lp = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
-                    float att = attenuate(dist, uPointLights[i].range);
-                    vec3 radiance = uPointLights[i].color.rgb * uPointLights[i].intensity * att;
-                    lit += phongContribution(
-                        N, V, Lp, radiance, texColor.rgb, uSpecularColor.rgb, uShininess
-                    );
-                }
-
-                // Spot lights.
-                for (int i = 0; i < uSpotLightCount; i++) {
-                    vec3 toLight = uSpotLights[i].position - vFragPos;
-                    float dist = length(toLight);
-                    vec3 Ls = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
-                    float att = attenuate(dist, uSpotLights[i].range);
-                    float spot = spotFactor(
-                        Ls, uSpotLights[i].direction,
-                        uSpotLights[i].innerCos, uSpotLights[i].outerCos
-                    );
-                    vec3 radiance = uSpotLights[i].color.rgb * uSpotLights[i].intensity * att * spot;
-                    lit += phongContribution(
-                        N, V, Ls, radiance, texColor.rgb, uSpecularColor.rgb, uShininess
-                    );
-                }
-
-                vec3 ambient = (uAmbientColor * rawTex).rgb;
-
-                FragColor = vec4(ambient + lit, texColor.a);
-            }
-        }
-        """;
+    private static readonly string VertexShaderSource = EmbeddedShaderSource.Load(
+        "Renderer3D.vert"
+    );
+    private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load(
+        "Renderer3D.frag"
+    );
 
     /// <summary>Maximum number of bones the vertex shader's skinning palette can hold (matches MAX_BONES in GLSL).</summary>
     public const int MaxBones = 128;
@@ -446,6 +72,7 @@ public sealed class Renderer3D : IDisposable
     private readonly Shader _shader;
     private readonly uint _defaultTexture;
     private readonly uint _defaultNormalTexture;
+    private readonly uint _defaultCubemap;
     private readonly uint _boneUbo;
 
     public Renderer3D(GL gl)
@@ -454,11 +81,14 @@ public sealed class Renderer3D : IDisposable
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _defaultTexture = CreateWhiteTexture();
         _defaultNormalTexture = CreateFlatNormalTexture();
+        _defaultCubemap = CreateWhiteCubemap();
         _boneUbo = CreateBoneUbo();
         BindSamplerUnits();
         BindDefaultPbrTextures();
         // DisableShadows also binds the default texture on unit 5, so no separate setup is needed.
         DisableShadows();
+        // DisableIBL also binds the default cubemap/texture on units 6-8.
+        DisableIBL();
         // Skinning is opt-in per draw; default to the static-mesh path.
         _shader.Bind();
         _shader.SetUniformInt("uSkinned", 0);
@@ -481,6 +111,9 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformInt("uAoMap", 3);
         _shader.SetUniformInt("uEmissiveMap", 4);
         _shader.SetUniformInt("uShadowMap", 5);
+        _shader.SetUniformInt("uIrradianceMap", 6);
+        _shader.SetUniformInt("uPrefilteredMap", 7);
+        _shader.SetUniformInt("uBrdfLut", 8);
         _shader.Unbind();
     }
 
@@ -556,6 +189,73 @@ public sealed class Renderer3D : IDisposable
         // unit may still point at a depth texture that gets deleted when its ShadowMapRenderer is
         // disposed, leaving the statically-used sampler incomplete even though sampling is gated off.
         BindDefaultShadowTexture();
+    }
+
+    // The IBL samplers (irradiance/prefiltered cubemaps, BRDF LUT) are statically used by the
+    // fragment shader, so — like the PBR and shadow fallbacks above — they must point at complete
+    // textures even when uUseIBL is 0. Bind the 1x1 white cubemap to units 6/7 and reuse the
+    // existing 1x1 white 2D texture for unit 8 until SetEnvironmentMap swaps in real resources.
+    private void BindDefaultIblTextures()
+    {
+        foreach (
+            var unit in (ReadOnlySpan<TextureUnit>)[TextureUnit.Texture6, TextureUnit.Texture7]
+        )
+        {
+            _gl.ActiveTexture(unit);
+            _gl.BindTexture(TextureTarget.TextureCubeMap, _defaultCubemap);
+        }
+
+        _gl.ActiveTexture(TextureUnit.Texture8);
+        _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
+
+        _gl.ActiveTexture(TextureUnit.Texture0);
+    }
+
+    /// <summary>
+    /// Binds a prefiltered <see cref="EnvironmentMap"/> (irradiance + prefiltered specular + BRDF
+    /// LUT) and enables image-based lighting for the PBR path. Call once per frame, before the
+    /// draw loop, whenever the scene has a skybox with a registered <see cref="EnvironmentMap"/>.
+    /// Has no effect on the Blinn-Phong path.
+    /// </summary>
+    public void SetEnvironmentMap(EnvironmentMap environmentMap)
+    {
+        ArgumentNullException.ThrowIfNull(environmentMap);
+
+        _shader.Bind();
+        _shader.SetUniformInt("uUseIBL", 1);
+        _shader.SetUniformFloat(
+            "uMaxReflectionLod",
+            Math.Max(environmentMap.PrefilteredMipCount - 1, 0)
+        );
+
+        _gl.ActiveTexture(TextureUnit.Texture6);
+        _gl.BindTexture(TextureTarget.TextureCubeMap, environmentMap.IrradianceMap);
+        _gl.ActiveTexture(TextureUnit.Texture7);
+        _gl.BindTexture(TextureTarget.TextureCubeMap, environmentMap.PrefilteredMap);
+        _gl.ActiveTexture(TextureUnit.Texture8);
+        _gl.BindTexture(TextureTarget.Texture2D, environmentMap.BrdfLut);
+        _gl.ActiveTexture(TextureUnit.Texture0);
+
+        _shader.Unbind();
+    }
+
+    /// <summary>
+    /// Disables image-based lighting: the PBR path falls back to the flat constant ambient term
+    /// used before this feature existed. This is the default state until
+    /// <see cref="SetEnvironmentMap"/> is called; scenes without a skybox never need to call this
+    /// explicitly.
+    /// </summary>
+    public void DisableIBL()
+    {
+        _shader.Bind();
+        _shader.SetUniformInt("uUseIBL", 0);
+        _shader.Unbind();
+
+        // Restore the default (complete) IBL textures. After a prior SetEnvironmentMap the units
+        // may still point at textures owned by an EnvironmentMap that has since been disposed,
+        // leaving the statically-used samplers incomplete even though sampling is gated off
+        // (mirrors BindDefaultShadowTexture's reasoning in DisableShadows).
+        BindDefaultIblTextures();
     }
 
     /// <summary>
@@ -877,6 +577,68 @@ public sealed class Renderer3D : IDisposable
         return handle;
     }
 
+    // 1x1 white cubemap: a complete fallback for the IBL cubemap samplers when no EnvironmentMap
+    // is bound (mirrors CreateWhiteTexture's role for the 2D PBR/shadow fallbacks).
+    private unsafe uint CreateWhiteCubemap()
+    {
+        var handle = _gl.GenTexture();
+        _gl.BindTexture(TextureTarget.TextureCubeMap, handle);
+        byte[] white = [255, 255, 255, 255];
+        TextureTarget[] faces =
+        [
+            TextureTarget.TextureCubeMapPositiveX,
+            TextureTarget.TextureCubeMapNegativeX,
+            TextureTarget.TextureCubeMapPositiveY,
+            TextureTarget.TextureCubeMapNegativeY,
+            TextureTarget.TextureCubeMapPositiveZ,
+            TextureTarget.TextureCubeMapNegativeZ,
+        ];
+        fixed (byte* ptr = white)
+        {
+            foreach (var face in faces)
+            {
+                _gl.TexImage2D(
+                    face,
+                    0,
+                    (int)InternalFormat.Rgba,
+                    1,
+                    1,
+                    0,
+                    PixelFormat.Rgba,
+                    PixelType.UnsignedByte,
+                    ptr
+                );
+            }
+        }
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.Nearest
+        );
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Nearest
+        );
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureWrapS,
+            (int)GLEnum.ClampToEdge
+        );
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureWrapT,
+            (int)GLEnum.ClampToEdge
+        );
+        _gl.TexParameter(
+            TextureTarget.TextureCubeMap,
+            TextureParameterName.TextureWrapR,
+            (int)GLEnum.ClampToEdge
+        );
+        _gl.BindTexture(TextureTarget.TextureCubeMap, 0);
+        return handle;
+    }
+
     // Allocates the bone-matrix uniform buffer (MaxBones mat4s) and links it to the shader's "Bones"
     // block via a shared binding point. Filled per skinned draw by SetBoneMatrices.
     private unsafe uint CreateBoneUbo()
@@ -924,6 +686,7 @@ public sealed class Renderer3D : IDisposable
         _shader.Dispose();
         _gl.DeleteTexture(_defaultTexture);
         _gl.DeleteTexture(_defaultNormalTexture);
+        _gl.DeleteTexture(_defaultCubemap);
         _gl.DeleteBuffer(_boneUbo);
     }
 }

@@ -11,153 +11,8 @@ namespace Yaeger.Rendering;
 /// </summary>
 public sealed class SkyboxRenderer : IDisposable
 {
-    private const string VertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec3 aPosition;
-
-        uniform mat4 uView;
-        uniform mat4 uProjection;
-
-        out vec3 vTexCoords;
-
-        void main() {
-            vTexCoords  = aPosition;
-            vec4 pos    = uProjection * uView * vec4(aPosition, 1.0);
-            gl_Position = pos.xyww;
-        }
-        """;
-
-    private const string FragmentShaderSource = """
-        #version 330 core
-        in  vec3 vTexCoords;
-        out vec4 FragColor;
-
-        uniform samplerCube uSkybox;
-
-        void main() {
-            FragColor = texture(uSkybox, vTexCoords);
-        }
-        """;
-
-    // Unit cube — vertex positions are also the cubemap sample directions.
-    // 36 vertices (12 triangles, 2 per face, CCW winding viewed from outside the cube).
-    private static readonly float[] Vertices =
-    [
-        // back (-Z)
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        1f,
-        1f,
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        // left (-X)
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        1f,
-        1f,
-        -1f,
-        -1f,
-        1f,
-        // right (+X)
-        1f,
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        // front (+Z)
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        1f,
-        // top (+Y)
-        -1f,
-        1f,
-        -1f,
-        1f,
-        1f,
-        -1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        1f,
-        -1f,
-        1f,
-        1f,
-        -1f,
-        1f,
-        -1f,
-        // bottom (-Y)
-        -1f,
-        -1f,
-        -1f,
-        -1f,
-        -1f,
-        1f,
-        1f,
-        -1f,
-        -1f,
-        1f,
-        -1f,
-        -1f,
-        -1f,
-        -1f,
-        1f,
-        1f,
-        -1f,
-        1f,
-    ];
+    private static readonly string VertexShaderSource = EmbeddedShaderSource.Load("Skybox.vert");
+    private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load("Skybox.frag");
 
     private readonly GL _gl;
     private readonly Shader _shader;
@@ -174,11 +29,11 @@ public sealed class SkyboxRenderer : IDisposable
 
         _vbo = _gl.GenBuffer();
         _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-        fixed (float* ptr = Vertices)
+        fixed (float* ptr = UnitCubeGeometry.Vertices)
         {
             _gl.BufferData(
                 BufferTargetARB.ArrayBuffer,
-                (nuint)(Vertices.Length * sizeof(float)),
+                (nuint)(UnitCubeGeometry.Vertices.Length * sizeof(float)),
                 ptr,
                 BufferUsageARB.StaticDraw
             );

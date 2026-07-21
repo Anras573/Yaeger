@@ -12,7 +12,8 @@ using Yaeger.Windowing;
 
 // DamagedHelmet demo — loads the KhronosGroup DamagedHelmet glTF via AssimpLoader and renders it
 // through Renderer3D's PBR metallic/roughness path, lit by a directional sun plus two point
-// lights, inside a procedurally generated sky cubemap (see ProceduralSkybox).
+// lights, inside a procedurally generated sky cubemap (see ProceduralSkybox). The metallic parts
+// of the helmet also reflect that sky via image-based lighting (IblPrefilter/EnvironmentMapRegistry).
 // Assets are fetched automatically on first build via the FetchDamagedHelmetAssets MSBuild target.
 // Requires native libassimp at runtime (e.g. apt install libassimp-dev on Linux).
 // Controls: camera orbits the helmet on its own — left-mouse-drag to orbit manually,
@@ -157,6 +158,12 @@ var skyboxHandle = cubemaps.Register(
 );
 world.AddComponent(world.CreateEntity("skybox"), skyboxHandle);
 
+// Prefilter the skybox once so the PBR helmet is lit and reflected by the sky instead of a flat
+// ambient term — see docs/pbr.md#image-based-lighting.
+using var iblPrefilter = new IblPrefilter(window.Gl);
+using var environmentMaps = new EnvironmentMapRegistry(cubemaps, iblPrefilter);
+environmentMaps.Register(skyboxHandle, (int)window.Size.X, (int)window.Size.Y);
+
 using var renderer3D = new Renderer3D(window.Gl);
 var meshRenderSystem = new MeshRenderSystem(
     renderer3D,
@@ -165,7 +172,8 @@ var meshRenderSystem = new MeshRenderSystem(
     world,
     window,
     skyboxRenderer: skyboxRenderer,
-    cubemapRegistry: cubemaps
+    cubemapRegistry: cubemaps,
+    environmentMaps: environmentMaps
 );
 var orbitCameraSystem = new OrbitCameraSystem(world, cameraEntity, sceneCenter, orbitRadius);
 

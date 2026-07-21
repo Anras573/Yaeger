@@ -20,38 +20,10 @@ public class Renderer : IRenderSurface, IDisposable
     private const int IndicesPerQuad = QuadIndexing.IndicesPerQuad;
     private const int FloatsPerVertex = 9; // 3 position + 2 texcoord + 4 color
 
-    private const string VertexShaderSource = """
-        #version 330 core
-        layout(location = 0) in vec3 aPosition;
-        layout(location = 1) in vec2 aTexCoord;
-        layout(location = 2) in vec4 aColor;
-
-        uniform mat4 uViewProj;
-
-        out vec2 vTexCoord;
-        out vec4 vColor;
-
-        void main()
-        {
-            gl_Position = uViewProj * vec4(aPosition, 1.0);
-            vTexCoord = aTexCoord;
-            vColor = aColor;
-        }
-        """;
-
-    private const string FragmentShaderSource = """
-        #version 330 core
-        in vec2 vTexCoord;
-        in vec4 vColor;
-        out vec4 FragColor;
-
-        uniform sampler2D uTexture;
-
-        void main()
-        {
-            FragColor = texture(uTexture, vTexCoord) * vColor;
-        }
-        """;
+    private static readonly string VertexShaderSource = EmbeddedShaderSource.Load("Renderer.vert");
+    private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load(
+        "Renderer.frag"
+    );
 
     private readonly GL _gl;
     private readonly TextureManager _textureManager;
