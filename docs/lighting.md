@@ -14,6 +14,9 @@ default when none exists). Point and spot lights are optional and additive — a
 renders exactly as it did before this feature existed.
 
 The directional light can also cast shadows via shadow mapping — see [shadows.md](shadows.md).
+Both point/spot lights and shadows light a `Transparent`-blend-mode material the same as an
+opaque one; the one difference is that a `Transparent` material does not itself cast a shadow
+(see [pbr.md#transparency](pbr.md#transparency)).
 
 ## Components
 

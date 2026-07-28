@@ -137,6 +137,37 @@ public class Serializer3DTests
         Assert.Equal(defaults.DiffuseTexturePath, component.DiffuseTexturePath);
         Assert.Equal(defaults.MetallicFactor, component.MetallicFactor, precision: 5);
         Assert.Equal(defaults.RoughnessFactor, component.RoughnessFactor, precision: 5);
+        Assert.Equal(defaults.Opacity, component.Opacity, precision: 5);
+        Assert.Equal(defaults.BlendMode, component.BlendMode);
+        Assert.Equal(defaults.AlphaCutoff, component.AlphaCutoff, precision: 5);
+    }
+
+    [Theory]
+    [InlineData(MaterialBlendMode.Opaque)]
+    [InlineData(MaterialBlendMode.Cutout)]
+    [InlineData(MaterialBlendMode.Transparent)]
+    public void Material3D_BlendMode_ShouldRoundTrip(MaterialBlendMode blendMode)
+    {
+        var original = new Material3D
+        {
+            BlendMode = blendMode,
+            Opacity = 0.6f,
+            AlphaCutoff = 0.35f,
+        };
+
+        var reloaded = RoundTrip(original, $"mat-{blendMode}");
+
+        Assert.Equal(blendMode, reloaded.BlendMode);
+        Assert.Equal(0.6f, reloaded.Opacity, precision: 5);
+        Assert.Equal(0.35f, reloaded.AlphaCutoff, precision: 5);
+    }
+
+    [Fact]
+    public void Material3D_InvalidBlendMode_ThrowsPrefabLoadException()
+    {
+        Assert.Throws<PrefabLoadException>(() =>
+            Deserialize<Material3D>("""{ "type": "Material3D", "blendMode": "NotARealMode" }""")
+        );
     }
 
     [Fact]

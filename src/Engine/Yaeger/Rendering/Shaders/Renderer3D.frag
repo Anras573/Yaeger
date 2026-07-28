@@ -26,6 +26,13 @@ uniform vec4  uAmbientColor;
 uniform vec4  uSpecularColor;
 uniform float uShininess;
 
+// Blend mode: 0 = Opaque, 1 = Cutout (alpha test via discard), 2 = Transparent (blended,
+// depth-write-off pass on the CPU side). uOpacity is an extra alpha factor independent of any
+// texture's own alpha channel; uAlphaCutoff only matters for Cutout.
+uniform float uOpacity;
+uniform int   uBlendMode;
+uniform float uAlphaCutoff;
+
 uniform int   uUsePbr;
 uniform float uMetallicFactor;
 uniform float uRoughnessFactor;
@@ -305,7 +312,7 @@ void main() {
         color = color / (color + vec3(1.0));
         color = pow(color, vec3(1.0 / 2.2));
 
-        FragColor = vec4(color, rawTex.a * uDiffuseColor.a);
+        FragColor = vec4(color, rawTex.a * uDiffuseColor.a * uOpacity);
     } else {
         vec4 texColor = rawTex * uDiffuseColor;
 
@@ -345,6 +352,13 @@ void main() {
 
         vec3 ambient = (uAmbientColor * rawTex).rgb;
 
-        FragColor = vec4(ambient + lit, texColor.a);
+        FragColor = vec4(ambient + lit, texColor.a * uOpacity);
+    }
+
+    // Cutout alpha test: discard fully-transparent-enough fragments instead of blending them, so
+    // the main (depth-write-on) pass can render foliage/fences with no sorting required. Opaque
+    // and Transparent materials never discard here.
+    if (uBlendMode == 1 && FragColor.a < uAlphaCutoff) {
+        discard;
     }
 }

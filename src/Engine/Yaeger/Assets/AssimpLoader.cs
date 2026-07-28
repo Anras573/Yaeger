@@ -471,6 +471,13 @@ public static class AssimpLoader
         if (emissiveResult == Return.Success)
             emissiveColor = Color.FromVector4(emissive with { W = 1f });
 
+        // Opacity (e.g. glTF's baseColorFactor alpha, or an OBJ/FBX "d"/transparency factor).
+        // Missing entirely means the source format doesn't carry transparency info, so default
+        // to fully opaque rather than 0.
+        var opacity = TryGetMaterialFloat(api, mat, Assimp.MatkeyOpacity, out var opacityFactor)
+            ? opacityFactor
+            : 1f;
+
         // Treat the material as PBR when the importer surfaced metallic/roughness data — glTF
         // always provides these (the factor keys, and a metalness texture slot), whereas OBJ/MTL
         // (Blinn-Phong) never does. Emissive/AO are deliberately excluded: OBJ can carry an
@@ -489,7 +496,8 @@ public static class AssimpLoader
             hasMetallic ? metallicFactor : 1f,
             hasRoughness ? roughnessFactor : 1f,
             emissiveColor,
-            usePbr
+            usePbr,
+            opacity
         );
     }
 

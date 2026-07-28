@@ -292,6 +292,31 @@ public sealed class Renderer3D : IDisposable
     }
 
     /// <summary>
+    /// Enters the transparent draw pass: depth testing stays on (so transparent fragments are
+    /// still occluded by opaque geometry already in the depth buffer) but depth <em>writes</em>
+    /// are disabled (so transparent fragments don't occlude each other or later opaque draws) and
+    /// standard alpha blending (<c>SrcAlpha</c>, <c>OneMinusSrcAlpha</c>) is enabled. Call after
+    /// every opaque/cutout <see cref="Draw(GpuMesh,Matrix4x4,Matrix4x4,Material3D,TextureManager)"/>/
+    /// <see cref="DrawInstanced"/> call for the frame, with entries sorted back-to-front (see
+    /// <see cref="TransparencySorter"/>), and pair with <see cref="EndTransparentPass"/> once done.
+    /// A scene that never calls this (no transparent materials) renders exactly as before this
+    /// pass existed.
+    /// </summary>
+    public void BeginTransparentPass()
+    {
+        _gl.DepthMask(false);
+        _gl.Enable(EnableCap.Blend);
+        _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+    }
+
+    /// <summary>Restores depth writes and disables blending after the transparent pass.</summary>
+    public void EndTransparentPass()
+    {
+        _gl.Disable(EnableCap.Blend);
+        _gl.DepthMask(true);
+    }
+
+    /// <summary>
     /// Uploads scene-wide lighting uniforms. Call once per frame before the draw loop.
     /// </summary>
     public void SetSceneLighting(DirectionalLight light, Vector3 cameraPos)
@@ -503,6 +528,14 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformFloat("uMetallicFactor", metallic);
         _shader.SetUniformFloat("uRoughnessFactor", roughness);
         _shader.SetUniformVec4("uEmissiveColor", material.EmissiveColor.ToVector4());
+
+        var opacity = float.IsFinite(material.Opacity) ? Math.Clamp(material.Opacity, 0f, 1f) : 1f;
+        var alphaCutoff = float.IsFinite(material.AlphaCutoff)
+            ? Math.Clamp(material.AlphaCutoff, 0f, 1f)
+            : 0.5f;
+        _shader.SetUniformFloat("uOpacity", opacity);
+        _shader.SetUniformInt("uBlendMode", (int)material.BlendMode);
+        _shader.SetUniformFloat("uAlphaCutoff", alphaCutoff);
 
         // Select the target unit *before* TextureManager.Get: a first-time Get constructs a
         // Texture whose ctor binds on the currently-active unit, which would otherwise clobber a

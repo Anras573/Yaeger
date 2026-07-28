@@ -20,14 +20,19 @@ namespace Yaeger.ECS.Serializers;
 ///   "shininess": 32.0,
 ///   "metallicFactor": 1.0,
 ///   "roughnessFactor": 1.0,
-///   "emissiveColor": [0, 0, 0]
+///   "emissiveColor": [0, 0, 0],
+///   "opacity": 1.0,
+///   "blendMode": "Opaque",
+///   "alphaCutoff": 0.5
 /// }
 /// </code>
 /// Texture-path fields (<c>diffuseTexturePath</c>, <c>normalTexturePath</c>,
 /// <c>metallicRoughnessTexturePath</c>, <c>aoTexturePath</c>, <c>emissiveTexturePath</c>) are
 /// written only when set, so unset ones are omitted entirely rather than emitted as <c>null</c>.
 /// Numeric/colour fields default to the <see cref="Material3D()"/> defaults (e.g. metallic/roughness
-/// factors of 1.0) when absent.
+/// factors of 1.0) when absent. <c>blendMode</c> must be one of <c>"Opaque"</c>, <c>"Cutout"</c>, or
+/// <c>"Transparent"</c> (matching <see cref="MaterialBlendMode"/>) when present, and defaults to
+/// <c>"Opaque"</c> when absent.
 /// </remarks>
 public sealed class Material3DSerializer : IComponentSerializer
 {
@@ -90,8 +95,35 @@ public sealed class Material3DSerializer : IComponentSerializer
                 "emissiveColor",
                 defaults.EmissiveColor
             ),
+            Opacity = ComponentJson.GetOptionalSingle(element, "opacity", defaults.Opacity),
+            BlendMode = ReadOptionalBlendMode(element, defaults.BlendMode),
+            AlphaCutoff = ComponentJson.GetOptionalSingle(
+                element,
+                "alphaCutoff",
+                defaults.AlphaCutoff
+            ),
         };
         return (world, entity) => world.AddComponent(entity, component);
+    }
+
+    private static MaterialBlendMode ReadOptionalBlendMode(
+        JsonElement element,
+        MaterialBlendMode defaultValue
+    )
+    {
+        if (!element.TryGetProperty("blendMode", out var el))
+            return defaultValue;
+
+        if (
+            el.ValueKind != JsonValueKind.String
+            || !Enum.TryParse<MaterialBlendMode>(el.GetString(), out var blendMode)
+            || !Enum.IsDefined(blendMode)
+        )
+            throw new PrefabLoadException(
+                "Property 'blendMode' must be one of \"Opaque\", \"Cutout\", or \"Transparent\"."
+            );
+
+        return blendMode;
     }
 
     /// <inheritdoc/>
@@ -111,6 +143,9 @@ public sealed class Material3DSerializer : IComponentSerializer
             ["metallicFactor"] = m.MetallicFactor,
             ["roughnessFactor"] = m.RoughnessFactor,
             ["emissiveColor"] = ComponentJson.Write(m.EmissiveColor),
+            ["opacity"] = m.Opacity,
+            ["blendMode"] = m.BlendMode.ToString(),
+            ["alphaCutoff"] = m.AlphaCutoff,
         };
 
         WriteTexturePathIfSet(json, "diffuseTexturePath", m.DiffuseTexturePath);
