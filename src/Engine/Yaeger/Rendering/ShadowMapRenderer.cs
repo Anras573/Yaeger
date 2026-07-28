@@ -45,6 +45,14 @@ public sealed class ShadowMapRenderer : IDisposable
     /// </summary>
     public Matrix4x4 LightSpaceMatrix { get; private set; } = Matrix4x4.Identity;
 
+    /// <summary>
+    /// Number of real GL draw calls issued into the shadow map since the most recent
+    /// <see cref="BeginPass"/>. Mirrors <see cref="Renderer3D.DrawCallCount"/> for the depth pre-pass.
+    /// </summary>
+    public int DrawCallCount { get; private set; }
+
+    private InstanceData[]? _instanceScratch;
+
     public ShadowMapRenderer(GL gl, ShadowSettings settings)
     {
         _gl = gl;
@@ -95,6 +103,7 @@ public sealed class ShadowMapRenderer : IDisposable
     public void BeginPass(DirectionalLight light, Vector3 sceneCenter)
     {
         LightSpaceMatrix = ComputeLightSpaceMatrix(light, sceneCenter, Settings);
+        DrawCallCount = 0;
 
         var resolution = (uint)_resolution;
         _gl.Viewport(0, 0, resolution, resolution);
@@ -113,8 +122,31 @@ public sealed class ShadowMapRenderer : IDisposable
     /// <summary>Renders a single shadow caster into the depth map. Call between Begin/End.</summary>
     public void Draw(GpuMesh mesh, Matrix4x4 model)
     {
+        _shader.SetUniformInt("uInstanced", 0);
         _shader.SetUniformMatrix4("uModel", model);
         mesh.Draw();
+        DrawCallCount++;
+    }
+
+    /// <summary>
+    /// Renders <paramref name="models"/> copies of <paramref name="mesh"/> into the depth map in a
+    /// single instanced draw call. Call between Begin/End. No-op for an empty span.
+    /// </summary>
+    public void DrawInstanced(GpuMesh mesh, ReadOnlySpan<Matrix4x4> models)
+    {
+        if (models.IsEmpty)
+            return;
+
+        _shader.SetUniformInt("uInstanced", 1);
+
+        if (_instanceScratch == null || _instanceScratch.Length < models.Length)
+            _instanceScratch = new InstanceData[Math.Max(models.Length, 64)];
+
+        for (var i = 0; i < models.Length; i++)
+            _instanceScratch[i] = new InstanceData(models[i]);
+
+        mesh.DrawInstanced(_instanceScratch.AsSpan(0, models.Length));
+        DrawCallCount++;
     }
 
     /// <summary>

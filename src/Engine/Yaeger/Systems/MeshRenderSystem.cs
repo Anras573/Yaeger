@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Rendering;
@@ -28,11 +29,29 @@ public class MeshRenderSystem(
     EnvironmentMapRegistry? environmentMaps = null
 )
 {
+    /// <summary>
+    /// Minimum entity count a (mesh, material) group needs before it's drawn via
+    /// <see cref="Renderer3D.DrawInstanced"/> instead of one <see cref="Renderer3D.Draw(GpuMesh, Matrix4x4, Matrix4x4, Material3D, TextureManager)"/>
+    /// call per entity. A small group isn't worth the extra instance-buffer upload, so it stays on
+    /// the immediate path. Public and mutable so a caller (or a sample comparing the two paths) can
+    /// tune or effectively disable instancing by setting it very high.
+    /// </summary>
+    public int InstancingThreshold { get; set; } = 4;
+
     // Reused across frames so collecting lights doesn't allocate per render call. Sized to the
     // renderer's hard caps (entities beyond the cap are simply ignored) and allocated lazily on
     // first use.
     private (Vector3 Position, PointLight Light)[]? _pointLights;
     private (Vector3 Position, SpotLight Light)[]? _spotLights;
+
+    // Groups non-skinned entities by (MeshHandle, Material3D) for the main pass. Reused across
+    // frames (see MeshInstanceBatcher's own remarks).
+    private readonly MeshInstanceBatcher _mainBatcher = new();
+
+    // Groups shadow casters by MeshHandle only: every entity is added with the same placeholder
+    // Material3D key (default) since the shadow depth pass never reads material state, so this
+    // collapses casters that share a mesh but differ in material into one instanced draw too.
+    private readonly MeshInstanceBatcher _shadowBatcher = new();
 
     public void Render()
     {
@@ -90,6 +109,8 @@ public class MeshRenderSystem(
             renderer.DisableIBL();
         }
 
+        _mainBatcher.Clear();
+
         foreach (
             (
                 Entity entity,
@@ -111,7 +132,10 @@ public class MeshRenderSystem(
             }
 
             // Skinned meshes carry a per-frame bone palette (written by SkeletalAnimationSystem);
-            // route them through the skinning draw path. Static meshes fall through unchanged.
+            // route them through the immediate skinning draw path — bone palettes are per-entity
+            // state, so they can't be folded into the instanced path below. Static meshes are
+            // grouped instead of drawn immediately, so a group sharing mesh + material can collapse
+            // into a single instanced draw call once collection finishes.
             if (paletteStore.TryGet(entity, out var palette) && palette.Matrices is { Length: > 0 })
             {
                 renderer.Draw(
@@ -125,7 +149,29 @@ public class MeshRenderSystem(
             }
             else
             {
-                renderer.Draw(mesh, modelMatrix, viewProj, material, textureManager);
+                _mainBatcher.Add(handle, material, modelMatrix);
+            }
+        }
+
+        foreach (var group in _mainBatcher.Groups)
+        {
+            if (!meshRegistry.TryGet(group.Handle, out var mesh))
+                continue;
+
+            if (group.Models.Count >= InstancingThreshold)
+            {
+                renderer.DrawInstanced(
+                    mesh,
+                    CollectionsMarshal.AsSpan(group.Models),
+                    viewProj,
+                    group.Material,
+                    textureManager
+                );
+            }
+            else
+            {
+                foreach (var modelMatrix in group.Models)
+                    renderer.Draw(mesh, modelMatrix, viewProj, group.Material, textureManager);
             }
         }
 
@@ -161,6 +207,13 @@ public class MeshRenderSystem(
         var shadowMap = shadowMapRenderer!;
         shadowMap.BeginPass(light, sceneCenter);
 
+        // Depth-only: material doesn't affect the shadow map, so every caster is added under the
+        // same placeholder Material3D key — entities sharing a mesh collapse into one instanced
+        // group here even if their real materials (used by the main pass below) differ. Bone
+        // palettes aren't read either (a pre-existing limitation: skinned casters shadow their bind
+        // pose), so skinned entities need no special-casing versus the main pass above.
+        _shadowBatcher.Clear();
+
         foreach (
             (Entity _, MeshHandle handle, Transform3D transform, Material3D _) in world.Query<
                 MeshHandle,
@@ -169,8 +222,20 @@ public class MeshRenderSystem(
             >()
         )
         {
-            if (meshRegistry.TryGet(handle, out var mesh))
-                shadowMap.Draw(mesh, transform.ModelMatrix);
+            if (meshRegistry.TryGet(handle, out _))
+                _shadowBatcher.Add(handle, default, transform.ModelMatrix);
+        }
+
+        foreach (var group in _shadowBatcher.Groups)
+        {
+            if (!meshRegistry.TryGet(group.Handle, out var mesh))
+                continue;
+
+            if (group.Models.Count >= InstancingThreshold)
+                shadowMap.DrawInstanced(mesh, CollectionsMarshal.AsSpan(group.Models));
+            else
+                foreach (var modelMatrix in group.Models)
+                    shadowMap.Draw(mesh, modelMatrix);
         }
 
         var size = window.Size;

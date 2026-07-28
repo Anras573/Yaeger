@@ -9,7 +9,7 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a
 - **Entity-Component-System (ECS)** architecture, with JSON [prefabs and scenes](scenes.md)
 - **Entity hierarchy** — `Parent` + `TransformHierarchySystem` compose child transforms with their ancestors', in both 2D and 3D ([hierarchy.md](hierarchy.md))
 - **2D rendering** with Silk.NET — texture-batched sprites with deterministic, layered draw ordering (`UnifiedRenderSystem`)
-- **3D rendering** — mesh rendering with [lighting](lighting.md), [shadow mapping](shadows.md), and [PBR](pbr.md) materials with skybox-driven [image-based lighting](pbr.md#image-based-lighting)
+- **3D rendering** — mesh rendering with [lighting](lighting.md), [shadow mapping](shadows.md), [instanced rendering](instancing.md) for repeated meshes, and [PBR](pbr.md) materials with skybox-driven [image-based lighting](pbr.md#image-based-lighting)
 - **Skeletal animation** — glTF bone hierarchies and clips played via GPU skinning ([skeletal-animation.md](skeletal-animation.md))
 - **Opt-in 2D camera** (pan / zoom / rotate), with an optional follow system (smoothing, deadzone, look-ahead, level bounds) — see [camera.md](camera.md)
 - **Animation system** with frame-based texture cycling, sprite flipping, and a named-state-machine helper ([animation-system.md](animation-system.md))
@@ -88,6 +88,7 @@ Samples/
 ├── UiDemo/                  # UI system demo (menu + HUD with buttons, panels, labels)
 ├── BrowserDemo/             # Blazor/WebAssembly interactive paddle-and-ball demo
 ├── RenderingStressTest/     # Renderer stress test
+├── MeshInstancingDemo/      # Instanced 3D rendering stress test
 └── TextRenderingExample/    # Text rendering demo
 ```
 

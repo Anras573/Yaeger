@@ -6,10 +6,17 @@ layout(location = 3) in vec3 aTangent;
 layout(location = 4) in vec4 aBoneIndices;
 layout(location = 5) in vec4 aBoneWeights;
 
+// Per-instance model/normal matrices (VertexAttribDivisor 1), populated by GpuMesh.DrawInstanced.
+// Only read when uInstanced != 0; harmless/unused otherwise, mirroring how the skinning attributes
+// above are harmless/unused when uSkinned == 0.
+layout(location = 6) in mat4 aInstanceModel;
+layout(location = 10) in mat3 aInstanceNormalMatrix;
+
 uniform mat4 uModel;
 uniform mat4 uViewProj;
 uniform mat3 uNormalMatrix;
 uniform mat4 uLightSpaceMatrix;
+uniform int uInstanced;
 
 // GPU skinning: a palette of bone matrices supplied via a uniform buffer. uSkinned gates the
 // whole path so static meshes (all weights zero) are unaffected.
@@ -26,6 +33,9 @@ out vec3 vTangent;
 out vec4 vLightSpacePos;
 
 void main() {
+    mat4 model = uInstanced != 0 ? aInstanceModel : uModel;
+    mat3 normalMatrix = uInstanced != 0 ? aInstanceNormalMatrix : uNormalMatrix;
+
     mat4 skin = mat4(1.0);
     if (uSkinned != 0) {
         float wSum = dot(aBoneWeights, vec4(1.0));
@@ -51,10 +61,10 @@ void main() {
     // identity for static meshes (skin == identity).
     mat3 skinNormal = transpose(inverse(skin3));
 
-    vec4 worldPos = uModel * skinnedPos;
+    vec4 worldPos = model * skinnedPos;
     vFragPos  = worldPos.xyz;
-    vNormal   = uNormalMatrix * (skinNormal * aNormal);
-    vTangent  = mat3(uModel) * (skin3 * aTangent);
+    vNormal   = normalMatrix * (skinNormal * aNormal);
+    vTangent  = mat3(model) * (skin3 * aTangent);
     vTexCoord = aTexCoord;
     vLightSpacePos = uLightSpaceMatrix * worldPos;
     gl_Position = uViewProj * worldPos;

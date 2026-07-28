@@ -24,6 +24,13 @@ public sealed class Renderer3D : IDisposable
     // collide with any other uniform block binding (the renderer has none).
     private const uint BoneBlockBinding = 0;
 
+    /// <summary>
+    /// Number of real GL draw calls (<c>glDrawElements</c>/<c>glDrawElementsInstanced</c>) issued
+    /// since the last <see cref="BeginFrame3D"/>. An instanced group of any size counts as one call,
+    /// so this is the metric that demonstrates instancing turning O(N) draw calls into O(1).
+    /// </summary>
+    public int DrawCallCount { get; private set; }
+
     /// <summary>Maximum number of point lights the fragment shader can accumulate per frame.</summary>
     public const int MaxPointLights = 16;
 
@@ -89,9 +96,10 @@ public sealed class Renderer3D : IDisposable
         DisableShadows();
         // DisableIBL also binds the default cubemap/texture on units 6-8.
         DisableIBL();
-        // Skinning is opt-in per draw; default to the static-mesh path.
+        // Skinning and instancing are opt-in per draw; default to the static-mesh, non-instanced path.
         _shader.Bind();
         _shader.SetUniformInt("uSkinned", 0);
+        _shader.SetUniformInt("uInstanced", 0);
         _shader.Unbind();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
         // Start with no point/spot lights so scenes that never call SetPointLights/SetSpotLights
@@ -264,6 +272,7 @@ public sealed class Renderer3D : IDisposable
     /// </summary>
     public void BeginFrame3D()
     {
+        DrawCallCount = 0;
         _gl.Enable(EnableCap.DepthTest);
         _gl.DepthFunc(DepthFunction.Less);
         _gl.Enable(EnableCap.CullFace);
@@ -400,6 +409,7 @@ public sealed class Renderer3D : IDisposable
         _shader.Bind();
 
         _shader.SetUniformInt("uSkinned", skinned ? 1 : 0);
+        _shader.SetUniformInt("uInstanced", 0);
 
         _shader.SetUniformMatrix4("uModel", model);
         _shader.SetUniformMatrix4("uViewProj", viewProj);
@@ -408,6 +418,72 @@ public sealed class Renderer3D : IDisposable
             invModel = Matrix4x4.Identity;
         _shader.SetUniformMatrix3("uNormalMatrix", Matrix4x4.Transpose(invModel));
 
+        BindMaterial(material, textures);
+
+        mesh.Draw();
+        DrawCallCount++;
+
+        _shader.Unbind();
+    }
+
+    /// <summary>
+    /// Draws <paramref name="models"/> copies of <paramref name="mesh"/>, all sharing
+    /// <paramref name="material"/>, in a single instanced draw call. Skinned meshes always use the
+    /// per-entity <see cref="Draw(GpuMesh, Matrix4x4, Matrix4x4, Material3D, TextureManager, ReadOnlySpan{Matrix4x4})"/>
+    /// overload instead — bone palettes are per-entity state, so they can't be folded into per-instance
+    /// attributes here. No-op for an empty span.
+    /// </summary>
+    public void DrawInstanced(
+        GpuMesh mesh,
+        ReadOnlySpan<Matrix4x4> models,
+        Matrix4x4 viewProj,
+        Material3D material,
+        TextureManager textures
+    )
+    {
+        if (models.IsEmpty)
+            return;
+
+        _shader.Bind();
+
+        _shader.SetUniformInt("uSkinned", 0);
+        _shader.SetUniformInt("uInstanced", 1);
+        _shader.SetUniformMatrix4("uViewProj", viewProj);
+
+        BindMaterial(material, textures);
+
+        EnsureInstanceScratchCapacity(models.Length);
+        for (var i = 0; i < models.Length; i++)
+        {
+            var model = models[i];
+            if (!Matrix4x4.Invert(model, out var invModel))
+                invModel = Matrix4x4.Identity;
+            _instanceScratch![i] = new InstanceData(model, Matrix4x4.Transpose(invModel));
+        }
+
+        mesh.DrawInstanced(_instanceScratch.AsSpan(0, models.Length));
+        DrawCallCount++;
+
+        _shader.Unbind();
+    }
+
+    private InstanceData[]? _instanceScratch;
+
+    // Grown by doubling (not per-draw) so a stable-sized scene's instance groups don't reallocate
+    // once warmed up, mirroring the _pointLights/_spotLights scratch buffers in MeshRenderSystem.
+    private void EnsureInstanceScratchCapacity(int count)
+    {
+        if (_instanceScratch != null && _instanceScratch.Length >= count)
+            return;
+
+        var capacity = Math.Max(count, Math.Max((_instanceScratch?.Length ?? 0) * 2, 64));
+        _instanceScratch = new InstanceData[capacity];
+    }
+
+    // Uploads every material/texture uniform shared by the instanced and non-instanced draw paths;
+    // the caller is responsible for uModel/uNormalMatrix/uSkinned/uInstanced, which differ between them.
+    private void BindMaterial(Material3D material, TextureManager textures)
+    {
         _shader.SetUniformVec4("uDiffuseColor", material.Diffuse.ToVector4());
         _shader.SetUniformVec4("uAmbientColor", material.Ambient.ToVector4());
         _shader.SetUniformVec4("uSpecularColor", material.Specular.ToVector4());
@@ -478,10 +554,6 @@ public sealed class Renderer3D : IDisposable
             _shader.SetUniformInt("uHasAoMap", 0);
             _shader.SetUniformInt("uHasEmissiveMap", 0);
         }
-
-        mesh.Draw();
-
-        _shader.Unbind();
     }
 
     // Binds an optional PBR texture to the given unit and flags its presence. When the path is
