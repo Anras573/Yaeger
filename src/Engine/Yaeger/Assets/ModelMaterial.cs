@@ -14,5 +14,6 @@ public record ModelMaterial(
     float MetallicFactor = 1f,
     float RoughnessFactor = 1f,
     Color EmissiveColor = default,
-    bool UsePbr = false
+    bool UsePbr = false,
+    float Opacity = 1f
 );

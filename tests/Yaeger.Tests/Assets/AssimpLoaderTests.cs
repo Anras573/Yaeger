@@ -266,6 +266,76 @@ public class AssimpLoaderTests
     }
 
     [SkippableFact]
+    public void LoadScene_GltfTranslucentBaseColor_ShouldMapOpacityAndBlendMode()
+    {
+        Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
+
+        // Same minimal glTF triangle as the PBR test above, but with a translucent
+        // baseColorFactor alpha — the "glTF alphaMode: BLEND" case from issue #149's scope.
+        const string gltf = """
+            {
+              "asset": { "version": "2.0" },
+              "scene": 0,
+              "scenes": [ { "nodes": [ 0 ] } ],
+              "nodes": [ { "mesh": 0 } ],
+              "meshes": [
+                {
+                  "primitives": [
+                    { "attributes": { "POSITION": 0 }, "indices": 1, "material": 0 }
+                  ]
+                }
+              ],
+              "materials": [
+                {
+                  "pbrMetallicRoughness": {
+                    "baseColorFactor": [ 1.0, 1.0, 1.0, 0.4 ]
+                  },
+                  "alphaMode": "BLEND"
+                }
+              ],
+              "buffers": [
+                {
+                  "byteLength": 42,
+                  "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAAAAABAAIA"
+                }
+              ],
+              "bufferViews": [
+                { "buffer": 0, "byteOffset": 0, "byteLength": 36, "target": 34962 },
+                { "buffer": 0, "byteOffset": 36, "byteLength": 6, "target": 34963 }
+              ],
+              "accessors": [
+                {
+                  "bufferView": 0,
+                  "componentType": 5126,
+                  "count": 3,
+                  "type": "VEC3",
+                  "min": [ 0.0, 0.0, 0.0 ],
+                  "max": [ 1.0, 1.0, 0.0 ]
+                },
+                { "bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR" }
+              ]
+            }
+            """;
+        var path = WriteTempObj(gltf, ".gltf");
+        try
+        {
+            var scene = AssimpLoader.LoadScene(path);
+
+            Assert.Single(scene.Meshes);
+            var modelMaterial = scene.Meshes[0].Material;
+            Assert.Equal(0.4f, modelMaterial.Opacity, 2);
+
+            var material = Material3D.FromModel(modelMaterial);
+            Assert.Equal(0.4f, material.Opacity, 2);
+            Assert.Equal(MaterialBlendMode.Transparent, material.BlendMode);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [SkippableFact]
     public void LoadScene_StaticObj_ShouldHaveNoSkeletonOrAnimations()
     {
         Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");

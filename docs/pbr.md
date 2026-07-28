@@ -119,6 +119,11 @@ public record struct Material3D
     public float RoughnessFactor = 1f;  // scales the texture's roughness channel
     public Color EmissiveColor;
     public bool UsePbr;
+
+    // Transparency (either shading path — see "Transparency" below)
+    public float Opacity = 1f;
+    public MaterialBlendMode BlendMode;    // Opaque (default), Cutout, or Transparent
+    public float AlphaCutoff = 0.5f;       // Cutout only
 }
 ```
 
@@ -143,6 +148,40 @@ Blinn-Phong scenes therefore keep `UsePbr = false` and render exactly as before.
 
 The `Sponza` sample loads the KhronosGroup Sponza glTF and renders it through the PBR path; the
 `CornellBox` sample uses hand-authored Blinn-Phong materials.
+
+## Transparency
+
+`MaterialBlendMode` selects how a material is composited, independent of the Blinn-Phong/PBR
+shading choice above:
+
+- **`Opaque`** (default) — depth write on, fully opaque. Every material predating this feature
+  defaults here, so existing scenes render byte-identical to before it existed.
+- **`Cutout`** — still drawn in the main (depth-write-on) pass, but a fragment whose final alpha
+  falls below `AlphaCutoff` (default 0.5) is `discard`ed in the fragment shader rather than
+  blended. No sorting is needed since nothing is actually blended. Suited to foliage, chain-link
+  fences, and similar alpha-tested geometry (glTF's `alphaMode: MASK`).
+- **`Transparent`** — drawn in a second pass, after every opaque/cutout material, sorted
+  back-to-front by view-space depth (see `TransparencySorter`), with depth *testing* on but depth
+  *writes* off. Suited to glass, water, and other alpha-blended surfaces (glTF's
+  `alphaMode: BLEND`).
+
+`Opacity` is an extra alpha factor multiplied into the diffuse texture's own alpha channel (and,
+in the PBR path, `Diffuse`'s alpha); it's ignored by the `Opaque` path (which never reads alpha),
+so setting it alone does nothing unless `BlendMode` is also `Cutout` or `Transparent`.
+
+`AssimpLoader` populates `Opacity` from the source material's opacity factor (glTF's
+`baseColorFactor` alpha, or an OBJ/FBX transparency factor, when the importer surfaces one) and
+sets `BlendMode = Transparent` whenever that opacity is below ~1. There's currently no
+importer-driven `Cutout`/`alphaMode: MASK` detection — set `BlendMode`/`AlphaCutoff` by hand for
+cutout materials (`Material3D.FromModel(...) with { BlendMode = MaterialBlendMode.Cutout }`).
+
+**Limitations** (see issue #149's scope): this is standard per-object back-to-front sorting, not
+order-independent transparency — two *overlapping* transparent objects sort correctly by their
+whole-object depth, but a single non-convex transparent mesh can still show sorting artifacts
+against itself (per-triangle sorting is out of scope). There's no refraction. Transparent
+materials receive the same lighting and shadow *receiving* as opaque ones, but do not themselves
+cast shadows — the shadow pre-pass skips any `Transparent`-blend-mode entity entirely (`Cutout`
+casts a full, non-masked shadow).
 
 ## Lights
 

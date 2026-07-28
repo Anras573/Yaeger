@@ -228,6 +228,41 @@ public class Material3DTests
     }
 
     [Fact]
+    public void FromModel_DefaultOpacity_StaysOpaque()
+    {
+        var model = new ModelMaterial(
+            Name: "stone",
+            DiffuseTexturePath: "textures/stone.png",
+            NormalTexturePath: null,
+            DiffuseColor: Color.White,
+            AmbientColor: Color.Black
+        );
+
+        var material = Material3D.FromModel(model);
+
+        Assert.Equal(1f, material.Opacity);
+        Assert.Equal(MaterialBlendMode.Opaque, material.BlendMode);
+    }
+
+    [Fact]
+    public void FromModel_PartialOpacity_BecomesTransparent()
+    {
+        var model = new ModelMaterial(
+            Name: "glass",
+            DiffuseTexturePath: "textures/glass.png",
+            NormalTexturePath: null,
+            DiffuseColor: Color.White,
+            AmbientColor: Color.Black,
+            Opacity: 0.4f
+        );
+
+        var material = Material3D.FromModel(model);
+
+        Assert.Equal(0.4f, material.Opacity);
+        Assert.Equal(MaterialBlendMode.Transparent, material.BlendMode);
+    }
+
+    [Fact]
     public void RecordStruct_EqualityByValue()
     {
         var a = new Material3D

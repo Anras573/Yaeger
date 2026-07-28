@@ -53,6 +53,21 @@ public class MeshRenderSystem(
     // collapses casters that share a mesh but differ in material into one instanced draw too.
     private readonly MeshInstanceBatcher _shadowBatcher = new();
 
+    // A single Material3D.BlendMode.Transparent submission, collected during the main query loop
+    // and drawn individually (never instanced/batched — instancing would collapse several
+    // entities' relative depth into one draw, breaking back-to-front ordering) after every
+    // opaque/cutout draw. bonePalette is null for non-skinned entities.
+    private readonly record struct TransparentDraw(
+        MeshHandle Handle,
+        Material3D Material,
+        Matrix4x4 Model,
+        Matrix4x4[]? BonePalette
+    );
+
+    // Reused across frames like _mainBatcher/_shadowBatcher above; cleared (not reallocated) each
+    // frame so a scene with a stable transparent-entity count doesn't reallocate once warmed up.
+    private readonly List<TransparentDraw> _transparentDraws = new();
+
     public void Render()
     {
         var (view, projection, cameraPos, sceneCenter, hasCamera) = GetCameraMatrices();
@@ -110,6 +125,7 @@ public class MeshRenderSystem(
         }
 
         _mainBatcher.Clear();
+        _transparentDraws.Clear();
 
         foreach (
             (
@@ -136,7 +152,23 @@ public class MeshRenderSystem(
             // state, so they can't be folded into the instanced path below. Static meshes are
             // grouped instead of drawn immediately, so a group sharing mesh + material can collapse
             // into a single instanced draw call once collection finishes.
-            if (paletteStore.TryGet(entity, out var palette) && palette.Matrices is { Length: > 0 })
+            var hasPalette =
+                paletteStore.TryGet(entity, out var palette) && palette.Matrices is { Length: > 0 };
+
+            // Transparent materials always go through the separate back-to-front sorted pass below
+            // (never batched/instanced — see TransparentDraw's remarks), whether skinned or not.
+            if (TransparencySorter.IsTransparent(material))
+            {
+                _transparentDraws.Add(
+                    new TransparentDraw(
+                        handle,
+                        material,
+                        modelMatrix,
+                        hasPalette ? palette.Matrices : null
+                    )
+                );
+            }
+            else if (hasPalette)
             {
                 renderer.Draw(
                     mesh,
@@ -181,6 +213,36 @@ public class MeshRenderSystem(
                 skyboxRenderer.Draw(cubemap, view, projection);
         }
 
+        // Transparent pass: sorted back-to-front by view depth so overlapping transparent objects
+        // blend correctly regardless of camera angle (object-level ordering only — see
+        // TransparencySorter). A scene with no transparent materials never enters this block, so
+        // it never touches the renderer's blend/depth-mask state — opaque-only rendering is
+        // unaffected by this feature existing.
+        if (_transparentDraws.Count > 0)
+        {
+            TransparencySorter.SortBackToFront(_transparentDraws, view, d => d.Model.Translation);
+
+            renderer.BeginTransparentPass();
+            foreach (var draw in _transparentDraws)
+            {
+                if (!meshRegistry.TryGet(draw.Handle, out var mesh))
+                    continue;
+
+                if (draw.BonePalette != null)
+                    renderer.Draw(
+                        mesh,
+                        draw.Model,
+                        viewProj,
+                        draw.Material,
+                        textureManager,
+                        draw.BonePalette
+                    );
+                else
+                    renderer.Draw(mesh, draw.Model, viewProj, draw.Material, textureManager);
+            }
+            renderer.EndTransparentPass();
+        }
+
         renderer.EndFrame3D();
     }
 
@@ -211,17 +273,23 @@ public class MeshRenderSystem(
         // same placeholder Material3D key — entities sharing a mesh collapse into one instanced
         // group here even if their real materials (used by the main pass below) differ. Bone
         // palettes aren't read either (a pre-existing limitation: skinned casters shadow their bind
-        // pose), so skinned entities need no special-casing versus the main pass above.
+        // pose), so skinned entities need no special-casing versus the main pass above. Transparent
+        // materials don't cast shadows at all (v1 limitation — see docs/pbr.md); cutout materials
+        // still cast full (non-masked) shadows.
         _shadowBatcher.Clear();
 
         foreach (
-            (Entity _, MeshHandle handle, Transform3D transform, Material3D _) in world.Query<
-                MeshHandle,
-                Transform3D,
-                Material3D
-            >()
+            (
+                Entity _,
+                MeshHandle handle,
+                Transform3D transform,
+                Material3D material
+            ) in world.Query<MeshHandle, Transform3D, Material3D>()
         )
         {
+            if (TransparencySorter.IsTransparent(material))
+                continue;
+
             if (meshRegistry.TryGet(handle, out _))
                 _shadowBatcher.Add(handle, default, transform.ModelMatrix);
         }

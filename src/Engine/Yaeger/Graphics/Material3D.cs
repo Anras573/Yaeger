@@ -31,6 +31,28 @@ public record struct Material3D
     /// </summary>
     public bool UsePbr;
 
+    /// <summary>
+    /// Alpha factor multiplied into the material's final alpha (on top of the diffuse texture's
+    /// own alpha channel). 1 (fully opaque) by default; only meaningful when <see cref="BlendMode"/>
+    /// is <see cref="MaterialBlendMode.Cutout"/> or <see cref="MaterialBlendMode.Transparent"/> —
+    /// the opaque path ignores alpha entirely, matching pre-transparency rendering.
+    /// </summary>
+    public float Opacity = 1f;
+
+    /// <summary>
+    /// How this material is composited. Defaults to <see cref="MaterialBlendMode.Opaque"/> so
+    /// every material predating this field renders exactly as before. See <see cref="MaterialBlendMode"/>
+    /// and docs/pbr.md for the rendering behaviour of each mode.
+    /// </summary>
+    public MaterialBlendMode BlendMode;
+
+    /// <summary>
+    /// Alpha threshold below which a fragment is discarded when <see cref="BlendMode"/> is
+    /// <see cref="MaterialBlendMode.Cutout"/>. Ignored otherwise. Defaults to 0.5, a common
+    /// cutout threshold (e.g. glTF's default <c>alphaCutoff</c>).
+    /// </summary>
+    public float AlphaCutoff = 0.5f;
+
     // Required because the PBR factor fields above carry initializers (CS8983). Note this runs
     // for `new Material3D()` / object initializers but not for `default(Material3D)`.
     public Material3D() { }
@@ -45,6 +67,10 @@ public record struct Material3D
             Specular = mtl.SpecularColor,
             Shininess = mtl.Shininess,
         };
+
+    // A model's reported opacity below this is treated as "the source format asked for
+    // transparency" rather than floating-point noise around a fully-opaque 1.0.
+    private const float TransparencyThreshold = 0.999f;
 
     public static Material3D FromModel(ModelMaterial model) =>
         new()
@@ -62,5 +88,10 @@ public record struct Material3D
             RoughnessFactor = model.RoughnessFactor,
             EmissiveColor = model.EmissiveColor,
             UsePbr = model.UsePbr,
+            Opacity = model.Opacity,
+            BlendMode =
+                model.Opacity < TransparencyThreshold
+                    ? MaterialBlendMode.Transparent
+                    : MaterialBlendMode.Opaque,
         };
 }
