@@ -24,6 +24,37 @@
     <ProjectReference Include="..\..\src\Engine\Yaeger\Yaeger.csproj" />
   </ItemGroup>
 
+  <!--
+    Flatten the current RID's native assets into the output root.
+
+    A RID-agnostic build copies package native assets to runtimes/<rid>/native/, but Silk.NET
+    resolves its native libraries by probing the assembly directory rather than that folder, so
+    it never finds them: Assimp.GetApi() throws "Could not load from any of the possible library
+    names!" even though runtimes/linux-x64/native/libassimp.so.5 sits right there. Every
+    [SkippableFact] guarded by IsAssimpAvailable() then skips silently, so CI reported green
+    while never once exercising the model-import path (including the glTF opacity/blend-mode
+    coverage added for issue #149).
+
+    Matching is exact-RID: a host whose RID has no matching asset copies nothing, and the tests
+    skip exactly as they did before. That keeps this a no-op rather than a build break on
+    platforms the packages don't ship a matching binary for (e.g. HarfBuzz/Skia publish a
+    generic "osx" asset that an osx-arm64 host won't match, which is why the font tests can
+    still skip on macOS).
+  -->
+  <Target Name="CopyNativeAssetsToOutputRoot" AfterTargets="Build">
+    <ItemGroup>
+      <_RidNativeAsset
+        Include="@(RuntimeTargetsCopyLocalItems)"
+        Condition="'%(RuntimeTargetsCopyLocalItems.AssetType)' == 'native' And '%(RuntimeTargetsCopyLocalItems.RuntimeIdentifier)' == '$(NETCoreSdkRuntimeIdentifier)'"
+      />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_RidNativeAsset)"
+      DestinationFolder="$(OutDir)"
+      SkipUnchangedFiles="true"
+    />
+  </Target>
+
   <ItemGroup>
     <None
       Include="..\..\Samples\Pong\Assets\Roboto-Regular.ttf"
