@@ -57,6 +57,12 @@
 
   <ItemGroup>
     <PackageReference Include="HarfBuzzSharp" Version="8.3.1.2" />
+    <!--
+      HarfBuzzSharp ships native binaries for win-* and osx only; Linux natives live in a
+      separate package. Without this, anything constructing a Font (Blob/Face/HarfBuzzSharp.Font)
+      fails to load libHarfBuzzSharp.so on Linux, which is why FontManagerTests skipped there.
+    -->
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.2" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <PackageReference Include="Silk.NET.Assimp" Version="2.22.0" />
     <PackageReference Include="Silk.NET" Version="2.22.0" />
