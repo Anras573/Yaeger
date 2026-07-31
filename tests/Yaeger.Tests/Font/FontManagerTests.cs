@@ -104,13 +104,36 @@ public class FontManagerTests : IDisposable
         Assert.Same(font1, font2);
     }
 
+    // Mirrors AssimpLoaderTests.IsAssimpAvailable: force the native library to load and report
+    // whether it did. Probing for a file path instead would have to hardcode both the platform's
+    // library naming (.so/.dylib/.dll) and every RID subfolder it might sit in — the previous
+    // version checked only linux-x64's .so, so this test skipped unconditionally on Windows and
+    // macOS even when HarfBuzz was perfectly usable there.
     private static bool IsHarfBuzzAvailable()
     {
-        var dir = AppContext.BaseDirectory;
-        return File.Exists(Path.Combine(dir, "libHarfBuzzSharp.so"))
-            || File.Exists(
-                Path.Combine(dir, "runtimes", "linux-x64", "native", "libHarfBuzzSharp.so")
-            );
+        try
+        {
+            // Allocating a buffer makes a native call, forcing library load.
+            using var buffer = new HarfBuzzSharp.Buffer();
+            return true;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (BadImageFormatException)
+        {
+            return false;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (TypeInitializationException)
+        {
+            // The native load failure can surface wrapped in a static-ctor failure.
+            return false;
+        }
     }
 
     // ── Load argument validation ──────────────────────────────────────────────
