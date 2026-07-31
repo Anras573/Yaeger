@@ -90,7 +90,25 @@ public class FontManagerTests : IDisposable
     {
         var fontPath = Path.Combine(AppContext.BaseDirectory, "TestAssets", "Roboto-Regular.ttf");
         Skip.IfNot(File.Exists(fontPath), "Roboto-Regular.ttf test asset is missing.");
-        Skip.IfNot(IsHarfBuzzAvailable(), "HarfBuzz native library not available.");
+
+        // On Linux the natives are guaranteed: HarfBuzzSharp.NativeAssets.Linux is referenced and
+        // covers every mainstream Linux RID (glibc and musl, x86 through riscv64). So a missing
+        // library there is a broken package reference, not an unsupported platform — assert rather
+        // than skip, since a skip reads as a green CI run and is exactly how this test sat dormant
+        // before. Other platforms still skip: their natives come from packages this repo doesn't
+        // control the RID coverage of.
+        if (OperatingSystem.IsLinux())
+        {
+            Assert.True(
+                IsHarfBuzzAvailable(),
+                "HarfBuzz native library failed to load on Linux, where "
+                    + "HarfBuzzSharp.NativeAssets.Linux should have supplied it."
+            );
+        }
+        else
+        {
+            Skip.IfNot(IsHarfBuzzAvailable(), "HarfBuzz native library not available.");
+        }
 
         var fontBytes = File.ReadAllBytes(fontPath);
         using var manager = new FontManager();
