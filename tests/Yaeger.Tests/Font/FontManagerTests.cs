@@ -90,7 +90,25 @@ public class FontManagerTests : IDisposable
     {
         var fontPath = Path.Combine(AppContext.BaseDirectory, "TestAssets", "Roboto-Regular.ttf");
         Skip.IfNot(File.Exists(fontPath), "Roboto-Regular.ttf test asset is missing.");
-        Skip.IfNot(IsHarfBuzzAvailable(), "HarfBuzz native library not available.");
+
+        // On Linux the natives are guaranteed: HarfBuzzSharp.NativeAssets.Linux is referenced and
+        // covers every mainstream Linux RID (glibc and musl, x86 through riscv64). So a missing
+        // library there is a broken package reference, not an unsupported platform — assert rather
+        // than skip, since a skip reads as a green CI run and is exactly how this test sat dormant
+        // before. Other platforms still skip: their natives come from packages this repo doesn't
+        // control the RID coverage of.
+        if (OperatingSystem.IsLinux())
+        {
+            Assert.True(
+                IsHarfBuzzAvailable(),
+                "HarfBuzz native library failed to load on Linux, where "
+                    + "HarfBuzzSharp.NativeAssets.Linux should have supplied it."
+            );
+        }
+        else
+        {
+            Skip.IfNot(IsHarfBuzzAvailable(), "HarfBuzz native library not available.");
+        }
 
         var fontBytes = File.ReadAllBytes(fontPath);
         using var manager = new FontManager();
@@ -104,13 +122,36 @@ public class FontManagerTests : IDisposable
         Assert.Same(font1, font2);
     }
 
+    // Mirrors AssimpLoaderTests.IsAssimpAvailable: force the native library to load and report
+    // whether it did. Probing for a file path instead would have to hardcode both the platform's
+    // library naming (.so/.dylib/.dll) and every RID subfolder it might sit in — the previous
+    // version checked only linux-x64's .so, so this test skipped unconditionally on Windows and
+    // macOS even when HarfBuzz was perfectly usable there.
     private static bool IsHarfBuzzAvailable()
     {
-        var dir = AppContext.BaseDirectory;
-        return File.Exists(Path.Combine(dir, "libHarfBuzzSharp.so"))
-            || File.Exists(
-                Path.Combine(dir, "runtimes", "linux-x64", "native", "libHarfBuzzSharp.so")
-            );
+        try
+        {
+            // Allocating a buffer makes a native call, forcing library load.
+            using var buffer = new HarfBuzzSharp.Buffer();
+            return true;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (BadImageFormatException)
+        {
+            return false;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (TypeInitializationException)
+        {
+            // The native load failure can surface wrapped in a static-ctor failure.
+            return false;
+        }
     }
 
     // ── Load argument validation ──────────────────────────────────────────────
