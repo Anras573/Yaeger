@@ -17,29 +17,37 @@ public static class EntityGizmos
     private static readonly GizmoStyle DefaultStyle = new();
 
     /// <summary>
+    /// Guards a style's <see cref="GizmoStyle.SizeMultiplier"/> the same way <see cref="Build"/>
+    /// does: a non-finite or non-positive value would propagate into every scaled size (NaN
+    /// vertices, or a builder silently dropping a negative-radius shape), so it falls back to 1.
+    /// Exposed so callers computing translate-handle geometry outside <see cref="Build"/> (hit-testing
+    /// and dragging in <c>ImGuiInspector</c>) scale handles identically to the drawn gizmo.
+    /// </summary>
+    public static float EffectiveScale(GizmoStyle style) =>
+        float.IsFinite(style.SizeMultiplier) && style.SizeMultiplier > 0f
+            ? style.SizeMultiplier
+            : 1f;
+
+    /// <summary>
     /// Appends the gizmos for <paramref name="entity"/> to <paramref name="builder"/> based on the
     /// components it carries. <paramref name="aspectRatio"/> shapes a <see cref="Camera3D"/> frustum
     /// and a <see cref="Camera2D"/> viewport rectangle. <paramref name="style"/> tunes colours, sizes
     /// and segment counts; when <c>null</c> a default style reproducing the original look is used.
+    /// <paramref name="highlightedAxis"/> recolours one translate-axis handle (0 = X, 1 = Y, 2 = Z)
+    /// with <see cref="GizmoStyle.HandleHoverColor"/> — used to show a hovered or actively dragged
+    /// handle in <c>ImGuiInspector</c>.
     /// </summary>
     public static void Build(
         World world,
         Entity entity,
         float aspectRatio,
         GizmoBuilder builder,
-        GizmoStyle? style = null
+        GizmoStyle? style = null,
+        int? highlightedAxis = null
     )
     {
         style ??= DefaultStyle;
-        // Guard the user-supplied multiplier: a non-finite OR non-positive value would propagate into
-        // every scaled size — emitting NaN vertices, or inverting/silently dropping shapes (a
-        // negative radius fails the builders' radius > 0 guards). Fall back to the default scale so
-        // any invalid value degrades to the stock look rather than corrupting the line list. A
-        // legitimate fractional scale (e.g. 0.5 for a small world) is positive and passes through.
-        var scale =
-            float.IsFinite(style.SizeMultiplier) && style.SizeMultiplier > 0f
-                ? style.SizeMultiplier
-                : 1f;
+        var scale = EffectiveScale(style);
         // 2D gizmos live in the Z = 0 plane and are projected through a Camera2D-derived (or
         // identity) view-projection by the inspector. An entity is treated as either 2D or 3D for
         // gizmo purposes — never both — to stay consistent with
@@ -51,7 +59,7 @@ public static class EntityGizmos
 
         if (world.TryGetComponent<Transform2D>(entity, out var transform2D))
         {
-            BuildTransform2D(builder, transform2D, style, scale);
+            BuildTransform2D(builder, transform2D, style, scale, highlightedAxis);
             has2D = true;
         }
 
@@ -75,9 +83,9 @@ public static class EntityGizmos
                 anchor,
                 transform.Rotation,
                 style.AxisLength * scale,
-                style.AxisXColor,
-                style.AxisYColor,
-                style.AxisZColor
+                highlightedAxis == 0 ? style.HandleHoverColor : style.AxisXColor,
+                highlightedAxis == 1 ? style.HandleHoverColor : style.AxisYColor,
+                highlightedAxis == 2 ? style.HandleHoverColor : style.AxisZColor
             );
 
             if (world.TryGetComponent<Aabb3D>(entity, out var aabb))
@@ -101,7 +109,8 @@ public static class EntityGizmos
         GizmoBuilder builder,
         Transform2D transform,
         GizmoStyle style,
-        float scale
+        float scale,
+        int? highlightedAxis
     )
     {
         // Oriented X/Y axes mark the origin and facing; the bounds rectangle traces the sprite quad
@@ -111,8 +120,8 @@ public static class EntityGizmos
             transform.Position,
             transform.Rotation,
             style.Axis2DLength * scale,
-            style.AxisXColor,
-            style.AxisYColor
+            highlightedAxis == 0 ? style.HandleHoverColor : style.AxisXColor,
+            highlightedAxis == 1 ? style.HandleHoverColor : style.AxisYColor
         );
         builder.AddRect(
             transform.Position,

@@ -91,6 +91,28 @@ default; untick **Show selection gizmos** at the bottom of the inspector (or set
 > `SpotLight`'s cone angle updates the gizmo immediately — no extra wiring beyond the standard
 > *scene first, overlay last* render order.
 
+### Clicking and dragging in the viewport
+
+Selection isn't limited to the entity list — the viewport itself is interactive:
+
+- **Click-to-select**: click a mesh (any entity with `Transform3D` + `Aabb3D`, projected through the
+  first `Camera3D`) or a sprite (any `Transform2D`, projected through the first `Camera2D` or
+  NDC-direct) to select it. Clicking empty space deselects. When several bounds overlap, the nearest
+  mesh wins in 3D (closest ray hit); the smallest sprite wins in 2D.
+- **Drag to move**: the orientation axes drawn for a selected `Transform2D`/`Transform3D` are
+  draggable — grab the X, Y, or (3D only) Z axis and drag to move the entity along exactly that
+  axis. The axis under the cursor highlights in `GizmoStyle.HandleHoverColor` (white by default)
+  before and during a drag. Hit-testing uses a fixed **screen-space** pixel tolerance
+  (`GizmoStyle.HandleHitTolerancePixels`, default 8), so a handle is equally easy to grab whether the
+  camera is close up or far away.
+- Mouse interaction is fully suspended while ImGui wants the mouse (hovering or interacting with any
+  inspector widget) and while **Show selection gizmos** is unticked — there is nothing to click or
+  drag in either case.
+
+Edits from a drag go through the same deferred-commit path as typing a value into the `Transform2D`
+/ `Transform3D` sections above, so they show up in the entity list immediately and persist through
+**Save Scene** the same way.
+
 ### Customising the gizmo appearance
 
 The default colours and sizes suit a roughly unit-scaled scene, but a 0.5-unit axis is invisible in a
@@ -117,6 +139,8 @@ inspector.GizmoStyle.LineWidth = 2f;                        // thicker lines
 | `SphereSegments`, `SunSphereSegments`, `PointLightCoreSegments`, `ConeSegments` | Tessellation of the circles/spheres/cone — raise for smoother shapes, lower to cut cost |
 | `DepthTest` | `false` (default) draws gizmos on top of everything; `true` lets scene geometry occlude them |
 | `LineWidth` | Gizmo line width in pixels (driver-dependent clamping applies) |
+| `HandleHoverColor` | Colour a translate-axis handle switches to while hovered or dragged (default white) |
+| `HandleHitTolerancePixels` | Screen-space pixel tolerance for grabbing a translate-axis handle (default 8) |
 
 The style is runtime-only — it is not saved with scenes.
 

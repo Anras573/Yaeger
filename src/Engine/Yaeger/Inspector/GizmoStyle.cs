@@ -110,4 +110,19 @@ public sealed class GizmoStyle
 
     /// <summary>Width of the gizmo lines in pixels (driver-dependent clamping applies). Default 1.</summary>
     public float LineWidth { get; set; } = 1f;
+
+    // ── Interactive translate handles ─────────────────────────────────────────
+
+    /// <summary>
+    /// Colour a translate-axis handle switches to while hovered or actively being dragged, replacing
+    /// its normal axis colour. Default white.
+    /// </summary>
+    public Vector4 HandleHoverColor { get; set; } = new(1f, 1f, 1f, 1f);
+
+    /// <summary>
+    /// Screen-space pixel tolerance for hit-testing a translate-axis handle against the cursor. Kept
+    /// in pixels (rather than world units) so handles stay equally easy to grab at any camera
+    /// zoom/distance. Default 8.
+    /// </summary>
+    public float HandleHitTolerancePixels { get; set; } = 8f;
 }
