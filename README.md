@@ -11,6 +11,7 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It aims to pr
 - Entity-Component-System (ECS) architecture, with JSON prefabs and scenes
 - 2D rendering with Silk.NET (texture-batched sprites with deterministic, layered draw ordering via `RenderLayer` and `UnifiedRenderSystem`)
 - 3D rendering — mesh rendering with lighting, shadow mapping, and PBR materials (see [`docs/`](docs/index.md))
+- Render-to-texture post-processing — `PostProcessStack` chaining full-screen effects (vignette/colour-grade, bloom) over the 2D or 3D pipeline (see [`docs/post-processing.md`](docs/post-processing.md))
 - Skeletal animation — glTF bone hierarchies and clips played via GPU skinning
 - Tilemaps — batched, camera-culled tile grids
 - Opt-in 2D camera (pan / zoom / rotate; world-space sprites + screen-space text)
@@ -90,6 +91,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
   - `BrowserDemo/` - Blazor/WebAssembly interactive paddle-and-ball demo (keyboard, mouse & touch)
   - `RenderingStressTest/` - Renderer stress test (FPS vs sprite count)
   - `TextRenderingExample/` - Text rendering demo
+  - `PostProcessingDemo/` - Render-to-texture post-processing (vignette + bloom, toggled at runtime)
 - `docs/` - Documentation (see [`docs/index.md`](docs/index.md))
 
 ## Usage

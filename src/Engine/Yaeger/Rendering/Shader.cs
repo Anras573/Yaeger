@@ -95,6 +95,12 @@ public class Shader : IDisposable
         _gl.Uniform3(location, value.X, value.Y, value.Z);
     }
 
+    public void SetUniformVec2(string name, Vector2 value)
+    {
+        var location = GetUniformLocation(name);
+        _gl.Uniform2(location, value.X, value.Y);
+    }
+
     public void SetUniformFloat(string name, float value)
     {
         var location = GetUniformLocation(name);
