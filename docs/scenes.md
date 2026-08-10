@@ -103,7 +103,6 @@ returned from `Deserialize` cover it.
 
 ## Not yet supported
 
-- **Hot reload** — watching the scene file for changes and re-instantiating. Nothing stops you from calling `loader.Load(...)` again manually, but there's no built-in watcher.
 - **Scene composition / inheritance** — one scene extending or overriding another. Intentionally deferred.
 
 ## See also
@@ -112,4 +111,5 @@ returned from `Deserialize` cover it.
 - `src/Engine/Yaeger/ECS/SceneSaver.cs` — save-direction implementation
 - `src/Engine/Yaeger/ECS/SceneLoader.cs` — implementation
 - `src/Engine/Yaeger/ECS/Scene.cs` — in-memory scene representation
+- [`asset-hot-reload.md`](asset-hot-reload.md) — watching a scene file for changes and re-instantiating via `SceneHotReload`
 - `docs/` — the broader engine docs index
