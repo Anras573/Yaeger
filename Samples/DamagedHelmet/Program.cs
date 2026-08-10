@@ -2,6 +2,7 @@ using System.Numerics;
 using DamagedHelmet;
 using Yaeger;
 using Yaeger.Assets;
+using Yaeger.Audio;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Input;
@@ -16,6 +17,8 @@ using Yaeger.Windowing;
 // of the helmet also reflect that sky via image-based lighting (IblPrefilter/EnvironmentMapRegistry).
 // Assets are fetched automatically on first build via the FetchDamagedHelmetAssets MSBuild target.
 // Requires native libassimp at runtime (e.g. apt install libassimp-dev on Linux).
+// A looping hum (Assets/hum.wav) plays from the helmet via AudioSource3D/AudioSystem — orbit
+// around it (or scroll to zoom) to hear it pan and attenuate as the camera moves.
 // Controls: camera orbits the helmet on its own — left-mouse-drag to orbit manually,
 // scroll to zoom, Space to pause/resume the auto-orbit, F1 inspector, ESC exit.
 
@@ -177,13 +180,38 @@ var meshRenderSystem = new MeshRenderSystem(
 );
 var orbitCameraSystem = new OrbitCameraSystem(world, cameraEntity, sceneCenter, orbitRadius);
 
+// A looping hum on the helmet itself — AudioSystem drives its OpenAL source position from this
+// entity's Transform3D and the listener from the orbiting Camera3D above, so panning/attenuation
+// tracks the orbit automatically. Distances are scaled to orbitRadius so the effect is audible
+// across the sample's zoom range (see OrbitCameraSystem's min/max radius).
+using var humBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/hum.wav");
+using var audioSystem = new AudioSystem(world, window.AudioContext);
+
+var humEntity = world.CreateEntity("helmet hum");
+world.AddComponent(humEntity, new Transform3D(sceneCenter, Quaternion.Identity, Vector3.One));
+world.AddComponent(
+    humEntity,
+    new AudioSource3D(
+        humBuffer,
+        Loop: true,
+        Volume: 0.6f,
+        MinDistance: orbitRadius * 0.5f,
+        MaxDistance: orbitRadius * 3f,
+        RolloffFactor: 1.2f
+    )
+);
+
 using var inspector = new ImGuiInspector(window, world);
 
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
 Keyboard.AddKeyDown(Keys.F1, inspector.Toggle);
 Keyboard.AddKeyDown(Keys.Space, orbitCameraSystem.ToggleAutoOrbit);
 
-window.OnUpdate += deltaTime => orbitCameraSystem.Update((float)deltaTime);
+window.OnUpdate += deltaTime =>
+{
+    orbitCameraSystem.Update((float)deltaTime);
+    audioSystem.Update((float)deltaTime);
+};
 window.OnRender += delta =>
 {
     meshRenderSystem.Render();
