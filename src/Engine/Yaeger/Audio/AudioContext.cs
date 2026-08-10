@@ -11,6 +11,7 @@ public sealed class AudioContext : IDisposable
     private readonly ALContext _alc;
     private readonly nint _device;
     private readonly nint _context;
+    private DistanceModel _distanceModel = DistanceModel.InverseDistanceClamped;
     private bool _disposed;
 
     private unsafe AudioContext(AL al, ALContext alc, Device* device, Context* context)
@@ -40,6 +41,27 @@ public sealed class AudioContext : IDisposable
     public AudioMixer Mixer { get; } = new();
 
     /// <summary>
+    /// The OpenAL distance model applied context-wide to every source's distance attenuation,
+    /// on top of each source's own reference distance / max distance / rolloff factor (see
+    /// <see cref="SoundSource.ReferenceDistance"/>). Defaults to
+    /// <see cref="DistanceModel.InverseDistanceClamped"/>, matching OpenAL's own default.
+    /// </summary>
+    public DistanceModel DistanceModel
+    {
+        get
+        {
+            System.ObjectDisposedException.ThrowIf(_disposed, this);
+            return _distanceModel;
+        }
+        set
+        {
+            System.ObjectDisposedException.ThrowIf(_disposed, this);
+            _distanceModel = value;
+            _al.DistanceModel(value);
+        }
+    }
+
+    /// <summary>
     /// Creates and initializes a new audio context.
     /// </summary>
     /// <returns>A new AudioContext instance.</returns>
@@ -67,6 +89,7 @@ public sealed class AudioContext : IDisposable
             }
 
             alc.MakeContextCurrent(context);
+            al.DistanceModel(DistanceModel.InverseDistanceClamped);
 
             return new AudioContext(al, alc, device, context);
         }

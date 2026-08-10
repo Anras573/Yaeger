@@ -14,6 +14,14 @@ namespace Yaeger.Audio;
 /// already-playing sources immediately, without touching them directly. Because of this, the
 /// <see cref="Gain"/> getter returns the logical value you set, not whatever OpenAL currently
 /// reports (which reflects the mixed value).
+/// <para>
+/// Sources created via <see cref="Create"/> are listener-relative (OpenAL's
+/// <c>AL_SOURCE_RELATIVE</c>) with a default position of the origin — i.e. anchored exactly at
+/// the listener, so this non-positional playback path (UI sounds, one-off SFX) stays full-volume
+/// and centered no matter where <c>Yaeger.Systems.AudioSystem</c> moves the listener. For
+/// spatialized sound driven by an entity's position, use <see cref="AudioSource3D"/> +
+/// <c>AudioSystem</c> instead, which creates its own (non-relative, absolute-position) sources.
+/// </para>
 /// </remarks>
 public sealed class SoundSource : IDisposable
 {
@@ -53,8 +61,18 @@ public sealed class SoundSource : IDisposable
     /// The volume group this source belongs to, for <see cref="AudioContext.Mixer"/>. Defaults
     /// to <see cref="AudioGroup.Sfx"/>.
     /// </param>
+    /// <param name="listenerRelative">
+    /// When <c>true</c> (the default), the source is created listener-relative
+    /// (<c>AL_SOURCE_RELATIVE</c>) — see the type-level remarks. <c>AudioSystem</c> passes
+    /// <c>false</c> for the sources it creates on behalf of <see cref="AudioSource3D"/>, which
+    /// need absolute world positions instead.
+    /// </param>
     /// <returns>A new SoundSource instance.</returns>
-    public static SoundSource Create(AudioContext context, AudioGroup group = AudioGroup.Sfx)
+    public static SoundSource Create(
+        AudioContext context,
+        AudioGroup group = AudioGroup.Sfx,
+        bool listenerRelative = true
+    )
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -64,6 +82,7 @@ public sealed class SoundSource : IDisposable
         try
         {
             sourceId = al.GenSource();
+            al.SetSourceProperty(sourceId, SourceBoolean.SourceRelative, listenerRelative);
             var source = new SoundSource(al, sourceId, context.Mixer, group);
             source.PushGain();
             return source;
@@ -252,6 +271,64 @@ public sealed class SoundSource : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             _al.SetSourceProperty(_sourceId, SourceVector3.Velocity, value);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the distance (OpenAL's <c>AL_REFERENCE_DISTANCE</c>) at which this source's
+    /// attenuation starts under the context's distance model. Below this distance, the source
+    /// plays at full gain.
+    /// </summary>
+    public float ReferenceDistance
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.GetSourceProperty(_sourceId, SourceFloat.ReferenceDistance, out var value);
+            return value;
+        }
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.SetSourceProperty(_sourceId, SourceFloat.ReferenceDistance, value);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the distance (OpenAL's <c>AL_MAX_DISTANCE</c>) beyond which this source stops
+    /// attenuating further under a clamped distance model.
+    /// </summary>
+    public float MaxDistance
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.GetSourceProperty(_sourceId, SourceFloat.MaxDistance, out var value);
+            return value;
+        }
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.SetSourceProperty(_sourceId, SourceFloat.MaxDistance, value);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets how quickly this source attenuates with distance (OpenAL's
+    /// <c>AL_ROLLOFF_FACTOR</c>), on top of the context-wide distance model.
+    /// </summary>
+    public float RolloffFactor
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.GetSourceProperty(_sourceId, SourceFloat.RolloffFactor, out var value);
+            return value;
+        }
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _al.SetSourceProperty(_sourceId, SourceFloat.RolloffFactor, value);
         }
     }
 

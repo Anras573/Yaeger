@@ -12,6 +12,7 @@ Vorbis audio, either fully decoded into memory (short SFX) or streamed from a ri
 - **WAV and OGG Vorbis support**: Fully-decoded playback for both; OGG decoding is pure managed (NVorbis), no native dependency
 - **Streaming**: `StreamingSoundSource` streams an OGG file through a small ring of buffers instead of decoding the whole thing into memory — the right choice for music
 - **Volume groups**: `AudioMixer` applies master/music/SFX multipliers on top of each source's own volume, and changes take effect on already-playing sources immediately
+- **Positional (3D) audio**: `AudioSource3D` + `AudioSystem` pan and attenuate a sound by its entity's position, with the listener tracking the active `Camera3D`/`Camera2D`
 - **Flexible Playback**: Control volume, pitch, looping, and 3D positioning
 - **Resource Management**: Proper disposal of audio resources
 
@@ -72,17 +73,24 @@ soundSource.Looping = true;
 soundSource.Play();
 ```
 
-### 3D Audio Positioning
+### Manual positioning on a plain SoundSource
+
+`SoundSource.Position`/`Velocity` are still there for low-level control, but a `SoundSource` is
+created listener-relative (see "Positional (3D) audio" below), so `Position` is an offset from the
+listener rather than an absolute world position:
 
 ```csharp
 using System.Numerics;
 
-// Position the sound in 3D space
+// Offsets the sound 10 units from the listener, not from world-space origin.
 soundSource.Position = new Vector3(10f, 0f, 0f);
 
 // Set velocity for Doppler effect
 soundSource.Velocity = new Vector3(1f, 0f, 0f);
 ```
+
+For a sound that should pan/attenuate by an entity's actual world position — a torch, an engine,
+footsteps — use `AudioSource3D` + `AudioSystem` instead; see "Positional (3D) audio" below.
 
 ### Check Playback State
 
@@ -225,8 +233,84 @@ streamingSource.Dispose(); // also disposes the underlying OGG decoder
 - Audio operations must be performed from the thread that owns the OpenAL context (typically the window's main thread); thread safety across multiple threads is not guaranteed by the engine
 - `StreamingSoundSource.Update()` must be called from that same thread, regularly, for the stream to keep up with playback
 
+## Positional (3D) audio
+
+`AudioSource3D` + `AudioSystem` spatialize a sound by an entity's position, using OpenAL's
+built-in distance attenuation and stereo panning:
+
+```csharp
+using Yaeger.Audio;
+using Yaeger.Systems;
+
+var buffer = SoundBuffer.FromFile(window.AudioContext, "Assets/torch.wav");
+var audioSystem = new AudioSystem(world, window.AudioContext);
+
+var torch = world.CreateEntity();
+world.AddComponent(torch, new Transform3D(new Vector3(4f, 1f, 0f), Quaternion.Identity, Vector3.One));
+world.AddComponent(
+    torch,
+    new AudioSource3D(buffer, Loop: true, Volume: 0.7f, MinDistance: 2f, MaxDistance: 20f, RolloffFactor: 1f)
+);
+
+window.OnUpdate += deltaTime => audioSystem.Update((float)deltaTime);
+```
+
+Playback starts automatically the first update after `AudioSource3D` is attached (or after its
+`Buffer` changes to a different instance) — looping continuously when `Loop` is set, or playing
+once otherwise. A `null` `Buffer` is a no-op until one is assigned. Removing the component (or
+destroying the entity) stops and releases the underlying OpenAL source on the next
+`AudioSystem.Update`; disposing `AudioSystem` itself releases every source it still owns.
+
+`MinDistance`/`MaxDistance`/`RolloffFactor` map directly onto OpenAL's per-source reference
+distance / max distance / rolloff factor, layered on top of the distance model configured once on
+`AudioContext.DistanceModel` (defaults to `DistanceModel.InverseDistanceClamped`, matching
+OpenAL's own default — override it once, globally, if a game wants a different falloff curve).
+`Volume` is this source's own logical gain, same as `SoundSource.Gain` — the value actually sent
+to OpenAL also factors in `AudioContext.Mixer`'s SFX/master multipliers, so volume-group changes
+apply to spatialized sources exactly like non-positional ones (see "Volume groups" above).
+
+### The listener
+
+Each `AudioSystem.Update` also points the OpenAL listener at the scene's active camera, in
+priority order:
+
+1. The first `Camera3D` entity — listener position is the camera's `Position`; orientation (at/up)
+   is derived from the camera's `ViewMatrix` (see `AudioSpatialMath.ExtractOrientation`).
+2. Otherwise, the first `Camera2D` entity — listener position is the camera's `Position` mapped
+   onto the Z=0 plane, with a fixed orientation (facing into the screen, +Y up).
+3. Otherwise, the world origin with that same fixed 2D orientation.
+
+An `AudioSource3D` entity is positioned the same way: a `Transform3D` places it in full 3D; an
+entity with only a `Transform2D` is mapped onto that same Z=0 plane (`AudioSystem.ToListenerPlane`)
+— both the source and a `Camera2D` listener live on it, so panning/attenuation for a 2D game is
+driven entirely by XY offset, letting a top-down or side-view 2D game get panned/attenuated SFX
+without any 3D setup.
+
+### Interaction with non-positional playback
+
+`SoundSource`/`StreamingSoundSource` (the plain, non-positional path — UI sounds, music) are
+unaffected by any of the above: both are created listener-relative (OpenAL's
+`AL_SOURCE_RELATIVE`), anchored at the listener regardless of where `AudioSystem` moves it, so
+they stay full-volume and centered exactly as before this feature existed. `AudioSource3D`'s
+sources are created with absolute world positions instead, which is what real spatialization
+needs — `SoundSource.Create`'s `listenerRelative` parameter is what selects between the two, and
+`AudioSystem` is the only caller that passes `false`.
+
+### CPU-side math
+
+The math behind the listener's orientation (`AudioSpatialMath.ExtractOrientation`) and the 2D→3D
+position mapping (`AudioSpatialMath.ToListenerPlane`) is pure C# with no OpenAL dependency, so
+it's unit-tested directly (`AudioSpatialMathTests`) — unlike the rest of this system, which needs
+a live audio device and stays untested per the repo's test conventions.
+
+See `Samples/DamagedHelmet` for a working example: a looping hum on the helmet pans and
+attenuates as the camera orbits around it.
+
 ## Out of scope
 
 - MP3 (patent-free OGG Vorbis covers the streaming/compressed-audio need)
-- Positional/3D audio beyond the existing per-source `Position`/`Velocity` (no listener orientation, no attenuation model)
-- Audio effects and filters
+- HRTF/binaural configuration, audio effects and filters (reverb zones, occlusion)
+- Doppler tuning beyond OpenAL's own defaults (`SoundSource.Velocity`/`AudioSource3D` don't set
+  per-source Doppler factors)
+- Streaming positional audio (`StreamingSoundSource` stays listener-relative only; use
+  `AudioSource3D`, which is buffer-backed, for spatialized sound)

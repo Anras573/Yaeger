@@ -27,6 +27,13 @@ namespace Yaeger.Audio;
 /// actually sent to OpenAL also factors in <see cref="AudioContext.Mixer"/>'s multiplier for
 /// this source's <see cref="AudioGroup"/>, kept in sync automatically as mixer volumes change.
 /// </para>
+/// <para>
+/// Sources are always created listener-relative (OpenAL's <c>AL_SOURCE_RELATIVE</c>), anchored
+/// at the origin — i.e. exactly at the listener — so background music stays full-volume and
+/// centered no matter where <c>Yaeger.Systems.AudioSystem</c> moves the listener. There is no
+/// streaming path for spatialized audio; use <see cref="Yaeger.Audio.AudioSource3D"/> (buffered)
+/// for that.
+/// </para>
 /// </remarks>
 public sealed class StreamingSoundSource : IDisposable
 {
@@ -111,6 +118,7 @@ public sealed class StreamingSoundSource : IDisposable
         try
         {
             sourceId = al.GenSource();
+            al.SetSourceProperty(sourceId, SourceBoolean.SourceRelative, true);
             for (var i = 0; i < BufferCount; i++)
                 bufferIds[i] = al.GenBuffer();
 
