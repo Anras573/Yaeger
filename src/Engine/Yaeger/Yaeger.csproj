@@ -41,6 +41,7 @@
     <Compile Remove="Systems\ParallaxSystem.cs" />
     <Compile Remove="Systems\ParticleSystem.cs" />
     <Compile Remove="Systems\TransformHierarchySystem.cs" />
+    <Compile Remove="Systems\TweenSystem.cs" />
     <Compile Remove="Input\Keys.cs" />
     <Compile Remove="Input\MouseButton.cs" />
     <Compile Remove="Input\GamepadButton.cs" />

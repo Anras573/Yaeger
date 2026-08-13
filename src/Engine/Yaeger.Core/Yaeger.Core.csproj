@@ -37,6 +37,7 @@
       Include="..\Yaeger\Systems\TransformHierarchySystem.cs"
       Link="Systems\TransformHierarchySystem.cs"
     />
+    <Compile Include="..\Yaeger\Systems\TweenSystem.cs" Link="Systems\TweenSystem.cs" />
     <Compile Include="..\Yaeger\Input\Keys.cs" Link="Input\Keys.cs" />
     <Compile Include="..\Yaeger\Input\MouseButton.cs" Link="Input\MouseButton.cs" />
     <Compile Include="..\Yaeger\Input\GamepadButton.cs" Link="Input\GamepadButton.cs" />

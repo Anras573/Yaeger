@@ -42,6 +42,10 @@ public static class EngineComponentRegistryExtensions
     /// <list type="bullet">
     ///   <item><see cref="Parent"/> – type id <c>"Parent"</c></item>
     /// </list>
+    /// <para>Tweening:</para>
+    /// <list type="bullet">
+    ///   <item><see cref="Yaeger.Graphics.Tween"/> – type id <c>"Tween"</c></item>
+    /// </list>
     /// <para>
     /// <see cref="Yaeger.Graphics.MeshHandle"/> is intentionally not registered: its <c>Id</c> is an
     /// opaque, runtime-assigned key into a <c>GpuMeshRegistry</c> and is not portable across runs,
@@ -91,6 +95,9 @@ public static class EngineComponentRegistryExtensions
 
         // Hierarchy
         registry.Register(new ParentSerializer());
+
+        // Tweening
+        registry.Register(new TweenSerializer());
 
         return registry;
     }
