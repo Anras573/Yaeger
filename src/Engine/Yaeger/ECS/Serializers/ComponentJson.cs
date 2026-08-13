@@ -164,6 +164,48 @@ internal static class ComponentJson
             ? ReadQuaternion(el, propertyName)
             : defaultValue;
 
+    public static Vector4 ReadVector4(JsonElement el, string propertyName)
+    {
+        if (el.ValueKind == JsonValueKind.Array)
+        {
+            var arr = el.EnumerateArray().ToArray();
+            if (arr.Length != 4)
+                throw new PrefabLoadException(
+                    $"Property '{propertyName}' must be a Vector4 array with exactly four numeric elements."
+                );
+
+            return new Vector4(
+                ReadSingle(arr[0], $"{propertyName}[0]"),
+                ReadSingle(arr[1], $"{propertyName}[1]"),
+                ReadSingle(arr[2], $"{propertyName}[2]"),
+                ReadSingle(arr[3], $"{propertyName}[3]")
+            );
+        }
+
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            return new Vector4(
+                ReadSingle(GetRequired(el, propertyName, "x"), $"{propertyName}.x"),
+                ReadSingle(GetRequired(el, propertyName, "y"), $"{propertyName}.y"),
+                ReadSingle(GetRequired(el, propertyName, "z"), $"{propertyName}.z"),
+                ReadSingle(GetRequired(el, propertyName, "w"), $"{propertyName}.w")
+            );
+        }
+
+        throw new PrefabLoadException(
+            $"Property '{propertyName}' must be a Vector4 represented as [x, y, z, w] or {{ \"x\": number, \"y\": number, \"z\": number, \"w\": number }}."
+        );
+    }
+
+    public static Vector4 GetOptionalVector4(
+        JsonElement element,
+        string propertyName,
+        Vector4 defaultValue
+    ) =>
+        element.TryGetProperty(propertyName, out var el)
+            ? ReadVector4(el, propertyName)
+            : defaultValue;
+
     public static Color ReadColor(JsonElement el, string propertyName)
     {
         if (el.ValueKind != JsonValueKind.Array)
@@ -217,6 +259,14 @@ internal static class ComponentJson
 
     public static JsonArray Write(Vector3 v) =>
         new(JsonValue.Create(v.X), JsonValue.Create(v.Y), JsonValue.Create(v.Z));
+
+    public static JsonArray Write(Vector4 v) =>
+        new(
+            JsonValue.Create(v.X),
+            JsonValue.Create(v.Y),
+            JsonValue.Create(v.Z),
+            JsonValue.Create(v.W)
+        );
 
     public static JsonArray Write(Quaternion q) =>
         new(

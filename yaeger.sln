@@ -55,6 +55,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeshInstancingDemo", "Sampl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PostProcessingDemo", "Samples\PostProcessingDemo\PostProcessingDemo.csproj", "{69F9EF0A-0017-4897-93B2-1BABE352B457}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TweenDemo", "Samples\TweenDemo\TweenDemo.csproj", "{87F30072-DCFC-4682-AA8E-044986BD3661}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -329,6 +331,18 @@ Global
 		{69F9EF0A-0017-4897-93B2-1BABE352B457}.Release|x64.Build.0 = Release|Any CPU
 		{69F9EF0A-0017-4897-93B2-1BABE352B457}.Release|x86.ActiveCfg = Release|Any CPU
 		{69F9EF0A-0017-4897-93B2-1BABE352B457}.Release|x86.Build.0 = Release|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Debug|x64.Build.0 = Debug|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Debug|x86.Build.0 = Debug|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Release|x64.ActiveCfg = Release|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Release|x64.Build.0 = Release|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Release|x86.ActiveCfg = Release|Any CPU
+		{87F30072-DCFC-4682-AA8E-044986BD3661}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -357,6 +371,7 @@ Global
 		{3DC6A7A7-A314-41F2-825E-E42700571DCC} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{790850D3-A486-43D3-B479-6EB6B11DD64C} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{69F9EF0A-0017-4897-93B2-1BABE352B457} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{87F30072-DCFC-4682-AA8E-044986BD3661} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1749389E-6209-45C6-A9E0-C006D098E94D}
