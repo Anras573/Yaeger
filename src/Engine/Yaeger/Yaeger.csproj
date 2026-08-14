@@ -35,11 +35,13 @@
     <Compile Remove="ECS\**\*.cs" />
     <Compile Remove="Graphics\**\*.cs" />
     <Compile Remove="Physics\**\*.cs" />
+    <Compile Remove="Sequencing\**\*.cs" />
     <Compile Remove="Systems\AnimationSystem.cs" />
     <Compile Remove="Systems\AnimationStateMachineSystem.cs" />
     <Compile Remove="Systems\IUpdateSystem.cs" />
     <Compile Remove="Systems\ParallaxSystem.cs" />
     <Compile Remove="Systems\ParticleSystem.cs" />
+    <Compile Remove="Systems\SequenceSystem.cs" />
     <Compile Remove="Systems\TransformHierarchySystem.cs" />
     <Compile Remove="Systems\TweenSystem.cs" />
     <Compile Remove="Input\Keys.cs" />
