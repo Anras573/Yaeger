@@ -97,8 +97,22 @@ public record BoneTrack(
 /// (seconds). Sampling produces local transforms that a <see cref="Skeleton"/> resolves into a
 /// skinning palette.
 /// </summary>
-public record AnimationClip(string Name, float Duration, BoneTrack[] Tracks)
+public record AnimationClip(
+    string Name,
+    float Duration,
+    BoneTrack[] Tracks,
+    AnimationEventMarker[]? Events = null
+)
 {
+    /// <summary>
+    /// Named markers authored at specific times (seconds) within the clip. Must be sorted ascending
+    /// by <see cref="AnimationEventMarker.Time"/> — the crossing detection in
+    /// <see cref="Systems.SkeletalAnimationSystem"/> assumes it, the same way <see cref="BoneTrack"/>'s
+    /// keyframe arrays assume ascending time order. Empty by default; not imported from glTF/FBX —
+    /// authored in code or wherever the clip itself is registered.
+    /// </summary>
+    public AnimationEventMarker[] Events { get; init; } = Events ?? [];
+
     /// <summary>
     /// Samples every track at <paramref name="time"/> (seconds) and writes each track's local
     /// transform into <paramref name="localTransforms"/> at the track's bone index. Bones without a
