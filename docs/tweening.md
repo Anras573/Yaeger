@@ -146,7 +146,9 @@ the entity it is attached to (self-tweening).
 
 ## Known limitations
 
-- No sequencing or chaining (playing one tween after another finishes) — tracked separately.
+- No sequencing or chaining (playing one tween after another finishes) built into `Tween`/
+  `TweenSystem` itself — see [sequencing.md](sequencing.md) for `SequenceSystem`, which drives
+  ordered/parallel steps (including starting tweens and waiting on them) on top of this.
 - No curve/spline editors or a graphical timeline.
 - Channels are a closed enum, not reflection-based property paths — animating an arbitrary
   component field requires adding a new `TweenChannel` case to `TweenSystem`.

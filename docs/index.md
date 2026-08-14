@@ -16,6 +16,7 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a
 - **Animation system** with frame-based texture cycling, sprite flipping, and a named-state-machine helper ([animation-system.md](animation-system.md))
 - **Particle system** with pooled, batched emitters ([particles.md](particles.md))
 - **Tweening** — data-driven animation of transform, light, and material fields with easing, looping, and ping-pong ([tweening.md](tweening.md))
+- **Sequencing** — ordered/parallel timed steps (waits, tween/clip starters, predicates, callbacks) with pause/resume/stop/skip-to-end, for directed cutscene-style beats ([sequencing.md](sequencing.md))
 - **Tilemaps** — batched, camera-culled tile grids with merged-collider physics support and Tiled (`.tmj`) import ([tilemaps.md](tilemaps.md))
 - **2D physics** — spatial-hash broadphase, AABB/circle collision detection, impulse-based resolution, fixed-timestep stepping, and tunneling prevention ([physics.md](physics.md))
 - **Audio system** with OpenAL support — WAV and OGG Vorbis (streamed or fully decoded), master/music/SFX volume groups ([audio-system.md](audio-system.md))
@@ -94,7 +95,8 @@ Samples/
 ├── MeshInstancingDemo/      # Instanced 3D rendering stress test
 ├── TextRenderingExample/    # Text rendering demo
 ├── PostProcessingDemo/      # Render-to-texture post-processing (vignette + bloom, toggled at runtime)
-└── TweenDemo/               # Data-driven transform/light/material animation with easing
+├── TweenDemo/               # Data-driven transform/light/material animation with easing
+└── SequenceDemo/            # Ordered/parallel cutscene beats (lift, doors, reveal) with skip-to-end
 ```
 
 ## License

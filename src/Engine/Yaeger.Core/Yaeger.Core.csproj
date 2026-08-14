@@ -25,6 +25,10 @@
       Exclude="..\Yaeger\Physics\PhysicsDebugRenderer.cs"
       Link="Physics\%(RecursiveDir)%(Filename)%(Extension)"
     />
+    <Compile
+      Include="..\Yaeger\Sequencing\**\*.cs"
+      Link="Sequencing\%(RecursiveDir)%(Filename)%(Extension)"
+    />
     <Compile Include="..\Yaeger\Systems\AnimationSystem.cs" Link="Systems\AnimationSystem.cs" />
     <Compile
       Include="..\Yaeger\Systems\AnimationStateMachineSystem.cs"
@@ -33,6 +37,7 @@
     <Compile Include="..\Yaeger\Systems\IUpdateSystem.cs" Link="Systems\IUpdateSystem.cs" />
     <Compile Include="..\Yaeger\Systems\ParallaxSystem.cs" Link="Systems\ParallaxSystem.cs" />
     <Compile Include="..\Yaeger\Systems\ParticleSystem.cs" Link="Systems\ParticleSystem.cs" />
+    <Compile Include="..\Yaeger\Systems\SequenceSystem.cs" Link="Systems\SequenceSystem.cs" />
     <Compile
       Include="..\Yaeger\Systems\TransformHierarchySystem.cs"
       Link="Systems\TransformHierarchySystem.cs"
