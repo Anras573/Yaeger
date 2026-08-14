@@ -80,13 +80,32 @@ hierarchy — for the common case of uniform (or leaf-only) scale, it is exact.
 
 ## Orphaning and destruction
 
-Destroying a parent does **not** destroy its children. On the next `TransformHierarchySystem.Update`,
+`world.DestroyEntity` does **not** destroy children. On the next `TransformHierarchySystem.Update`,
 any child whose `Parent` no longer resolves to an entity carrying the matching world transform —
 because the parent was destroyed, or never had one — is *orphaned to world-space*: its `Parent`
 component is removed, and its last computed `Transform2D`/`Transform3D` is left exactly where it
-was. If you want cascading destruction instead, walk the `Parent` graph yourself before calling
-`world.DestroyEntity` on the parent — that's a deliberately simple, opt-in helper rather than
-default behavior.
+was.
+
+For cascading destruction instead, call `world.DestroyHierarchy(entity)`: it destroys `entity` and
+every entity reachable from it through `Parent` — children, grandchildren, and so on — including
+their tag registrations. It's a plain `World` method, not tied to `TransformHierarchySystem`, so it
+works even on entities that carry a `Parent` without a `LocalTransform2D`/`LocalTransform3D` (i.e.
+aren't otherwise participating in transform composition).
+
+```csharp
+// Destroying just the turret orphans nothing beneath it (it has no children of its own):
+world.DestroyEntity(turret);
+
+// Destroying the tank *and* everything parented to it, transitively:
+world.DestroyHierarchy(tank);
+```
+
+Because destruction has to walk the whole subtree before touching anything (destroying an entity
+partway through would corrupt the very `Parent` links the walk depends on), a `Parent` chain that
+loops back on itself beneath `entity` throws `InvalidOperationException` rather than recursing
+forever — the same guard `TransformHierarchySystem.Update` uses for its own traversal.
+`DestroyHierarchy` only walks *downward*; destroying a middle node in a chain leaves its ancestors
+untouched (they simply orphan their remaining children as usual on the next hierarchy update).
 
 ## Prefabs and scenes
 

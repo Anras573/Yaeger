@@ -189,6 +189,133 @@ public class WorldTests
         Assert.False(world.TryGetComponent<TestComponent>(entity, out _));
     }
 
+    // ── DestroyHierarchy (issue #191) ───────────────────────────────────────
+
+    [Fact]
+    public void DestroyHierarchy_EntityWithNoChildren_DestroysOnlyItself()
+    {
+        var world = new World();
+        var lonely = world.CreateEntity();
+        var other = world.CreateEntity();
+
+        world.DestroyHierarchy(lonely);
+
+        Assert.DoesNotContain(lonely, world.Entities);
+        Assert.Contains(other, world.Entities);
+    }
+
+    [Fact]
+    public void DestroyHierarchy_SingleLevelChildren_DestroysParentAndAllChildren()
+    {
+        var world = new World();
+        var parent = world.CreateEntity();
+        var childA = world.CreateEntity();
+        var childB = world.CreateEntity();
+        world.AddComponent(childA, new Parent(parent));
+        world.AddComponent(childB, new Parent(parent));
+
+        world.DestroyHierarchy(parent);
+
+        Assert.DoesNotContain(parent, world.Entities);
+        Assert.DoesNotContain(childA, world.Entities);
+        Assert.DoesNotContain(childB, world.Entities);
+    }
+
+    [Fact]
+    public void DestroyHierarchy_MultiLevelTree_DestroysEveryDescendant()
+    {
+        var world = new World();
+        var grandparent = world.CreateEntity();
+        var parent = world.CreateEntity();
+        var child = world.CreateEntity();
+        var grandchild = world.CreateEntity();
+        world.AddComponent(parent, new Parent(grandparent));
+        world.AddComponent(child, new Parent(parent));
+        world.AddComponent(grandchild, new Parent(child));
+
+        world.DestroyHierarchy(grandparent);
+
+        Assert.DoesNotContain(grandparent, world.Entities);
+        Assert.DoesNotContain(parent, world.Entities);
+        Assert.DoesNotContain(child, world.Entities);
+        Assert.DoesNotContain(grandchild, world.Entities);
+    }
+
+    [Fact]
+    public void DestroyHierarchy_DoesNotTouchEntitiesOutsideTheSubtree()
+    {
+        var world = new World();
+        var parent = world.CreateEntity();
+        var child = world.CreateEntity();
+        world.AddComponent(child, new Parent(parent));
+
+        var unrelatedParent = world.CreateEntity();
+        var unrelatedChild = world.CreateEntity();
+        world.AddComponent(unrelatedChild, new Parent(unrelatedParent));
+
+        world.DestroyHierarchy(parent);
+
+        Assert.DoesNotContain(parent, world.Entities);
+        Assert.DoesNotContain(child, world.Entities);
+        Assert.Contains(unrelatedParent, world.Entities);
+        Assert.Contains(unrelatedChild, world.Entities);
+    }
+
+    [Fact]
+    public void DestroyHierarchy_RemovesTagRegistrationsForEveryDestroyedEntity()
+    {
+        var world = new World();
+        var parent = world.CreateEntity("root");
+        var child = world.CreateEntity("leaf");
+        world.AddComponent(child, new Parent(parent));
+
+        world.DestroyHierarchy(parent);
+
+        Assert.False(world.TryGetEntity("root", out _));
+        Assert.False(world.TryGetEntity("leaf", out _));
+    }
+
+    [Fact]
+    public void DestroyHierarchy_DestroyingAMiddleNode_LeavesItsAncestorsAlone()
+    {
+        var world = new World();
+        var grandparent = world.CreateEntity();
+        var parent = world.CreateEntity();
+        var child = world.CreateEntity();
+        world.AddComponent(parent, new Parent(grandparent));
+        world.AddComponent(child, new Parent(parent));
+
+        // Destroying a middle node cascades downward only — ancestors are untouched, matching
+        // DestroyEntity's existing orphan-to-world-space contract for whatever's above the call.
+        world.DestroyHierarchy(parent);
+
+        Assert.Contains(grandparent, world.Entities);
+        Assert.DoesNotContain(parent, world.Entities);
+        Assert.DoesNotContain(child, world.Entities);
+    }
+
+    [Fact]
+    public void DestroyHierarchy_CyclicParentChain_ThrowsInvalidOperationException()
+    {
+        var world = new World();
+        var a = world.CreateEntity();
+        var b = world.CreateEntity();
+        world.AddComponent(a, new Parent(b));
+        world.AddComponent(b, new Parent(a));
+
+        Assert.Throws<InvalidOperationException>(() => world.DestroyHierarchy(a));
+    }
+
+    [Fact]
+    public void DestroyHierarchy_SelfParentedEntity_ThrowsInvalidOperationException()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Parent(entity));
+
+        Assert.Throws<InvalidOperationException>(() => world.DestroyHierarchy(entity));
+    }
+
     // Helper test component
     private struct TestComponent
     {
