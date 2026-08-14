@@ -30,8 +30,8 @@ they simply carry zero skin weights and take the identity-skin path in the shade
 | `Skeleton(Bones, InverseBindPoses)` | Bone array + inverse bind poses; `ComputeMatrixPalette` resolves a pose. |
 | `VectorKey` / `QuaternionKey` | Keyframes (time in seconds) for translation/scale and rotation. |
 | `BoneTrack(BoneIndex, Positions, Rotations, Scales)` | Per-bone keyframe tracks; `Sample(time)` → local matrix. |
-| `AnimationClip(Name, Duration, Tracks)` | A named clip; `Sample(time, locals)` fills per-bone locals; `SampleTRS(time, ...)` fills separate translation/rotation/scale spans for blending. |
-| `SkeletonHandle` / `AnimationPlayer` / `BonePalette` | ECS components. `AnimationPlayer` also holds in-progress crossfade state (`PreviousClip`/`PreviousTime`/`FadeDuration`/`FadeElapsed`), set by `CrossFadeTo` rather than by hand. |
+| `AnimationClip(Name, Duration, Tracks, Events)` | A named clip; `Sample(time, locals)` fills per-bone locals; `SampleTRS(time, ...)` fills separate translation/rotation/scale spans for blending. `Events` is an optional array of named markers — see [Completion and events](#completion-and-events) below. |
+| `SkeletonHandle` / `AnimationPlayer` / `BonePalette` | ECS components. `AnimationPlayer` also holds in-progress crossfade state (`PreviousClip`/`PreviousTime`/`FadeDuration`/`FadeElapsed`), set by `CrossFadeTo` rather than by hand, and `IsFinished` (see below). |
 | `SkeletonRegistry` | Stores skeletons + clips, keyed by handle. |
 | `SkeletalAnimationSystem` | `IUpdateSystem` that drives playback and writes the palette. |
 
@@ -86,6 +86,78 @@ switch as assigning `CurrentClip` directly, and clears any fade already in progr
 Bones that lack a track in one of the two clips fall back to the skeleton's bind pose
 (`Bone.LocalTransform`, decomposed into translation/rotation/scale) for that clip's contribution to
 the blend — the same fallback the single-clip path uses for untracked bones.
+
+## Completion and events
+
+### `AnimationPlayer.IsFinished`
+
+`true` once a non-looping `CurrentClip`'s playback time has clamped at its end (or, for reverse
+playback via a negative `Speed`, its start) — the 3D equivalent of `AnimationState.IsFinished` on
+the 2D side, so both animation paths behave the same:
+
+```csharp
+if (world.GetComponent<AnimationPlayer>(entity).IsFinished)
+{
+    // the door has finished opening — start the next beat
+}
+```
+
+Unlike a one-shot event, `IsFinished` is recomputed fresh every `Update` call from the current
+`Time`/`Loop`/`Speed` against the clip's duration rather than latched — so it automatically reads
+`false` again the moment a new clip is assigned (directly or via `CrossFadeTo`) or `Time` is moved
+back before the end (a manual restart). No separate reset call is needed. It's always `false` while
+`Loop` is `true`, since a looping clip never clamps.
+
+### `AnimationEventMarker` and `SkeletalAnimationSystem.OnAnimationEvent`
+
+`AnimationClip.Events` is an array of `AnimationEventMarker(Time, Key)` — named moments authored at
+specific times within the clip (a footstep, a muzzle flash, a sword-swing whoosh), **sorted
+ascending by `Time`**:
+
+```csharp
+var walk = new AnimationClip(
+    "Walk",
+    duration: 0.8f,
+    tracks,
+    Events: [new AnimationEventMarker(0.2f, "footstepLeft"), new AnimationEventMarker(0.6f, "footstepRight")]
+);
+```
+
+`SkeletalAnimationSystem.OnAnimationEvent` fires once per marker crossed, carrying
+`AnimationEvent(Entity, ClipName, Key)`:
+
+```csharp
+animationSystem.OnAnimationEvent += e =>
+{
+    if (e.Key == "footstepLeft" || e.Key == "footstepRight")
+        PlayFootstepSound(e.Entity);
+};
+```
+
+Markers are evaluated purely from the entity's **incoming** clip (`CurrentClip`/`Time`) — never the
+fade-out source of an in-progress `CrossFadeTo`, so a fading-out loop doesn't keep emitting its own
+markers once a fade begins. The crossing detection is correct under:
+
+- **Looping wrap-around** — a marker near the clip end fires once per loop pass, including when a
+  single large `deltaTime` spans several full loops (each pass fires it again, in order).
+- **Reverse playback** — a negative `Speed` fires markers in reverse (descending time) order as
+  playback moves backward.
+- **A large `deltaTime` spanning several markers** — all of them fire, in the order playback
+  actually crosses them, within that one `Update` call.
+- **The exact boundary** — a marker sits in a half-open interval per frame (`(previous, current]`
+  going forward, `[current, previous)` in reverse), so it fires exactly once as the frame that
+  reaches it arrives, never again as the departure end of the next frame.
+- **A manual jump of `Time`** — assigning `AnimationPlayer.Time` directly (a seek, bypassing this
+  system) fires nothing for the frame the jump is discovered on, even if a marker numerically lies
+  between the old and new values. Playback is treated as "continuous" again starting from that
+  frame's own advance, so normal crossing detection resumes on the *next* `Update` call. A brand
+  new entity's very first `Update` call is **not** treated as a jump — there's no prior frame to be
+  discontinuous from, so markers between its initial `Time` and wherever that first frame's advance
+  lands fire normally.
+
+Not in scope: importing markers from glTF/FBX (author them in code, or wherever the clip is
+registered) and 2D animation events (`AnimationState` already has the completion half; frame-indexed
+events there are a separate feature).
 
 ## Notes & limitations
 

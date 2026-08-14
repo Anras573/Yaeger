@@ -13,15 +13,27 @@ namespace Yaeger.Systems;
 /// Wire to <see cref="Yaeger.Windowing.Window.OnUpdate"/>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Call <see cref="CrossFadeTo"/> to blend into a new clip over a short duration instead of
 /// snapping to it. While a fade is in progress, <see cref="Update"/> samples both the incoming and
 /// outgoing clips into per-bone locals and interpolates between them (lerp translation/scale, slerp
 /// rotation) before resolving the palette; once the fade duration elapses it drops back to the
 /// single-clip path. The outgoing clip keeps advancing its own playback time during the fade, so a
 /// looping source clip doesn't freeze on the pose it was at when the fade began.
+/// </para>
+/// <para>
+/// <see cref="AnimationPlayer.IsFinished"/> and <see cref="OnAnimationEvent"/> (marker crossings)
+/// are both driven purely by <see cref="AnimationPlayer.CurrentClip"/>/<c>Time</c> — the "incoming"
+/// clip — never by the fade-out source, so a fading-out loop doesn't keep reporting finished or
+/// emitting its own markers once a fade begins. See docs/skeletal-animation.md.
+/// </para>
 /// </remarks>
 public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skeletons) : IUpdateSystem
 {
+    // Below this, a Time difference is floating-point noise rather than an intentional manual seek,
+    // and a boundary position is considered "reached" for loop-wrap/clamp purposes.
+    private const float Epsilon = 1e-4f;
+
     // Scratch buffers, grown as needed and reused across entities and frames so sampling allocates
     // nothing. The TRS buffers are only touched while a crossfade is in progress.
     private Matrix4x4[] _localTransforms = [];
@@ -32,6 +44,24 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
     private Quaternion[] _fromRotations = [];
     private Vector3[] _fromScales = [];
 
+    // Per-entity "where marker-crossing detection left off" so a directly-assigned Time (a seek,
+    // bypassing this system) can be told apart from Time this system itself advanced last frame —
+    // see FireCrossedMarkers's remarks. Diffed and cleaned up each Update the same way
+    // AudioSystem/TilemapColliderSystem retire entries for entities no longer carrying the component.
+    private readonly Dictionary<Entity, MarkerBaseline> _markerBaselines = new();
+    private readonly HashSet<Entity> _seenThisFrame = new();
+    private readonly List<Entity> _staleMarkerEntities = new();
+
+    private readonly record struct MarkerBaseline(string? ClipName, float Time);
+
+    /// <summary>
+    /// Raised once per <see cref="AnimationEventMarker"/> playback crosses on the entity's
+    /// <em>incoming</em> clip (<see cref="AnimationPlayer.CurrentClip"/>) — never the fade-out
+    /// source of an in-progress <see cref="CrossFadeTo"/>. See docs/skeletal-animation.md for the
+    /// full ordering/looping/seek contract.
+    /// </summary>
+    public event Action<AnimationEvent>? OnAnimationEvent;
+
     public void Update(float deltaTime)
     {
         // Guard the per-frame delta: a negative or non-finite frame time would rewind or poison every
@@ -39,6 +69,8 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
         // AnimationPlayer.Speed, applied below.)
         if (!float.IsFinite(deltaTime) || deltaTime < 0f)
             deltaTime = 0f;
+
+        _seenThisFrame.Clear();
 
         // Force iteration over the SkeletonHandle store (index 0): the loop writes back the
         // AnimationPlayer (and BonePalette) component, so enumerating the AnimationPlayer store
@@ -51,6 +83,8 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
             >(0)
         )
         {
+            _seenThisFrame.Add(entity);
+
             if (!skeletons.TryGet(handle, out var skeleton))
                 continue;
 
@@ -93,6 +127,20 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
                 updated.FadeElapsed = 0f;
             }
 
+            // Snapshot the incoming clip's pre-advance state for marker-crossing/continuity below,
+            // before AdvanceTime mutates updated.Time. No prior baseline (first time this system
+            // has seen the entity, or its baseline was just retired by RemoveStaleMarkerBaselines)
+            // is treated as a legitimate starting point — not a jump — so a freshly spawned
+            // entity's very first Update call still fires markers crossed between its initial Time
+            // and wherever this frame's advance lands.
+            var preTime = updated.Time;
+            var isContinuous =
+                !_markerBaselines.TryGetValue(entity, out var baseline)
+                || (
+                    string.Equals(baseline.ClipName, updated.CurrentClip, StringComparison.Ordinal)
+                    && MathF.Abs(baseline.Time - preTime) <= Epsilon
+                );
+
             var toAdvanced = AdvanceTime(
                 ref updated.Time,
                 toClip?.Duration ?? 0f,
@@ -100,6 +148,27 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
                 updated.Speed,
                 deltaTime
             );
+
+            if (isContinuous && toClip is { Events.Length: > 0 })
+            {
+                FireCrossedMarkers(
+                    entity,
+                    updated.CurrentClip!,
+                    toClip.Events,
+                    preTime,
+                    deltaTime * updated.Speed,
+                    toClip.Duration,
+                    updated.Loop
+                );
+            }
+
+            var wasFinished = updated.IsFinished;
+            updated.IsFinished =
+                toClip is not null
+                && !updated.Loop
+                && HasReachedEnd(updated.Time, toClip.Duration, updated.Speed);
+
+            _markerBaselines[entity] = new MarkerBaseline(updated.CurrentClip, updated.Time);
 
             AnimationClip? fromClip = null;
             if (isFading && !string.IsNullOrEmpty(updated.PreviousClip))
@@ -115,7 +184,13 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
                     deltaTime
                 );
 
-            if (sanitized || toAdvanced || fromAdvanced || wasFading)
+            if (
+                sanitized
+                || toAdvanced
+                || fromAdvanced
+                || wasFading
+                || updated.IsFinished != wasFinished
+            )
                 world.AddComponent(entity, updated);
 
             if (_localTransforms.Length < boneCount)
@@ -153,6 +228,21 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
             skeleton.ComputeMatrixPalette(locals, palette.Matrices.AsSpan(0, boneCount));
             world.AddComponent(entity, palette);
         }
+
+        RemoveStaleMarkerBaselines();
+    }
+
+    private void RemoveStaleMarkerBaselines()
+    {
+        _staleMarkerEntities.Clear();
+        foreach (var entity in _markerBaselines.Keys)
+        {
+            if (!_seenThisFrame.Contains(entity))
+                _staleMarkerEntities.Add(entity);
+        }
+
+        foreach (var entity in _staleMarkerEntities)
+            _markerBaselines.Remove(entity);
     }
 
     /// <summary>
@@ -237,6 +327,133 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Whether a non-looping clip's playback has clamped at its terminal boundary — <paramref name="duration"/>
+    /// when playing forward (<paramref name="speed"/> &gt;= 0), or <c>0</c> when playing in reverse
+    /// (<paramref name="speed"/> &lt; 0). Feeds <see cref="AnimationPlayer.IsFinished"/>; meaningless
+    /// (and never consulted) for a looping clip, since <see cref="AdvanceTime"/> wraps rather than
+    /// clamps in that case.
+    /// </summary>
+    private static bool HasReachedEnd(float time, float duration, float speed) =>
+        speed < 0f ? time <= Epsilon : time >= duration - Epsilon;
+
+    /// <summary>
+    /// Fires <see cref="OnAnimationEvent"/> for every <see cref="AnimationEventMarker"/> in
+    /// <paramref name="events"/> crossed while advancing from <paramref name="fromTime"/> by
+    /// <paramref name="rawDelta"/> seconds (the unwrapped, unclamped <c>deltaTime * Speed</c> — i.e.
+    /// how far playback actually travelled this frame, before <see cref="AdvanceTime"/>'s
+    /// wrap/clamp). Walks the timeline one <paramref name="duration"/>-length (or shorter,
+    /// boundary-clipped) leg at a time so a single large <paramref name="rawDelta"/> spanning
+    /// several markers — or, for a looping clip, several full loops — fires all of them, in
+    /// chronological order (descending by time for reverse playback, i.e. negative <paramref name="rawDelta"/>).
+    /// A non-looping leg that reaches the boundary stops there, matching <see cref="AdvanceTime"/>'s
+    /// clamp instead of continuing to wrap.
+    /// </summary>
+    /// <remarks>
+    /// Callers only invoke this when <paramref name="fromTime"/> is known-continuous with what this
+    /// system itself computed last frame (see the <c>isContinuous</c>/<see cref="MarkerBaseline"/>
+    /// check in <see cref="Update"/>) — a directly-assigned <see cref="AnimationPlayer.Time"/> (a
+    /// manual seek) is deliberately treated as crossing nothing, since there's no well-defined
+    /// "path" a seek travelled.
+    /// </remarks>
+    private void FireCrossedMarkers(
+        Entity entity,
+        string clipName,
+        AnimationEventMarker[] events,
+        float fromTime,
+        float rawDelta,
+        float duration,
+        bool loop
+    )
+    {
+        var handler = OnAnimationEvent;
+        if (handler is null || duration <= 0f)
+            return;
+
+        var remaining = MathF.Abs(rawDelta);
+        if (remaining <= Epsilon) // nothing moved (Speed 0, or a sub-epsilon deltaTime); nothing crossed
+            return;
+
+        var forward = rawDelta > 0f;
+        var current = fromTime;
+
+        while (remaining > Epsilon)
+        {
+            if (forward)
+            {
+                if (current >= duration - Epsilon)
+                {
+                    if (!loop)
+                        break;
+                    current = 0f;
+                    continue;
+                }
+
+                var step = MathF.Min(remaining, duration - current);
+                var segmentEnd = current + step;
+                FireForwardMarkers(handler, entity, clipName, events, current, segmentEnd);
+                remaining -= step;
+                current = segmentEnd;
+            }
+            else
+            {
+                if (current <= Epsilon)
+                {
+                    if (!loop)
+                        break;
+                    current = duration;
+                    continue;
+                }
+
+                var step = MathF.Min(remaining, current);
+                var segmentEnd = current - step;
+                FireReverseMarkers(handler, entity, clipName, events, segmentEnd, current);
+                remaining -= step;
+                current = segmentEnd;
+            }
+        }
+    }
+
+    // Markers with Time in (segmentStart, segmentEnd], visited in the array's (assumed ascending)
+    // order — the half-open interval means a marker sitting exactly on a frame boundary fires
+    // exactly once: as the *arrival* end of the frame that reaches it, never again as the
+    // *departure* end of the next.
+    private static void FireForwardMarkers(
+        Action<AnimationEvent> handler,
+        Entity entity,
+        string clipName,
+        AnimationEventMarker[] events,
+        float segmentStart,
+        float segmentEnd
+    )
+    {
+        foreach (var marker in events)
+        {
+            if (marker.Time > segmentStart && marker.Time <= segmentEnd)
+                handler(new AnimationEvent(entity, clipName, marker.Key));
+        }
+    }
+
+    // Mirror of FireForwardMarkers for reverse playback: markers with Time in [segmentStart,
+    // segmentEnd), visited in descending order so they fire in the order reverse playback actually
+    // reaches them.
+    private static void FireReverseMarkers(
+        Action<AnimationEvent> handler,
+        Entity entity,
+        string clipName,
+        AnimationEventMarker[] events,
+        float segmentStart,
+        float segmentEnd
+    )
+    {
+        for (var i = events.Length - 1; i >= 0; i--)
+        {
+            var marker = events[i];
+            if (marker.Time >= segmentStart && marker.Time < segmentEnd)
+                handler(new AnimationEvent(entity, clipName, marker.Key));
+        }
     }
 
     private void SampleSingle(

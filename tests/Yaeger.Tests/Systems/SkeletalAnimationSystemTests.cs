@@ -512,4 +512,419 @@ public class SkeletalAnimationSystemTests
         Assert.Equal(expected.Y, actual.Y, 4);
         Assert.Equal(expected.Z, actual.Z, 4);
     }
+
+    // ── IsFinished (issue #190) ─────────────────────────────────────────────
+
+    [Fact]
+    public void Update_NonLooping_ForwardReachesEnd_SetsIsFinished()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: false, speed: 1f) { Time = 0.9f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.5f); // clamps to 1.0
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal(1f, player.Time, 4);
+        Assert.True(player.IsFinished);
+
+        // Stays finished (not a one-shot edge event) across further updates while clamped.
+        system.Update(0.1f);
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var stillFinished));
+        Assert.True(stillFinished.IsFinished);
+    }
+
+    [Fact]
+    public void Update_NonLooping_ReversePlaybackReachesStart_SetsIsFinished()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: false, speed: -1f) { Time = 0.1f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.5f); // clamps to 0.0 (the "end" when playing in reverse)
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal(0f, player.Time, 4);
+        Assert.True(player.IsFinished);
+    }
+
+    [Fact]
+    public void Update_NonLooping_BeforeReachingEnd_IsFinishedStaysFalse()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("slide", loop: false, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.5f); // halfway, not yet at the end
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.False(player.IsFinished);
+    }
+
+    [Fact]
+    public void Update_Looping_NeverSetsIsFinished()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = 0.9f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        for (var i = 0; i < 5; i++)
+            system.Update(1f); // repeatedly wraps past the end
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.False(player.IsFinished);
+    }
+
+    [Fact]
+    public void Update_IsFinished_ResetsWhenANewClipIsAssigned()
+    {
+        var (registry, handle) = BuildCrossfadeRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: false, speed: 1f) { Time = 1f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0f); // already at the end
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var finished));
+        Assert.True(finished.IsFinished);
+
+        // A fresh AnimationPlayer for a different clip — the ordinary way to assign a new clip
+        // directly (as opposed to CrossFadeTo).
+        world.AddComponent(entity, new AnimationPlayer("rise", loop: false, speed: 1f));
+        system.Update(0.1f); // not yet anywhere near "rise"'s own end
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.Equal("rise", player.CurrentClip);
+        Assert.False(player.IsFinished);
+    }
+
+    [Fact]
+    public void Update_IsFinished_ResetsWhenThePlayerIsRestarted()
+    {
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: false, speed: 1f) { Time = 1f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0f);
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var finished));
+        Assert.True(finished.IsFinished);
+
+        // Same clip, rewound back to the start by hand — a restart.
+        var restarted = finished;
+        restarted.Time = 0f;
+        world.AddComponent(entity, restarted);
+        system.Update(0.1f);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.False(player.IsFinished);
+    }
+
+    [Fact]
+    public void Update_IsFinished_ClipClearedToNull_ResetsEvenWithoutOtherFieldChanges()
+    {
+        // Regression: IsFinished must be persisted even on a frame where nothing else about the
+        // player changed enough to trigger the write-back (AdvanceTime no-ops without a clip).
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: false, speed: 1f) { Time = 1f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0f);
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var finished));
+        Assert.True(finished.IsFinished);
+
+        var cleared = finished;
+        cleared.CurrentClip = null;
+        world.AddComponent(entity, cleared);
+        system.Update(0.1f);
+
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var player));
+        Assert.False(player.IsFinished);
+    }
+
+    // ── Animation events / markers (issue #190) ─────────────────────────────
+
+    // Single bone rig whose clip carries named markers, for OnAnimationEvent tests.
+    private static (SkeletonRegistry Registry, SkeletonHandle Handle) BuildRigWithEvents(
+        float duration,
+        params (float Time, string Key)[] markers
+    )
+    {
+        var registry = new SkeletonRegistry();
+        var skeleton = new Skeleton(
+            [new Bone("root", -1, Matrix4x4.Identity)],
+            [Matrix4x4.Identity]
+        );
+        var clip = new AnimationClip(
+            "slide",
+            duration,
+            [
+                new BoneTrack(
+                    0,
+                    [
+                        new VectorKey(0f, Vector3.Zero),
+                        new VectorKey(duration, new Vector3(10f, 0f, 0f)),
+                    ],
+                    [],
+                    []
+                ),
+            ],
+            [.. markers.Select(m => new AnimationEventMarker(m.Time, m.Key))]
+        );
+        var handle = registry.Register(skeleton, [clip]);
+        return (registry, handle);
+    }
+
+    [Fact]
+    public void Update_MarkerCrossedWithinFrame_FiresExactlyOnce()
+    {
+        var (registry, handle) = BuildRigWithEvents(2f, (0.5f, "a"), (1f, "b"), (1.5f, "c"));
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("slide", loop: false, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<AnimationEvent>();
+        system.OnAnimationEvent += fired.Add;
+
+        system.Update(0.6f); // crosses "a" (0.5) only
+
+        var single = Assert.Single(fired);
+        Assert.Equal(entity, single.Entity);
+        Assert.Equal("slide", single.ClipName);
+        Assert.Equal("a", single.Key);
+    }
+
+    [Fact]
+    public void Update_LargeDeltaSpanningMultipleMarkers_AllFireInOrder()
+    {
+        var (registry, handle) = BuildRigWithEvents(2f, (0.5f, "a"), (1f, "b"), (1.5f, "c"));
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("slide", loop: false, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<string>();
+        system.OnAnimationEvent += e => fired.Add(e.Key);
+
+        system.Update(1.6f); // spans all three markers in one call
+
+        Assert.Equal(["a", "b", "c"], fired);
+    }
+
+    [Fact]
+    public void Update_ReversePlayback_MarkersFireInReverseOrder()
+    {
+        var (registry, handle) = BuildRigWithEvents(2f, (0.5f, "a"), (1f, "b"), (1.5f, "c"));
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: false, speed: -1f) { Time = 1.8f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<string>();
+        system.OnAnimationEvent += e => fired.Add(e.Key);
+
+        system.Update(1.6f); // 1.8 -> 0.2, crossing c, b, a in that order
+
+        Assert.Equal(["c", "b", "a"], fired);
+    }
+
+    [Fact]
+    public void Update_LoopingClip_LargeDeltaSpanningMultipleLoops_FiresNearEndMarkerOncePerPass()
+    {
+        var (registry, handle) = BuildRigWithEvents(1f, (0.9f, "nearEnd"));
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: true, speed: 1f) { Time = 0.85f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<string>();
+        system.OnAnimationEvent += e => fired.Add(e.Key);
+
+        // Travels 2.1s over a 1s looping clip starting just before the marker: crosses it on the
+        // way to the first wrap, again on the second full pass, and again on the partial remainder.
+        system.Update(2.1f);
+
+        Assert.Equal(["nearEnd", "nearEnd", "nearEnd"], fired);
+    }
+
+    [Fact]
+    public void Update_MarkerExactlyOnFrameBoundary_DoesNotDoubleFireAcrossConsecutiveFrames()
+    {
+        var (registry, handle) = BuildRigWithEvents(1f, (0.5f, "mid"));
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("slide", loop: false, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<string>();
+        system.OnAnimationEvent += e => fired.Add(e.Key);
+
+        system.Update(0.5f); // lands exactly on the marker: (0, 0.5] fires it once
+        system.Update(0.1f); // continues from 0.5: (0.5, 0.6] must not refire it
+
+        Assert.Equal(["mid"], fired);
+    }
+
+    [Fact]
+    public void Update_ManualTimeJump_FiresNoMarkersForThatFrame()
+    {
+        var (registry, handle) = BuildRigWithEvents(2f, (0.5f, "a"), (1f, "b"), (1.5f, "c"));
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("slide", loop: false, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<string>();
+        system.OnAnimationEvent += e => fired.Add(e.Key);
+
+        system.Update(0.1f); // seeds the continuity baseline at Time = 0.1
+
+        // A manual seek to just before "b" — not something Update itself produced.
+        Assert.True(world.TryGetComponent<AnimationPlayer>(entity, out var jumped));
+        jumped.Time = 0.9f;
+        world.AddComponent(entity, jumped);
+
+        // This frame's own advance (0.9 -> 1.1) would ordinarily cross "b" (1.0) — but since the
+        // starting point doesn't match what this system last computed, it's treated as a seek and
+        // fires nothing.
+        system.Update(0.2f);
+        Assert.Empty(fired);
+
+        // The following frame is continuous again (starts exactly where the last one left off), so
+        // normal crossing detection resumes.
+        system.Update(0.1f); // 1.1 -> 1.2: still doesn't reach "c" (1.5)
+        Assert.Empty(fired);
+    }
+
+    [Fact]
+    public void Update_ZeroDeltaTime_FiresNoMarkers()
+    {
+        var (registry, handle) = BuildRigWithEvents(2f, (0.5f, "a"));
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("slide", loop: false, speed: 1f) { Time = 0.5f }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<string>();
+        system.OnAnimationEvent += e => fired.Add(e.Key);
+
+        system.Update(0f);
+
+        Assert.Empty(fired);
+    }
+
+    [Fact]
+    public void Update_DuringCrossFade_OnlyIncomingClipFiresMarkers()
+    {
+        var registry = new SkeletonRegistry();
+        var skeleton = new Skeleton(
+            [new Bone("root", -1, Matrix4x4.Identity)],
+            [Matrix4x4.Identity]
+        );
+        var slide = new AnimationClip(
+            "slideEvt",
+            1f,
+            [
+                new BoneTrack(
+                    0,
+                    [new VectorKey(0f, Vector3.Zero), new VectorKey(1f, new Vector3(10f, 0f, 0f))],
+                    [],
+                    []
+                ),
+            ],
+            [new AnimationEventMarker(0.15f, "slideMark")]
+        );
+        var rise = new AnimationClip(
+            "riseEvt",
+            1f,
+            [
+                new BoneTrack(
+                    0,
+                    [new VectorKey(0f, Vector3.Zero), new VectorKey(1f, new Vector3(0f, 10f, 0f))],
+                    [],
+                    []
+                ),
+            ],
+            [new AnimationEventMarker(0.65f, "riseMark")]
+        );
+        var handle = registry.Register(skeleton, [slide, rise]);
+
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("slideEvt", loop: true, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<string>();
+        system.OnAnimationEvent += e => fired.Add(e.Key);
+
+        system.Update(0.1f); // seeds the "slideEvt" baseline at Time = 0.1
+
+        system.CrossFadeTo(entity, "riseEvt", duration: 2f); // long fade: stays in progress below
+
+        // First frame of the fade: the incoming clip's baseline doesn't match yet (it just reset
+        // to "riseEvt"/0), so nothing fires here even though "riseEvt" is advancing. The outgoing
+        // clip ("slideEvt") is also advancing (0.1 -> 0.4, crossing its own "slideMark" at 0.15)
+        // but must never fire regardless of continuity — only the incoming clip ever can.
+        system.Update(0.3f);
+        Assert.Empty(fired);
+
+        // Second frame: now continuous on "riseEvt", crossing (0.3, 0.7] -> "riseMark" (0.65).
+        system.Update(0.4f);
+
+        Assert.Equal(["riseMark"], fired);
+    }
 }

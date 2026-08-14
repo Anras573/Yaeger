@@ -157,4 +157,22 @@ public class AnimationClipTests
 
         Assert.Equal(new Vector3(1f, 2f, 3f), translations[0]);
     }
+
+    [Fact]
+    public void Clip_Events_DefaultsToEmpty()
+    {
+        var clip = new AnimationClip("walk", 1f, [TranslationTrack(0)]);
+
+        Assert.Empty(clip.Events);
+    }
+
+    [Fact]
+    public void Clip_Events_RoundTripsWhatWasPassedIn()
+    {
+        var markers = new[] { new AnimationEventMarker(0.25f, "footstep") };
+
+        var clip = new AnimationClip("walk", 1f, [TranslationTrack(0)], markers);
+
+        Assert.Same(markers, clip.Events);
+    }
 }

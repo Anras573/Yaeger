@@ -43,6 +43,18 @@ public struct AnimationPlayer
     /// <summary>Seconds elapsed since the crossfade began.</summary>
     public float FadeElapsed;
 
+    /// <summary>
+    /// <c>true</c> once a non-looping <see cref="CurrentClip"/>'s playback time has clamped at its
+    /// end (or, for reverse playback via a negative <see cref="Speed"/>, its start) — mirrors
+    /// <see cref="AnimationState.IsFinished"/> so both animation paths behave the same. Recomputed
+    /// fresh by <see cref="Systems.SkeletalAnimationSystem.Update"/> every call from the current
+    /// <see cref="Time"/>/<see cref="Loop"/>/<see cref="Speed"/> against the clip's duration, rather
+    /// than latched — so it automatically reads <c>false</c> again the moment a new clip is
+    /// assigned or <see cref="Time"/> is moved back before the end; no separate reset call needed.
+    /// Always <c>false</c> while <see cref="Loop"/> is <c>true</c>.
+    /// </summary>
+    public bool IsFinished;
+
     public AnimationPlayer(string? currentClip, bool loop = true, float speed = 1f)
     {
         CurrentClip = currentClip;
@@ -53,5 +65,6 @@ public struct AnimationPlayer
         PreviousTime = 0f;
         FadeDuration = 0f;
         FadeElapsed = 0f;
+        IsFinished = false;
     }
 }
