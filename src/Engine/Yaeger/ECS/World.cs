@@ -47,6 +47,60 @@ public class World
             store.Remove(entity);
     }
 
+    /// <summary>
+    /// Destroys <paramref name="entity"/> and every entity reachable from it through
+    /// <see cref="Parent"/> — children, grandchildren, and so on — including their tag
+    /// registrations. Unlike <see cref="DestroyEntity"/> alone (which orphans children to
+    /// world-space rather than cascading — see docs/hierarchy.md), this walks the whole subtree
+    /// first and destroys every entity in it.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The <see cref="Parent"/> chain beneath <paramref name="entity"/> loops back on itself,
+    /// matching <see cref="Systems.TransformHierarchySystem"/>'s cycle guard — thrown instead of
+    /// recursing/looping forever.
+    /// </exception>
+    public void DestroyHierarchy(Entity entity)
+    {
+        var childrenByParent = new Dictionary<Entity, List<Entity>>();
+        foreach (var (child, parent) in GetStore<Parent>())
+        {
+            if (!childrenByParent.TryGetValue(parent.ParentEntity, out var siblings))
+                childrenByParent[parent.ParentEntity] = siblings = [];
+            siblings.Add(child);
+        }
+
+        // Collect the whole subtree before destroying anything: destruction mutates component
+        // stores (including Parent's), so walking and destroying in the same pass would corrupt
+        // the traversal. A node can only have one Parent, so childrenByParent partitions every
+        // parented entity into exactly one list — the only way this breadth-first walk can ever
+        // revisit a node is a genuine cycle in the chain beneath entity.
+        var toDestroy = new List<Entity> { entity };
+        var visited = new HashSet<Entity> { entity };
+        var frontier = new Queue<Entity>();
+        frontier.Enqueue(entity);
+
+        while (frontier.Count > 0)
+        {
+            var current = frontier.Dequeue();
+            if (!childrenByParent.TryGetValue(current, out var children))
+                continue;
+
+            foreach (var child in children)
+            {
+                if (!visited.Add(child))
+                    throw new InvalidOperationException(
+                        $"Cycle detected in Parent hierarchy at entity {child.Id}."
+                    );
+
+                toDestroy.Add(child);
+                frontier.Enqueue(child);
+            }
+        }
+
+        foreach (var member in toDestroy)
+            DestroyEntity(member);
+    }
+
     public void AddComponent<T>(Entity entity, T component)
         where T : struct
     {
@@ -106,6 +160,30 @@ public class World
     {
         ArgumentNullException.ThrowIfNull(scene);
         return scene.Apply(this);
+    }
+
+    /// <summary>
+    /// Spawns every entity described by <paramref name="scene"/>, the same as
+    /// <see cref="Instantiate(Scene)"/>, but returns a <see cref="SceneInstance"/> handle that
+    /// can later <see cref="SceneInstance.Unload"/> exactly these entities — a lift interior
+    /// giving way to a hangar, a level transition, a menu returning to gameplay — without the
+    /// caller keeping its own entity list around. Loading is additive: call this as many times
+    /// as needed and unload each returned instance independently; nothing here assumes only one
+    /// scene is ever loaded at a time. See docs/scenes.md.
+    /// </summary>
+    public SceneInstance LoadScene(Scene scene) => new(this, Instantiate(scene));
+
+    /// <summary>
+    /// The common scene-transition case: unloads <paramref name="previous"/> (if it isn't
+    /// already unloaded, or <c>null</c> — there's nothing to tear down for a first load) and
+    /// then loads <paramref name="next"/>. Unloading first means <paramref name="next"/> can
+    /// safely reuse any tag <paramref name="previous"/> held, since <c>DestroyEntity</c> frees a
+    /// tag's binding immediately.
+    /// </summary>
+    public SceneInstance SwapScene(SceneInstance? previous, Scene next)
+    {
+        previous?.Unload();
+        return LoadScene(next);
     }
 
     public bool TryGetTag(

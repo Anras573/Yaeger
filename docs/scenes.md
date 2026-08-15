@@ -50,6 +50,46 @@ var player = world.GetEntity("player");
 
 `world.Instantiate(scene)` returns the created entities in the same order as the scene file.
 
+### Lifecycle: unload and swap
+
+`world.Instantiate(scene)` hands back a plain entity list and the engine's involvement ends there —
+fine for a scene that lives for the whole program, but a lift interior giving way to a hangar, a
+level transition, or a menu returning to gameplay all need to tear a previously loaded set of
+entities back down again. `world.LoadScene(scene)` does the same spawning as `Instantiate`, but
+returns a `SceneInstance` handle that remembers exactly which entities it created:
+
+```csharp
+var instance = world.LoadScene(scene);
+
+// ...later, when this scene is no longer needed:
+instance.Unload(); // destroys exactly instance.Entities — nothing else
+```
+
+`Unload()` is idempotent (a second call is a silent no-op) and destroys its entities via plain
+`world.DestroyEntity` — not `world.DestroyHierarchy` (see [hierarchy.md](hierarchy.md)) — because a
+scene's own `Parent`-linked children are already part of its `Entities` list (`Scene.Apply` creates
+every entity the file describes, parents and children alike). Walking the hierarchy instead would
+risk destroying another instance's entities too, if something outside this scene ever got parented
+onto one of its entities after load.
+
+Loading is **additive**: call `LoadScene` as many times as needed, and unload each returned
+instance independently — nothing assumes only one scene is loaded at a time, and unloading one
+instance never touches another's entities, even if both came from the same `Scene`.
+
+`world.SwapScene(previous, next)` is the common transition case — unload `previous` (or do nothing
+if it's `null`, e.g. a first load) and load `next`:
+
+```csharp
+var hangar = world.SwapScene(liftInterior, hangarScene);
+```
+
+Unloading before loading matters when the two scenes share tags: `DestroyEntity` frees a tag's
+binding immediately, so `next` can reuse any tag `previous` held without a rebind race.
+
+`Instantiate(Scene)` is unchanged and still the right call for entities that should just accumulate
+in the world for the program's lifetime — `LoadScene`/`SceneInstance` only add bookkeeping for the
+cases that need to unload later.
+
 ### Saving
 
 ```csharp
@@ -104,6 +144,11 @@ returned from `Deserialize` cover it.
 ## Not yet supported
 
 - **Scene composition / inheritance** — one scene extending or overriding another. Intentionally deferred.
+- **Async / streaming / background-thread loading** — `LoadScene`/`Instantiate` are synchronous.
+- **Fade or dissolve transitions between scenes** — a post-processing concern, layered on top of
+  `PostProcessStack` rather than the scene lifecycle itself.
+- **Persisting runtime state across an unload/reload cycle** — `Unload()` simply destroys entities;
+  nothing is snapshotted. Save state yourself first (e.g. via `SceneSaver`) if a reload needs it.
 
 ## See also
 
@@ -111,5 +156,7 @@ returned from `Deserialize` cover it.
 - `src/Engine/Yaeger/ECS/SceneSaver.cs` — save-direction implementation
 - `src/Engine/Yaeger/ECS/SceneLoader.cs` — implementation
 - `src/Engine/Yaeger/ECS/Scene.cs` — in-memory scene representation
+- `src/Engine/Yaeger/ECS/SceneInstance.cs` — the unload/swap lifecycle handle
+- [hierarchy.md](hierarchy.md) — `world.DestroyHierarchy`, the cascading counterpart to `DestroyEntity`
 - [`asset-hot-reload.md`](asset-hot-reload.md) — watching a scene file for changes and re-instantiating via `SceneHotReload`
 - `docs/` — the broader engine docs index
