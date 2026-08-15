@@ -1,5 +1,4 @@
 using System.Numerics;
-using Sponza;
 using Yaeger;
 using Yaeger.Assets;
 using Yaeger.ECS;
@@ -94,7 +93,7 @@ var meshRenderSystem = new MeshRenderSystem(
     window,
     shadowMapRenderer: shadowMapRenderer
 );
-var freeFlySystem = new FreeFlySystem(world, cameraEntity);
+var freeFlySystem = new FreeFlyCameraSystem(world, cameraEntity, moveSpeed: 10f);
 
 using var inspector = new ImGuiInspector(window, world);
 

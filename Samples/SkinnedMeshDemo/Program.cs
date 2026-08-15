@@ -1,5 +1,4 @@
 using System.Numerics;
-using SkinnedMeshDemo;
 using Yaeger;
 using Yaeger.Assets;
 using Yaeger.ECS;
@@ -105,7 +104,7 @@ world.AddComponent(
 using var renderer3D = new Renderer3D(window.Gl);
 var meshRenderSystem = new MeshRenderSystem(renderer3D, meshRegistry, textures, world, window);
 var animationSystem = new SkeletalAnimationSystem(world, skeletonRegistry);
-var freeFlySystem = new FreeFlySystem(world, cameraEntity);
+var freeFlySystem = new FreeFlyCameraSystem(world, cameraEntity, moveSpeed: 10f);
 
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
 

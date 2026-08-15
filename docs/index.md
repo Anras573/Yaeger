@@ -13,6 +13,7 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a
 - **Post-processing** — render-to-texture `PostProcessStack` chaining full-screen effects (vignette/colour-grade, bloom) over the 2D or 3D pipeline ([post-processing.md](post-processing.md))
 - **Skeletal animation** — glTF bone hierarchies and clips played via GPU skinning ([skeletal-animation.md](skeletal-animation.md))
 - **Opt-in 2D camera** (pan / zoom / rotate), with an optional follow system (smoothing, deadzone, look-ahead, level bounds) — see [camera.md](camera.md)
+- **3D camera rig** — a shared free-fly controller, a `Transform3D`/hierarchy bridge so a camera can be parented, target-tracking, and trauma-based shake — see [camera.md](camera.md)
 - **Animation system** with frame-based texture cycling, sprite flipping, and a named-state-machine helper ([animation-system.md](animation-system.md))
 - **Particle system** with pooled, batched emitters ([particles.md](particles.md))
 - **Tweening** — data-driven animation of transform, light, and material fields with easing, looping, and ping-pong ([tweening.md](tweening.md))
