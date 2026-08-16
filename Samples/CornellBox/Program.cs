@@ -250,7 +250,7 @@ var meshRenderSystem = new MeshRenderSystem(
     window,
     shadowMapRenderer: shadowMapRenderer
 );
-var freeFlySystem = new FreeFlySystem(world, cameraEntity);
+var freeFlySystem = new FreeFlyCameraSystem(world, cameraEntity, moveSpeed: 3f);
 
 // Editor overlay — lists every entity and lets you live-edit the attached 3D components
 // (transforms, materials, lights, the camera). Toggle with F1.

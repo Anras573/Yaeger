@@ -2,15 +2,28 @@ using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Input;
-using Yaeger.Systems;
 
-namespace CornellBox;
+namespace Yaeger.Systems;
 
-internal sealed class FreeFlySystem(World world, Entity cameraEntity) : IUpdateSystem
+/// <summary>
+/// WASD + right-mouse-drag fly camera: hold the right mouse button and move the mouse to look
+/// around, WASD to move forward/back/strafe, E/Q to rise/fall. Writes directly to
+/// <see cref="Camera3D.Position"/>/<see cref="Camera3D.Target"/> — the free-fly camera has no
+/// parent, so it never needs a <see cref="Transform3D"/>.
+/// </summary>
+/// <remarks>
+/// Promoted from the three near-identical <c>FreeFlySystem</c> copies every 3D sample used to
+/// carry (<c>Samples/SkinnedMeshDemo</c>, <c>Samples/Sponza</c>, <c>Samples/CornellBox</c>).
+/// Needs <see cref="Keyboard"/>/<see cref="Mouse"/>, so — like <see cref="CameraFollowSystem"/> —
+/// it lives in the native <c>Yaeger</c> assembly, not <c>Yaeger.Core</c>.
+/// </remarks>
+public sealed class FreeFlyCameraSystem(
+    World world,
+    Entity cameraEntity,
+    float moveSpeed = 10f,
+    float lookSensitivity = 0.003f
+) : IUpdateSystem
 {
-    private const float MoveSpeed = 3f;
-    private const float LookSensitivity = 0.003f;
-
     public void Update(float deltaTime)
     {
         if (!world.TryGetComponent<Camera3D>(cameraEntity, out var camera))
@@ -21,17 +34,22 @@ internal sealed class FreeFlySystem(World world, Entity cameraEntity) : IUpdateS
             var delta = Mouse.PositionDelta;
             if (delta.LengthSquared() > 0f)
             {
-                var yaw = -delta.X * LookSensitivity;
-                var pitch = -delta.Y * LookSensitivity;
+                var yaw = -delta.X * lookSensitivity;
+                var pitch = -delta.Y * lookSensitivity;
 
                 var fwd = Vector3.Normalize(camera.Target - camera.Position);
 
+                // Yaw around world Y axis.
                 fwd = Vector3.Normalize(
                     Vector3.TransformNormal(fwd, Matrix4x4.CreateFromAxisAngle(Vector3.UnitY, yaw))
                 );
 
+                // Recompute the right axis after yaw so pitch is applied to the post-yaw
+                // orientation.
                 var r = Vector3.Normalize(Vector3.Cross(fwd, camera.Up));
 
+                // Pitch around the local right axis; reject if the result points nearly straight
+                // up/down (gimbal guard — matches Camera3D.ViewMatrix's own near-parallel check).
                 var pitched = Vector3.Normalize(
                     Vector3.TransformNormal(fwd, Matrix4x4.CreateFromAxisAngle(r, pitch))
                 );
@@ -61,7 +79,7 @@ internal sealed class FreeFlySystem(World world, Entity cameraEntity) : IUpdateS
 
         if (move != Vector3.Zero)
         {
-            var displacement = Vector3.Normalize(move) * MoveSpeed * deltaTime;
+            var displacement = Vector3.Normalize(move) * moveSpeed * deltaTime;
             camera = camera with
             {
                 Position = camera.Position + displacement,
