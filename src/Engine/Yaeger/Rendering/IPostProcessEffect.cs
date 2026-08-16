@@ -12,6 +12,14 @@ public interface IPostProcessEffect : IDisposable
     bool Enabled { get; set; }
 
     /// <summary>
+    /// True for an effect that must be the last enabled pass in the chain — e.g. <see cref="ToneMapEffect"/>,
+    /// which compresses HDR colour down to [0, 1] and gamma-encodes it; an effect placed after it
+    /// would operate on already tone-mapped/gamma-encoded values instead of the linear scene colour
+    /// it expects. Checked by <see cref="PostProcessPlanner.ValidateOrdering"/>. Default false.
+    /// </summary>
+    bool RequiresLastPass => false;
+
+    /// <summary>
     /// Runs this effect: read <paramref name="sourceColorTexture"/> (the previous pass's output,
     /// or the rendered scene for the first enabled effect) and end by drawing into
     /// <paramref name="destinationFramebuffer"/> (0 for the window's backbuffer) at

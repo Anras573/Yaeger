@@ -7,12 +7,14 @@ namespace Yaeger.Rendering;
 /// caller-chosen resolution and recreated in place on <see cref="Resize"/>. Follows
 /// <see cref="ShadowMapRenderer"/>'s pattern of a renderer owning its own FBO/texture handles.
 /// Used by <see cref="PostProcessStack"/> for the scene target and the two ping-pong targets the
-/// effect chain alternates through.
+/// effect chain alternates through. The colour attachment's <see cref="RenderTargetFormat"/> is
+/// fixed at construction and preserved across <see cref="Resize"/>.
 /// </summary>
 public sealed class RenderTarget : IDisposable
 {
     private readonly GL _gl;
     private readonly bool _hasDepth;
+    private readonly RenderTargetFormat _format;
     private uint _fbo;
     private uint _colorTexture;
     private uint _depthTexture;
@@ -29,10 +31,17 @@ public sealed class RenderTarget : IDisposable
     /// <summary>Handle of the colour attachment, sampled by whatever pass reads this target's output.</summary>
     public uint ColorTexture => _colorTexture;
 
-    public RenderTarget(GL gl, int width, int height, bool hasDepth)
+    public RenderTarget(
+        GL gl,
+        int width,
+        int height,
+        bool hasDepth,
+        RenderTargetFormat format = RenderTargetFormat.Rgba8
+    )
     {
         _gl = gl;
         _hasDepth = hasDepth;
+        _format = format;
         Width = Math.Max(width, 1);
         Height = Math.Max(height, 1);
         Create();
@@ -67,17 +76,22 @@ public sealed class RenderTarget : IDisposable
     {
         _gl.ActiveTexture(TextureUnit.Texture0);
 
+        var (internalFormat, pixelType) =
+            _format == RenderTargetFormat.Rgba16F
+                ? (InternalFormat.Rgba16f, PixelType.Float)
+                : (InternalFormat.Rgba8, PixelType.UnsignedByte);
+
         _colorTexture = _gl.GenTexture();
         _gl.BindTexture(TextureTarget.Texture2D, _colorTexture);
         _gl.TexImage2D(
             TextureTarget.Texture2D,
             0,
-            (int)InternalFormat.Rgba8,
+            (int)internalFormat,
             (uint)Width,
             (uint)Height,
             0,
             PixelFormat.Rgba,
-            PixelType.UnsignedByte,
+            pixelType,
             null
         );
         _gl.TexParameter(

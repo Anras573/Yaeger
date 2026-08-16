@@ -153,6 +153,26 @@ public class Material3DTests
     }
 
     [Fact]
+    public void New_DefaultsEmissiveIntensityToOne()
+    {
+        // 1 = EmissiveColor unchanged, so a material predating this field (or one that never sets
+        // it) renders exactly as before it existed.
+        var material = new Material3D();
+
+        Assert.Equal(1f, material.EmissiveIntensity);
+    }
+
+    [Fact]
+    public void EmissiveIntensity_CanExceedOne()
+    {
+        // Color channels are byte-based (max 1.0 once normalised), so EmissiveIntensity is the
+        // mechanism for authoring an emissive surface brighter than diffuse white.
+        var material = new Material3D { UsePbr = true, EmissiveIntensity = 4f };
+
+        Assert.Equal(4f, material.EmissiveIntensity);
+    }
+
+    [Fact]
     public void Default_IsNotPbr()
     {
         var material = default(Material3D);

@@ -111,4 +111,49 @@ public class PostProcessPlannerTests
 
         Assert.Equal(PostProcessSurface.Backbuffer, passes[^1].Destination);
     }
+
+    [Fact]
+    public void SelectSceneFormat_HdrEnabled_ReturnsRgba16F()
+    {
+        Assert.Equal(RenderTargetFormat.Rgba16F, PostProcessPlanner.SelectSceneFormat(hdr: true));
+    }
+
+    [Fact]
+    public void SelectSceneFormat_HdrDisabled_ReturnsRgba8()
+    {
+        Assert.Equal(RenderTargetFormat.Rgba8, PostProcessPlanner.SelectSceneFormat(hdr: false));
+    }
+
+    [Fact]
+    public void ValidateOrdering_NoEffectRequiresLast_DoesNotThrow()
+    {
+        PostProcessPlanner.ValidateOrdering([0, 1, 2], _ => false);
+    }
+
+    [Fact]
+    public void ValidateOrdering_RequiresLastEffectIsLast_DoesNotThrow()
+    {
+        PostProcessPlanner.ValidateOrdering([0, 1, 2], index => index == 2);
+    }
+
+    [Fact]
+    public void ValidateOrdering_RequiresLastEffectFollowedByAnother_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            PostProcessPlanner.ValidateOrdering([0, 1, 2], index => index == 1)
+        );
+    }
+
+    [Fact]
+    public void ValidateOrdering_SingleRequiresLastEffect_DoesNotThrow()
+    {
+        // Only one effect in the chain: nothing follows it regardless of RequiresLastPass.
+        PostProcessPlanner.ValidateOrdering([0], _ => true);
+    }
+
+    [Fact]
+    public void ValidateOrdering_Empty_DoesNotThrow()
+    {
+        PostProcessPlanner.ValidateOrdering([], _ => true);
+    }
 }

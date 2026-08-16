@@ -1032,6 +1032,15 @@ public sealed class ImGuiInspector : IDisposable
             changed |= ImGui.SliderFloat($"Roughness##m3rgh_{entity.Id}", ref roughness, 0f, 1f);
             var emissive = mat.EmissiveColor;
             changed |= ColorEdit3($"Emissive##m3emi_{entity.Id}", ref emissive);
+            var emissiveIntensity = mat.EmissiveIntensity;
+            ImGui.SetNextItemWidth(160);
+            changed |= ImGui.DragFloat(
+                $"Emissive Intensity##m3emint_{entity.Id}",
+                ref emissiveIntensity,
+                0.05f,
+                0f,
+                100f
+            );
 
             if (changed)
             {
@@ -1041,6 +1050,7 @@ public sealed class ImGuiInspector : IDisposable
                     MetallicFactor = metallic,
                     RoughnessFactor = roughness,
                     EmissiveColor = emissive,
+                    EmissiveIntensity = emissiveIntensity,
                 };
                 _pendingWorldOps.Add(w => w.AddComponent(entity, snapshot));
             }

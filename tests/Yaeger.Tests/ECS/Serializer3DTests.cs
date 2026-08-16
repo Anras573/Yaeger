@@ -114,6 +114,7 @@ public class Serializer3DTests
             MetallicFactor = 0.25f,
             RoughnessFactor = 0.75f,
             EmissiveColor = new Color(5, 6, 7),
+            EmissiveIntensity = 3.5f,
         };
 
         var reloaded = RoundTrip(original, "pbr");
@@ -125,6 +126,7 @@ public class Serializer3DTests
         Assert.Equal(0.25f, reloaded.MetallicFactor, precision: 5);
         Assert.Equal(0.75f, reloaded.RoughnessFactor, precision: 5);
         AssertColorEqual(original.EmissiveColor, reloaded.EmissiveColor);
+        Assert.Equal(3.5f, reloaded.EmissiveIntensity, precision: 5);
     }
 
     [Fact]
@@ -137,6 +139,7 @@ public class Serializer3DTests
         Assert.Equal(defaults.DiffuseTexturePath, component.DiffuseTexturePath);
         Assert.Equal(defaults.MetallicFactor, component.MetallicFactor, precision: 5);
         Assert.Equal(defaults.RoughnessFactor, component.RoughnessFactor, precision: 5);
+        Assert.Equal(defaults.EmissiveIntensity, component.EmissiveIntensity, precision: 5);
         Assert.Equal(defaults.Opacity, component.Opacity, precision: 5);
         Assert.Equal(defaults.BlendMode, component.BlendMode);
         Assert.Equal(defaults.AlphaCutoff, component.AlphaCutoff, precision: 5);

@@ -21,6 +21,7 @@ namespace Yaeger.ECS.Serializers;
 ///   "metallicFactor": 1.0,
 ///   "roughnessFactor": 1.0,
 ///   "emissiveColor": [0, 0, 0],
+///   "emissiveIntensity": 1.0,
 ///   "opacity": 1.0,
 ///   "blendMode": "Opaque",
 ///   "alphaCutoff": 0.5
@@ -95,6 +96,11 @@ public sealed class Material3DSerializer : IComponentSerializer
                 "emissiveColor",
                 defaults.EmissiveColor
             ),
+            EmissiveIntensity = ComponentJson.GetOptionalSingle(
+                element,
+                "emissiveIntensity",
+                defaults.EmissiveIntensity
+            ),
             Opacity = ComponentJson.GetOptionalSingle(element, "opacity", defaults.Opacity),
             BlendMode = ReadOptionalBlendMode(element, defaults.BlendMode),
             AlphaCutoff = ComponentJson.GetOptionalSingle(
@@ -143,6 +149,7 @@ public sealed class Material3DSerializer : IComponentSerializer
             ["metallicFactor"] = m.MetallicFactor,
             ["roughnessFactor"] = m.RoughnessFactor,
             ["emissiveColor"] = ComponentJson.Write(m.EmissiveColor),
+            ["emissiveIntensity"] = m.EmissiveIntensity,
             ["opacity"] = m.Opacity,
             ["blendMode"] = m.BlendMode.ToString(),
             ["alphaCutoff"] = m.AlphaCutoff,

@@ -25,6 +25,18 @@ public record struct Material3D
     public Color EmissiveColor;
 
     /// <summary>
+    /// Multiplier applied to <see cref="EmissiveColor"/> (and, when set, the emissive texture's
+    /// sampled value) in the PBR path. <see cref="Color"/> channels are byte-based and can't
+    /// themselves exceed 1.0, so this is how an emissive surface is authored *brighter* than
+    /// diffuse white — several times white, for a glowing blade or a hot filament to actually read
+    /// as a light source once tone-mapped/bloomed instead of clamping flat. 1 (no change) by
+    /// default. Only has a visible effect beyond flat white when the render target is HDR
+    /// (see <see cref="PostProcessStack"/>'s <c>hdr</c> parameter) — an LDR target clamps the
+    /// result to [0, 1] same as before this field existed.
+    /// </summary>
+    public float EmissiveIntensity = 1f;
+
+    /// <summary>
     /// When true, the renderer shades this material with a Cook-Torrance metallic/roughness
     /// BRDF. When false (the default), it falls back to the legacy Blinn-Phong model so that
     /// hand-authored scenes such as the Cornell Box keep their original appearance.

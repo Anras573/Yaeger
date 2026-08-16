@@ -46,6 +46,13 @@ public sealed class PostProcessStack : IDisposable
     /// </summary>
     public bool Enabled { get; set; } = true;
 
+    /// <summary>
+    /// Whether the scene and ping-pong targets were allocated as floating-point HDR
+    /// (<see cref="RenderTargetFormat.Rgba16F"/>) or the original 8-bit LDR format. Set once at
+    /// construction via <paramref name="hdr"/> — see the <see cref="PostProcessStack(GL, int, int, bool, bool)"/> constructor.
+    /// </summary>
+    public bool HdrEnabled { get; }
+
     /// <param name="gl">The window's OpenGL context.</param>
     /// <param name="width">Initial target width in pixels — typically the window's client size.</param>
     /// <param name="height">Initial target height in pixels.</param>
@@ -54,15 +61,31 @@ public sealed class PostProcessStack : IDisposable
     /// 3D scene (<see cref="Systems.MeshRenderSystem"/> depth-tests against it), false for a
     /// depth-free 2D scene.
     /// </param>
-    public PostProcessStack(GL gl, int width, int height, bool sceneHasDepth = true)
+    /// <param name="hdr">
+    /// When true, allocates the scene and ping-pong targets as floating-point HDR
+    /// (<see cref="RenderTargetFormat.Rgba16F"/>) instead of the original 8-bit LDR format, so
+    /// colour values above 1.0 (bright emissive surfaces, HDR lighting) survive the chain instead
+    /// of clamping. Pair with a <see cref="ToneMapEffect"/> as the chain's last effect to compress
+    /// back down to the backbuffer's [0, 1] range — see docs/post-processing.md. Defaults to false,
+    /// so existing callers keep today's pixel-identical LDR output.
+    /// </param>
+    public PostProcessStack(
+        GL gl,
+        int width,
+        int height,
+        bool sceneHasDepth = true,
+        bool hdr = false
+    )
     {
         _gl = gl;
         _width = Math.Max(width, 1);
         _height = Math.Max(height, 1);
+        HdrEnabled = hdr;
 
-        _scene = new RenderTarget(gl, _width, _height, sceneHasDepth);
-        _pingPongA = new RenderTarget(gl, _width, _height, hasDepth: false);
-        _pingPongB = new RenderTarget(gl, _width, _height, hasDepth: false);
+        var format = PostProcessPlanner.SelectSceneFormat(hdr);
+        _scene = new RenderTarget(gl, _width, _height, sceneHasDepth, format);
+        _pingPongA = new RenderTarget(gl, _width, _height, hasDepth: false, format);
+        _pingPongB = new RenderTarget(gl, _width, _height, hasDepth: false, format);
         _quad = new FullscreenQuad(gl);
         _blitShader = new Shader(gl, BlitVertexSource, BlitFragmentSource);
     }
@@ -111,6 +134,8 @@ public sealed class PostProcessStack : IDisposable
             if (Effects[i].Enabled)
                 _enabledIndices.Add(i);
         }
+
+        PostProcessPlanner.ValidateOrdering(_enabledIndices, i => Effects[i].RequiresLastPass);
 
         var passes = PostProcessPlanner.Plan(_enabledIndices);
 
