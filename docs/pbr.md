@@ -22,8 +22,42 @@ The PBR path implements:
   case ambient comes from the environment instead.
 - Emissive contribution added on top.
 
-Base colour and emissive textures are treated as sRGB and linearised before lighting; the final
-colour is Reinhard tone-mapped and gamma-encoded back to sRGB.
+Base colour and emissive textures are treated as sRGB and linearised before lighting. What happens
+to the final linear colour depends on `Renderer3D`'s `hdrOutput` constructor flag (default `false`):
+Reinhard-tone-mapped and gamma-encoded back to sRGB in-shader, right here, when `false` (the
+original behaviour); left as unclamped linear HDR when `true`, for a `PostProcessStack`'s
+`ToneMapEffect` to compress and gamma-encode once, later, over the whole frame instead. See
+[HDR and tone mapping](#hdr-and-tone-mapping) below and docs/post-processing.md.
+
+## HDR and tone mapping
+
+`Color` channels are byte-based (`R`/`G`/`B`/`A` each `[0, 255]` → `[0, 1]`), so `EmissiveColor` on
+its own can never author a surface brighter than diffuse white — the whole point of an emissive
+material meant to read as a light source (a glowing blade, a hot filament, a bolt core).
+`Material3D.EmissiveIntensity` (default `1`, no change) is the multiplier that gets it there:
+`emissive = EmissiveColor.rgb * EmissiveIntensity`, so `EmissiveIntensity = 4` authors a surface
+four times brighter than white.
+
+That only has a *visible* effect beyond flat white when the value survives past this shader. Three
+things have to line up (see docs/post-processing.md's [HDR and tone mapping](post-processing.md#hdr-and-tone-mapping)
+section for the full picture):
+
+1. `Renderer3D` constructed with `hdrOutput: true`, so the PBR path skips its in-shader Reinhard
+   tone-map/gamma-encode and writes linear HDR colour instead (see above).
+2. A `PostProcessStack` constructed with `hdr: true`, so its scene/ping-pong targets are allocated
+   `Rgba16F` instead of the original 8-bit `Rgba8` and don't clamp the over-1.0 value away the
+   instant it's written.
+3. A `ToneMapEffect` as the *last* effect in that stack's chain, to compress the HDR result back
+   down to the backbuffer's displayable `[0, 1]` range and gamma-encode it.
+
+Skip any one of the three and the emissive value clamps to flat white somewhere along the way —
+which is exactly what happens by default (`hdrOutput: false`, no `hdr: true`, no `ToneMapEffect`),
+keeping every scene predating this feature pixel-identical to before it existed. The Blinn-Phong
+path is unaffected by any of this either way — it was never gamma-encoded in-shader to begin with
+(see the colour-space note under [Material3D PBR fields](#material3d-pbr-fields) below), so its
+values are unclamped by `Renderer3D` regardless of `hdrOutput`, but combining Blinn-Phong materials
+with an HDR chain has not been specifically color-graded for and may look different than the
+LDR path once `ToneMapEffect`'s gamma-encode runs over them.
 
 ## Image-Based Lighting
 
@@ -118,6 +152,7 @@ public record struct Material3D
     public float MetallicFactor = 1f;   // scales the texture's metallic channel
     public float RoughnessFactor = 1f;  // scales the texture's roughness channel
     public Color EmissiveColor;
+    public float EmissiveIntensity = 1f; // multiplies EmissiveColor; >1 authors above-white emissive
     public bool UsePbr;
 
     // Transparency (either shading path — see "Transparency" below)
@@ -137,7 +172,10 @@ no texture is bound).
 > assumed to be sRGB and are linearised before being multiplied by the factors. When authoring PBR
 > materials by hand, pick `Color` factor values in linear space — an sRGB-intended value (e.g. a
 > mid-grey `128`) will render brighter than expected. (In the Blinn-Phong path these colours are
-> used directly, with no linearisation.)
+> used directly, with no linearisation.) Because `Color` channels are byte-based, `EmissiveColor`
+> itself tops out at linear white (`1.0`) — `EmissiveIntensity` is the multiplier that goes beyond
+> it; see [HDR and tone mapping](#hdr-and-tone-mapping) above for what it takes for that extra
+> brightness to actually reach the screen instead of clamping away.
 
 ## Loading PBR materials
 

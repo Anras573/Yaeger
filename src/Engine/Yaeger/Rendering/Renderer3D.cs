@@ -82,7 +82,19 @@ public sealed class Renderer3D : IDisposable
     private readonly uint _defaultCubemap;
     private readonly uint _boneUbo;
 
-    public Renderer3D(GL gl)
+    /// <param name="gl">The window's OpenGL context.</param>
+    /// <param name="hdrOutput">
+    /// When false (the default), the PBR path's final colour is Reinhard tone-mapped and
+    /// gamma-encoded to sRGB in-shader before being written out — the original behaviour, correct
+    /// when rendering straight to the backbuffer or an LDR <see cref="RenderTarget"/>. When true,
+    /// that in-shader compression is skipped and the PBR path instead writes linear HDR colour
+    /// (values above 1.0 preserved) — pair with a <see cref="PostProcessStack"/> constructed with
+    /// <c>hdr: true</c> and a <see cref="ToneMapEffect"/> as the chain's last effect, which then
+    /// perform the tone-mapping/gamma-encoding once, on the whole post-processed frame, instead of
+    /// per-fragment here. Has no effect on the Blinn-Phong path, which was never gamma-encoded
+    /// in-shader either way — see docs/pbr.md's colour-space notes.
+    /// </param>
+    public Renderer3D(GL gl, bool hdrOutput = false)
     {
         _gl = gl;
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
@@ -100,6 +112,7 @@ public sealed class Renderer3D : IDisposable
         _shader.Bind();
         _shader.SetUniformInt("uSkinned", 0);
         _shader.SetUniformInt("uInstanced", 0);
+        _shader.SetUniformInt("uHdrOutput", hdrOutput ? 1 : 0);
         _shader.Unbind();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
         // Start with no point/spot lights so scenes that never call SetPointLights/SetSpotLights
@@ -528,6 +541,12 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformFloat("uMetallicFactor", metallic);
         _shader.SetUniformFloat("uRoughnessFactor", roughness);
         _shader.SetUniformVec4("uEmissiveColor", material.EmissiveColor.ToVector4());
+        _shader.SetUniformFloat(
+            "uEmissiveIntensity",
+            float.IsFinite(material.EmissiveIntensity)
+                ? MathF.Max(material.EmissiveIntensity, 0f)
+                : 1f
+        );
 
         var opacity = float.IsFinite(material.Opacity) ? Math.Clamp(material.Opacity, 0f, 1f) : 1f;
         var alphaCutoff = float.IsFinite(material.AlphaCutoff)

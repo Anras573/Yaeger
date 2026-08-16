@@ -30,6 +30,7 @@ public static class KeyMapper
         { Key.B, Keys.B },
         { Key.V, Keys.V },
         { Key.P, Keys.P },
+        { Key.T, Keys.T },
         // Add more mappings as needed
     };
 

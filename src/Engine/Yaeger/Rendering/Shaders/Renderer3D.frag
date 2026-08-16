@@ -37,6 +37,13 @@ uniform int   uUsePbr;
 uniform float uMetallicFactor;
 uniform float uRoughnessFactor;
 uniform vec4  uEmissiveColor;
+uniform float uEmissiveIntensity;
+
+// 0 = write LDR: Reinhard tone-map + gamma-encode to sRGB in-shader (the original behaviour,
+// correct when this pass targets the backbuffer or an LDR RenderTarget directly).
+// 1 = write linear HDR colour unclamped, deferring tone-mapping/gamma-encoding to a
+// ToneMapEffect later in a PostProcessStack's HDR chain. See Renderer3D's constructor remarks.
+uniform int   uHdrOutput;
 
 uniform vec3  uLightDir;
 uniform vec4  uLightColor;
@@ -247,7 +254,7 @@ void main() {
 
         float ao = uHasAoMap != 0 ? texture(uAoMap, vTexCoord).r : 1.0;
 
-        vec3 emissive = uEmissiveColor.rgb;
+        vec3 emissive = uEmissiveColor.rgb * uEmissiveIntensity;
         if (uHasEmissiveMap != 0)
             emissive *= pow(texture(uEmissiveMap, vTexCoord).rgb, vec3(2.2));
 
@@ -308,9 +315,12 @@ void main() {
         }
         vec3 color = ambient + Lo + emissive;
 
-        // Reinhard tone-map, then gamma encode back to sRGB.
-        color = color / (color + vec3(1.0));
-        color = pow(color, vec3(1.0 / 2.2));
+        if (uHdrOutput == 0) {
+            // Reinhard tone-map, then gamma encode back to sRGB.
+            color = color / (color + vec3(1.0));
+            color = pow(color, vec3(1.0 / 2.2));
+        }
+        // else: leave color as linear HDR (may exceed 1.0) for a ToneMapEffect to compress later.
 
         FragColor = vec4(color, rawTex.a * uDiffuseColor.a * uOpacity);
     } else {

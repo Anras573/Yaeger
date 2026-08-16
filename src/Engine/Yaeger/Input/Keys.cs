@@ -26,5 +26,6 @@ public enum Keys
     B,
     V,
     P,
+    T,
     // Add more keys as needed
 }

@@ -50,4 +50,39 @@ public static class PostProcessPlanner
 
         return passes;
     }
+
+    /// <summary>
+    /// Picks the colour format <see cref="PostProcessStack"/>'s scene and ping-pong targets should
+    /// use: <see cref="RenderTargetFormat.Rgba16F"/> when HDR is enabled (so values above 1.0
+    /// survive for bloom/tone mapping to work with), <see cref="RenderTargetFormat.Rgba8"/>
+    /// otherwise — the original, byte-identical LDR format.
+    /// </summary>
+    public static RenderTargetFormat SelectSceneFormat(bool hdr) =>
+        hdr ? RenderTargetFormat.Rgba16F : RenderTargetFormat.Rgba8;
+
+    /// <summary>
+    /// Validates that no effect requiring the last position in the chain (<see cref="IPostProcessEffect.RequiresLastPass"/>
+    /// — e.g. tone mapping) is followed by another enabled effect. Pure validation, no GL calls;
+    /// <paramref name="requiresLastPass"/> maps an effect index (as they appear in
+    /// <paramref name="enabledEffectIndices"/>) to its <see cref="IPostProcessEffect.RequiresLastPass"/>
+    /// value. Throws <see cref="InvalidOperationException"/> on a violation.
+    /// </summary>
+    public static void ValidateOrdering(
+        IReadOnlyList<int> enabledEffectIndices,
+        Func<int, bool> requiresLastPass
+    )
+    {
+        ArgumentNullException.ThrowIfNull(enabledEffectIndices);
+        ArgumentNullException.ThrowIfNull(requiresLastPass);
+
+        for (var i = 0; i < enabledEffectIndices.Count - 1; i++)
+        {
+            var effectIndex = enabledEffectIndices[i];
+            if (requiresLastPass(effectIndex))
+                throw new InvalidOperationException(
+                    $"Post-process effect at index {effectIndex} requires the last position in the "
+                        + "chain (e.g. tone mapping) but other enabled effects follow it."
+                );
+        }
+    }
 }

@@ -9,9 +9,16 @@ namespace Yaeger.Rendering;
 /// pairs (ping-ponging between two half-resolution offscreen targets it owns internally), then
 /// composites the blurred result additively back onto the original source into whatever destination
 /// <see cref="PostProcessStack"/> hands it. Demonstrates the multi-pass shape the outer stack's
-/// single scene → effect → effect → backbuffer chain doesn't otherwise exercise. Operates in LDR
-/// (see the GitHub issue this shipped with) — no tone mapping.
+/// single scene → effect → effect → backbuffer chain doesn't otherwise exercise.
 /// </summary>
+/// <remarks>
+/// Never tone-maps or gamma-encodes — it only extracts, blurs, and adds back colour, so it works
+/// unchanged whether it sits in an LDR chain (<see cref="Threshold"/> against [0, 1] values, the
+/// original v1 behaviour) or an HDR chain (against unclamped linear values, with a
+/// <see cref="ToneMapEffect"/> compressing the composited result afterwards). Pass a
+/// <see cref="RenderTargetFormat.Rgba16F"/> <c>format</c> in an HDR chain so its own bright-pass
+/// and blur buffers don't clamp away the over-1.0 values the threshold pass extracted.
+/// </remarks>
 public sealed class BloomEffect : IPostProcessEffect
 {
     private static readonly string VertexSource = EmbeddedShaderSource.Load("PostProcessQuad.vert");
@@ -49,7 +56,23 @@ public sealed class BloomEffect : IPostProcessEffect
     /// <summary>Strength the blurred bloom texture is added back at during composite.</summary>
     public float Intensity { get; set; } = 1f;
 
-    public BloomEffect(GL gl, int width, int height)
+    /// <param name="gl">The window's OpenGL context.</param>
+    /// <param name="width">Initial stack width in pixels; the internal buffers are allocated at half this.</param>
+    /// <param name="height">Initial stack height in pixels; the internal buffers are allocated at half this.</param>
+    /// <param name="format">
+    /// Colour format for the internal bright-pass/blur buffers. Match whatever
+    /// <see cref="PostProcessStack"/> allocated its own targets as (<see cref="PostProcessStack.HdrEnabled"/>
+    /// via <see cref="PostProcessPlanner.SelectSceneFormat"/>) — an HDR chain needs
+    /// <see cref="RenderTargetFormat.Rgba16F"/> here too, or values above 1.0 clamp away inside
+    /// bloom's own buffers before they ever reach the composite. Defaults to
+    /// <see cref="RenderTargetFormat.Rgba8"/>, the original LDR behaviour.
+    /// </param>
+    public BloomEffect(
+        GL gl,
+        int width,
+        int height,
+        RenderTargetFormat format = RenderTargetFormat.Rgba8
+    )
     {
         _gl = gl;
         _thresholdShader = new Shader(gl, VertexSource, ThresholdFragmentSource);
@@ -57,9 +80,9 @@ public sealed class BloomEffect : IPostProcessEffect
         _compositeShader = new Shader(gl, VertexSource, CompositeFragmentSource);
 
         var (w, h) = HalfResolution(width, height);
-        _bright = new RenderTarget(gl, w, h, hasDepth: false);
-        _blurA = new RenderTarget(gl, w, h, hasDepth: false);
-        _blurB = new RenderTarget(gl, w, h, hasDepth: false);
+        _bright = new RenderTarget(gl, w, h, hasDepth: false, format);
+        _blurA = new RenderTarget(gl, w, h, hasDepth: false, format);
+        _blurB = new RenderTarget(gl, w, h, hasDepth: false, format);
     }
 
     private static (int Width, int Height) HalfResolution(int width, int height) =>
