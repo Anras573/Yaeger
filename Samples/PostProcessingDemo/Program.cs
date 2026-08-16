@@ -19,8 +19,13 @@ using Yaeger.Windowing;
 
 using var window = Window.Create();
 var world = new World();
-using var registry = new GpuMeshRegistry(window.Gl);
-using var textures = new TextureManager(window.Gl);
+
+// Not `using var`: GL-owning objects must be disposed from OnClosing, while the context is still
+// alive, not via top-level `using` declarations that dispose after window.Run() returns — by then
+// the context is already torn down and the first not-yet-resolved GL call in Dispose() throws
+// SymbolLoadingException instead of cleaning up (see Window.OnClosing's remarks and issue #207).
+var registry = new GpuMeshRegistry(window.Gl);
+var textures = new TextureManager(window.Gl);
 
 static Material3D Matte(Color diffuse) =>
     new()
@@ -115,7 +120,7 @@ world.AddComponent(
 // hdrOutput: true makes the PBR path write linear HDR colour (skipping its usual in-shader
 // Reinhard tone-map/gamma-encode) so PostProcessStack/ToneMapEffect below do that compression once,
 // over the whole frame, instead — see docs/pbr.md's HDR section.
-using var renderer3D = new Renderer3D(window.Gl, hdrOutput: true);
+var renderer3D = new Renderer3D(window.Gl, hdrOutput: true);
 var meshRenderSystem = new MeshRenderSystem(renderer3D, registry, textures, world, window);
 
 // hdr: true allocates the scene/ping-pong targets as floating-point Rgba16F instead of the
@@ -124,15 +129,15 @@ var meshRenderSystem = new MeshRenderSystem(renderer3D, registry, textures, worl
 // then bloom (multi-pass, its own buffers matched to Rgba16F too), then tone mapping — which must
 // be last, since it's what compresses the HDR result back down for the backbuffer (enforced by
 // PostProcessPlanner.ValidateOrdering). See docs/post-processing.md's "HDR and tone mapping".
-using var postProcessStack = new PostProcessStack(
+var postProcessStack = new PostProcessStack(
     window.Gl,
     (int)window.Size.X,
     (int)window.Size.Y,
     sceneHasDepth: true,
     hdr: true
 );
-using var vignette = new VignetteEffect(window.Gl) { Intensity = 0.5f, Saturation = 1.1f };
-using var bloom = new BloomEffect(
+var vignette = new VignetteEffect(window.Gl) { Intensity = 0.5f, Saturation = 1.1f };
+var bloom = new BloomEffect(
     window.Gl,
     (int)window.Size.X,
     (int)window.Size.Y,
@@ -142,12 +147,22 @@ using var bloom = new BloomEffect(
     Threshold = 1f,
     Intensity = 1.2f,
 };
-using var toneMap = new ToneMapEffect(window.Gl) { Operator = ToneMapOperator.AcesFilmic };
+var toneMap = new ToneMapEffect(window.Gl) { Operator = ToneMapOperator.AcesFilmic };
 postProcessStack.Effects.Add(vignette);
 postProcessStack.Effects.Add(bloom);
 postProcessStack.Effects.Add(toneMap);
 
 window.OnResize += size => postProcessStack.Resize((int)size.X, (int)size.Y);
+window.OnClosing += () =>
+{
+    toneMap.Dispose();
+    bloom.Dispose();
+    vignette.Dispose();
+    postProcessStack.Dispose();
+    renderer3D.Dispose();
+    textures.Dispose();
+    registry.Dispose();
+};
 
 Console.WriteLine("Post-Processing Demo (HDR)");
 Console.WriteLine(

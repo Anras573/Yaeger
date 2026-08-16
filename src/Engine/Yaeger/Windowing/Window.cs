@@ -32,7 +32,7 @@ public sealed class Window : IDisposable
         // Forward Silk.NET events to public events
         _innerWindow.Resize += size => Resize?.Invoke(new Vector2(size.X, size.Y));
         _innerWindow.Update += delta => Update?.Invoke(delta);
-        _innerWindow.Closing += Closing;
+        _innerWindow.Closing += () => Closing?.Invoke();
         _innerWindow.Render += delta =>
         {
             Render?.Invoke(delta);
@@ -102,6 +102,16 @@ public sealed class Window : IDisposable
         add => Update += value;
         remove => Update -= value;
     }
+
+    /// <summary>
+    /// Fires once, synchronously, while the GL context is still alive — after <see cref="Close"/>
+    /// is called (or the OS window is closed) but before the native window/context is torn down.
+    /// Dispose any GL-owning object here (see <c>Samples/TextRenderingExample</c>) rather than via
+    /// a top-level <c>using var</c> declared before <see cref="Run"/>: those dispose after
+    /// <see cref="Run"/> returns, by which point the context is already gone and the first
+    /// not-yet-resolved GL call in that object's <c>Dispose()</c> throws
+    /// <c>Silk.NET.Core.Loader.SymbolLoadingException</c> instead of cleaning up.
+    /// </summary>
     public event Action? OnClosing
     {
         add => Closing += value;
