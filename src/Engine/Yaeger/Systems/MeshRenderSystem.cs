@@ -53,10 +53,11 @@ public class MeshRenderSystem(
     // collapses casters that share a mesh but differ in material into one instanced draw too.
     private readonly MeshInstanceBatcher _shadowBatcher = new();
 
-    // A single Material3D.BlendMode.Transparent submission, collected during the main query loop
-    // and drawn individually (never instanced/batched — instancing would collapse several
-    // entities' relative depth into one draw, breaking back-to-front ordering) after every
-    // opaque/cutout draw. bonePalette is null for non-skinned entities.
+    // A single Transparent- or Additive-blend-mode submission (see TransparencySorter.IsTransparent),
+    // collected during the main query loop and drawn individually (never instanced/batched —
+    // instancing would collapse several entities' relative depth into one draw, breaking
+    // back-to-front ordering) after every opaque/cutout draw. bonePalette is null for non-skinned
+    // entities.
     private readonly record struct TransparentDraw(
         MeshHandle Handle,
         Material3D Material,
@@ -213,11 +214,12 @@ public class MeshRenderSystem(
                 skyboxRenderer.Draw(cubemap, view, projection);
         }
 
-        // Transparent pass: sorted back-to-front by view depth so overlapping transparent objects
-        // blend correctly regardless of camera angle (object-level ordering only — see
-        // TransparencySorter). A scene with no transparent materials never enters this block, so
-        // it never touches the renderer's blend/depth-mask state — opaque-only rendering is
-        // unaffected by this feature existing.
+        // Transparent/additive pass: sorted back-to-front by view depth so overlapping blended
+        // objects (Transparent and Additive share this one sorted pass — see TransparencySorter)
+        // blend correctly regardless of camera angle (object-level ordering only). A scene with no
+        // transparent/additive materials never enters this block, so it never touches the
+        // renderer's blend/depth-mask state — opaque-only rendering is unaffected by this feature
+        // existing.
         if (_transparentDraws.Count > 0)
         {
             TransparencySorter.SortBackToFront(_transparentDraws, view, d => d.Model.Translation);
@@ -274,8 +276,8 @@ public class MeshRenderSystem(
         // group here even if their real materials (used by the main pass below) differ. Bone
         // palettes aren't read either (a pre-existing limitation: skinned casters shadow their bind
         // pose), so skinned entities need no special-casing versus the main pass above. Transparent
-        // materials don't cast shadows at all (v1 limitation — see docs/pbr.md); cutout materials
-        // still cast full (non-masked) shadows.
+        // and Additive materials don't cast shadows at all (v1 limitation — see docs/pbr.md);
+        // cutout materials still cast full (non-masked) shadows.
         _shadowBatcher.Clear();
 
         foreach (

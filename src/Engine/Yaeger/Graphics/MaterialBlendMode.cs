@@ -27,4 +27,15 @@ public enum MaterialBlendMode
     /// lighting and shadows like an opaque material but does not itself cast shadows.
     /// </summary>
     Transparent = 2,
+
+    /// <summary>
+    /// Additively blended: adds the fragment's colour to whatever is already in the framebuffer
+    /// (<c>glBlendFunc(SrcAlpha, One)</c>) instead of interpolating between them, so it can only
+    /// brighten the scene, never darken it — suited to glows, projectile cores, muzzle flashes,
+    /// and other luminous effects. Drawn in the same sorted pass as <see cref="Transparent"/>
+    /// (same depth test on/write off state), since its position relative to alpha-blended
+    /// surfaces still matters even though it's order-independent among other additive surfaces.
+    /// Receives lighting like <see cref="Transparent"/> but does not itself cast shadows.
+    /// </summary>
+    Additive = 3,
 }

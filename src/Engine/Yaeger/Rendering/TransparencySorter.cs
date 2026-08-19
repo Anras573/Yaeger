@@ -13,12 +13,15 @@ namespace Yaeger.Rendering;
 public static class TransparencySorter
 {
     /// <summary>
-    /// True when <paramref name="material"/> belongs in the transparent pass (drawn after every
-    /// opaque/cutout material, sorted back-to-front, depth-tested but not depth-written). Opaque
+    /// True when <paramref name="material"/> belongs in the sorted blended pass (drawn after every
+    /// opaque/cutout material, sorted back-to-front, depth-tested but not depth-written) — that is,
+    /// <see cref="MaterialBlendMode.Transparent"/> or <see cref="MaterialBlendMode.Additive"/>.
+    /// Additive shares this pass rather than getting its own: it's order-independent among other
+    /// additive surfaces, but its position relative to alpha-blended surfaces still matters. Opaque
     /// and cutout materials both draw in the main pass — cutout's alpha test needs no sorting.
     /// </summary>
     public static bool IsTransparent(Material3D material) =>
-        material.BlendMode == MaterialBlendMode.Transparent;
+        material.BlendMode is MaterialBlendMode.Transparent or MaterialBlendMode.Additive;
 
     /// <summary>
     /// View-space depth of a point, used as the transparent pass's back-to-front sort key: larger

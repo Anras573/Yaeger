@@ -26,9 +26,11 @@ uniform vec4  uAmbientColor;
 uniform vec4  uSpecularColor;
 uniform float uShininess;
 
-// Blend mode: 0 = Opaque, 1 = Cutout (alpha test via discard), 2 = Transparent (blended,
-// depth-write-off pass on the CPU side). uOpacity is an extra alpha factor independent of any
-// texture's own alpha channel; uAlphaCutoff only matters for Cutout.
+// Blend mode: 0 = Opaque, 1 = Cutout (alpha test via discard), 2 = Transparent, 3 = Additive
+// (Transparent and Additive both render in the same depth-write-off pass on the CPU side; only the
+// glBlendFunc differs between them, selected per-draw by Renderer3D.ApplyBlendFunc — the shader
+// itself computes the same alpha-weighted colour either way). uOpacity is an extra alpha factor
+// independent of any texture's own alpha channel; uAlphaCutoff only matters for Cutout.
 uniform float uOpacity;
 uniform int   uBlendMode;
 uniform float uAlphaCutoff;
