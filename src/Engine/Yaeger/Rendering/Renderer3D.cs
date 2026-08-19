@@ -305,15 +305,20 @@ public sealed class Renderer3D : IDisposable
     }
 
     /// <summary>
-    /// Enters the transparent draw pass: depth testing stays on (so transparent fragments are
-    /// still occluded by opaque geometry already in the depth buffer) but depth <em>writes</em>
-    /// are disabled (so transparent fragments don't occlude each other or later opaque draws) and
-    /// standard alpha blending (<c>SrcAlpha</c>, <c>OneMinusSrcAlpha</c>) is enabled. Call after
-    /// every opaque/cutout <see cref="Draw(GpuMesh,Matrix4x4,Matrix4x4,Material3D,TextureManager)"/>/
+    /// Enters the sorted blended draw pass shared by <see cref="MaterialBlendMode.Transparent"/>
+    /// and <see cref="MaterialBlendMode.Additive"/> materials: depth testing stays on (so blended
+    /// fragments are still occluded by opaque geometry already in the depth buffer) but depth
+    /// <em>writes</em> are disabled (so blended fragments don't occlude each other or later opaque
+    /// draws) and blending is enabled with the standard alpha blend func (<c>SrcAlpha</c>,
+    /// <c>OneMinusSrcAlpha</c>) as the initial state. Each <see cref="Draw(GpuMesh,Matrix4x4,Matrix4x4,Material3D,TextureManager)"/>
+    /// call within the pass switches the blend func to match its own material's
+    /// <see cref="Material3D.BlendMode"/> (see <see cref="ApplyBlendFunc"/>), so Transparent and
+    /// Additive draws can be interleaved in one back-to-front sorted sequence. Call after every
+    /// opaque/cutout <see cref="Draw(GpuMesh,Matrix4x4,Matrix4x4,Material3D,TextureManager)"/>/
     /// <see cref="DrawInstanced"/> call for the frame, with entries sorted back-to-front (see
     /// <see cref="TransparencySorter"/>), and pair with <see cref="EndTransparentPass"/> once done.
-    /// A scene that never calls this (no transparent materials) renders exactly as before this
-    /// pass existed.
+    /// A scene that never calls this (no transparent/additive materials) renders exactly as before
+    /// this pass existed.
     /// </summary>
     public void BeginTransparentPass()
     {
@@ -456,12 +461,30 @@ public sealed class Renderer3D : IDisposable
             invModel = Matrix4x4.Identity;
         _shader.SetUniformMatrix3("uNormalMatrix", Matrix4x4.Transpose(invModel));
 
+        ApplyBlendFunc(material.BlendMode);
         BindMaterial(material, textures);
 
         mesh.Draw();
         DrawCallCount++;
 
         _shader.Unbind();
+    }
+
+    // Selects the blend func for the pass entered by BeginTransparentPass, per-draw, so a single
+    // sorted pass can interleave Transparent and Additive materials (see TransparencySorter). A
+    // no-op for Opaque/Cutout: blending is disabled outside the transparent pass, so the blend func
+    // has no visible effect there regardless — this only matters for the two blended modes.
+    private void ApplyBlendFunc(MaterialBlendMode blendMode)
+    {
+        switch (blendMode)
+        {
+            case MaterialBlendMode.Additive:
+                _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+                break;
+            case MaterialBlendMode.Transparent:
+                _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                break;
+        }
     }
 
     /// <summary>

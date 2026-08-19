@@ -31,9 +31,9 @@ namespace Yaeger.ECS.Serializers;
 /// <c>metallicRoughnessTexturePath</c>, <c>aoTexturePath</c>, <c>emissiveTexturePath</c>) are
 /// written only when set, so unset ones are omitted entirely rather than emitted as <c>null</c>.
 /// Numeric/colour fields default to the <see cref="Material3D()"/> defaults (e.g. metallic/roughness
-/// factors of 1.0) when absent. <c>blendMode</c> must be one of <c>"Opaque"</c>, <c>"Cutout"</c>, or
-/// <c>"Transparent"</c> (matching <see cref="MaterialBlendMode"/>) when present, and defaults to
-/// <c>"Opaque"</c> when absent.
+/// factors of 1.0) when absent. <c>blendMode</c> must be one of <c>"Opaque"</c>, <c>"Cutout"</c>,
+/// <c>"Transparent"</c>, or <c>"Additive"</c> (matching <see cref="MaterialBlendMode"/>) when
+/// present, and defaults to <c>"Opaque"</c> when absent.
 /// </remarks>
 public sealed class Material3DSerializer : IComponentSerializer
 {
@@ -126,7 +126,7 @@ public sealed class Material3DSerializer : IComponentSerializer
             || !Enum.IsDefined(blendMode)
         )
             throw new PrefabLoadException(
-                "Property 'blendMode' must be one of \"Opaque\", \"Cutout\", or \"Transparent\"."
+                "Property 'blendMode' must be one of \"Opaque\", \"Cutout\", \"Transparent\", or \"Additive\"."
             );
 
         return blendMode;

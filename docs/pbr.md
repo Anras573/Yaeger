@@ -157,7 +157,7 @@ public record struct Material3D
 
     // Transparency (either shading path — see "Transparency" below)
     public float Opacity = 1f;
-    public MaterialBlendMode BlendMode;    // Opaque (default), Cutout, or Transparent
+    public MaterialBlendMode BlendMode;    // Opaque (default), Cutout, Transparent, or Additive
     public float AlphaCutoff = 0.5f;       // Cutout only
 }
 ```
@@ -202,10 +202,20 @@ shading choice above:
   back-to-front by view-space depth (see `TransparencySorter`), with depth *testing* on but depth
   *writes* off. Suited to glass, water, and other alpha-blended surfaces (glTF's
   `alphaMode: BLEND`).
+- **`Additive`** — drawn in the *same* sorted pass as `Transparent` (same depth test on/write off
+  state; `TransparencySorter.IsTransparent` treats the two alike), but blended with
+  `glBlendFunc(SrcAlpha, One)` instead of `glBlendFunc(SrcAlpha, OneMinusSrcAlpha)` — it adds the
+  fragment's colour to what's already in the framebuffer rather than interpolating between them, so
+  it can only brighten the scene, never darken it. Suited to glows, projectile cores, muzzle
+  flashes, engine exhaust, and other luminous effects — an `EmissiveIntensity` above 1.0 on an
+  additive surface is what makes it read as a light source rather than a flat colour once bloomed.
+  Additive is order-independent among *other* additive surfaces, but its position relative to
+  `Transparent` surfaces still matters, which is why it shares the one sorted pass rather than
+  getting its own.
 
 `Opacity` is an extra alpha factor multiplied into the diffuse texture's own alpha channel (and,
 in the PBR path, `Diffuse`'s alpha); it's ignored by the `Opaque` path (which never reads alpha),
-so setting it alone does nothing unless `BlendMode` is also `Cutout` or `Transparent`.
+so setting it alone does nothing unless `BlendMode` is `Cutout`, `Transparent`, or `Additive`.
 
 `AssimpLoader` populates `Opacity` from the source material's opacity factor (glTF's
 `baseColorFactor` alpha, or an OBJ/FBX transparency factor, when the importer surfaces one) and
@@ -216,10 +226,12 @@ cutout materials (`Material3D.FromModel(...) with { BlendMode = MaterialBlendMod
 **Limitations** (see issue #149's scope): this is standard per-object back-to-front sorting, not
 order-independent transparency — two *overlapping* transparent objects sort correctly by their
 whole-object depth, but a single non-convex transparent mesh can still show sorting artifacts
-against itself (per-triangle sorting is out of scope). There's no refraction. Transparent
-materials receive the same lighting and shadow *receiving* as opaque ones, but do not themselves
-cast shadows — the shadow pre-pass skips any `Transparent`-blend-mode entity entirely (`Cutout`
-casts a full, non-masked shadow).
+against itself (per-triangle sorting is out of scope). There's no refraction. Transparent and
+Additive materials receive the same lighting and shadow *receiving* as opaque ones, but do not
+themselves cast shadows — the shadow pre-pass skips any `Transparent`- or `Additive`-blend-mode
+entity entirely (`Cutout` casts a full, non-masked shadow). There's no premultiplied-alpha
+pipeline and no general blend-state API — `Additive` is a second fixed blend func alongside
+`Transparent`'s, not a customisable one (see issue #194's out-of-scope list).
 
 ## Lights
 

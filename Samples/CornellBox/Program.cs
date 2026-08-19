@@ -68,6 +68,34 @@ static Material3D Emissive(Color color) =>
         Shininess = 0f,
     };
 
+// Additive: adds its colour to whatever is behind it (glBlendFunc(SrcAlpha, One)), so it can only
+// brighten the frame — never darken it. Contrast this with Glass below over the same background.
+static Material3D Glow(Color color) =>
+    new()
+    {
+        DiffuseTexturePath = string.Empty,
+        Ambient = color,
+        Diffuse = color,
+        Specular = Color.Black,
+        Shininess = 0f,
+        Opacity = 0.6f,
+        BlendMode = MaterialBlendMode.Additive,
+    };
+
+// Transparent: interpolates between its colour and whatever is behind it (glBlendFunc(SrcAlpha,
+// OneMinusSrcAlpha)), so it tints/darkens rather than brightens.
+static Material3D Glass(Color diffuse) =>
+    new()
+    {
+        DiffuseTexturePath = string.Empty,
+        Ambient = new Color((byte)(diffuse.R / 4), (byte)(diffuse.G / 4), (byte)(diffuse.B / 4)),
+        Diffuse = diffuse,
+        Specular = Color.White,
+        Shininess = 64f,
+        Opacity = 0.35f,
+        BlendMode = MaterialBlendMode.Transparent,
+    };
+
 var white = Matte(new Color(220, 220, 220));
 var red = Matte(new Color(160, 17, 13)); // Cornell left wall
 var green = Matte(new Color(36, 115, 23)); // Cornell right wall
@@ -174,6 +202,35 @@ AddBox(
     scale: new Vector3(0.3f, 0.3f, 0.3f),
     rotationY: -MathF.PI / 12f,
     material: boxGray
+);
+
+// Additive vs. transparent demo — two floating panels facing the camera, side by side over the
+// same back-wall background, so the difference between blend modes is visible at a glance: the
+// additive panel brightens the wall behind it, the transparent panel tints/darkens it.
+AddSurface(
+    "glow_panel",
+    MeshFactory.CreateQuad(
+        "glow_panel",
+        new Vector3(-0.55f, 0.9f, -0.55f),
+        new Vector3(-0.15f, 0.9f, -0.55f),
+        new Vector3(-0.15f, 1.3f, -0.55f),
+        new Vector3(-0.55f, 1.3f, -0.55f),
+        Vector3.UnitZ
+    ),
+    Glow(new Color(0, 220, 220))
+);
+
+AddSurface(
+    "glass_panel",
+    MeshFactory.CreateQuad(
+        "glass_panel",
+        new Vector3(0.15f, 0.9f, -0.55f),
+        new Vector3(0.55f, 0.9f, -0.55f),
+        new Vector3(0.55f, 1.3f, -0.55f),
+        new Vector3(0.15f, 1.3f, -0.55f),
+        Vector3.UnitZ
+    ),
+    Glass(new Color(150, 200, 255))
 );
 
 // Camera — positioned just outside the open front face, looking into the box.

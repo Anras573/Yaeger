@@ -149,6 +149,7 @@ public class Serializer3DTests
     [InlineData(MaterialBlendMode.Opaque)]
     [InlineData(MaterialBlendMode.Cutout)]
     [InlineData(MaterialBlendMode.Transparent)]
+    [InlineData(MaterialBlendMode.Additive)]
     public void Material3D_BlendMode_ShouldRoundTrip(MaterialBlendMode blendMode)
     {
         var original = new Material3D

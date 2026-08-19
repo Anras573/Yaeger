@@ -11,6 +11,7 @@ public class TransparencySorterTests
     [InlineData(MaterialBlendMode.Opaque, false)]
     [InlineData(MaterialBlendMode.Cutout, false)]
     [InlineData(MaterialBlendMode.Transparent, true)]
+    [InlineData(MaterialBlendMode.Additive, true)]
     public void IsTransparent_ClassifiesByBlendMode(MaterialBlendMode blendMode, bool expected)
     {
         var material = new Material3D { BlendMode = blendMode };
