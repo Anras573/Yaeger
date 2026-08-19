@@ -86,7 +86,7 @@ public class MeshRenderSystem(
         // Shadow pre-pass: render scene depth from the directional light's point of view. Runs
         // before BeginFrame3D so it owns the framebuffer/viewport state for its duration.
         if (shadowMapRenderer != null)
-            RenderShadowPass(light, sceneCenter);
+            RenderShadowPass(light, sceneCenter, paletteStore);
 
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
@@ -264,7 +264,11 @@ public class MeshRenderSystem(
 
     // Renders every shadow caster into the shadow map from the light's perspective. Casters are not
     // frustum-culled against the camera: geometry behind or beside the view can still cast into it.
-    private void RenderShadowPass(DirectionalLight light, Vector3 sceneCenter)
+    private void RenderShadowPass(
+        DirectionalLight light,
+        Vector3 sceneCenter,
+        ComponentStorage<BonePalette> paletteStore
+    )
     {
         // Caller guards on shadowMapRenderer != null; hoist to a non-null local so the whole method
         // reads off a single, analysis-friendly reference.
@@ -273,16 +277,14 @@ public class MeshRenderSystem(
 
         // Depth-only: material doesn't affect the shadow map, so every caster is added under the
         // same placeholder Material3D key — entities sharing a mesh collapse into one instanced
-        // group here even if their real materials (used by the main pass below) differ. Bone
-        // palettes aren't read either (a pre-existing limitation: skinned casters shadow their bind
-        // pose), so skinned entities need no special-casing versus the main pass above. Transparent
+        // group here even if their real materials (used by the main pass below) differ. Transparent
         // and Additive materials don't cast shadows at all (v1 limitation — see docs/pbr.md);
         // cutout materials still cast full (non-masked) shadows.
         _shadowBatcher.Clear();
 
         foreach (
             (
-                Entity _,
+                Entity entity,
                 MeshHandle handle,
                 Transform3D transform,
                 Material3D material
@@ -292,7 +294,18 @@ public class MeshRenderSystem(
             if (TransparencySorter.IsTransparent(material))
                 continue;
 
-            if (meshRegistry.TryGet(handle, out _))
+            if (!meshRegistry.TryGet(handle, out var mesh))
+                continue;
+
+            // Skinned casters take the immediate per-entity skinning path — same reasoning as the
+            // main pass above: a bone palette is per-entity state, so it can't be folded into the
+            // instanced group below. Non-skinned casters are unaffected, including the instanced path.
+            var hasPalette =
+                paletteStore.TryGet(entity, out var palette) && palette.Matrices is { Length: > 0 };
+
+            if (hasPalette)
+                shadowMap.Draw(mesh, transform.ModelMatrix, palette.Matrices);
+            else
                 _shadowBatcher.Add(handle, default, transform.ModelMatrix);
         }
 

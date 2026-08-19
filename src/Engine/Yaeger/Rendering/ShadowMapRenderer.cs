@@ -26,10 +26,18 @@ public sealed class ShadowMapRenderer : IDisposable
         "ShadowMap.frag"
     );
 
+    /// <summary>Maximum number of bones the shadow shader's skinning palette can hold (matches Renderer3D.MaxBones and MAX_BONES in ShadowMap.vert).</summary>
+    public const int MaxBones = 128;
+
+    // Binding point linking the "Bones" uniform block to this renderer's own bone-matrix UBO. Distinct
+    // from Renderer3D's own binding point so the two renderers' bone data never depend on draw order.
+    private const uint BoneBlockBinding = 1;
+
     private readonly GL _gl;
     private readonly Shader _shader;
     private readonly uint _fbo;
     private readonly uint _depthTexture;
+    private readonly uint _boneUbo;
     private readonly int _resolution;
 
     /// <summary>The settings the renderer was constructed with.</summary>
@@ -61,6 +69,7 @@ public sealed class ShadowMapRenderer : IDisposable
         _shader = new Shader(gl, VertexShaderSource, FragmentShaderSource);
         _depthTexture = CreateDepthTexture(_resolution);
         _fbo = CreateFramebuffer(_depthTexture);
+        _boneUbo = CreateBoneUbo();
     }
 
     /// <summary>
@@ -119,9 +128,27 @@ public sealed class ShadowMapRenderer : IDisposable
         _shader.SetUniformMatrix4("uLightSpace", LightSpaceMatrix);
     }
 
-    /// <summary>Renders a single shadow caster into the depth map. Call between Begin/End.</summary>
+    /// <summary>Renders a single static shadow caster into the depth map. Call between Begin/End.</summary>
     public void Draw(GpuMesh mesh, Matrix4x4 model)
     {
+        _shader.SetUniformInt("uSkinned", 0);
+        _shader.SetUniformInt("uInstanced", 0);
+        _shader.SetUniformMatrix4("uModel", model);
+        mesh.Draw();
+        DrawCallCount++;
+    }
+
+    /// <summary>
+    /// Renders a single skinned shadow caster into the depth map, uploading <paramref name="bonePalette"/>
+    /// to this renderer's own bone-matrix UBO and enabling GPU skinning in the shadow vertex shader —
+    /// mirrors <see cref="Renderer3D.Draw(GpuMesh, Matrix4x4, Matrix4x4, Material3D, TextureManager, ReadOnlySpan{Matrix4x4})"/>.
+    /// Call between Begin/End. Skinned casters always take this immediate per-entity path, never the
+    /// instanced one below — bone palettes are per-entity state.
+    /// </summary>
+    public void Draw(GpuMesh mesh, Matrix4x4 model, ReadOnlySpan<Matrix4x4> bonePalette)
+    {
+        SetBoneMatrices(bonePalette);
+        _shader.SetUniformInt("uSkinned", 1);
         _shader.SetUniformInt("uInstanced", 0);
         _shader.SetUniformMatrix4("uModel", model);
         mesh.Draw();
@@ -137,6 +164,7 @@ public sealed class ShadowMapRenderer : IDisposable
         if (models.IsEmpty)
             return;
 
+        _shader.SetUniformInt("uSkinned", 0);
         _shader.SetUniformInt("uInstanced", 1);
 
         if (_instanceScratch == null || _instanceScratch.Length < models.Length)
@@ -239,10 +267,50 @@ public sealed class ShadowMapRenderer : IDisposable
         return fbo;
     }
 
+    // Allocates the bone-matrix uniform buffer (MaxBones mat4s) and links it to the shadow shader's
+    // "Bones" block via this renderer's own binding point. Mirrors Renderer3D.CreateBoneUbo.
+    private unsafe uint CreateBoneUbo()
+    {
+        var ubo = _gl.GenBuffer();
+        _gl.BindBuffer(BufferTargetARB.UniformBuffer, ubo);
+        _gl.BufferData(
+            BufferTargetARB.UniformBuffer,
+            (nuint)(MaxBones * sizeof(Matrix4x4)),
+            null,
+            BufferUsageARB.DynamicDraw
+        );
+        _gl.BindBufferBase(BufferTargetARB.UniformBuffer, BoneBlockBinding, ubo);
+        _gl.BindBuffer(BufferTargetARB.UniformBuffer, 0);
+        _shader.BindUniformBlock("Bones", BoneBlockBinding);
+        return ubo;
+    }
+
+    // Uploads a skinning matrix palette to the bone UBO. At most MaxBones matrices are used; extras
+    // are ignored. Mirrors Renderer3D.SetBoneMatrices.
+    private unsafe void SetBoneMatrices(ReadOnlySpan<Matrix4x4> palette)
+    {
+        var count = Math.Min(palette.Length, MaxBones);
+        if (count <= 0)
+            return;
+
+        _gl.BindBuffer(BufferTargetARB.UniformBuffer, _boneUbo);
+        fixed (Matrix4x4* ptr = palette)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.UniformBuffer,
+                0,
+                (nuint)(count * sizeof(Matrix4x4)),
+                ptr
+            );
+        }
+        _gl.BindBuffer(BufferTargetARB.UniformBuffer, 0);
+    }
+
     public void Dispose()
     {
         _shader.Dispose();
         _gl.DeleteFramebuffer(_fbo);
         _gl.DeleteTexture(_depthTexture);
+        _gl.DeleteBuffer(_boneUbo);
     }
 }

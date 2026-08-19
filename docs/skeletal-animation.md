@@ -167,8 +167,6 @@ events there are a separate feature).
   pose) for that vertex rather than reading out of bounds — so over-cap models degrade gracefully
   rather than crashing. Models within typical joint counts (the CesiumMan sample has 22) are unaffected.
 - **Influences** — up to four bones per vertex; the loader keeps the heaviest four and renormalises.
-- **Shadows** — the shadow pass renders the bind pose (it samples only positions), so skinned meshes
-  are not yet animated in shadow maps. Avoid combining skinned meshes with the shadow pass for now.
 - **Model matrix** — for skinned entities use `Transform3D.Identity`; the bone world transforms run
   from the scene root, so the skin already positions vertices in scene space.
 
