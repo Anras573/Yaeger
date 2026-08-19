@@ -10,4 +10,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Engine\Yaeger\Yaeger.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

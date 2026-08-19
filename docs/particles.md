@@ -68,6 +68,104 @@ The split exists because simulation belongs to the update loop while quad submis
 
 ## Known limitations
 
-- No additive blend mode yet — fire/glow effects use regular alpha blending. An additive pass would need a separate flush and is a planned follow-up.
+- No additive blend mode for 2D particles — fire/glow effects use regular alpha blending. (3D
+  particles do have one — see below.)
 - No gravity/acceleration, angular velocity, or texture animation on particles; velocity is constant for each particle's lifetime.
 - `ParticleEmitter` has no prefab/scene serializer yet, so emitters are configured in code.
+
+## 3D particles
+
+`ParticleEmitter3D` + `Transform3D`, simulated by `ParticleSystem3D` and rendered by
+`ParticleRenderSystem3D`, brings the same design to 3D scenes as camera-facing billboards: sparks,
+muzzle flashes, embers, smoke, dust. Native-only (`ParticleRenderSystem3D` renders through
+`Renderer3D`); `ParticleSystem3D` itself is platform-agnostic and runs headless like its 2D
+counterpart.
+
+### Quick start
+
+```csharp
+var particleSystem3D = new ParticleSystem3D(world);
+
+var embers = world.CreateEntity();
+world.AddComponent(embers, new Transform3D(new Vector3(0f, 0f, 0f), Quaternion.Identity, Vector3.One));
+world.AddComponent(embers, new ParticleEmitter3D("Assets/particle.png")
+{
+    MaxParticles = 128,
+    EmitRate = 20f,
+    ParticleLifetime = 1.5f,
+    EmitDirection = Vector3.UnitY,
+    SpreadAngle = MathF.PI / 6f,
+    InitialSpeed = 0.25f,
+    StartColor = new Color(255, 160, 40, 220),
+    EndColor = new Color(255, 60, 0, 0),
+    StartSize = 0.05f,
+    EndSize = 0.015f,
+    BlendMode = MaterialBlendMode.Additive,
+});
+
+var particleRenderSystem3D = new ParticleRenderSystem3D(renderer3D, textures, world, window, particleSystem3D);
+
+window.OnUpdate += dt => particleSystem3D.Update((float)dt);
+window.OnRender += _ =>
+{
+    meshRenderSystem.Render();
+    particleRenderSystem3D.Render(); // after the mesh passes — particles draw in their own pass
+};
+```
+
+See `Samples/CornellBox` for a running example (an additive ember emitter and a velocity-stretched
+spark emitter).
+
+### The `ParticleEmitter3D` component
+
+Mirrors `ParticleEmitter`'s fields (`MaxParticles`, `EmitRate`, `ParticleLifetime`, `SpreadAngle`,
+`InitialSpeed`, `StartColor`/`EndColor`, `StartSize`/`EndSize`, `TexturePath`) with `EmitDirection`
+as a `Vector3` (a 3D cone rather than a 2D arc — a spawned particle's direction deviates from
+`EmitDirection` by up to `SpreadAngle / 2`, uniformly random around the axis) plus two 3D-specific
+fields:
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `BlendMode` | `MaterialBlendMode` | `Transparent` | `Transparent` (standard alpha blending, sorted back-to-front against other transparent emitters) or `Additive` (brightens the frame, order-independent — see issue #194). `Opaque`/`Cutout` are treated as `Transparent`. |
+| `VelocityStretch` | `float` | `0` | World units of elongation per unit of speed, along the particle's direction of travel. `0` (default) keeps billboards square/round; a positive value stretches them into streaks — suited to sparks, bolts, and tracers. |
+
+### How billboards face the camera
+
+`ParticleRenderSystem3D` extracts the rendering camera's world-space right/up axes from its view
+matrix (`BillboardMath.ExtractCameraAxes`) once per frame, and `Renderer3D.DrawParticles` builds
+every billboard quad from those two vectors — so a billboard faces the camera correctly from any
+angle, including as the camera orbits. A velocity-stretched billboard additionally projects its
+particle's velocity onto the camera's (right, up) plane (`BillboardMath.ProjectVelocity`) to find
+the streak's length and rotation; a particle moving directly toward or away from the camera
+projects to near-zero speed, so it correctly collapses back to a round/square billboard instead of
+showing a spurious streak.
+
+### Emitter draw order
+
+Each frame, `ParticleRenderSystem3D` groups emitters by blend mode: `Transparent` emitters are
+sorted back-to-front by their entity's `Transform3D.Position` via the same `TransparencySorter`
+the 3D mesh transparent pass uses, then drawn; `Additive` emitters are drawn afterwards, in no
+particular order (additive blending is order-independent). Both groups render inside one
+`Renderer3D.BeginTransparentPass`/`EndTransparentPass` bracket — depth-tested against opaque scene
+geometry but not depth-writing — after `MeshRenderSystem.Render()` has drawn the opaque and mesh
+transparent passes.
+
+### Performance characteristics
+
+Same shape as the 2D system: each emitter owns a fixed-size `ParticlePool3D` that never allocates
+after construction, and `ParticleRenderSystem3D` draws every live particle in one emitter through a
+single `glDrawArraysInstanced` call — one draw call per emitter regardless of how many particles
+are alive in it, visible via `Renderer3D.DrawCallCount`.
+
+### Known limitations (3D)
+
+- No prefab/scene serializer yet for `ParticleEmitter3D`, so emitters are configured in code.
+- No gravity/acceleration, angular velocity, or texture animation — same as the 2D system.
+- Particles within one emitter aren't depth-sorted against each other (only whole emitters are
+  sorted against each other), and additive emitters aren't sorted against transparent ones at all
+  — acceptable for the order-independent glow/spark effects this is aimed at, but a dense cloud of
+  overlapping alpha-blended (non-additive) particles from the *same* emitter can show sorting
+  artifacts, the same class of limitation `docs/pbr.md`'s Transparency section documents for
+  meshes.
+- No GPU-side simulation, mesh particles, sub-emitters, particle collision, or soft
+  (depth-faded) particles — see issue #195's scope.

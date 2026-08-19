@@ -282,6 +282,61 @@ AddPointLight("light_red", new Vector3(-0.6f, 1.3f, 0.4f), Color.Red, 2.5f, 2.5f
 AddPointLight("light_green", new Vector3(0.6f, 1.3f, 0.4f), Color.Green, 2.5f, 2.5f);
 AddPointLight("light_blue", new Vector3(0f, 0.6f, -0.6f), Color.Blue, 2.5f, 2.5f);
 
+const string particleTexture = "Assets/particle.png";
+
+// Embers — additive, round billboards drifting up from the short box. VelocityStretch stays 0
+// (the default) so these stay round puffs of glow rather than streaks.
+var embersEntity = world.CreateEntity("embers");
+world.AddComponent(
+    embersEntity,
+    new Transform3D(new Vector3(0.33f, 0.3f, 0.05f), Quaternion.Identity, Vector3.One)
+);
+world.AddComponent(
+    embersEntity,
+    new ParticleEmitter3D(particleTexture)
+    {
+        MaxParticles = 128,
+        EmitRate = 20f,
+        ParticleLifetime = 1.5f,
+        EmitDirection = Vector3.UnitY,
+        SpreadAngle = MathF.PI / 6f,
+        InitialSpeed = 0.25f,
+        StartColor = new Color(255, 160, 40, 220),
+        EndColor = new Color(255, 60, 0, 0),
+        StartSize = 0.05f,
+        EndSize = 0.015f,
+        BlendMode = MaterialBlendMode.Additive,
+    }
+);
+
+// Sparks — additive too, but VelocityStretch elongates each billboard into a streak aligned with
+// its direction of travel, contrasting with the round embers above.
+var sparksEntity = world.CreateEntity("sparks");
+world.AddComponent(
+    sparksEntity,
+    new Transform3D(new Vector3(-0.33f, 0.62f, -0.3f), Quaternion.Identity, Vector3.One)
+);
+world.AddComponent(
+    sparksEntity,
+    new ParticleEmitter3D(particleTexture)
+    {
+        MaxParticles = 64,
+        EmitRate = 15f,
+        ParticleLifetime = 0.6f,
+        EmitDirection = Vector3.UnitX,
+        SpreadAngle = MathF.PI,
+        InitialSpeed = 1.2f,
+        StartColor = new Color(255, 240, 180, 255),
+        EndColor = new Color(255, 120, 0, 0),
+        StartSize = 0.02f,
+        EndSize = 0.01f,
+        BlendMode = MaterialBlendMode.Additive,
+        VelocityStretch = 0.05f,
+    }
+);
+
+var particleSystem3D = new ParticleSystem3D(world);
+
 using var renderer3D = new Renderer3D(window.Gl);
 
 // Directional-light shadow mapping. The orthographic frustum is sized to frame the 2×2×2 room
@@ -307,6 +362,13 @@ var meshRenderSystem = new MeshRenderSystem(
     window,
     shadowMapRenderer: shadowMapRenderer
 );
+var particleRenderSystem3D = new ParticleRenderSystem3D(
+    renderer3D,
+    textures,
+    world,
+    window,
+    particleSystem3D
+);
 var freeFlySystem = new FreeFlyCameraSystem(world, cameraEntity, moveSpeed: 3f);
 
 // Editor overlay — lists every entity and lets you live-edit the attached 3D components
@@ -316,10 +378,19 @@ using var inspector = new ImGuiInspector(window, world);
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
 Keyboard.AddKeyDown(Keys.F1, inspector.Toggle);
 
-window.OnUpdate += deltaTime => freeFlySystem.Update((float)deltaTime);
+window.OnUpdate += deltaTime =>
+{
+    freeFlySystem.Update((float)deltaTime);
+    particleSystem3D.Update((float)deltaTime);
+};
 window.OnRender += delta =>
 {
     meshRenderSystem.Render();
+    // After the mesh passes (opaque + its own sorted transparent pass), in its own pass: one
+    // glDrawArraysInstanced call per emitter (Renderer3D.DrawCallCount) regardless of how many
+    // particles are alive in it — orbit the camera (right-mouse-drag) to see the billboards stay
+    // camera-facing from any angle.
+    particleRenderSystem3D.Render();
     inspector.Render(delta);
 };
 
