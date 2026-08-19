@@ -16,6 +16,42 @@ public sealed class Renderer3D : IDisposable
     private static readonly string FragmentShaderSource = EmbeddedShaderSource.Load(
         "Renderer3D.frag"
     );
+    private static readonly string ParticleVertexShaderSource = EmbeddedShaderSource.Load(
+        "ParticleBillboard.vert"
+    );
+    private static readonly string ParticleFragmentShaderSource = EmbeddedShaderSource.Load(
+        "ParticleBillboard.frag"
+    );
+
+    // Unit quad shared by every particle draw: corner (xy, [-0.5, 0.5]) + texcoord (zw, [0, 1]) per
+    // vertex, two triangles, no index buffer needed for six vertices.
+    private static readonly float[] ParticleQuadVertices =
+    [
+        -0.5f,
+        -0.5f,
+        0f,
+        0f,
+        0.5f,
+        -0.5f,
+        1f,
+        0f,
+        0.5f,
+        0.5f,
+        1f,
+        1f,
+        -0.5f,
+        -0.5f,
+        0f,
+        0f,
+        0.5f,
+        0.5f,
+        1f,
+        1f,
+        -0.5f,
+        0.5f,
+        0f,
+        1f,
+    ];
 
     /// <summary>Maximum number of bones the vertex shader's skinning palette can hold (matches MAX_BONES in GLSL).</summary>
     public const int MaxBones = 128;
@@ -82,6 +118,15 @@ public sealed class Renderer3D : IDisposable
     private readonly uint _defaultCubemap;
     private readonly uint _boneUbo;
 
+    // Particle billboards: a separate unlit shader/VAO from the lit Blinn-Phong/PBR path above —
+    // same reasoning as SkyboxRenderer/UiRenderer staying outside Renderer3D's main shader.
+    private readonly Shader _particleShader;
+    private readonly uint _particleVao;
+    private readonly uint _particleQuadVbo;
+    private uint _particleInstanceVbo;
+    private int _particleInstanceCapacity;
+    private bool _hasParticleInstanceBuffer;
+
     /// <param name="gl">The window's OpenGL context.</param>
     /// <param name="hdrOutput">
     /// When false (the default), the PBR path's final colour is Reinhard tone-mapped and
@@ -102,6 +147,11 @@ public sealed class Renderer3D : IDisposable
         _defaultNormalTexture = CreateFlatNormalTexture();
         _defaultCubemap = CreateWhiteCubemap();
         _boneUbo = CreateBoneUbo();
+        _particleShader = new Shader(gl, ParticleVertexShaderSource, ParticleFragmentShaderSource);
+        (_particleVao, _particleQuadVbo) = CreateParticleQuad();
+        _particleShader.Bind();
+        _particleShader.SetUniformInt("uTexture", 0);
+        _particleShader.Unbind();
         BindSamplerUnits();
         BindDefaultPbrTextures();
         // DisableShadows also binds the default texture on unit 5, so no separate setup is needed.
@@ -488,6 +538,166 @@ public sealed class Renderer3D : IDisposable
     }
 
     /// <summary>
+    /// Draws every particle in <paramref name="instances"/> as a camera-facing billboard, in a
+    /// single <c>glDrawArraysInstanced</c> call — one emitter's particles, drawn once. Each
+    /// billboard is built from <paramref name="cameraRight"/>/<paramref name="cameraUp"/> (see
+    /// <see cref="BillboardMath.ExtractCameraAxes"/>) so it faces the camera however it's oriented.
+    /// Call inside a <see cref="BeginTransparentPass"/>/<see cref="EndTransparentPass"/> bracket
+    /// (depth test on, depth write off, blending enabled): <paramref name="blendMode"/> switches
+    /// the blend func per-call exactly as the mesh transparent pass does (<see cref="ApplyBlendFunc"/>),
+    /// so Transparent and Additive emitters can be interleaved with each other in one sorted
+    /// sequence. Unlit — particles don't read scene lighting/shadows. No-op for an empty span.
+    /// </summary>
+    internal unsafe void DrawParticles(
+        ReadOnlySpan<ParticleInstanceData> instances,
+        Vector3 cameraRight,
+        Vector3 cameraUp,
+        Matrix4x4 viewProj,
+        string? texturePath,
+        TextureManager textures,
+        MaterialBlendMode blendMode
+    )
+    {
+        if (instances.IsEmpty)
+            return;
+
+        ApplyBlendFunc(blendMode);
+
+        _particleShader.Bind();
+        _particleShader.SetUniformMatrix4("uViewProj", viewProj);
+        _particleShader.SetUniformVec3("uCameraRight", cameraRight);
+        _particleShader.SetUniformVec3("uCameraUp", cameraUp);
+
+        // Select the unit before Get so a first-time Texture ctor binds on this unit rather than
+        // clobbering whichever unit happened to be active (mirrors BindMaterial's reasoning).
+        _gl.ActiveTexture(TextureUnit.Texture0);
+        if (!string.IsNullOrEmpty(texturePath))
+            textures.Get(texturePath).Bind(TextureUnit.Texture0);
+        else
+            _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
+
+        EnsureParticleInstanceCapacity(instances.Length);
+
+        _gl.BindVertexArray(_particleVao);
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _particleInstanceVbo);
+        fixed (ParticleInstanceData* ptr = instances)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.ArrayBuffer,
+                0,
+                (nuint)(instances.Length * sizeof(ParticleInstanceData)),
+                ptr
+            );
+        }
+
+        _gl.DrawArraysInstanced(PrimitiveType.Triangles, 0, 6, (uint)instances.Length);
+        _gl.BindVertexArray(0);
+        DrawCallCount++;
+
+        _particleShader.Unbind();
+    }
+
+    private unsafe (uint Vao, uint Vbo) CreateParticleQuad()
+    {
+        var vao = _gl.GenVertexArray();
+        _gl.BindVertexArray(vao);
+
+        var vbo = _gl.GenBuffer();
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
+        fixed (float* ptr = ParticleQuadVertices)
+        {
+            _gl.BufferData(
+                BufferTargetARB.ArrayBuffer,
+                (nuint)(ParticleQuadVertices.Length * sizeof(float)),
+                ptr,
+                BufferUsageARB.StaticDraw
+            );
+        }
+
+        const uint stride = 4 * sizeof(float);
+        _gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, stride, (void*)0);
+        _gl.EnableVertexAttribArray(0);
+        _gl.VertexAttribPointer(
+            1,
+            2,
+            VertexAttribPointerType.Float,
+            false,
+            stride,
+            (void*)(2 * sizeof(float))
+        );
+        _gl.EnableVertexAttribArray(1);
+
+        _gl.BindVertexArray(0);
+        return (vao, vbo);
+    }
+
+    // Lazily creates the particle instance VBO on first use and grows it (doubling) whenever a draw
+    // needs more capacity than it currently has — mirrors GpuMesh.EnsureInstanceCapacity exactly,
+    // just against ParticleInstanceData's layout instead of InstanceData's.
+    private unsafe void EnsureParticleInstanceCapacity(int count)
+    {
+        if (_hasParticleInstanceBuffer && count <= _particleInstanceCapacity)
+            return;
+
+        _gl.BindVertexArray(_particleVao);
+
+        if (!_hasParticleInstanceBuffer)
+        {
+            _particleInstanceVbo = _gl.GenBuffer();
+            _hasParticleInstanceBuffer = true;
+        }
+
+        _particleInstanceCapacity = Math.Max(count, Math.Max(_particleInstanceCapacity * 2, 64));
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _particleInstanceVbo);
+        _gl.BufferData(
+            BufferTargetARB.ArrayBuffer,
+            (nuint)(_particleInstanceCapacity * sizeof(ParticleInstanceData)),
+            null,
+            BufferUsageARB.DynamicDraw
+        );
+
+        var stride = (uint)sizeof(ParticleInstanceData);
+        _gl.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, stride, (void*)0);
+        _gl.EnableVertexAttribArray(2);
+        _gl.VertexAttribDivisor(2, 1);
+
+        _gl.VertexAttribPointer(
+            3,
+            2,
+            VertexAttribPointerType.Float,
+            false,
+            stride,
+            (void*)(3 * sizeof(float))
+        );
+        _gl.EnableVertexAttribArray(3);
+        _gl.VertexAttribDivisor(3, 1);
+
+        _gl.VertexAttribPointer(
+            4,
+            1,
+            VertexAttribPointerType.Float,
+            false,
+            stride,
+            (void*)(5 * sizeof(float))
+        );
+        _gl.EnableVertexAttribArray(4);
+        _gl.VertexAttribDivisor(4, 1);
+
+        _gl.VertexAttribPointer(
+            5,
+            4,
+            VertexAttribPointerType.Float,
+            false,
+            stride,
+            (void*)(6 * sizeof(float))
+        );
+        _gl.EnableVertexAttribArray(5);
+        _gl.VertexAttribDivisor(5, 1);
+
+        _gl.BindVertexArray(0);
+    }
+
+    /// <summary>
     /// Draws <paramref name="models"/> copies of <paramref name="mesh"/>, all sharing
     /// <paramref name="material"/>, in a single instanced draw call. Skinned meshes always use the
     /// per-entity <see cref="Draw(GpuMesh, Matrix4x4, Matrix4x4, Material3D, TextureManager, ReadOnlySpan{Matrix4x4})"/>
@@ -835,5 +1045,11 @@ public sealed class Renderer3D : IDisposable
         _gl.DeleteTexture(_defaultNormalTexture);
         _gl.DeleteTexture(_defaultCubemap);
         _gl.DeleteBuffer(_boneUbo);
+
+        _particleShader.Dispose();
+        _gl.DeleteVertexArray(_particleVao);
+        _gl.DeleteBuffer(_particleQuadVbo);
+        if (_hasParticleInstanceBuffer)
+            _gl.DeleteBuffer(_particleInstanceVbo);
     }
 }

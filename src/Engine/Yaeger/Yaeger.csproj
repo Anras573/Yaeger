@@ -41,6 +41,7 @@
     <Compile Remove="Systems\IUpdateSystem.cs" />
     <Compile Remove="Systems\ParallaxSystem.cs" />
     <Compile Remove="Systems\ParticleSystem.cs" />
+    <Compile Remove="Systems\ParticleSystem3D.cs" />
     <Compile Remove="Systems\SequenceSystem.cs" />
     <Compile Remove="Systems\TransformHierarchySystem.cs" />
     <Compile Remove="Systems\TweenSystem.cs" />
