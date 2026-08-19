@@ -14,7 +14,9 @@ Each frame `MeshRenderSystem` runs two passes:
 1. **Shadow pass.** The scene is rendered from the directional light's point of view into an
    off-screen depth texture (the *shadow map*) using a depth-only shader and an orthographic
    projection. All meshes are drawn regardless of the camera frustum, so off-screen geometry can
-   still cast into view.
+   still cast into view. Skinned meshes are skinned in this pass too (the same bone palette as the
+   main pass, applied to position only), so an animated character's shadow follows its current pose
+   frame by frame rather than casting a static bind-pose silhouette.
 2. **Lighting pass (existing).** Each fragment is projected into light space and its depth compared
    against the shadow map. Occluded fragments lose the directional light's contribution. An optional
    3×3 PCF kernel softens the edges.
