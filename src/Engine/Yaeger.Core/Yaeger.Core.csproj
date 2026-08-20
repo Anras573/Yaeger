@@ -39,6 +39,10 @@
       Link="Systems\DayNightCycleSystem.cs"
     />
     <Compile Include="..\Yaeger\Systems\IUpdateSystem.cs" Link="Systems\IUpdateSystem.cs" />
+    <Compile
+      Include="..\Yaeger\Systems\LightFlickerSystem.cs"
+      Link="Systems\LightFlickerSystem.cs"
+    />
     <Compile Include="..\Yaeger\Systems\ParallaxSystem.cs" Link="Systems\ParallaxSystem.cs" />
     <Compile Include="..\Yaeger\Systems\ParticleSystem.cs" Link="Systems\ParticleSystem.cs" />
     <Compile Include="..\Yaeger\Systems\ParticleSystem3D.cs" Link="Systems\ParticleSystem3D.cs" />

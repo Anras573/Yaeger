@@ -91,6 +91,59 @@ It applies to the PBR path only, and only while image-based lighting is off; `Am
 `Direction` (spot) and all intensities/ranges are sanitised on upload — non-finite or negative
 values are coerced to safe defaults, mirroring `SetSceneLighting`.
 
+## Flickering lights
+
+A `Tween` ping-ponging `PointLightIntensity` gives a smooth, perfectly periodic pulse — a breathing
+lamp, not fire, and every light tweened that way pulses in lockstep. `LightFlicker` +
+`LightFlickerSystem` instead drive irregular, continuous noise:
+
+```csharp
+public record struct LightFlicker
+{
+    public float BaseIntensity;   // intensity flickered around, and restored to on removal
+    public float Amplitude;       // BaseIntensity +/- this, via noise in [-1, 1]
+    public float Frequency;       // how fast the flicker evolves
+    public float Seed;            // decorrelates two flickers with identical other settings
+    public float PositionJitter;  // radius of a small positional wobble; 0 disables it
+    public float Elapsed;         // advanced by the system; not meant to be set by hand
+}
+```
+
+Attach it alongside a `PointLight` and/or `SpotLight` (both are written if both are present); run
+`LightFlickerSystem.Update` each frame before any render system reads lights/transforms, the same
+ordering convention as `CameraFollowSystem`:
+
+```csharp
+var brazier = world.CreateEntity();
+world.AddComponent(brazier, new Transform3D(new Vector3(2f, 1f, 0f), Quaternion.Identity, Vector3.One));
+world.AddComponent(brazier, new PointLight { Color = new Color(255, 140, 40), Range = 6f });
+world.AddComponent(brazier, new LightFlicker
+{
+    BaseIntensity = 3f,
+    Amplitude = 1.2f,
+    Frequency = 4f,
+    Seed = 1f,       // a second brazier should use a different seed
+    PositionJitter = 0.05f,
+});
+
+var lightFlickerSystem = new LightFlickerSystem(world);
+window.OnUpdate += dt => lightFlickerSystem.Update((float)dt);
+```
+
+The signal (`LightFlickerSignal`, pure static, unit-tested for range/continuity/framerate
+independence) sums two octaves of `ValueNoise3D` — the same continuous noise primitive
+`ParticlePool3D`'s turbulence term uses — rather than a sine, and is a pure function of `Elapsed`, so
+the same wall-clock interval samples the same intensity regardless of frame rate. `Seed` offsets the
+sampled point, so two `LightFlicker`s with identical other settings but different seeds flicker
+independently.
+
+Position jitter is applied and undone every update rather than accumulated: `LightFlickerSystem`
+tracks the offset it last added per entity and subtracts it before computing a new one, so it never
+drifts and never permanently overwrites a position some other system also writes (a torch parented
+to a moving character, say). Removing `LightFlicker` (or destroying the entity) restores the light
+to `BaseIntensity` and undoes the last position offset, instead of leaving either wherever the last
+sampled frame happened to land.
+
 ## Samples
 
 `Samples/CornellBox` adds red, green, and blue `PointLight` entities inside the box to show

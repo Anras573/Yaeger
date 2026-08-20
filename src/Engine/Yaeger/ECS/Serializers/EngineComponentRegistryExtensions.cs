@@ -36,6 +36,7 @@ public static class EngineComponentRegistryExtensions
     ///   <item><see cref="Yaeger.Graphics.DirectionalLight"/> – type id <c>"DirectionalLight"</c></item>
     ///   <item><see cref="Yaeger.Graphics.PointLight"/> – type id <c>"PointLight"</c></item>
     ///   <item><see cref="Yaeger.Graphics.SpotLight"/> – type id <c>"SpotLight"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.LightFlicker"/> – type id <c>"LightFlicker"</c></item>
     ///   <item><see cref="Yaeger.Graphics.AmbientLight"/> – type id <c>"AmbientLight"</c></item>
     ///   <item><see cref="Yaeger.Graphics.FogSettings"/> – type id <c>"FogSettings"</c></item>
     ///   <item><see cref="Yaeger.Graphics.TimeOfDay"/> – type id <c>"TimeOfDay"</c></item>
@@ -95,6 +96,7 @@ public static class EngineComponentRegistryExtensions
         registry.Register(new DirectionalLightSerializer());
         registry.Register(new PointLightSerializer());
         registry.Register(new SpotLightSerializer());
+        registry.Register(new LightFlickerSerializer());
         registry.Register(new AmbientLightSerializer());
         registry.Register(new FogSettingsSerializer());
         registry.Register(new TimeOfDaySerializer());

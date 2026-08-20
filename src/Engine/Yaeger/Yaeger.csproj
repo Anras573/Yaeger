@@ -40,6 +40,7 @@
     <Compile Remove="Systems\AnimationStateMachineSystem.cs" />
     <Compile Remove="Systems\DayNightCycleSystem.cs" />
     <Compile Remove="Systems\IUpdateSystem.cs" />
+    <Compile Remove="Systems\LightFlickerSystem.cs" />
     <Compile Remove="Systems\ParallaxSystem.cs" />
     <Compile Remove="Systems\ParticleSystem.cs" />
     <Compile Remove="Systems\ParticleSystem3D.cs" />
