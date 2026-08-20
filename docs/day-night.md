@@ -14,7 +14,8 @@ window.OnUpdate += dt => dayNight.Update((float)dt);
 
 That's the whole setup. The system writes a `DirectionalLight` and an `AmbientLight` onto the same
 entity every update, and `MeshRenderSystem` re-reads both every frame — so the shading and the
-shadow map follow the sun with no further wiring.
+shadow map follow the sun with no further wiring. A scene that wants the sun and the moon lit at
+once tags two entities instead; see [Sun and moon](#sun-and-moon).
 
 ## The clock
 
@@ -46,11 +47,14 @@ a paused cycle holds its look rather than going dark, and can still be scrubbed 
 
 ### Why `AxisTilt` defaults to non-zero
 
-At zero tilt the sun passes exactly through the zenith at noon. That's the degenerate case for a
-look-at matrix, and it's where `ShadowMapRenderer` swaps the up vector it builds the light-space
-matrix from — so shadows visibly snap as the sun crosses over. The default ~20° tilt keeps the arc
-beside the zenith. Tilting rotates about X, which scales only the vertical component, so the
-horizon crossings stay exactly at elevation zero however far the arc leans.
+At zero tilt the sun passes exactly through the zenith at noon — the degenerate case for a look-at
+matrix, and the region where `ShadowMapRenderer` has to rotate the up vector it builds the
+light-space matrix from. That rotation is smooth (see [shadows.md](shadows.md#moving-lights)), so
+the zenith is no longer a hazard, but a shadow map turning through 90° still makes shadows swim.
+The default ~20° tilt keeps the arc beside the zenith and avoids the region altogether.
+
+Tilting rotates about X, which scales only the vertical component, so the horizon crossings stay
+exactly at elevation zero however far the arc leans.
 
 ## What gets evaluated
 
@@ -58,20 +62,42 @@ horizon crossings stay exactly at elevation zero however far the arc leans.
 
 | Field | What it is |
 | --- | --- |
-| `KeyLight` | The `DirectionalLight` for this moment: the sun above the horizon, the moon below |
+| `Sun` / `Moon` | Each body's `DirectionalLight`, dark while that body is below the horizon |
+| `KeyLight` | Whichever of the two is above the horizon, for a scene driving a single light |
 | `Ambient` | The `AmbientLight` for this moment — day, twilight, or night |
 | `Exposure` | Suggested tone-map exposure (see below) |
-| `SunDirection` / `MoonDirection` | Unit vectors towards each body, whichever is the key light |
+| `SunDirection` / `MoonDirection` | Unit vectors towards each body |
 | `DaylightFactor` | `[0, 1]` night→day blend — useful for fading anything else with the light |
 
 `SunElevation` (the sine of the sun's altitude) and `IsDaytime` are derived from `SunDirection`.
 
-### One key light, sun and moon
+### Sun and moon
 
-`Renderer3D` has a single directional slot, so the cycle picks whichever body is above the horizon
-rather than lighting with both. Both ramp their intensity up from zero at their own horizon, so the
-direction flip happens while the key light contributes nothing — the light never swings across the
-sky. A true simultaneous sun and moon at dusk needs a second directional slot in the renderer.
+`Sun` and `Moon` are always both evaluated. Each ramps its intensity up from zero at its own
+horizon, so a body that is down is fully dark rather than merely dim — which means both can sit in
+the scene permanently instead of being switched on and off.
+
+By default the cycle drives **one** light: `KeyLight`, whichever body is up, written onto the clock
+entity. That is enough for most scenes and costs one directional slot.
+
+To light dawn and dusk with both at once — the moon already risen while the sun is still setting —
+tag two entities with `CelestialLight` and the cycle writes each body to its own:
+
+```csharp
+var sun = world.CreateEntity("sun");
+world.AddComponent(sun, new TimeOfDay { DayLengthSeconds = 120f, AxisTilt = 0.35f });
+world.AddComponent(sun, new CelestialLight(CelestialBody.Sun));
+
+var moon = world.CreateEntity("moon");
+world.AddComponent(moon, new CelestialLight(CelestialBody.Moon));
+```
+
+The clock and the sun can share an entity, as above, or not — `TimeOfDay` and `CelestialLight` are
+independent. Once any `CelestialLight` exists the cycle stops writing `KeyLight` to the clock
+entity, so it doesn't quietly occupy a third directional slot.
+
+`Renderer3D.MaxDirectionalLights` is 2, so a scene using both bodies has no directional slots left
+for anything else. See [lighting.md](lighting.md).
 
 ### Exposure is reported, not applied
 
@@ -144,14 +170,36 @@ the sun climbs before reaching full intensity and colour.
 This is deliberately a handful of stops rather than a keyframe track, in the same spirit as
 `AnimationStateMachine` — enough to art-direct a cycle, not a curve editor.
 
+## Shadows
+
+The sun works with the shadow rig as-is: `MeshRenderSystem` recomputes the light-space matrix from
+the casting light every frame. Two settings matter for a light that moves, both covered in
+[shadows.md](shadows.md#moving-lights):
+
+```csharp
+using var shadowMap = new ShadowMapRenderer(gl, ShadowSettings.Default with
+{
+    AutoFit = true,               // frame the casters, not a hand-tuned extent
+    HorizonFadeElevation = 0.1f,  // dim shadows out as the sun sets
+});
+```
+
+Without `AutoFit`, a fixed `OrthographicSize` frames the scene at one sun angle and loses the long
+shadows at every other. With it, the frustum is fitted to the casters' bounding sphere each frame,
+which is independent of where the light is.
+
+With two bodies lit, the brighter one casts — the sun by day, the moon by night, switching while
+both are dim. And because a body below the horizon has zero intensity, the shadow pass is skipped
+outright for it.
+
 ## Ordering
 
 Run `DayNightCycleSystem.Update` with the other gameplay updates, before rendering. It only writes
 components, so it has no ordering constraints against physics or animation.
 
-One constraint worth knowing: the cycle's entity should be the scene's **only** `DirectionalLight`.
-`MeshRenderSystem` takes the first one it finds, so a light entity created earlier would win and
-the cycle would appear to do nothing.
+One constraint worth knowing: the scene's directional lights should be the cycle's.
+`MeshRenderSystem` accumulates the first `Renderer3D.MaxDirectionalLights` it finds, so an unrelated
+light entity can take a slot the cycle expected and leave a body unlit.
 
 ## Scenes
 
@@ -162,6 +210,7 @@ Both components round-trip through prefab and scene JSON via `RegisterEngineComp
   "tag": "sun",
   "components": [
     { "type": "TimeOfDay", "normalizedTime": 0.3, "dayLengthSeconds": 240.0, "axisTilt": 0.35 },
+    { "type": "CelestialLight", "body": "Sun" },
     { "type": "AmbientLight", "color": [180, 205, 255], "intensity": 0.3 }
   ]
 }

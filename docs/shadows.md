@@ -4,8 +4,9 @@
 produced with classic two-pass shadow mapping and are **opt-in** — a scene that never creates a
 `ShadowMapRenderer` renders exactly as it did before this feature existed.
 
-> **Scope (v1).** Directional light only (point/spot shadows are a follow-up). Single cascade, no
-> CSM. The shadow map has a fixed resolution and does not auto-fit the camera frustum.
+> **Scope.** Directional light only (point/spot shadows are a follow-up). Single cascade, no CSM.
+> One map, so one caster: when a scene has two directional lights, the brighter one casts and the
+> other is unshadowed.
 
 ## How it works
 
@@ -62,8 +63,37 @@ shadows.
 | `NearPlane` / `FarPlane` | Depth range of the light's projection. The scene must fit between them. |
 | `Bias` | Depth offset subtracted during the shadow test. Too low → *acne*; too high → *peter-panning*. |
 | `EnablePcf` | When true, averages a 3×3 kernel for soft edges; otherwise hard shadows. |
+| `AutoFit` | Fit the frustum to the casters' bounding sphere each frame instead of using `OrthographicSize`. Off by default. |
+| `HorizonFadeElevation` | Light elevation below which shadows fade out, reaching zero at the horizon. |
 
-`ShadowSettings.Default` is a 2048² map with PCF enabled.
+`ShadowSettings.Default` is a 2048² map with PCF enabled, auto-fit off, and a narrow horizon fade.
+
+## Moving lights
+
+A hand-tuned `OrthographicSize` only holds for the angle it was tuned at. A light near the horizon
+casts shadows far longer than the extent that frames it overhead, so casters fall outside the
+frustum and their shadows simply vanish. Three things make a moving light — a day/night sun, say —
+behave:
+
+- **`AutoFit`** reframes the light on the casters' bounding sphere every frame. The fit is
+  independent of the light's angle, so one setting holds across a full arc. It costs a pass over
+  the `Aabb3D` store, and a scene much wider than the map's texel density gets blockier shadows
+  than a tight hand-tuned extent would give — which is why it is opt-in. Skinned meshes carry no
+  `Aabb3D` by design, so they don't contribute to the fit.
+- **The up vector rotates smoothly** as the light approaches vertical. Building the light's
+  look-at needs an up vector that isn't parallel to it, and switching between two fixed axes at a
+  threshold rotates the shadow map ~90° in the single frame the light crosses it — every shadow in
+  the scene snaps at once. Blending across a band spreads that turn over the transit, so shadows
+  swim slightly instead of popping. (A `TimeOfDay`'s `AxisTilt` avoids the region altogether; this
+  keeps it well-behaved for lights that do pass through it.)
+- **Shadows fade out at the horizon.** A light at or below the horizon casts none at all: it lights
+  nothing a shadow would fall on, and its map degenerates as the frustum flattens along the horizon.
+  `HorizonFadeElevation` spreads that transition over a few degrees so a setting sun dims its
+  shadows out instead of dropping them in one frame. Below the horizon the whole shadow pass is
+  skipped, so it costs nothing.
+
+Shadow strength is uploaded to the lighting pass, so the fade is a real dimming of the shadow rather
+than an on/off switch — see `Renderer3D.SetShadowMap`'s `strength` parameter.
 
 ## Tuning notes
 
@@ -79,3 +109,6 @@ shadows.
 
 `Samples/CornellBox` enables a 2048² PCF shadow map. The two interior boxes cast visible shadows
 across the floor from the angled directional light.
+
+For a light that moves, see [day-night.md](day-night.md) — a `TimeOfDay`-driven sun works with the
+shadow rig as-is, and `AutoFit` is what keeps its shadows framed from sunrise to sunset.

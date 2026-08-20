@@ -21,6 +21,10 @@ uniform int   uShadowsEnabled;
 uniform float uShadowBias;
 uniform int   uUsePcf;
 
+// Scales how far the shadow darkens, in [0, 1]: 1 is a full-strength shadow, 0 leaves the fragment
+// fully lit. Lets a setting sun fade its shadows out instead of switching them off in one frame.
+uniform float uShadowStrength;
+
 uniform vec4  uDiffuseColor;
 uniform vec4  uAmbientColor;
 uniform vec4  uSpecularColor;
@@ -47,9 +51,23 @@ uniform float uEmissiveIntensity;
 // ToneMapEffect later in a PostProcessStack's HDR chain. See Renderer3D's constructor remarks.
 uniform int   uHdrOutput;
 
-uniform vec3  uLightDir;
-uniform vec4  uLightColor;
-uniform float uLightIntensity;
+// Directional lights. Two slots so a day/night cycle can light dawn and dusk with a sun and a
+// moon at once; a scene with one light leaves the second slot unused (uDirLightCount == 1).
+#define MAX_DIR_LIGHTS 2
+
+struct DirLight {
+    vec3  direction;  // toward the light, normalised on upload
+    vec4  color;
+    float intensity;
+};
+
+uniform DirLight uDirLights[MAX_DIR_LIGHTS];
+uniform int      uDirLightCount;
+
+// Index of the light the shadow map was rendered from, or -1 when nothing casts. Only that light's
+// contribution is shadowed: there is one map, so a second caster would darken with the wrong depths.
+uniform int      uShadowLightIndex;
+
 uniform vec3  uCameraPos;
 
 // Scene-wide ambient for the PBR path, pre-multiplied by its intensity on the CPU side (see
@@ -199,6 +217,9 @@ float directionalShadow(vec3 N, vec3 L) {
     float bias = max(uShadowBias * (1.0 - dot(N, L)), uShadowBias * 0.1);
     float current = proj.z;
 
+    // mix(1.0, factor, strength): a strength of 0 leaves every fragment lit, 1 is the full shadow.
+    float strength = clamp(uShadowStrength, 0.0, 1.0);
+
     if (uUsePcf != 0) {
         float sum = 0.0;
         vec2 texel = 1.0 / vec2(textureSize(uShadowMap, 0));
@@ -208,11 +229,11 @@ float directionalShadow(vec3 N, vec3 L) {
                 sum += current - bias > closest ? 1.0 : 0.0;
             }
         }
-        return 1.0 - sum / 9.0;
+        return mix(1.0, 1.0 - sum / 9.0, strength);
     }
 
     float closest = texture(uShadowMap, proj.xy).r;
-    return current - bias > closest ? 0.0 : 1.0;
+    return mix(1.0, current - bias > closest ? 0.0 : 1.0, strength);
 }
 
 void main() {
@@ -234,12 +255,8 @@ void main() {
         }
     }
 
-    vec3 L = normalize(uLightDir);
     vec3 viewDir = uCameraPos - vFragPos;
     vec3 V = viewDir * inversesqrt(max(dot(viewDir, viewDir), 1e-10));
-
-    // Directional shadowing (1 = lit, 0 = shadowed); only the directional light casts.
-    float shadow = directionalShadow(N, L);
 
     vec4 rawTex = texture(uDiffuse, vTexCoord);
 
@@ -267,11 +284,16 @@ void main() {
 
         vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
-        // Directional light (shadowed).
-        vec3 Lo = pbrContribution(
-            N, V, L, uLightColor.rgb * uLightIntensity,
-            albedo, metallic, roughness, F0
-        ) * shadow;
+        // Directional lights. Only the slot the shadow map belongs to is shadowed (1 = lit).
+        vec3 Lo = vec3(0.0);
+        for (int i = 0; i < uDirLightCount; i++) {
+            vec3 L = normalize(uDirLights[i].direction);
+            float shadow = i == uShadowLightIndex ? directionalShadow(N, L) : 1.0;
+            Lo += pbrContribution(
+                N, V, L, uDirLights[i].color.rgb * uDirLights[i].intensity,
+                albedo, metallic, roughness, F0
+            ) * shadow;
+        }
 
         // Point lights.
         for (int i = 0; i < uPointLightCount; i++) {
@@ -333,11 +355,16 @@ void main() {
     } else {
         vec4 texColor = rawTex * uDiffuseColor;
 
-        // Directional light (shadowed).
-        vec3 lit = phongContribution(
-            N, V, L, uLightColor.rgb * uLightIntensity,
-            texColor.rgb, uSpecularColor.rgb, uShininess
-        ) * shadow;
+        // Directional lights, shadowed the same way as the PBR path above.
+        vec3 lit = vec3(0.0);
+        for (int i = 0; i < uDirLightCount; i++) {
+            vec3 L = normalize(uDirLights[i].direction);
+            float shadow = i == uShadowLightIndex ? directionalShadow(N, L) : 1.0;
+            lit += phongContribution(
+                N, V, L, uDirLights[i].color.rgb * uDirLights[i].intensity,
+                texColor.rgb, uSpecularColor.rgb, uShininess
+            ) * shadow;
+        }
 
         // Point lights.
         for (int i = 0; i < uPointLightCount; i++) {

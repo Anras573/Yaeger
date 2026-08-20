@@ -9,11 +9,13 @@ both the Blinn-Phong and PBR shading paths (see [pbr.md](pbr.md)).
 | Point | `PointLight` | `Transform3D.Position` | range-based, smooth |
 | Spot | `SpotLight` | `Transform3D.Position` | range-based + cone edge |
 
-There is always exactly one directional light (the first `DirectionalLight` entity, or a sensible
-default when none exists). Point and spot lights are optional and additive — a scene with none
-renders exactly as it did before this feature existed.
+Up to two directional lights are accumulated (the first two `DirectionalLight` entities, or a
+sensible default when none exists). Point and spot lights are optional and additive — a scene with
+none renders exactly as it did before this feature existed.
 
-The directional light can also cast shadows via shadow mapping — see [shadows.md](shadows.md).
+A directional light can also cast shadows via shadow mapping — see [shadows.md](shadows.md). There
+is one shadow map, so one caster: with two directional lights the brighter one casts and the other
+is unshadowed.
 Both point/spot lights and shadows light a `Transparent`-blend-mode material the same as an
 opaque one; the one difference is that a `Transparent` material does not itself cast a shadow
 (see [pbr.md#transparency](pbr.md#transparency)).
@@ -53,6 +55,7 @@ world.AddComponent(lamp, new PointLight { Color = Color.White, Intensity = 5f, R
 
 The fragment shader uploads fixed-size uniform arrays, so there is a hard cap per frame:
 
+- `Renderer3D.MaxDirectionalLights` = **2**
 - `Renderer3D.MaxPointLights` = **16**
 - `Renderer3D.MaxSpotLights` = **8**
 
@@ -93,9 +96,19 @@ values are coerced to safe defaults, mirroring `SetSceneLighting`.
 `Samples/CornellBox` adds red, green, and blue `PointLight` entities inside the box to show
 multiple coloured sources mixing across the walls and boxes.
 
-A directional light doesn't have to be static: `TimeOfDay` + `DayNightCycleSystem` drive its
-direction, colour, and intensity — plus the scene ambient — from a single clock. See
-[day-night.md](day-night.md).
+## Two directional lights
+
+Two slots exist for one reason: a day/night cycle needs a sun and a moon, and around dawn and dusk
+both are above the horizon at once. Swapping a single light's direction at the crossing is the
+alternative, and it is exactly the discontinuity two slots avoid.
+
+Nothing else changes. A scene with one directional light behaves as it always has, and a scene with
+none still gets the default light. Lights past the second are ignored, the same way point and spot
+lights past their caps are.
+
+A directional light doesn't have to be static: `TimeOfDay` + `DayNightCycleSystem` drive direction,
+colour, and intensity — plus the scene ambient — from a single clock, and can drive both bodies at
+once. See [day-night.md](day-night.md).
 
 `Samples/DamagedHelmet` combines a directional sun with warm-fill and cool-rim `PointLight`
 entities around a glTF model, and is the reference for the `Skybox` component: it registers a

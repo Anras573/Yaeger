@@ -213,6 +213,90 @@ public class DayNightCycleSystemTests
         Assert.Equal(1f, dim.Intensity, precision: 4);
     }
 
+    // ── Tagged sun/moon entities ─────────────────────────────────────────────
+
+    [Fact]
+    public void Update_WithTaggedBodies_WritesEachBodyToItsOwnEntity()
+    {
+        var (world, _) = WorldWithCycle(normalizedTime: TimeOfDay.Noon);
+        var sun = world.CreateEntity("sun-light");
+        world.AddComponent(sun, new CelestialLight(CelestialBody.Sun));
+        var moon = world.CreateEntity("moon-light");
+        world.AddComponent(moon, new CelestialLight(CelestialBody.Moon));
+        var system = new DayNightCycleSystem(world);
+
+        system.Update(0f);
+
+        Assert.True(world.TryGetComponent<DirectionalLight>(sun, out var sunLight));
+        Assert.True(world.TryGetComponent<DirectionalLight>(moon, out var moonLight));
+        Assert.Equal(system.CurrentLighting.Sun, sunLight);
+        Assert.Equal(system.CurrentLighting.Moon, moonLight);
+        // Noon: the sun carries the scene and the moon is below the horizon, so it is dark.
+        Assert.True(sunLight.Intensity > 0f);
+        Assert.Equal(0f, moonLight.Intensity);
+    }
+
+    [Fact]
+    public void Update_WithTaggedBodies_LeavesTheClockEntitysOwnLightAlone()
+    {
+        var (world, clock) = WorldWithCycle(normalizedTime: TimeOfDay.Noon);
+        var sun = world.CreateEntity("sun-light");
+        world.AddComponent(sun, new CelestialLight(CelestialBody.Sun));
+        var system = new DayNightCycleSystem(world);
+
+        system.Update(0f);
+
+        // The key light would otherwise land here and take a directional slot the scene didn't ask
+        // for — the clock entity is just a clock once bodies are tagged.
+        Assert.False(world.TryGetComponent<DirectionalLight>(clock, out _));
+        Assert.True(world.TryGetComponent<AmbientLight>(clock, out _));
+    }
+
+    [Fact]
+    public void Update_WithTaggedBodies_KeepsBothPointingOppositeEachOther()
+    {
+        var (world, _) = WorldWithCycle(normalizedTime: 0.4f);
+        var sun = world.CreateEntity("sun-light");
+        world.AddComponent(sun, new CelestialLight(CelestialBody.Sun));
+        var moon = world.CreateEntity("moon-light");
+        world.AddComponent(moon, new CelestialLight(CelestialBody.Moon));
+        var system = new DayNightCycleSystem(world);
+
+        system.Update(0f);
+
+        Assert.True(world.TryGetComponent<DirectionalLight>(sun, out var sunLight));
+        Assert.True(world.TryGetComponent<DirectionalLight>(moon, out var moonLight));
+        Assert.Equal(-sunLight.Direction.X, moonLight.Direction.X, precision: 5);
+        Assert.Equal(-sunLight.Direction.Y, moonLight.Direction.Y, precision: 5);
+    }
+
+    [Fact]
+    public void Update_WithOnlyAMoonTagged_StillLeavesTheClockEntityUnlit()
+    {
+        var (world, clock) = WorldWithCycle(normalizedTime: TimeOfDay.Midnight);
+        var moon = world.CreateEntity("moon-light");
+        world.AddComponent(moon, new CelestialLight(CelestialBody.Moon));
+        var system = new DayNightCycleSystem(world);
+
+        system.Update(0f);
+
+        Assert.True(world.TryGetComponent<DirectionalLight>(moon, out var moonLight));
+        Assert.True(moonLight.Intensity > 0f);
+        Assert.False(world.TryGetComponent<DirectionalLight>(clock, out _));
+    }
+
+    [Fact]
+    public void Update_WithoutTaggedBodies_KeepsTheSingleKeyLightBehaviour()
+    {
+        var (world, clock) = WorldWithCycle(normalizedTime: TimeOfDay.Noon);
+        var system = new DayNightCycleSystem(world);
+
+        system.Update(0f);
+
+        Assert.True(world.TryGetComponent<DirectionalLight>(clock, out var light));
+        Assert.Equal(system.CurrentLighting.KeyLight, light);
+    }
+
     [Fact]
     public void Update_RunningAFullCycle_KeepsTheLightPointingSomewhereValid()
     {

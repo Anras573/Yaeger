@@ -59,6 +59,13 @@ public sealed class ShadowMapRenderer : IDisposable
     /// </summary>
     public int DrawCallCount { get; private set; }
 
+    /// <summary>
+    /// Shadow strength for the light of the most recent <see cref="BeginPass"/>, in <c>[0, 1]</c> —
+    /// pass it to <see cref="Renderer3D.SetShadowMap"/> so a light near the horizon fades its
+    /// shadows out. See <see cref="ComputeShadowStrength"/>.
+    /// </summary>
+    public float ShadowStrength { get; private set; } = 1f;
+
     private InstanceData[]? _instanceScratch;
 
     public ShadowMapRenderer(GL gl, ShadowSettings settings)
@@ -81,37 +88,128 @@ public sealed class ShadowMapRenderer : IDisposable
         DirectionalLight light,
         Vector3 sceneCenter,
         ShadowSettings settings
+    ) => ComputeLightSpaceMatrix(light, sceneCenter, sceneRadius: 0f, settings);
+
+    /// <summary>
+    /// Computes the light-space view-projection, optionally fitting it to a bounding sphere rather
+    /// than to <see cref="ShadowSettings.OrthographicSize"/>.
+    /// </summary>
+    /// <param name="sceneRadius">
+    /// Radius of the sphere bounding the shadow casters. Used only when
+    /// <see cref="ShadowSettings.AutoFit"/> is set; a non-positive radius falls back to the
+    /// configured extent, so an empty scene is handled without a degenerate frustum.
+    /// </param>
+    /// <remarks>
+    /// The fitted frustum frames the whole sphere from wherever the light is, so it is independent
+    /// of the light's angle — the property that keeps a sun's shadows inside the map from sunrise
+    /// through noon, where a fixed extent only holds at the angle it was tuned for.
+    /// </remarks>
+    public static Matrix4x4 ComputeLightSpaceMatrix(
+        DirectionalLight light,
+        Vector3 sceneCenter,
+        float sceneRadius,
+        ShadowSettings settings
     )
     {
-        var lenSq = light.Direction.LengthSquared();
-        var dir =
-            float.IsFinite(lenSq) && lenSq > 0f
-                ? Vector3.Normalize(light.Direction)
-                : Vector3.UnitY;
+        var dir = NormalizedDirection(light);
+        var fit = settings.AutoFit && float.IsFinite(sceneRadius) && sceneRadius > 0f;
 
-        var near = settings.NearPlane > 0f ? settings.NearPlane : 0.1f;
-        var far = settings.FarPlane > near ? settings.FarPlane : near + 1f;
-        var size = settings.OrthographicSize > 0f ? settings.OrthographicSize : 1f;
+        float near,
+            far,
+            size,
+            distance;
 
-        var distance = (near + far) * 0.5f;
+        if (fit)
+        {
+            // Frame the sphere exactly: half-extent is its radius, and the eye sits one radius (plus
+            // the near plane) back along the light so the whole sphere lies between near and far.
+            near = settings.NearPlane > 0f ? settings.NearPlane : 0.1f;
+            size = sceneRadius;
+            distance = sceneRadius + near;
+            far = distance + sceneRadius;
+        }
+        else
+        {
+            near = settings.NearPlane > 0f ? settings.NearPlane : 0.1f;
+            far = settings.FarPlane > near ? settings.FarPlane : near + 1f;
+            size = settings.OrthographicSize > 0f ? settings.OrthographicSize : 1f;
+            distance = (near + far) * 0.5f;
+        }
+
         var eye = sceneCenter + dir * distance;
-
-        // Pick an up vector that isn't (near-)parallel to the view direction so the look-at stays
-        // well-defined for top-down lights.
-        var up = MathF.Abs(dir.Y) > 0.99f ? Vector3.UnitZ : Vector3.UnitY;
-
-        var view = Matrix4x4.CreateLookAt(eye, sceneCenter, up);
+        var view = Matrix4x4.CreateLookAt(eye, sceneCenter, UpVector(dir));
         var projection = Matrix4x4.CreateOrthographicOffCenter(-size, size, -size, size, near, far);
         return view * projection;
+    }
+
+    /// <summary>
+    /// Picks the up vector the light's look-at is built from: world up for most directions, rotating
+    /// smoothly towards world +Z as the light approaches vertical, where world up would be parallel
+    /// to the view direction and the look-at degenerate.
+    /// </summary>
+    /// <remarks>
+    /// The blend is the point. Switching between two fixed axes at a threshold rotates the shadow
+    /// map ~90° in a single frame the moment the sun crosses it, and every shadow in the scene snaps
+    /// with it. Rotating the up vector across a band spreads that same turn over the transit, so a
+    /// sun passing near the zenith produces shadows that swim slightly rather than pop.
+    /// </remarks>
+    public static Vector3 UpVector(Vector3 direction)
+    {
+        const float BlendStart = 0.90f;
+        const float BlendEnd = 0.999f;
+
+        var verticality = float.IsFinite(direction.Y) ? MathF.Abs(direction.Y) : 0f;
+        var t = Math.Clamp((verticality - BlendStart) / (BlendEnd - BlendStart), 0f, 1f);
+        var smooth = t * t * (3f - 2f * t);
+
+        var up = Vector3.Lerp(Vector3.UnitY, Vector3.UnitZ, smooth);
+        var lengthSquared = up.LengthSquared();
+        return lengthSquared > 1e-8f ? up / MathF.Sqrt(lengthSquared) : Vector3.UnitZ;
+    }
+
+    /// <summary>
+    /// How strongly <paramref name="light"/> should shadow at its current elevation, in
+    /// <c>[0, 1]</c>: 1 well above the horizon, ramping to 0 as it reaches the horizon and staying
+    /// there below it. Pass to <see cref="Renderer3D.SetShadowMap"/>; a strength of zero means the
+    /// shadow pass can be skipped entirely.
+    /// </summary>
+    public static float ComputeShadowStrength(DirectionalLight light, ShadowSettings settings)
+    {
+        var elevation = NormalizedDirection(light).Y;
+        if (elevation <= 0f)
+            return 0f;
+
+        var fade = settings.HorizonFadeElevation;
+        if (!float.IsFinite(fade) || fade <= 0f)
+            return 1f;
+
+        var t = Math.Clamp(elevation / fade, 0f, 1f);
+        return t * t * (3f - 2f * t);
+    }
+
+    private static Vector3 NormalizedDirection(DirectionalLight light)
+    {
+        var lengthSquared = light.Direction.LengthSquared();
+        return float.IsFinite(lengthSquared) && lengthSquared > 0f
+            ? Vector3.Normalize(light.Direction)
+            : Vector3.UnitY;
     }
 
     /// <summary>
     /// Binds the depth framebuffer, sets the shadow-map viewport, clears depth, and uploads the
     /// light-space transform. Issue <see cref="Draw"/> calls for every shadow caster afterwards.
     /// </summary>
-    public void BeginPass(DirectionalLight light, Vector3 sceneCenter)
+    public void BeginPass(DirectionalLight light, Vector3 sceneCenter) =>
+        BeginPass(light, sceneCenter, sceneRadius: 0f);
+
+    /// <summary>
+    /// Begins the shadow pass, fitting the light's frustum to a bounding sphere of
+    /// <paramref name="sceneRadius"/> when <see cref="ShadowSettings.AutoFit"/> is set.
+    /// </summary>
+    public void BeginPass(DirectionalLight light, Vector3 sceneCenter, float sceneRadius)
     {
-        LightSpaceMatrix = ComputeLightSpaceMatrix(light, sceneCenter, Settings);
+        LightSpaceMatrix = ComputeLightSpaceMatrix(light, sceneCenter, sceneRadius, Settings);
+        ShadowStrength = ComputeShadowStrength(light, Settings);
         DrawCallCount = 0;
 
         var resolution = (uint)_resolution;
