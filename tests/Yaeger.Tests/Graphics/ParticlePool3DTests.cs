@@ -28,6 +28,34 @@ public class ParticlePool3DTests
     }
 
     [Fact]
+    public void TrySpawn_WithoutSizeMultiplierOrRotation_ShouldDefaultToNoJitter()
+    {
+        var pool = new ParticlePool3D(1);
+
+        pool.TrySpawn(Vector3.Zero, Vector3.Zero, 1f);
+
+        Assert.Equal(1f, pool[0].SizeMultiplier);
+        Assert.Equal(0f, pool[0].InitialRotation);
+    }
+
+    [Fact]
+    public void TrySpawn_WithSizeMultiplierAndRotation_ShouldStoreThem()
+    {
+        var pool = new ParticlePool3D(1);
+
+        pool.TrySpawn(
+            Vector3.Zero,
+            Vector3.Zero,
+            1f,
+            sizeMultiplier: 1.5f,
+            initialRotation: MathF.PI
+        );
+
+        Assert.Equal(1.5f, pool[0].SizeMultiplier);
+        Assert.Equal(MathF.PI, pool[0].InitialRotation);
+    }
+
+    [Fact]
     public void TrySpawn_WhenFull_ShouldReturnFalse()
     {
         var pool = new ParticlePool3D(2);

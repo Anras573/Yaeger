@@ -90,16 +90,22 @@ public class ParticleRenderSystem3D(
             ref readonly var particle = ref pool[i];
             var t = particle.NormalizedAge;
             var baseSize = MathF.Max(
-                emitter.StartSize + (emitter.EndSize - emitter.StartSize) * t,
+                (emitter.StartSize + (emitter.EndSize - emitter.StartSize) * t)
+                    * particle.SizeMultiplier,
                 0f
             );
             var color = Vector4.Lerp(startColor, endColor, t);
 
-            var (projectedSpeed, rotation) = BillboardMath.ProjectVelocity(
+            var (projectedSpeed, velocityRotation) = BillboardMath.ProjectVelocity(
                 particle.Velocity,
                 cameraRight,
                 cameraUp
             );
+            // A particle with no meaningful screen-space velocity falls back to the rotation it
+            // spawned with (see ParticleEmitter3D.RandomInitialRotation) instead of always 0;
+            // once it does have projected velocity, that direction owns the rotation, same as
+            // before this feature existed.
+            var rotation = projectedSpeed > 0f ? velocityRotation : particle.InitialRotation;
             var alongVelocity = baseSize + projectedSpeed * velocityStretch;
 
             _instanceScratch.Add(

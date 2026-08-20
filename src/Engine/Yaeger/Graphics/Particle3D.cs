@@ -18,6 +18,22 @@ public struct Particle3D
     /// <summary>Total lifetime in seconds; the particle is recycled once <see cref="Age"/> reaches it.</summary>
     public float Lifetime;
 
+    /// <summary>
+    /// Per-particle multiplier applied to the owning emitter's <see cref="ParticleEmitter3D.StartSize"/>/
+    /// <see cref="ParticleEmitter3D.EndSize"/> (see <see cref="ParticleEmitter3D.SizeVariance"/>).
+    /// 1 leaves the emitter's lerped size untouched — the value every particle spawns with when
+    /// <see cref="ParticleEmitter3D.SizeVariance"/> is 0.
+    /// </summary>
+    public float SizeMultiplier;
+
+    /// <summary>
+    /// Billboard rotation, in radians, this particle spawned with (see
+    /// <see cref="ParticleEmitter3D.RandomInitialRotation"/>). Only visible while the particle has
+    /// no meaningful screen-space velocity to project a rotation from instead — see
+    /// <c>ParticleRenderSystem3D.DrawEmitter</c>.
+    /// </summary>
+    public float InitialRotation;
+
     /// <summary>Age as a fraction of lifetime, clamped to [0, 1].</summary>
     public readonly float NormalizedAge => Lifetime > 0f ? Math.Clamp(Age / Lifetime, 0f, 1f) : 1f;
 }

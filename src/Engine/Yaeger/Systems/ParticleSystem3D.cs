@@ -106,7 +106,32 @@ public class ParticleSystem3D : IUpdateSystem
         while (pool.EmissionAccumulator >= 1f)
         {
             pool.EmissionAccumulator -= 1f;
-            if (!pool.TrySpawn(origin, RandomVelocity(in emitter), emitter.ParticleLifetime))
+
+            var position = origin;
+            if (emitter.Shape == EmissionShape.Disc)
+                position += SampleDiscOffset(emitter.EmitDirection, emitter.DiscRadius, _random);
+
+            // Lifetime jitter is clamped away from zero: a jittered lifetime of 0 (or negative)
+            // would spawn a particle already expired, silently dropping it from the plume instead
+            // of visibly varying it.
+            var lifetime = MathF.Max(
+                Jitter(emitter.ParticleLifetime, emitter.LifetimeVariance, _random),
+                1e-4f
+            );
+            var sizeMultiplier = MathF.Max(Jitter(1f, emitter.SizeVariance, _random), 0f);
+            var initialRotation = emitter.RandomInitialRotation
+                ? (float)_random.NextDouble() * MathF.Tau
+                : 0f;
+
+            if (
+                !pool.TrySpawn(
+                    position,
+                    RandomVelocity(in emitter),
+                    lifetime,
+                    sizeMultiplier,
+                    initialRotation
+                )
+            )
             {
                 // Pool is saturated — drop the backlog instead of bursting on the next recycle.
                 pool.EmissionAccumulator = 0f;
@@ -115,9 +140,54 @@ public class ParticleSystem3D : IUpdateSystem
         }
     }
 
-    private Vector3 RandomVelocity(in ParticleEmitter3D emitter) =>
-        RandomDirectionInCone(emitter.EmitDirection, emitter.SpreadAngle, _random)
-        * emitter.InitialSpeed;
+    private Vector3 RandomVelocity(in ParticleEmitter3D emitter)
+    {
+        var speed = MathF.Max(Jitter(emitter.InitialSpeed, emitter.SpeedVariance, _random), 0f);
+        return RandomDirectionInCone(emitter.EmitDirection, emitter.SpreadAngle, _random) * speed;
+    }
+
+    /// <summary>
+    /// Applies fractional jitter to <paramref name="baseValue"/>: the result is
+    /// <c>baseValue * (1 + U(-variance, variance))</c>, where <c>U</c> is a uniform sample drawn
+    /// from <paramref name="random"/>. A <paramref name="variance"/> of 0 returns
+    /// <paramref name="baseValue"/> exactly (no randomness consumed in that direction — the
+    /// multiplier is exactly 1), which is what keeps every existing emitter's output unchanged.
+    /// Public (like <see cref="RandomDirectionInCone"/>) so it's directly unit-testable.
+    /// </summary>
+    public static float Jitter(float baseValue, float variance, Random random)
+    {
+        var clampedVariance = MathF.Max(variance, 0f);
+        var offset = (float)(random.NextDouble() * 2.0 - 1.0) * clampedVariance;
+        return baseValue * (1f + offset);
+    }
+
+    /// <summary>
+    /// Samples a random point uniformly across a disc of <paramref name="radius"/>, centred on the
+    /// origin and oriented perpendicular to <paramref name="axis"/> — the offset a
+    /// <see cref="EmissionShape.Disc"/> emitter adds to its spawn position. Uses
+    /// <c>sqrt</c>-scaled radius sampling so points are uniform by area rather than biased toward
+    /// the centre. Returns <see cref="Vector3.Zero"/> for a non-positive radius. Falls back to +Y
+    /// when <paramref name="axis"/> is zero, mirroring <see cref="RandomDirectionInCone"/>. Public
+    /// so it's directly unit-testable without going through the emission-rate/accumulator machinery.
+    /// </summary>
+    public static Vector3 SampleDiscOffset(Vector3 axis, float radius, Random random)
+    {
+        if (radius <= 0f)
+            return Vector3.Zero;
+
+        var normalizedAxis = axis == Vector3.Zero ? Vector3.UnitY : Vector3.Normalize(axis);
+
+        // Same orthonormal-basis construction as RandomDirectionInCone: any vector not parallel
+        // to the axis works as the seed.
+        var seed = MathF.Abs(normalizedAxis.Y) < 0.99f ? Vector3.UnitY : Vector3.UnitX;
+        var u = Vector3.Normalize(Vector3.Cross(normalizedAxis, seed));
+        var v = Vector3.Cross(normalizedAxis, u);
+
+        var r = radius * MathF.Sqrt((float)random.NextDouble());
+        var theta = (float)random.NextDouble() * MathF.Tau;
+
+        return u * (r * MathF.Cos(theta)) + v * (r * MathF.Sin(theta));
+    }
 
     /// <summary>
     /// Samples a unit direction deviating from <paramref name="axis"/> by a polar angle uniformly

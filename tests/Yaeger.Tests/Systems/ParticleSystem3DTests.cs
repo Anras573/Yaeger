@@ -255,6 +255,372 @@ public class ParticleSystem3DTests
         Assert.Equal(16, pool.Capacity);
     }
 
+    // ── Emission shapes and jitter ───────────────────────────────────────────
+
+    [Fact]
+    public void Update_WithPointShape_ShouldEmitAtExactEmitterPosition()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                EmitRate = 10f,
+                ParticleLifetime = 10f,
+                Shape = EmissionShape.Point,
+                DiscRadius = 5f, // ignored by Point
+            },
+            position: new Vector3(1f, 2f, 3f)
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        for (var i = 0; i < pool.AliveCount; i++)
+            Assert.Equal(new Vector3(1f, 2f, 3f), pool[i].Position);
+    }
+
+    [Fact]
+    public void Update_WithDiscShape_ShouldSpreadParticlesAcrossTheDisc()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                MaxParticles = 64,
+                EmitRate = 1000f,
+                ParticleLifetime = 10f,
+                InitialSpeed = 0f,
+                Shape = EmissionShape.Disc,
+                DiscRadius = 2f,
+                EmitDirection = Vector3.UnitY,
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        Assert.True(pool.AliveCount > 1);
+
+        // Not every particle spawns at the emitter's origin, and every offset stays within the
+        // disc radius on the plane perpendicular to EmitDirection (Y stays ~0).
+        var distinctPositions = false;
+        for (var i = 0; i < pool.AliveCount; i++)
+        {
+            var position = pool[i].Position;
+            if (position != Vector3.Zero)
+                distinctPositions = true;
+
+            Assert.Equal(0f, position.Y, 0.0001f);
+            Assert.True(MathF.Sqrt(position.X * position.X + position.Z * position.Z) <= 2.0001f);
+        }
+        Assert.True(distinctPositions);
+    }
+
+    [Fact]
+    public void Update_WithNonPositiveDiscRadius_ShouldBehaveLikePoint()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                EmitRate = 10f,
+                ParticleLifetime = 10f,
+                Shape = EmissionShape.Disc,
+                DiscRadius = 0f,
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        for (var i = 0; i < pool.AliveCount; i++)
+            Assert.Equal(Vector3.Zero, pool[i].Position);
+    }
+
+    [Fact]
+    public void Update_WithSpeedVariance_ShouldVarySpeedAcrossParticles()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                MaxParticles = 64,
+                EmitRate = 1000f,
+                ParticleLifetime = 10f,
+                InitialSpeed = 2f,
+                SpeedVariance = 0.5f,
+                SpreadAngle = 0f,
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        var speeds = new HashSet<float>();
+        for (var i = 0; i < pool.AliveCount; i++)
+        {
+            var speed = pool[i].Velocity.Length();
+            Assert.InRange(speed, 1f, 3f); // 2 * (1 +/- 0.5)
+            speeds.Add(speed);
+        }
+        Assert.True(speeds.Count > 1);
+    }
+
+    [Fact]
+    public void Update_WithZeroSpeedVariance_ShouldMatchInitialSpeedExactly()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                EmitRate = 10f,
+                ParticleLifetime = 10f,
+                InitialSpeed = 3f,
+                SpeedVariance = 0f,
+                SpreadAngle = 0f,
+            }
+        );
+
+        system.Update(0.5f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        for (var i = 0; i < pool.AliveCount; i++)
+            Assert.Equal(3f, pool[i].Velocity.Length(), 0.0001f);
+    }
+
+    [Fact]
+    public void Update_WithLifetimeVariance_ShouldVaryLifetimeAcrossParticles()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                MaxParticles = 64,
+                EmitRate = 1000f,
+                ParticleLifetime = 4f,
+                LifetimeVariance = 0.5f,
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        var lifetimes = new HashSet<float>();
+        for (var i = 0; i < pool.AliveCount; i++)
+        {
+            Assert.InRange(pool[i].Lifetime, 2f, 6f); // 4 * (1 +/- 0.5)
+            lifetimes.Add(pool[i].Lifetime);
+        }
+        Assert.True(lifetimes.Count > 1);
+    }
+
+    [Fact]
+    public void Update_WithSizeVariance_ShouldVarySizeMultiplierAcrossParticles()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                MaxParticles = 64,
+                EmitRate = 1000f,
+                ParticleLifetime = 10f,
+                SizeVariance = 0.5f,
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        var multipliers = new HashSet<float>();
+        for (var i = 0; i < pool.AliveCount; i++)
+        {
+            Assert.InRange(pool[i].SizeMultiplier, 0.5f, 1.5f);
+            multipliers.Add(pool[i].SizeMultiplier);
+        }
+        Assert.True(multipliers.Count > 1);
+    }
+
+    [Fact]
+    public void Update_WithZeroVariances_ShouldMatchExistingBehaviourExactly()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                EmitRate = 10f,
+                ParticleLifetime = 2f,
+                InitialSpeed = 1f,
+                SpreadAngle = 0f,
+            }
+        );
+
+        system.Update(0.5f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        for (var i = 0; i < pool.AliveCount; i++)
+        {
+            Assert.Equal(2f, pool[i].Lifetime, 0.0001f);
+            Assert.Equal(1f, pool[i].SizeMultiplier, 0.0001f);
+            Assert.Equal(0f, pool[i].InitialRotation);
+        }
+    }
+
+    [Fact]
+    public void Update_WithRandomInitialRotation_ShouldAssignVaryingRotations()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                MaxParticles = 64,
+                EmitRate = 1000f,
+                ParticleLifetime = 10f,
+                RandomInitialRotation = true,
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        var rotations = new HashSet<float>();
+        for (var i = 0; i < pool.AliveCount; i++)
+        {
+            Assert.InRange(pool[i].InitialRotation, 0f, MathF.Tau);
+            rotations.Add(pool[i].InitialRotation);
+        }
+        Assert.True(rotations.Count > 1);
+    }
+
+    [Fact]
+    public void Update_WithSeed_ShouldReproduceIdenticalOutputWithAllFeaturesInUse()
+    {
+        ParticlePool3D RunOnce()
+        {
+            var world = new World();
+            var system = new ParticleSystem3D(world, seed: 1234);
+            var entity = CreateEmitter(
+                world,
+                new ParticleEmitter3D(TexturePath)
+                {
+                    MaxParticles = 32,
+                    EmitRate = 500f,
+                    ParticleLifetime = 3f,
+                    LifetimeVariance = 0.4f,
+                    SpeedVariance = 0.4f,
+                    SizeVariance = 0.4f,
+                    Shape = EmissionShape.Disc,
+                    DiscRadius = 1.5f,
+                    RandomInitialRotation = true,
+                }
+            );
+
+            system.Update(0.3f);
+            system.Update(0.3f);
+
+            Assert.True(system.TryGetPool(entity, out var pool));
+            return pool;
+        }
+
+        var first = RunOnce();
+        var second = RunOnce();
+
+        Assert.Equal(first.AliveCount, second.AliveCount);
+        for (var i = 0; i < first.AliveCount; i++)
+        {
+            Assert.Equal(first[i].Position, second[i].Position);
+            Assert.Equal(first[i].Velocity, second[i].Velocity);
+            Assert.Equal(first[i].Lifetime, second[i].Lifetime);
+            Assert.Equal(first[i].SizeMultiplier, second[i].SizeMultiplier);
+            Assert.Equal(first[i].InitialRotation, second[i].InitialRotation);
+        }
+    }
+
+    // ── Jitter ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Jitter_WithZeroVariance_ReturnsBaseValueExactly()
+    {
+        var random = new Random(1);
+
+        for (var i = 0; i < 20; i++)
+            Assert.Equal(5f, ParticleSystem3D.Jitter(5f, 0f, random));
+    }
+
+    [Fact]
+    public void Jitter_StaysWithinVarianceBounds()
+    {
+        var random = new Random(2);
+
+        for (var i = 0; i < 200; i++)
+        {
+            var result = ParticleSystem3D.Jitter(10f, 0.3f, random);
+            Assert.InRange(result, 7f, 13f);
+        }
+    }
+
+    [Fact]
+    public void Jitter_WithNegativeVariance_ClampsToZero()
+    {
+        var random = new Random(3);
+
+        for (var i = 0; i < 20; i++)
+            Assert.Equal(4f, ParticleSystem3D.Jitter(4f, -1f, random));
+    }
+
+    // ── SampleDiscOffset ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void SampleDiscOffset_WithNonPositiveRadius_ReturnsZero()
+    {
+        var random = new Random(4);
+
+        Assert.Equal(Vector3.Zero, ParticleSystem3D.SampleDiscOffset(Vector3.UnitY, 0f, random));
+        Assert.Equal(Vector3.Zero, ParticleSystem3D.SampleDiscOffset(Vector3.UnitY, -1f, random));
+    }
+
+    [Fact]
+    public void SampleDiscOffset_StaysWithinRadiusAndPerpendicularToAxis()
+    {
+        var random = new Random(5);
+        var axis = Vector3.UnitY;
+
+        for (var i = 0; i < 100; i++)
+        {
+            var offset = ParticleSystem3D.SampleDiscOffset(axis, 3f, random);
+
+            Assert.True(offset.Length() <= 3.0001f);
+            Assert.Equal(0f, Vector3.Dot(offset, axis), 0.0001f);
+        }
+    }
+
+    [Fact]
+    public void SampleDiscOffset_ZeroAxis_FallsBackToUnitY()
+    {
+        var random = new Random(6);
+
+        var offset = ParticleSystem3D.SampleDiscOffset(Vector3.Zero, 2f, random);
+
+        Assert.Equal(0f, Vector3.Dot(offset, Vector3.UnitY), 0.0001f);
+    }
+
     // ── RandomDirectionInCone ────────────────────────────────────────────────
 
     [Fact]

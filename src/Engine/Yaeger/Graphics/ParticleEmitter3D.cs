@@ -72,4 +72,50 @@ public struct ParticleEmitter3D(string texturePath)
     /// lifetime-lerped size. Has no visible effect on a stationary particle.
     /// </summary>
     public float VelocityStretch;
+
+    /// <summary>
+    /// Shape a particle's starting position is sampled from. <see cref="EmissionShape.Point"/>
+    /// (the default) spawns every particle at the emitter's exact position, matching every
+    /// existing emitter's behaviour.
+    /// </summary>
+    public EmissionShape Shape = EmissionShape.Point;
+
+    /// <summary>
+    /// Radius of the disc used by <see cref="EmissionShape.Disc"/>. Ignored by
+    /// <see cref="EmissionShape.Point"/>, and a non-positive value collapses <c>Disc</c> back to
+    /// spawning at the centre.
+    /// </summary>
+    public float DiscRadius;
+
+    /// <summary>
+    /// Fractional jitter applied to <see cref="InitialSpeed"/> at spawn: a particle's speed is
+    /// <c>InitialSpeed * (1 + U(-SpeedVariance, SpeedVariance))</c>, clamped to non-negative.
+    /// 0 (the default) is no jitter — existing emitters are unaffected.
+    /// </summary>
+    public float SpeedVariance;
+
+    /// <summary>
+    /// Fractional jitter applied to <see cref="ParticleLifetime"/> at spawn, same shape as
+    /// <see cref="SpeedVariance"/>. Clamped away from zero so a jittered lifetime never spawns an
+    /// already-expired particle.
+    /// </summary>
+    public float LifetimeVariance;
+
+    /// <summary>
+    /// Fractional jitter applied to a particle's <see cref="StartSize"/>/<see cref="EndSize"/> at
+    /// spawn: one multiplier per particle scales both ends of its size lerp, so the lerp curve's
+    /// shape is preserved and only its overall scale varies between particles — this is what
+    /// breaks up a plume's otherwise-uniform silhouette.
+    /// </summary>
+    public float SizeVariance;
+
+    /// <summary>
+    /// When true, a particle spawns with a random billboard rotation instead of the default 0.
+    /// Overridden by the velocity-projected rotation whenever a particle has meaningful
+    /// screen-space velocity (see <see cref="Yaeger.Rendering.BillboardMath.ProjectVelocity"/>) —
+    /// the same rotation <see cref="VelocityStretch"/> already drives for a moving/stretched
+    /// particle — so this is most visible on slow-moving or near-stationary particles. Default
+    /// false: existing emitters render identically.
+    /// </summary>
+    public bool RandomInitialRotation;
 }
