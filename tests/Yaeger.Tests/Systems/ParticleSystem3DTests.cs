@@ -553,6 +553,136 @@ public class ParticleSystem3DTests
         }
     }
 
+    // ── Forces: acceleration, drag, turbulence ──────────────────────────────
+
+    [Fact]
+    public void Update_WithAcceleration_ShouldCurveParticleMotion()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                EmitRate = 10f,
+                ParticleLifetime = 10f,
+                InitialSpeed = 1f,
+                SpreadAngle = 0f,
+                EmitDirection = Vector3.UnitX,
+                Acceleration = new Vector3(0f, -9.8f, 0f), // gravity: a spark arcing back down
+            }
+        );
+
+        // Forces integrate into a pool's *existing* particles at the top of each Update call, so
+        // the particle spawned during the first call only picks up acceleration starting on the
+        // second — same reason MeshRenderSystem-style per-frame systems need two ticks to observe
+        // an effect that both writes and reads state in the same pass.
+        system.Update(0.1f);
+        system.Update(0.1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        Assert.True(pool.AliveCount >= 1);
+
+        // A straight-line (unaccelerated) particle would keep Velocity.Y at 0; downward
+        // acceleration must have pulled the first-spawned particle negative by now.
+        Assert.True(pool[0].Velocity.Y < 0f);
+    }
+
+    [Fact]
+    public void Update_WithDrag_ShouldSlowParticlesOverTime()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                EmitRate = 10f,
+                ParticleLifetime = 10f,
+                InitialSpeed = 5f,
+                SpreadAngle = 0f,
+                Drag = 3f,
+            }
+        );
+
+        // First call spawns the particle at full speed (no drag applied yet — see the note in
+        // Update_WithAcceleration_ShouldCurveParticleMotion above).
+        system.Update(0.1f);
+        Assert.True(system.TryGetPool(entity, out var pool));
+
+        system.Update(0.1f);
+        var speedAfterOneDragStep = pool[0].Velocity.Length();
+
+        system.Update(0.1f);
+        var speedAfterTwoDragSteps = pool[0].Velocity.Length();
+
+        Assert.True(speedAfterOneDragStep < 5f);
+        Assert.True(speedAfterTwoDragSteps < speedAfterOneDragStep);
+    }
+
+    [Fact]
+    public void Update_WithZeroAccelerationDragTurbulence_ShouldMatchConstantVelocityBehaviour()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                EmitRate = 10f,
+                ParticleLifetime = 10f,
+                EmitDirection = new Vector3(0f, 1f, 0f),
+                SpreadAngle = 0f,
+                InitialSpeed = 2f,
+            }
+        );
+
+        system.Update(0.1f);
+        Assert.True(system.TryGetPool(entity, out var pool));
+        Assert.Equal(0f, pool[0].Velocity.X, 0.0001f);
+        Assert.Equal(2f, pool[0].Velocity.Y, 0.0001f);
+        Assert.Equal(0f, pool[0].Velocity.Z, 0.0001f);
+    }
+
+    [Fact]
+    public void Update_WithSeed_ForceFeaturesReproduceIdenticalOutput()
+    {
+        ParticlePool3D RunOnce()
+        {
+            var world = new World();
+            var system = new ParticleSystem3D(world, seed: 99);
+            var entity = CreateEmitter(
+                world,
+                new ParticleEmitter3D(TexturePath)
+                {
+                    MaxParticles = 32,
+                    EmitRate = 500f,
+                    ParticleLifetime = 3f,
+                    Acceleration = new Vector3(0f, 1.5f, 0f),
+                    Drag = 0.5f,
+                    Turbulence = 0.8f,
+                    TurbulenceFrequency = 2f,
+                }
+            );
+
+            system.Update(0.3f);
+            system.Update(0.3f);
+
+            Assert.True(system.TryGetPool(entity, out var pool));
+            return pool;
+        }
+
+        var first = RunOnce();
+        var second = RunOnce();
+
+        Assert.Equal(first.AliveCount, second.AliveCount);
+        for (var i = 0; i < first.AliveCount; i++)
+        {
+            Assert.Equal(first[i].Position, second[i].Position);
+            Assert.Equal(first[i].Velocity, second[i].Velocity);
+        }
+    }
+
     // ── Jitter ────────────────────────────────────────────────────────────────
 
     [Fact]

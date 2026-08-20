@@ -77,10 +77,33 @@ public sealed class ParticlePool3D
     }
 
     /// <summary>
-    /// Ages all live particles, recycles the ones whose lifetime expired, and integrates
-    /// velocity into position for the survivors.
+    /// Ages all live particles, recycles the ones whose lifetime expired, and integrates forces
+    /// and velocity into position for the survivors.
     /// </summary>
-    public void Update(float deltaTime)
+    /// <param name="acceleration">
+    /// Constant per-second-squared acceleration applied before position integration (see
+    /// <see cref="ParticleEmitter3D.Acceleration"/>). The default (zero) is a no-op, matching this
+    /// method's behaviour before forces existed.
+    /// </param>
+    /// <param name="drag">
+    /// Exponential velocity damping per second (see <see cref="ParticleEmitter3D.Drag"/>). The
+    /// default (0) is no damping.
+    /// </param>
+    /// <param name="turbulence">
+    /// Amplitude of coherent noise velocity perturbation (see
+    /// <see cref="ParticleEmitter3D.Turbulence"/>). The default (0) samples no noise at all.
+    /// </param>
+    /// <param name="turbulenceFrequency">
+    /// Frequency the turbulence noise field is sampled at; ignored while
+    /// <paramref name="turbulence"/> is 0.
+    /// </param>
+    public void Update(
+        float deltaTime,
+        Vector3 acceleration = default,
+        float drag = 0f,
+        float turbulence = 0f,
+        float turbulenceFrequency = 1f
+    )
     {
         var i = 0;
         while (i < AliveCount)
@@ -94,6 +117,32 @@ public sealed class ParticlePool3D
                 _particles[i] = _particles[AliveCount - 1];
                 AliveCount--;
                 continue;
+            }
+
+            // Semi-implicit (symplectic) Euler: this step's forces update velocity first, and
+            // *that* updated velocity is what integrates position below — never the velocity from
+            // the start of the step. Stable under constant acceleration (unlike explicit Euler,
+            // which gains energy over time) and framerate-independent for a given fixed step,
+            // mirroring how PhysicsWorld2D's MovementSystem orders its own integration.
+            if (acceleration != Vector3.Zero)
+                particle.Velocity += acceleration * deltaTime;
+
+            if (drag > 0f)
+            {
+                // exp(-drag * dt) decays velocity toward zero without ever overshooting past it
+                // (unlike a linear "1 - drag * dt" term, which reverses direction once drag * dt
+                // exceeds 1), and stays framerate-independent for a given wall-clock interval.
+                particle.Velocity *= MathF.Exp(-drag * deltaTime);
+            }
+
+            if (turbulence != 0f)
+            {
+                var noise = ValueNoise3D.SampleFlow(
+                    particle.Position,
+                    particle.Age,
+                    turbulenceFrequency
+                );
+                particle.Velocity += noise * (turbulence * deltaTime);
             }
 
             particle.Position += particle.Velocity * deltaTime;

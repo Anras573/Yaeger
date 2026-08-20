@@ -118,4 +118,34 @@ public struct ParticleEmitter3D(string texturePath)
     /// false: existing emitters render identically.
     /// </summary>
     public bool RandomInitialRotation;
+
+    /// <summary>
+    /// Constant acceleration applied to every particle each step, in world units per second
+    /// squared — gravity (negative Y), buoyancy (positive Y), or wind (a horizontal bias) all
+    /// covered by one vector. Zero (the default) leaves particles at the constant velocity they
+    /// spawned with, matching every existing emitter.
+    /// </summary>
+    public Vector3 Acceleration;
+
+    /// <summary>
+    /// Exponential velocity damping per second: each step a particle's velocity is scaled by
+    /// <c>exp(-Drag * deltaTime)</c>, so it settles toward whatever terminal velocity
+    /// <see cref="Acceleration"/> implies instead of coasting at spawn speed forever. 0 (the
+    /// default) is no damping.
+    /// </summary>
+    public float Drag;
+
+    /// <summary>
+    /// Amplitude of coherent noise displacement applied to a particle's velocity each step (see
+    /// <see cref="Yaeger.Graphics.ValueNoise3D"/>), breaking up otherwise perfectly straight-line
+    /// motion. 0 (the default) disables turbulence entirely — no noise is sampled.
+    /// </summary>
+    public float Turbulence;
+
+    /// <summary>
+    /// Spatial/temporal frequency the turbulence noise field is sampled at — higher values make
+    /// the perturbation change more rapidly over distance and time. Ignored while
+    /// <see cref="Turbulence"/> is 0.
+    /// </summary>
+    public float TurbulenceFrequency = 1f;
 }

@@ -54,7 +54,13 @@ public class ParticleSystem3D : IUpdateSystem
                 // doesn't pin its backing array; re-enabling recreates it.
                 if (_pools.TryGetValue(entity, out var orphanedPool))
                 {
-                    orphanedPool.Update(deltaTime);
+                    orphanedPool.Update(
+                        deltaTime,
+                        emitter.Acceleration,
+                        emitter.Drag,
+                        emitter.Turbulence,
+                        emitter.TurbulenceFrequency
+                    );
                     if (orphanedPool.AliveCount == 0)
                         _pools.Remove(entity);
                 }
@@ -62,7 +68,13 @@ public class ParticleSystem3D : IUpdateSystem
             }
 
             var pool = GetOrCreatePool(entity, emitter.MaxParticles);
-            pool.Update(deltaTime);
+            pool.Update(
+                deltaTime,
+                emitter.Acceleration,
+                emitter.Drag,
+                emitter.Turbulence,
+                emitter.TurbulenceFrequency
+            );
             Emit(pool, in emitter, transform.Position, deltaTime);
         }
 
