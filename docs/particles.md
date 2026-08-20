@@ -128,6 +128,37 @@ fields:
 |-------|------|---------|---------|
 | `BlendMode` | `MaterialBlendMode` | `Transparent` | `Transparent` (standard alpha blending, sorted back-to-front against other transparent emitters) or `Additive` (brightens the frame, order-independent — see issue #194). `Opaque`/`Cutout` are treated as `Transparent`. |
 | `VelocityStretch` | `float` | `0` | World units of elongation per unit of speed, along the particle's direction of travel. `0` (default) keeps billboards square/round; a positive value stretches them into streaks — suited to sparks, bolts, and tracers. |
+| `Shape` | `EmissionShape` | `Point` | Where a particle's starting position is sampled from — see below. |
+| `DiscRadius` | `float` | `0` | Radius of the disc used by `Shape = Disc`. Ignored by `Point`; a non-positive value collapses `Disc` back to spawning at the centre. |
+| `SpeedVariance` / `LifetimeVariance` / `SizeVariance` | `float` | `0` | Fractional jitter on `InitialSpeed`, `ParticleLifetime`, and a per-particle size multiplier — see below. |
+| `RandomInitialRotation` | `bool` | `false` | Spawn each particle with a random billboard rotation instead of `0` — see below. |
+
+### Emission shapes
+
+`Shape = EmissionShape.Point` (the default) spawns every particle at the emitter's exact
+`Transform3D.Position`, matching every emitter's behaviour before this feature existed.
+`Shape = EmissionShape.Disc` instead spreads particles uniformly across a disc of `DiscRadius`,
+oriented perpendicular to `EmitDirection` — what a brazier or torch wants: a fire filling a bowl
+rather than a jet from a single point. The underlying sampling is `ParticleSystem3D.SampleDiscOffset`,
+a public static (mirroring `RandomDirectionInCone`) so it's directly unit-testable.
+
+### Per-particle jitter
+
+`SpeedVariance`, `LifetimeVariance`, and `SizeVariance` each apply the same fractional-jitter shape
+at spawn — `value * (1 + U(-variance, variance))`, via the public static `ParticleSystem3D.Jitter`
+— so a plume isn't visually uniform: particles vary in how fast they leave, how long they live, and
+how large they render (one multiplier per particle scales both `StartSize` and `EndSize` together,
+preserving the size lerp's shape). All three default to `0` (no jitter), so an emitter that doesn't
+set them renders identically to before.
+
+`RandomInitialRotation` gives each particle a random starting billboard rotation instead of the
+default `0`. It only shows through while a particle has no meaningful screen-space velocity to
+project a rotation from instead (see `BillboardMath.ProjectVelocity`) — a moving or
+`VelocityStretch`-stretched particle's rotation is still owned by its direction of travel, exactly
+as before this field existed. Most visible on slow-moving or near-stationary particles.
+
+All new randomness is drawn from the same seeded `Random` `ParticleSystem3D` already uses for cone
+sampling, so a seeded run stays fully reproducible with every new feature in use.
 
 ### How billboards face the camera
 
@@ -160,7 +191,9 @@ are alive in it, visible via `Renderer3D.DrawCallCount`.
 ### Known limitations (3D)
 
 - No prefab/scene serializer yet for `ParticleEmitter3D`, so emitters are configured in code.
-- No gravity/acceleration, angular velocity, or texture animation — same as the 2D system.
+- No gravity/acceleration, continuous angular velocity (spin), or texture animation — same as the
+  2D system. `RandomInitialRotation` sets a rotation once at spawn; it doesn't animate afterward.
+- Emission shape is point or disc only — no sphere/box/cone-surface volumes.
 - Particles within one emitter aren't depth-sorted against each other (only whole emitters are
   sorted against each other), and additive emitters aren't sorted against transparent ones at all
   — acceptable for the order-independent glow/spark effects this is aimed at, but a dense cloud of

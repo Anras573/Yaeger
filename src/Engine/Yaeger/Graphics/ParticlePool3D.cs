@@ -44,7 +44,21 @@ public sealed class ParticlePool3D
     /// <summary>
     /// Spawns a particle with age zero, or returns false when the pool is full.
     /// </summary>
-    public bool TrySpawn(Vector3 position, Vector3 velocity, float lifetime)
+    /// <param name="sizeMultiplier">
+    /// Per-particle size multiplier — see <see cref="Particle3D.SizeMultiplier"/>. Defaults to 1
+    /// (no jitter), so existing callers are unaffected.
+    /// </param>
+    /// <param name="initialRotation">
+    /// Per-particle spawn rotation, in radians — see <see cref="Particle3D.InitialRotation"/>.
+    /// Defaults to 0, so existing callers are unaffected.
+    /// </param>
+    public bool TrySpawn(
+        Vector3 position,
+        Vector3 velocity,
+        float lifetime,
+        float sizeMultiplier = 1f,
+        float initialRotation = 0f
+    )
     {
         if (AliveCount >= _particles.Length)
             return false;
@@ -55,6 +69,8 @@ public sealed class ParticlePool3D
             Velocity = velocity,
             Age = 0f,
             Lifetime = lifetime,
+            SizeMultiplier = sizeMultiplier,
+            InitialRotation = initialRotation,
         };
         AliveCount++;
         return true;
