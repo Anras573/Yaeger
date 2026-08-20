@@ -132,6 +132,9 @@ fields:
 | `DiscRadius` | `float` | `0` | Radius of the disc used by `Shape = Disc`. Ignored by `Point`; a non-positive value collapses `Disc` back to spawning at the centre. |
 | `SpeedVariance` / `LifetimeVariance` / `SizeVariance` | `float` | `0` | Fractional jitter on `InitialSpeed`, `ParticleLifetime`, and a per-particle size multiplier — see below. |
 | `RandomInitialRotation` | `bool` | `false` | Spawn each particle with a random billboard rotation instead of `0` — see below. |
+| `Acceleration` | `Vector3` | `(0, 0, 0)` | Constant per-second-squared force applied every step — gravity, buoyancy, or wind bias — see below. |
+| `Drag` | `float` | `0` | Exponential velocity damping per second — see below. |
+| `Turbulence` / `TurbulenceFrequency` | `float` | `0` / `1` | Amplitude and frequency of a coherent noise perturbation applied to velocity — see below. |
 
 ### Emission shapes
 
@@ -159,6 +162,35 @@ as before this field existed. Most visible on slow-moving or near-stationary par
 
 All new randomness is drawn from the same seeded `Random` `ParticleSystem3D` already uses for cone
 sampling, so a seeded run stays fully reproducible with every new feature in use.
+
+### Forces: acceleration, drag, and turbulence
+
+Particles integrate constant velocity by default — a spawned direction and speed, travelled in a
+straight line until expiry. `Acceleration`, `Drag`, and `Turbulence` add a small force model on top,
+applied inside `ParticlePool3D.Update` each step using **semi-implicit (symplectic) Euler**: this
+step's forces update velocity first, and that *updated* velocity is what integrates position —
+never the velocity from the start of the step. This is what keeps the integration stable under
+constant acceleration (explicit Euler gains energy over time) and framerate-independent for a given
+fixed step.
+
+- **`Acceleration`** is a plain `Vector3` added to velocity every step, in world units per second
+  squared — gravity (negative Y) for embers that arc back down, buoyancy (positive Y) for flame
+  that rises and accelerates, or a horizontal bias for wind. One field covers all three.
+- **`Drag`** scales velocity by `exp(-Drag * deltaTime)` every step — exponential decay toward
+  zero, so a particle settles toward whatever terminal velocity `Acceleration` implies instead of
+  coasting at spawn speed forever. Exponential decay never overshoots past zero the way a linear
+  `1 - Drag * deltaTime` damping term would once the product exceeds 1.
+- **`Turbulence`** adds a coherent noise displacement to velocity each step, scaled by
+  `TurbulenceFrequency`, via `Yaeger.Graphics.ValueNoise3D` — a deterministic, continuous 3D value
+  noise (hashed lattice values interpolated with a quintic fade curve, the same shape as classic
+  Perlin noise). `ValueNoise3D.SampleFlow` samples the field at a particle's own position and age,
+  offsetting the sample point by time so a stationary particle still perturbs instead of sampling a
+  frozen value forever. No per-particle state is added for this — the field is a pure function of
+  position and time already tracked by every particle, so `ParticlePool3D`'s fixed-size, no-allocation
+  contract is unaffected.
+
+All three default to zero, so an emitter that never touches them keeps its exact constant-velocity
+motion.
 
 ### How billboards face the camera
 
@@ -191,9 +223,11 @@ are alive in it, visible via `Renderer3D.DrawCallCount`.
 ### Known limitations (3D)
 
 - No prefab/scene serializer yet for `ParticleEmitter3D`, so emitters are configured in code.
-- No gravity/acceleration, continuous angular velocity (spin), or texture animation — same as the
-  2D system. `RandomInitialRotation` sets a rotation once at spawn; it doesn't animate afterward.
+- No continuous angular velocity (spin) or texture animation — same as the 2D system.
+  `RandomInitialRotation` sets a rotation once at spawn; it doesn't animate afterward.
 - Emission shape is point or disc only — no sphere/box/cone-surface volumes.
+- `Acceleration`/`Drag`/`Turbulence` are per-particle forces only; there's no wind field, particle
+  collision, or interaction between particles (e.g. one emitter's smoke isn't pushed by another's).
 - Particles within one emitter aren't depth-sorted against each other (only whole emitters are
   sorted against each other), and additive emitters aren't sorted against transparent ones at all
   — acceptable for the order-independent glow/spark effects this is aimed at, but a dense cloud of
