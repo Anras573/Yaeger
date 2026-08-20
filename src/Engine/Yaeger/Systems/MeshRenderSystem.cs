@@ -148,6 +148,17 @@ public class MeshRenderSystem(
             renderer.DisableIBL();
         }
 
+        if (TryGetFirstFog(out var fog))
+        {
+            renderer.SetFog(fog);
+        }
+        else
+        {
+            // Same "clear stale state" reasoning as the shadow/IBL branches above: a Renderer3D
+            // shared with a fog-enabled scene must not leak that fog into this one.
+            renderer.DisableFog();
+        }
+
         _mainBatcher.Clear();
         _transparentDraws.Clear();
 
@@ -282,6 +293,21 @@ public class MeshRenderSystem(
         }
 
         skybox = default;
+        return false;
+    }
+
+    // Returns the first FogSettings entity found, mirroring TryGetFirstSkybox/GetAmbientLight's
+    // "first X in the world" convention. Fog is opt-in (no AmbientLight-style Default fallback): a
+    // world with none disables fog entirely, so a scene that never attaches one is unaffected.
+    private bool TryGetFirstFog(out FogSettings fog)
+    {
+        foreach (var (_, settings) in world.GetStore<FogSettings>().All())
+        {
+            fog = settings;
+            return true;
+        }
+
+        fog = default;
         return false;
     }
 

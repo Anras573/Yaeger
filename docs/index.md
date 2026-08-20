@@ -9,7 +9,7 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a
 - **Entity-Component-System (ECS)** architecture, with JSON [prefabs and scenes](scenes.md)
 - **Entity hierarchy** — `Parent` + `TransformHierarchySystem` compose child transforms with their ancestors', in both 2D and 3D ([hierarchy.md](hierarchy.md))
 - **2D rendering** with Silk.NET — texture-batched sprites with deterministic, layered draw ordering (`UnifiedRenderSystem`)
-- **3D rendering** — mesh rendering with [lighting](lighting.md), [shadow mapping](shadows.md), [instanced rendering](instancing.md) for repeated meshes, and [PBR](pbr.md) materials with skybox-driven [image-based lighting](pbr.md#image-based-lighting)
+- **3D rendering** — mesh rendering with [lighting](lighting.md), [shadow mapping](shadows.md), [instanced rendering](instancing.md) for repeated meshes, [distance fog](fog.md), and [PBR](pbr.md) materials with skybox-driven [image-based lighting](pbr.md#image-based-lighting)
 - **Day/night cycle** — one `TimeOfDay` component driving the sun/moon direction, light colour, scene ambient, and exposure ([day-night.md](day-night.md))
 - **Post-processing** — render-to-texture `PostProcessStack` chaining full-screen effects (vignette/colour-grade, bloom) over the 2D or 3D pipeline ([post-processing.md](post-processing.md))
 - **Skeletal animation** — glTF bone hierarchies and clips played via GPU skinning ([skeletal-animation.md](skeletal-animation.md))

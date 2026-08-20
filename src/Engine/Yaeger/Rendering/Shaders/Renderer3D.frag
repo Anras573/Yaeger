@@ -51,6 +51,16 @@ uniform float uEmissiveIntensity;
 // ToneMapEffect later in a PostProcessStack's HDR chain. See Renderer3D's constructor remarks.
 uniform int   uHdrOutput;
 
+// Distance fog: mixes fragment colour toward uFogColor as camera distance grows. Applied after
+// lighting/emissive/ambient, before the alpha write, identically in both shading paths — see
+// Renderer3D.SetFog. uFogMode: 0 = exponential-squared (uFogDensity), 1 = linear (uFogStart/uFogEnd).
+uniform int   uFogEnabled;
+uniform vec4  uFogColor;
+uniform int   uFogMode;
+uniform float uFogDensity;
+uniform float uFogStart;
+uniform float uFogEnd;
+
 // Directional lights. Two slots so a day/night cycle can light dawn and dusk with a sun and a
 // moon at once; a scene with one light leaves the second slot unused (uDirLightCount == 1).
 #define MAX_DIR_LIGHTS 2
@@ -124,6 +134,17 @@ float spotFactor(vec3 L, vec3 spotDir, float innerCos, float outerCos) {
     float cosAngle = dot(-L, spotDir);
     float t = clamp((cosAngle - outerCos) / max(innerCos - outerCos, 1e-4), 0.0, 1.0);
     return t * t * (3.0 - 2.0 * t);
+}
+
+// Fog visibility in [0, 1] at the given camera distance: 1 = no fog, 0 = fully fog-coloured.
+float fogFactor(float dist) {
+    if (uFogMode == 1) {
+        // Linear: SetFog guarantees uFogEnd > uFogStart, so this division never degenerates.
+        return 1.0 - clamp((dist - uFogStart) / (uFogEnd - uFogStart), 0.0, 1.0);
+    }
+    // Exponential-squared: no hard edge, thickens gradually with distance.
+    float d = dist * uFogDensity;
+    return clamp(exp(-(d * d)), 0.0, 1.0);
 }
 
 float distributionGGX(vec3 N, vec3 H, float roughness) {
@@ -257,6 +278,7 @@ void main() {
 
     vec3 viewDir = uCameraPos - vFragPos;
     vec3 V = viewDir * inversesqrt(max(dot(viewDir, viewDir), 1e-10));
+    float fragDist = length(viewDir);
 
     vec4 rawTex = texture(uDiffuse, vTexCoord);
 
@@ -344,6 +366,12 @@ void main() {
         }
         vec3 color = ambient + Lo + emissive;
 
+        // Fog is mixed in before tone-mapping: with uHdrOutput == 1 that compression is deferred to
+        // a later ToneMapEffect pass, which must see the fogged colour, not a pre-fog one.
+        if (uFogEnabled != 0) {
+            color = mix(uFogColor.rgb, color, fogFactor(fragDist));
+        }
+
         if (uHdrOutput == 0) {
             // Reinhard tone-map, then gamma encode back to sRGB.
             color = color / (color + vec3(1.0));
@@ -395,8 +423,13 @@ void main() {
         }
 
         vec3 ambient = (uAmbientColor * rawTex).rgb;
+        vec3 color = ambient + lit;
 
-        FragColor = vec4(ambient + lit, texColor.a * uOpacity);
+        if (uFogEnabled != 0) {
+            color = mix(uFogColor.rgb, color, fogFactor(fragDist));
+        }
+
+        FragColor = vec4(color, texColor.a * uOpacity);
     }
 
     // Cutout alpha test: discard fully-transparent-enough fragments instead of blending them, so
