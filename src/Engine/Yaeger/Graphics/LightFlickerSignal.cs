@@ -12,23 +12,49 @@ namespace Yaeger.Graphics;
 /// </summary>
 public static class LightFlickerSignal
 {
+    // Octave 2 runs faster than octave 1 and contributes less, which is what makes the sum read
+    // as irregular flame noise instead of a single smooth wobble — a higher-frequency ripple
+    // riding on top of a slower base wave. The weights sum to 1 so the result stays a weighted
+    // average of two values each in [-1, 1], never leaving that range.
+    private const float Octave1Weight = 0.6f;
+    private const float Octave2Weight = 0.4f;
+    private const float Octave2FrequencyScale = 2.17f;
+
+    // Every constant below just needs to shift a noise sample's input coordinate somewhere else
+    // in the field — the specific values are arbitrary, deliberately not round numbers or shared
+    // ratios of each other, so octave 2 and the offset's three axes don't sample points that
+    // happen to move in lockstep with octave 1 or with each other.
+    private const float Octave2TimeOffset = 31.7f;
+    private const float Octave2SeedScale = 1.31f;
+    private const float Octave2SeedOffset = 5.9f;
+
+    private const float OffsetYTimeScale = 1.31f;
+    private const float OffsetYSeedScale = 2.7f;
+    private const float OffsetYConstant = 11.1f;
+    private const float OffsetZTimeScale = 0.77f;
+    private const float OffsetZSeedScale = 4.3f;
+    private const float OffsetZConstant = 23.3f;
+
     /// <summary>
     /// Samples the flicker's intensity perturbation at <paramref name="time"/>, in <c>[-1, 1]</c>.
     /// Two octaves of <see cref="ValueNoise3D"/> are summed (the second at a higher frequency and a
     /// lower weight) so the result reads as irregular flame noise rather than a single smooth
-    /// wobble — still a weighted average of two values each in <c>[-1, 1]</c>, so the sum never
-    /// leaves that range. <paramref name="seed"/> offsets the sampled point so two flickers with
-    /// identical <paramref name="time"/>/<paramref name="frequency"/> histories but different seeds
-    /// produce uncorrelated output.
+    /// wobble. <paramref name="seed"/> offsets the sampled point so two flickers with identical
+    /// <paramref name="time"/>/<paramref name="frequency"/> histories but different seeds produce
+    /// uncorrelated output.
     /// </summary>
     public static float Sample(float time, float frequency, float seed)
     {
         var t = time * MathF.Max(frequency, 0f);
 
         var octave1 = ValueNoise3D.Sample(t, seed, 0f);
-        var octave2 = ValueNoise3D.Sample(t * 2.17f + 31.7f, seed * 1.31f + 5.9f, 0f);
+        var octave2 = ValueNoise3D.Sample(
+            t * Octave2FrequencyScale + Octave2TimeOffset,
+            seed * Octave2SeedScale + Octave2SeedOffset,
+            0f
+        );
 
-        return octave1 * 0.6f + octave2 * 0.4f;
+        return octave1 * Octave1Weight + octave2 * Octave2Weight;
     }
 
     /// <summary>
@@ -47,8 +73,8 @@ public static class LightFlickerSignal
         var t = time * MathF.Max(frequency, 0f);
         var point = new Vector3(
             t + seed,
-            t * 1.31f + seed * 2.7f + 11.1f,
-            t * 0.77f + seed * 4.3f + 23.3f
+            t * OffsetYTimeScale + seed * OffsetYSeedScale + OffsetYConstant,
+            t * OffsetZTimeScale + seed * OffsetZSeedScale + OffsetZConstant
         );
 
         return ValueNoise3D.Sample3(point) * radius;
