@@ -165,6 +165,9 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformInt("uHdrOutput", hdrOutput ? 1 : 0);
         _shader.Unbind();
         SetSceneLighting(DirectionalLight.Default, Vector3.Zero);
+        // Matches the constant the fragment shader used to hardcode, so a scene that never calls
+        // SetAmbient is unchanged.
+        SetAmbient(AmbientLight.Default);
         // Start with no point/spot lights so scenes that never call SetPointLights/SetSpotLights
         // (the pre-existing single-directional-light path) render exactly as before.
         SetPointLights([]);
@@ -400,6 +403,25 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformVec4("uLightColor", light.Color.ToVector4());
         _shader.SetUniformFloat("uLightIntensity", intensity);
         _shader.SetUniformVec3("uCameraPos", cameraPos);
+        _shader.Unbind();
+    }
+
+    /// <summary>
+    /// Uploads the scene-wide ambient term used by the PBR path when image-based lighting is off.
+    /// Call once per frame before the draw loop. The colour and intensity are combined here, so the
+    /// shader reads a single pre-multiplied <c>vec3</c>.
+    /// </summary>
+    /// <remarks>
+    /// Has no effect while an <see cref="EnvironmentMap"/> is bound via
+    /// <see cref="SetEnvironmentMap"/> (IBL supplies its own, directional ambient), and none on the
+    /// Blinn-Phong path, whose ambient is per-material — see <see cref="AmbientLight"/>.
+    /// </remarks>
+    public void SetAmbient(AmbientLight ambient)
+    {
+        var color = ambient.Color.ToVector4();
+        var intensity = SanitizeNonNegative(ambient.Intensity);
+        _shader.Bind();
+        _shader.SetUniformVec3("uAmbientLight", new Vector3(color.X, color.Y, color.Z) * intensity);
         _shader.Unbind();
     }
 

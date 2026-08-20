@@ -52,6 +52,11 @@ uniform vec4  uLightColor;
 uniform float uLightIntensity;
 uniform vec3  uCameraPos;
 
+// Scene-wide ambient for the PBR path, pre-multiplied by its intensity on the CPU side (see
+// Renderer3D.SetAmbient). Defaults to vec3(0.03) — the constant this replaced — and is unused
+// while uUseIBL is set, since image-based lighting supplies a directional ambient instead.
+uniform vec3  uAmbientLight;
+
 uniform samplerCube uIrradianceMap;
 uniform samplerCube uPrefilteredMap;
 uniform sampler2D   uBrdfLut;
@@ -311,9 +316,9 @@ void main() {
 
             ambient = (kD * diffuseIBL + specularIBL) * ao;
         } else {
-            // Flat ambient fallback for scenes without a skybox - unchanged from the
-            // pre-IBL behaviour.
-            ambient = vec3(0.03) * albedo * ao;
+            // Flat ambient fallback for scenes without a skybox. uAmbientLight defaults to the
+            // vec3(0.03) this used to hardcode, so an untouched scene is unchanged.
+            ambient = uAmbientLight * albedo * ao;
         }
         vec3 color = ambient + Lo + emissive;
 

@@ -90,6 +90,10 @@ public class MeshRenderSystem(
 
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(light, cameraPos);
+        // Uploaded unconditionally (falling back to AmbientLight.Default) for the same reason
+        // DisableShadows/DisableIBL are called below: a Renderer3D shared between scenes must not
+        // keep lighting this one with the previous scene's ambient.
+        renderer.SetAmbient(GetAmbientLight());
         renderer.SetPointLights(_pointLights!.AsSpan(0, pointLightCount));
         renderer.SetSpotLights(_spotLights!.AsSpan(0, spotLightCount));
 
@@ -386,6 +390,7 @@ public class MeshRenderSystem(
     }
 
     private static readonly DirectionalLight DefaultLight = DirectionalLight.Default;
+    private static readonly AmbientLight DefaultAmbient = AmbientLight.Default;
 
     private DirectionalLight GetDirectionalLight()
     {
@@ -393,5 +398,13 @@ public class MeshRenderSystem(
             return light;
 
         return DefaultLight;
+    }
+
+    private AmbientLight GetAmbientLight()
+    {
+        foreach (var (_, ambient) in world.GetStore<AmbientLight>().All())
+            return ambient;
+
+        return DefaultAmbient;
     }
 }

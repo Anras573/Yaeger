@@ -38,6 +38,7 @@
     <Compile Remove="Sequencing\**\*.cs" />
     <Compile Remove="Systems\AnimationSystem.cs" />
     <Compile Remove="Systems\AnimationStateMachineSystem.cs" />
+    <Compile Remove="Systems\DayNightCycleSystem.cs" />
     <Compile Remove="Systems\IUpdateSystem.cs" />
     <Compile Remove="Systems\ParallaxSystem.cs" />
     <Compile Remove="Systems\ParticleSystem.cs" />

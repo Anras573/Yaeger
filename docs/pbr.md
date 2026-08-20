@@ -17,9 +17,10 @@ The PBR path implements:
 - **Diffuse**: Lambertian, weighted by `(1 - metallic)`.
 - **Specular**: GGX normal-distribution term, Smith geometry term, and a Schlick Fresnel
   approximation (`F0 = 0.04` for dielectrics, lerped toward the albedo for metals).
-- **Ambient**: a small constant term (`0.03 * albedo * ao`) so unlit faces don't go fully black —
-  unless a skybox has been [prefiltered for image-based lighting](#image-based-lighting), in which
-  case ambient comes from the environment instead.
+- **Ambient**: a flat term (`ambient * albedo * ao`) so unlit faces don't go fully black, taken
+  from the scene's `AmbientLight` component and defaulting to `0.03` white — unless a skybox has
+  been [prefiltered for image-based lighting](#image-based-lighting), in which case ambient comes
+  from the environment instead. See [day-night.md](day-night.md#ambient).
 - Emissive contribution added on top.
 
 Base colour and emissive textures are treated as sRGB and linearised before lighting. What happens
