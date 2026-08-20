@@ -67,6 +67,12 @@ public sealed class Renderer3D : IDisposable
     /// </summary>
     public int DrawCallCount { get; private set; }
 
+    /// <summary>
+    /// Maximum number of directional lights the fragment shader can accumulate per frame. Two, so a
+    /// day/night cycle can light dawn and dusk with a sun and a moon at once — see docs/day-night.md.
+    /// </summary>
+    public const int MaxDirectionalLights = 2;
+
     /// <summary>Maximum number of point lights the fragment shader can accumulate per frame.</summary>
     public const int MaxPointLights = 16;
 
@@ -76,6 +82,9 @@ public sealed class Renderer3D : IDisposable
     // Per-light uniform names depend only on the array index, so build them once and reuse them
     // every frame. Interpolating them inside the per-frame upload loops would allocate a fresh
     // string per light field on every call.
+    private static readonly string[] DirDirectionNames;
+    private static readonly string[] DirColorNames;
+    private static readonly string[] DirIntensityNames;
     private static readonly string[] PointPositionNames;
     private static readonly string[] PointColorNames;
     private static readonly string[] PointIntensityNames;
@@ -90,6 +99,9 @@ public sealed class Renderer3D : IDisposable
 
     static Renderer3D()
     {
+        DirDirectionNames = BuildNames("uDirLights", "direction", MaxDirectionalLights);
+        DirColorNames = BuildNames("uDirLights", "color", MaxDirectionalLights);
+        DirIntensityNames = BuildNames("uDirLights", "intensity", MaxDirectionalLights);
         PointPositionNames = BuildNames("uPointLights", "position", MaxPointLights);
         PointColorNames = BuildNames("uPointLights", "color", MaxPointLights);
         PointIntensityNames = BuildNames("uPointLights", "intensity", MaxPointLights);
@@ -228,14 +240,34 @@ public sealed class Renderer3D : IDisposable
     /// Binds the shadow map and uploads the light-space transform for the lighting pass. Call once
     /// per frame, after the shadow pass has populated the depth texture and before the draw loop.
     /// </summary>
+    /// <param name="lightIndex">
+    /// Index, into the span given to <see cref="SetSceneLighting(ReadOnlySpan{DirectionalLight}, Vector3)"/>,
+    /// of the light this map was rendered from. There is one map, so only that light's contribution
+    /// is shadowed — a second light sampling the same depths would darken with the wrong geometry.
+    /// </param>
+    /// <param name="strength">
+    /// How far a shadowed fragment darkens, clamped to <c>[0, 1]</c>: 1 is a full shadow, 0 leaves
+    /// everything lit. Values between let a setting sun fade its shadows out over several frames
+    /// instead of switching them off in one. Defaults to 1 — the behaviour before it existed.
+    /// </param>
     public void SetShadowMap(
         Matrix4x4 lightSpaceMatrix,
         uint depthTexture,
         float bias,
-        bool enablePcf
+        bool enablePcf,
+        int lightIndex = 0,
+        float strength = 1f
     )
     {
         _shader.Bind();
+        _shader.SetUniformInt(
+            "uShadowLightIndex",
+            lightIndex >= 0 && lightIndex < MaxDirectionalLights ? lightIndex : -1
+        );
+        _shader.SetUniformFloat(
+            "uShadowStrength",
+            float.IsFinite(strength) ? Math.Clamp(strength, 0f, 1f) : 0f
+        );
         _shader.SetUniformMatrix4("uLightSpaceMatrix", lightSpaceMatrix);
         _shader.SetUniformFloat("uShadowBias", SanitizeNonNegative(bias));
         _shader.SetUniformInt("uUsePcf", enablePcf ? 1 : 0);
@@ -257,6 +289,8 @@ public sealed class Renderer3D : IDisposable
         _shader.Bind();
         _shader.SetUniformInt("uShadowsEnabled", 0);
         _shader.SetUniformMatrix4("uLightSpaceMatrix", Matrix4x4.Identity);
+        _shader.SetUniformInt("uShadowLightIndex", -1);
+        _shader.SetUniformFloat("uShadowStrength", 1f);
         _shader.Unbind();
 
         // Restore the default (complete) shadow texture on unit 5. After a prior SetShadowMap the
@@ -388,20 +422,40 @@ public sealed class Renderer3D : IDisposable
     }
 
     /// <summary>
-    /// Uploads scene-wide lighting uniforms. Call once per frame before the draw loop.
+    /// Uploads scene-wide lighting uniforms for a single directional light. Call once per frame
+    /// before the draw loop. Equivalent to passing a one-element span to
+    /// <see cref="SetSceneLighting(ReadOnlySpan{DirectionalLight}, Vector3)"/>.
     /// </summary>
-    public void SetSceneLighting(DirectionalLight light, Vector3 cameraPos)
+    public void SetSceneLighting(DirectionalLight light, Vector3 cameraPos) =>
+        SetSceneLighting(new ReadOnlySpan<DirectionalLight>(in light), cameraPos);
+
+    /// <summary>
+    /// Uploads scene-wide lighting uniforms for up to <see cref="MaxDirectionalLights"/> directional
+    /// lights. Call once per frame before the draw loop. Lights past the cap are ignored; an empty
+    /// span leaves the scene lit only by its point/spot lights and ambient.
+    /// </summary>
+    /// <remarks>
+    /// Which light (if any) is shadowed is set separately by <see cref="SetShadowMap"/>'s
+    /// <c>lightIndex</c>, indexing into this same span.
+    /// </remarks>
+    public void SetSceneLighting(ReadOnlySpan<DirectionalLight> lights, Vector3 cameraPos)
     {
-        var lenSq = light.Direction.LengthSquared();
-        var dir =
-            float.IsFinite(lenSq) && lenSq > 0f
-                ? Vector3.Normalize(light.Direction)
-                : Vector3.UnitY;
-        var intensity = float.IsFinite(light.Intensity) ? MathF.Max(light.Intensity, 0f) : 0f;
+        var count = Math.Min(lights.Length, MaxDirectionalLights);
         _shader.Bind();
-        _shader.SetUniformVec3("uLightDir", dir);
-        _shader.SetUniformVec4("uLightColor", light.Color.ToVector4());
-        _shader.SetUniformFloat("uLightIntensity", intensity);
+        _shader.SetUniformInt("uDirLightCount", count);
+        for (var i = 0; i < count; i++)
+        {
+            var light = lights[i];
+            var lenSq = light.Direction.LengthSquared();
+            var direction =
+                float.IsFinite(lenSq) && lenSq > 0f
+                    ? Vector3.Normalize(light.Direction)
+                    : Vector3.UnitY;
+
+            _shader.SetUniformVec3(DirDirectionNames[i], direction);
+            _shader.SetUniformVec4(DirColorNames[i], light.Color.ToVector4());
+            _shader.SetUniformFloat(DirIntensityNames[i], SanitizeNonNegative(light.Intensity));
+        }
         _shader.SetUniformVec3("uCameraPos", cameraPos);
         _shader.Unbind();
     }

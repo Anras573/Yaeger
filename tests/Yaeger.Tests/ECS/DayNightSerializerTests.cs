@@ -99,6 +99,52 @@ public class DayNightSerializerTests
         Assert.Equal(typeof(TimeOfDay), new TimeOfDaySerializer().ComponentType);
     }
 
+    // ── CelestialLight ───────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(CelestialBody.Sun)]
+    [InlineData(CelestialBody.Moon)]
+    public void CelestialLight_ShouldRoundTrip(CelestialBody body)
+    {
+        var reloaded = RoundTrip(new CelestialLight(body), "body");
+
+        Assert.Equal(body, reloaded.Body);
+    }
+
+    [Fact]
+    public void CelestialLight_MissingBody_ShouldDefaultToSun()
+    {
+        var component = Deserialize<CelestialLight>("""{ "type": "CelestialLight" }""");
+
+        Assert.Equal(CelestialBody.Sun, component.Body);
+    }
+
+    [Fact]
+    public void CelestialLight_BodyIsCaseInsensitive()
+    {
+        var component = Deserialize<CelestialLight>(
+            """{ "type": "CelestialLight", "body": "moon" }"""
+        );
+
+        Assert.Equal(CelestialBody.Moon, component.Body);
+    }
+
+    [Fact]
+    public void CelestialLight_UnknownBody_ShouldFallBackToSun()
+    {
+        var component = Deserialize<CelestialLight>(
+            """{ "type": "CelestialLight", "body": "comet" }"""
+        );
+
+        Assert.Equal(CelestialBody.Sun, component.Body);
+    }
+
+    [Fact]
+    public void CelestialLightSerializer_ComponentType_ReturnsCelestialLightType()
+    {
+        Assert.Equal(typeof(CelestialLight), new CelestialLightSerializer().ComponentType);
+    }
+
     // ── Helpers (mirroring Serializer3DTests) ────────────────────────────────
 
     private static T RoundTrip<T>(T component, string tag)

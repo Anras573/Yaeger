@@ -17,9 +17,15 @@ namespace Yaeger.Systems;
 /// shading and the shadow map follow the sun with no per-frame wiring of their own.
 /// </para>
 /// <para>
-/// The cycle's entity should be the scene's only <see cref="DirectionalLight"/>. The renderer takes
-/// the first one it finds, so an unrelated light entity created earlier would win and the cycle
-/// would appear to do nothing.
+/// By default the cycle drives one light — whichever body is above the horizon — on its own entity,
+/// which should then be the scene's only <see cref="DirectionalLight"/>: the renderer accumulates
+/// the first <c>Renderer3D.MaxDirectionalLights</c> it finds, so an unrelated light entity would
+/// take a slot the cycle expected.
+/// </para>
+/// <para>
+/// To light dawn and dusk with the sun and the moon at once, tag two entities with
+/// <see cref="CelestialLight"/> instead. When any such entity exists the cycle writes each body to
+/// its own entity and leaves the clock entity's own light alone — see docs/day-night.md.
 /// </para>
 /// <para>
 /// Tone-map exposure is reported on <see cref="CurrentLighting"/> rather than applied — see
@@ -76,10 +82,31 @@ public class DayNightCycleSystem : IUpdateSystem
             CurrentLighting = lighting;
 
             _world.AddComponent(entity, time);
-            _world.AddComponent(entity, lighting.KeyLight);
             _world.AddComponent(entity, lighting.Ambient);
+
+            // Tagged bodies take precedence: a scene that asked for a sun and a moon gets both, and
+            // the clock entity is left to be whatever the game made it (often the sun itself, tagged).
+            if (!ApplyCelestialLights(lighting))
+                _world.AddComponent(entity, lighting.KeyLight);
+
             return;
         }
+    }
+
+    // Writes each body's light onto every entity tagged with that body. Returns false when the
+    // scene has no CelestialLight entities at all, which is the signal to fall back to the
+    // single-key-light path.
+    private bool ApplyCelestialLights(in DayNightLighting lighting)
+    {
+        var applied = false;
+        foreach ((Entity entity, CelestialLight celestial) in _world.GetStore<CelestialLight>())
+        {
+            var light = celestial.Body == CelestialBody.Moon ? lighting.Moon : lighting.Sun;
+            _world.AddComponent(entity, light);
+            applied = true;
+        }
+
+        return applied;
     }
 
     private static float Advance(in TimeOfDay time, float deltaTime)

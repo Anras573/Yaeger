@@ -37,8 +37,27 @@ public static class DayNightCycle
             daylight
         );
 
+        var sun = BodyLight(
+            sunDirection,
+            settings.SunHorizonColor,
+            settings.SunColor,
+            settings.SunIntensity,
+            settings
+        );
+        var moon = BodyLight(
+            moonDirection,
+            settings.MoonColor,
+            settings.MoonColor,
+            settings.MoonIntensity,
+            settings
+        );
+
         return new DayNightLighting(
-            KeyLight: KeyLight(sunDirection, moonDirection, settings),
+            Sun: sun,
+            Moon: moon,
+            // Whichever body is up. Both are dark at the crossing, so this never swings a lit
+            // directional light across the sky.
+            KeyLight: elevation >= 0f ? sun : moon,
             Ambient: ambient,
             Exposure: exposure,
             SunDirection: sunDirection,
@@ -132,34 +151,35 @@ public static class DayNightCycle
         return wrapped >= 1f ? 0f : wrapped;
     }
 
-    private static DirectionalLight KeyLight(
-        Vector3 sunDirection,
-        Vector3 moonDirection,
+    // A body's light at its current elevation. Intensity (and colour, for the sun) ramps up from
+    // zero at its own horizon over the same band the daylight blend uses, so a body below the
+    // horizon is fully dark and the sun/moon handover happens between two unlit lights.
+    private static DirectionalLight BodyLight(
+        Vector3 direction,
+        Color horizonColor,
+        Color highColor,
+        float peakIntensity,
         DayNightCycleSettings settings
     )
     {
-        // Both bodies ramp their intensity up from zero at their own horizon over the same band the
-        // daylight blend uses, so whichever is chosen contributes nothing at the moment of the
-        // handover.
-        var rise = MathF.Abs(Finite(settings.DaylightElevation));
-
-        if (sunDirection.Y >= 0f)
+        if (direction.Y <= 0f)
         {
-            var climb = rise > 0f ? SmoothStep(0f, rise, sunDirection.Y) : 1f;
             return new DirectionalLight
             {
-                Direction = sunDirection,
-                Color = LerpColor(settings.SunHorizonColor, settings.SunColor, climb),
-                Intensity = Sanitize(settings.SunIntensity) * climb,
+                Direction = direction,
+                Color = horizonColor,
+                Intensity = 0f,
             };
         }
 
-        var moonClimb = rise > 0f ? SmoothStep(0f, rise, moonDirection.Y) : 1f;
+        var rise = MathF.Abs(Finite(settings.DaylightElevation));
+        var climb = rise > 0f ? SmoothStep(0f, rise, direction.Y) : 1f;
+
         return new DirectionalLight
         {
-            Direction = moonDirection,
-            Color = settings.MoonColor,
-            Intensity = Sanitize(settings.MoonIntensity) * moonClimb,
+            Direction = direction,
+            Color = LerpColor(horizonColor, highColor, climb),
+            Intensity = Sanitize(peakIntensity) * climb,
         };
     }
 

@@ -7,12 +7,20 @@ namespace Yaeger.Graphics;
 /// <c>DayNightCycle.Evaluate</c>, and what <c>DayNightCycleSystem</c> writes onto the cycle's
 /// entity each update.
 /// </summary>
+/// <param name="Sun">
+/// The sun's directional light. Its intensity ramps up from zero at the horizon, so it is dark
+/// whenever the sun is down and can be left in the scene year-round rather than switched on and off.
+/// </param>
+/// <param name="Moon">
+/// The moon's directional light, opposite the sun and ramped the same way. Pair it with
+/// <paramref name="Sun"/> — via two <see cref="CelestialLight"/> entities — to light dawn and dusk
+/// with both at once.
+/// </param>
 /// <param name="KeyLight">
-/// The single directional light for this moment: the sun while it is above the horizon, the moon
-/// once it is below. Both fade to zero intensity at the crossing, so the direction flip happens
-/// while the light contributes nothing — a scene never sees it swing across the sky. (One key light
-/// rather than two is a limitation of <c>Renderer3D</c>'s single directional slot, not of the
-/// cycle.)
+/// Whichever of <paramref name="Sun"/> and <paramref name="Moon"/> is above the horizon, for a scene
+/// with a single directional light to use. Both fade to zero intensity at the crossing, so the
+/// direction flip happens while the light contributes nothing — a scene never sees it swing across
+/// the sky.
 /// </param>
 /// <param name="Ambient">Scene ambient for this moment — day, twilight, or night.</param>
 /// <param name="Exposure">
@@ -34,6 +42,8 @@ namespace Yaeger.Graphics;
 /// with the light — star visibility, lamps switching on.
 /// </param>
 public readonly record struct DayNightLighting(
+    DirectionalLight Sun,
+    DirectionalLight Moon,
     DirectionalLight KeyLight,
     AmbientLight Ambient,
     float Exposure,

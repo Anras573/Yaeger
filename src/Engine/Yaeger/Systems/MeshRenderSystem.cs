@@ -41,6 +41,7 @@ public class MeshRenderSystem(
     // Reused across frames so collecting lights doesn't allocate per render call. Sized to the
     // renderer's hard caps (entities beyond the cap are simply ignored) and allocated lazily on
     // first use.
+    private DirectionalLight[]? _directionalLights;
     private (Vector3 Position, PointLight Light)[]? _pointLights;
     private (Vector3 Position, SpotLight Light)[]? _spotLights;
 
@@ -73,7 +74,12 @@ public class MeshRenderSystem(
     {
         var (view, projection, cameraPos, sceneCenter, hasCamera) = GetCameraMatrices();
         var viewProj = view * projection;
-        var light = GetDirectionalLight();
+        var directionalCount = CollectDirectionalLights();
+        var directionalLights = _directionalLights!.AsSpan(0, directionalCount);
+        // One shadow map, so one caster: the brightest light, since that's the one whose shadows
+        // read. At dusk the sun and moon are both dim and the choice barely matters visually; what
+        // matters is that it doesn't flicker between them, which picking by intensity avoids.
+        var shadowLightIndex = BrightestLightIndex(directionalLights);
         var hasSkybox = TryGetFirstSkybox(out var skybox);
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
@@ -83,13 +89,24 @@ public class MeshRenderSystem(
         var pointLightCount = CollectPointLights();
         var spotLightCount = CollectSpotLights();
 
-        // Shadow pre-pass: render scene depth from the directional light's point of view. Runs
-        // before BeginFrame3D so it owns the framebuffer/viewport state for its duration.
-        if (shadowMapRenderer != null)
-            RenderShadowPass(light, sceneCenter, paletteStore);
+        // Shadow pre-pass: render scene depth from the casting light's point of view. Runs before
+        // BeginFrame3D so it owns the framebuffer/viewport state for its duration. A light at or
+        // below the horizon has zero shadow strength, so the whole pass is skipped for it.
+        var shadowLight =
+            shadowLightIndex >= 0 ? directionalLights[shadowLightIndex] : DefaultLight;
+        // Computed before the pass rather than read back from it, because it decides whether the
+        // pass runs at all; the value uploaded below comes from the pass itself.
+        var castsShadows =
+            shadowMapRenderer != null
+            && shadowLightIndex >= 0
+            && ShadowMapRenderer.ComputeShadowStrength(shadowLight, shadowMapRenderer.Settings)
+                > 0f;
+
+        if (castsShadows)
+            RenderShadowPass(shadowLight, sceneCenter, paletteStore);
 
         renderer.BeginFrame3D();
-        renderer.SetSceneLighting(light, cameraPos);
+        renderer.SetSceneLighting(directionalLights, cameraPos);
         // Uploaded unconditionally (falling back to AmbientLight.Default) for the same reason
         // DisableShadows/DisableIBL are called below: a Renderer3D shared between scenes must not
         // keep lighting this one with the previous scene's ambient.
@@ -97,14 +114,16 @@ public class MeshRenderSystem(
         renderer.SetPointLights(_pointLights!.AsSpan(0, pointLightCount));
         renderer.SetSpotLights(_spotLights!.AsSpan(0, spotLightCount));
 
-        if (shadowMapRenderer != null)
+        if (castsShadows)
         {
-            var settings = shadowMapRenderer.Settings;
+            var settings = shadowMapRenderer!.Settings;
             renderer.SetShadowMap(
                 shadowMapRenderer.LightSpaceMatrix,
                 shadowMapRenderer.DepthTexture,
                 settings.Bias,
-                settings.EnablePcf
+                settings.EnablePcf,
+                shadowLightIndex,
+                shadowMapRenderer.ShadowStrength
             );
         }
         else
@@ -253,7 +272,7 @@ public class MeshRenderSystem(
     }
 
     // Returns the first Skybox entity found (enumeration order is the store's, same as every
-    // other "first X in the world" lookup here — see GetDirectionalLight/GetCameraMatrices).
+    // other "first X in the world" lookup here — see GetAmbientLight/GetCameraMatrices).
     private bool TryGetFirstSkybox(out Skybox skybox)
     {
         foreach (var (_, sky) in world.GetStore<Skybox>().All())
@@ -277,7 +296,14 @@ public class MeshRenderSystem(
         // Caller guards on shadowMapRenderer != null; hoist to a non-null local so the whole method
         // reads off a single, analysis-friendly reference.
         var shadowMap = shadowMapRenderer!;
-        shadowMap.BeginPass(light, sceneCenter);
+
+        // Auto-fit reframes the light on the casters themselves rather than on the camera's target,
+        // which is what makes one set of settings hold across a full sun arc. Without it, nothing
+        // here changes: the configured extent is used and sceneCenter stays the camera's target.
+        if (shadowMap.Settings.AutoFit && TryComputeCasterBounds(out var bounds))
+            shadowMap.BeginPass(light, bounds.Center, bounds.Radius);
+        else
+            shadowMap.BeginPass(light, sceneCenter);
 
         // Depth-only: material doesn't affect the shadow map, so every caster is added under the
         // same placeholder Material3D key — entities sharing a mesh collapse into one instanced
@@ -392,12 +418,72 @@ public class MeshRenderSystem(
     private static readonly DirectionalLight DefaultLight = DirectionalLight.Default;
     private static readonly AmbientLight DefaultAmbient = AmbientLight.Default;
 
-    private DirectionalLight GetDirectionalLight()
+    // Bounding sphere of every entity carrying an Aabb3D + Transform3D, in world space. Skinned
+    // meshes deliberately carry no Aabb3D (a bind-pose box doesn't bound an animated mesh — see
+    // issue #197), so they don't contribute: a scene of nothing but skinned casters reports no
+    // bounds and the configured extent is used instead.
+    private bool TryComputeCasterBounds(out (Vector3 Center, float Radius) bounds)
     {
-        foreach (var (_, light) in world.GetStore<DirectionalLight>().All())
-            return light;
+        var transforms = world.GetStore<Transform3D>();
+        var found = false;
+        var total = default(Aabb3D);
 
-        return DefaultLight;
+        foreach (var (entity, aabb) in world.GetStore<Aabb3D>())
+        {
+            if (!transforms.TryGet(entity, out var transform))
+                continue;
+
+            var worldAabb = aabb.Transform(transform.ModelMatrix);
+            total = found ? total.Union(worldAabb) : worldAabb;
+            found = true;
+        }
+
+        if (!found)
+        {
+            bounds = default;
+            return false;
+        }
+
+        bounds = total.BoundingSphere();
+        return bounds.Radius > 0f;
+    }
+
+    // Fills _directionalLights with up to Renderer3D.MaxDirectionalLights entities carrying a
+    // DirectionalLight and returns the count written. A world with none falls back to a single
+    // default light, preserving the behaviour of every scene that never creates one.
+    private int CollectDirectionalLights()
+    {
+        _directionalLights ??= new DirectionalLight[Renderer3D.MaxDirectionalLights];
+        var count = 0;
+        foreach (var (_, light) in world.GetStore<DirectionalLight>())
+        {
+            if (count >= _directionalLights.Length)
+                break;
+            _directionalLights[count++] = light;
+        }
+
+        if (count == 0)
+            _directionalLights[count++] = DefaultLight;
+
+        return count;
+    }
+
+    // Index of the brightest light in the span, or -1 when the span is empty or every light is dark.
+    private static int BrightestLightIndex(ReadOnlySpan<DirectionalLight> lights)
+    {
+        var best = -1;
+        var brightest = 0f;
+        for (var i = 0; i < lights.Length; i++)
+        {
+            var intensity = lights[i].Intensity;
+            if (float.IsFinite(intensity) && intensity > brightest)
+            {
+                brightest = intensity;
+                best = i;
+            }
+        }
+
+        return best;
     }
 
     private AmbientLight GetAmbientLight()

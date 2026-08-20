@@ -279,6 +279,74 @@ public class DayNightCycleTests
         }
     }
 
+    // ── Sun and moon as separate lights ──────────────────────────────────────
+
+    [Fact]
+    public void Evaluate_AtNoon_SunIsLitAndMoonIsDark()
+    {
+        var settings = DayNightCycleSettings.Default;
+
+        var lighting = DayNightCycle.Evaluate(At(TimeOfDay.Noon), settings);
+
+        Assert.Equal(settings.SunIntensity, lighting.Sun.Intensity, precision: 4);
+        Assert.Equal(0f, lighting.Moon.Intensity);
+        Assert.Equal(lighting.Sun, lighting.KeyLight);
+    }
+
+    [Fact]
+    public void Evaluate_AtMidnight_MoonIsLitAndSunIsDark()
+    {
+        var settings = DayNightCycleSettings.Default;
+
+        var lighting = DayNightCycle.Evaluate(At(TimeOfDay.Midnight), settings);
+
+        Assert.Equal(settings.MoonIntensity, lighting.Moon.Intensity, precision: 4);
+        Assert.Equal(0f, lighting.Sun.Intensity);
+        Assert.Equal(lighting.Moon, lighting.KeyLight);
+    }
+
+    [Fact]
+    public void Evaluate_BodiesAlwaysPointAtTheirOwnDirection()
+    {
+        var lighting = DayNightCycle.Evaluate(
+            At(0.4f, axisTilt: 0.3f),
+            DayNightCycleSettings.Default
+        );
+
+        Assert.Equal(lighting.SunDirection, lighting.Sun.Direction);
+        Assert.Equal(lighting.MoonDirection, lighting.Moon.Direction);
+    }
+
+    [Fact]
+    public void Evaluate_AtTheHorizon_BothBodiesAreDark()
+    {
+        // The property that makes lighting with both safe: neither contributes at the crossing, so
+        // whichever a single-light scene picks, nothing jumps.
+        var settings = DayNightCycleSettings.Default;
+
+        var dusk = DayNightCycle.Evaluate(At(TimeOfDay.Sunset), settings);
+
+        Assert.Equal(0f, dusk.Sun.Intensity, precision: 4);
+        Assert.Equal(0f, dusk.Moon.Intensity, precision: 4);
+    }
+
+    [Fact]
+    public void Evaluate_SweepingAFullCycle_ExactlyOneBodyIsLitAwayFromTheHorizon()
+    {
+        var settings = DayNightCycleSettings.Default;
+
+        for (var step = 0; step < 360; step++)
+        {
+            var lighting = DayNightCycle.Evaluate(At(step / 360f), settings);
+
+            // A body below the horizon is always fully dark, never merely dim.
+            if (lighting.SunDirection.Y < 0f)
+                Assert.Equal(0f, lighting.Sun.Intensity);
+            if (lighting.MoonDirection.Y < 0f)
+                Assert.Equal(0f, lighting.Moon.Intensity);
+        }
+    }
+
     // ── Ambient and exposure ─────────────────────────────────────────────────
 
     [Fact]

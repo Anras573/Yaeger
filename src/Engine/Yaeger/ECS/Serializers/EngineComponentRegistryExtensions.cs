@@ -38,6 +38,7 @@ public static class EngineComponentRegistryExtensions
     ///   <item><see cref="Yaeger.Graphics.SpotLight"/> – type id <c>"SpotLight"</c></item>
     ///   <item><see cref="Yaeger.Graphics.AmbientLight"/> – type id <c>"AmbientLight"</c></item>
     ///   <item><see cref="Yaeger.Graphics.TimeOfDay"/> – type id <c>"TimeOfDay"</c></item>
+    ///   <item><see cref="Yaeger.Graphics.CelestialLight"/> – type id <c>"CelestialLight"</c></item>
     ///   <item><see cref="Yaeger.Graphics.LocalTransform3D"/> – type id <c>"LocalTransform3D"</c></item>
     /// </list>
     /// <para>Hierarchy:</para>
@@ -95,6 +96,7 @@ public static class EngineComponentRegistryExtensions
         registry.Register(new SpotLightSerializer());
         registry.Register(new AmbientLightSerializer());
         registry.Register(new TimeOfDaySerializer());
+        registry.Register(new CelestialLightSerializer());
         registry.Register(new LocalTransform3DSerializer());
 
         // Hierarchy
