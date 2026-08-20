@@ -59,6 +59,24 @@ The fragment shader uploads fixed-size uniform arrays, so there is a hard cap pe
 `MeshRenderSystem` collects up to these counts (extra light entities are ignored). If you call
 `Renderer3D.SetPointLights` / `SetSpotLights` directly, lights past the cap are silently dropped.
 
+## Scene ambient
+
+Alongside the three light types there is a flat, scene-wide ambient term — the stand-in for light
+arriving from everywhere rather than from a source. Attach an `AmbientLight` to any entity and
+`MeshRenderSystem` uploads the first one it finds each frame:
+
+```csharp
+public record struct AmbientLight
+{
+    public Color Color;
+    public float Intensity;
+}
+```
+
+It applies to the PBR path only, and only while image-based lighting is off; `AmbientLight.Default`
+(white at `0.03`) reproduces the constant the shader used before the component existed. See
+[day-night.md#ambient](day-night.md#ambient) for the details and for the cycle that drives it.
+
 ## Falloff details
 
 - **Distance attenuation** uses a smooth, range-windowed inverse-square curve: the contribution
@@ -74,6 +92,10 @@ values are coerced to safe defaults, mirroring `SetSceneLighting`.
 
 `Samples/CornellBox` adds red, green, and blue `PointLight` entities inside the box to show
 multiple coloured sources mixing across the walls and boxes.
+
+A directional light doesn't have to be static: `TimeOfDay` + `DayNightCycleSystem` drive its
+direction, colour, and intensity — plus the scene ambient — from a single clock. See
+[day-night.md](day-night.md).
 
 `Samples/DamagedHelmet` combines a directional sun with warm-fill and cool-rim `PointLight`
 entities around a glTF model, and is the reference for the `Skybox` component: it registers a

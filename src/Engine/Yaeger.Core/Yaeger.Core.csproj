@@ -34,6 +34,10 @@
       Include="..\Yaeger\Systems\AnimationStateMachineSystem.cs"
       Link="Systems\AnimationStateMachineSystem.cs"
     />
+    <Compile
+      Include="..\Yaeger\Systems\DayNightCycleSystem.cs"
+      Link="Systems\DayNightCycleSystem.cs"
+    />
     <Compile Include="..\Yaeger\Systems\IUpdateSystem.cs" Link="Systems\IUpdateSystem.cs" />
     <Compile Include="..\Yaeger\Systems\ParallaxSystem.cs" Link="Systems\ParallaxSystem.cs" />
     <Compile Include="..\Yaeger\Systems\ParticleSystem.cs" Link="Systems\ParticleSystem.cs" />
