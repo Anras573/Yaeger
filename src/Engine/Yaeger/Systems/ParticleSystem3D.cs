@@ -135,13 +135,17 @@ public class ParticleSystem3D : IUpdateSystem
                 ? (float)_random.NextDouble() * MathF.Tau
                 : 0f;
 
+            var totalFrames = Math.Max(emitter.FrameColumns, 1) * Math.Max(emitter.FrameRows, 1);
+            var startFrame = emitter.RandomStartFrame ? _random.Next(totalFrames) : 0;
+
             if (
                 !pool.TrySpawn(
                     position,
                     RandomVelocity(in emitter),
                     lifetime,
                     sizeMultiplier,
-                    initialRotation
+                    initialRotation,
+                    startFrame
                 )
             )
             {

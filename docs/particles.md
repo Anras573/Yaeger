@@ -135,6 +135,10 @@ fields:
 | `Acceleration` | `Vector3` | `(0, 0, 0)` | Constant per-second-squared force applied every step — gravity, buoyancy, or wind bias — see below. |
 | `Drag` | `float` | `0` | Exponential velocity damping per second — see below. |
 | `Turbulence` / `TurbulenceFrequency` | `float` | `0` / `1` | Amplitude and frequency of a coherent noise perturbation applied to velocity — see below. |
+| `FrameColumns` / `FrameRows` | `int` | `1` / `1` | Flipbook grid the emitter's texture is divided into — see below. |
+| `FrameRate` | `float` | `0` | Flipbook playback speed, in frames per second — see below. |
+| `RandomStartFrame` | `bool` | `false` | Spawn each particle on a random frame instead of frame 0 — see below. |
+| `SoftFade` | `float` | `0` | World units over which a particle fades out as it nears scene geometry behind it — see below. |
 
 ### Emission shapes
 
@@ -192,6 +196,62 @@ fixed step.
 All three default to zero, so an emitter that never touches them keeps its exact constant-velocity
 motion.
 
+### Flipbook frames
+
+Fire and smoke sprites are conventionally authored as flipbooks — a grid of frames sampled one at a
+time rather than a single static image. Set `FrameColumns`/`FrameRows` to describe the grid and
+`FrameRate` (frames per second) to play through it; a particle's current frame is
+
+```
+(startFrame + floor(age * FrameRate)) mod (FrameColumns * FrameRows)
+```
+
+— it **loops** for the rest of the particle's life rather than holding the last frame.
+`RandomStartFrame` spawns each particle on a random frame instead of frame 0, so particles sharing
+one emitter play out of phase with each other rather than in lockstep. The default 1×1 grid with
+`FrameRate = 0` always resolves to frame 0 covering the whole texture — exactly the "sample the
+whole texture" behaviour every emitter had before flipbook frames existed, so nothing changes
+unless you opt in.
+
+The math is split the same way `SpriteSheet.GetFrameUv` is: `BillboardMath.ComputeFrameIndex` (age
+→ frame index, looping) and `BillboardMath.GetFrameUv` (frame index → normalised UV rect, frames
+indexed left-to-right top-to-bottom, matching `SpriteSheet.GetFrameUv`'s own convention) are both
+public statics, unit-tested directly. Each particle's resolved UV rect is packed into
+`ParticleInstanceData` and consumed in `ParticleBillboard.vert`, which maps the quad's local `[0,1]`
+texcoord into that rect — so a non-animated particle (UV rect `(0,0)-(1,1)`) samples its texture
+exactly as before this feature existed.
+
+### Soft particles (depth fade)
+
+A particle billboard depth-tests but doesn't depth-write, so nothing fades it as it nears the
+surface behind it — a flame in a brazier cuts a hard straight line where its quads intersect the
+bowl's rim, the classic tell that it's a billboard. `SoftFade` fixes this the standard way: the
+fragment shader samples the opaque scene's depth at the particle's screen position, linearizes both
+depths, and fades alpha to 0 over `SoftFade` world units as the gap between them closes to zero.
+`SoftFade = 0` (the default) is a hard cutoff — today's behaviour.
+
+This needs a depth texture holding the current frame's opaque scene depth, which the particle pass
+doesn't have on its own. Wire it up with:
+
+```csharp
+using var renderer3D = new Renderer3D(window.Gl);
+// Any RenderTarget built with a depth attachment works — most naturally the scene target a
+// PostProcessStack already renders the opaque pass into, or one you manage yourself.
+using var sceneTarget = new RenderTarget(window.Gl, width, height, hasDepth: true);
+
+var particleRenderSystem3D = new ParticleRenderSystem3D(
+    renderer3D, textures, world, window, particleSystem3D,
+    sceneDepthSource: sceneTarget);
+```
+
+`ParticleRenderSystem3D` calls `Renderer3D.SetSceneDepth`/`DisableSceneDepth` for you each frame
+based on whether `sceneDepthSource` was supplied — leaving it `null` (the default) disables soft
+particles entirely, regardless of any individual emitter's `SoftFade`. The CPU-testable half of the
+math — `BillboardMath.LinearizeDepth` (device depth → linear view-space depth) and
+`BillboardMath.FadeFactor` (the two linear depths → an alpha multiplier) — mirrors the shader's own
+GLSL exactly, so the formula itself is unit-tested even though the GL wiring around it isn't (see
+Test conventions in `CLAUDE.md`).
+
 ### How billboards face the camera
 
 `ParticleRenderSystem3D` extracts the rendering camera's world-space right/up axes from its view
@@ -223,11 +283,14 @@ are alive in it, visible via `Renderer3D.DrawCallCount`.
 ### Known limitations (3D)
 
 - No prefab/scene serializer yet for `ParticleEmitter3D`, so emitters are configured in code.
-- No continuous angular velocity (spin) or texture animation — same as the 2D system.
-  `RandomInitialRotation` sets a rotation once at spawn; it doesn't animate afterward.
+- No continuous angular velocity (spin) — `RandomInitialRotation` sets a rotation once at spawn; it
+  doesn't animate afterward. Flipbook frame animation (`FrameRate`) is separate and does animate.
 - Emission shape is point or disc only — no sphere/box/cone-surface volumes.
 - `Acceleration`/`Drag`/`Turbulence` are per-particle forces only; there's no wind field, particle
   collision, or interaction between particles (e.g. one emitter's smoke isn't pushed by another's).
+- Soft particles need a depth texture supplied by the caller (`ParticleRenderSystem3D`'s
+  `sceneDepthSource`); there's no built-in path from the plain backbuffer (no `PostProcessStack` or
+  other depth-attached `RenderTarget`) to a sample-able depth texture.
 - Particles within one emitter aren't depth-sorted against each other (only whole emitters are
   sorted against each other), and additive emitters aren't sorted against transparent ones at all
   — acceptable for the order-independent glow/spark effects this is aimed at, but a dense cloud of

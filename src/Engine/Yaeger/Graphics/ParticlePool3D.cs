@@ -52,12 +52,17 @@ public sealed class ParticlePool3D
     /// Per-particle spawn rotation, in radians — see <see cref="Particle3D.InitialRotation"/>.
     /// Defaults to 0, so existing callers are unaffected.
     /// </param>
+    /// <param name="startFrame">
+    /// Per-particle flipbook start frame — see <see cref="Particle3D.StartFrame"/>. Defaults to 0,
+    /// so existing callers are unaffected.
+    /// </param>
     public bool TrySpawn(
         Vector3 position,
         Vector3 velocity,
         float lifetime,
         float sizeMultiplier = 1f,
-        float initialRotation = 0f
+        float initialRotation = 0f,
+        int startFrame = 0
     )
     {
         if (AliveCount >= _particles.Length)
@@ -71,6 +76,7 @@ public sealed class ParticlePool3D
             Lifetime = lifetime,
             SizeMultiplier = sizeMultiplier,
             InitialRotation = initialRotation,
+            StartFrame = startFrame,
         };
         AliveCount++;
         return true;

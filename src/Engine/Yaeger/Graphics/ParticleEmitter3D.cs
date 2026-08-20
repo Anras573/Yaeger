@@ -148,4 +148,40 @@ public struct ParticleEmitter3D(string texturePath)
     /// <see cref="Turbulence"/> is 0.
     /// </summary>
     public float TurbulenceFrequency = 1f;
+
+    /// <summary>
+    /// Number of columns <see cref="TexturePath"/> is divided into for flipbook animation — see
+    /// <see cref="FrameRate"/>. 1 (the default, together with <see cref="FrameRows"/> at 1) keeps
+    /// every particle sampling the whole texture, matching every existing emitter's behaviour.
+    /// </summary>
+    public int FrameColumns = 1;
+
+    /// <summary>Number of rows <see cref="TexturePath"/> is divided into. See <see cref="FrameColumns"/>.</summary>
+    public int FrameRows = 1;
+
+    /// <summary>
+    /// Flipbook playback speed, in frames per second. A particle's current frame is
+    /// <c>(startFrame + floor(age * FrameRate)) mod (FrameColumns * FrameRows)</c> — it loops for
+    /// the rest of the particle's life rather than holding the last frame. 0 (the default) never
+    /// advances, so a particle always shows frame 0 (or its random start frame — see
+    /// <see cref="RandomStartFrame"/>): with the default 1×1 grid that's the same "sample the whole
+    /// texture" behaviour every emitter had before flipbook frames existed.
+    /// </summary>
+    public float FrameRate;
+
+    /// <summary>
+    /// When true, each particle spawns on a random frame instead of frame 0, so particles sharing
+    /// one emitter play out of phase with each other rather than in lockstep. Default false:
+    /// existing emitters render identically. No effect when the grid is 1×1.
+    /// </summary>
+    public bool RandomStartFrame;
+
+    /// <summary>
+    /// Distance, in world units, over which a particle's alpha fades out as it approaches scene
+    /// geometry behind it, instead of being cut off by depth testing at a hard edge — the
+    /// standard "soft particle" technique. 0 (the default) is a hard cutoff, matching every
+    /// existing emitter's behaviour; also has no effect unless the renderer has a scene depth
+    /// texture bound (see <c>Renderer3D.SetSceneDepth</c>).
+    /// </summary>
+    public float SoftFade;
 }

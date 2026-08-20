@@ -56,6 +56,26 @@ public class ParticlePool3DTests
     }
 
     [Fact]
+    public void TrySpawn_WithoutStartFrame_ShouldDefaultToZero()
+    {
+        var pool = new ParticlePool3D(1);
+
+        pool.TrySpawn(Vector3.Zero, Vector3.Zero, 1f);
+
+        Assert.Equal(0, pool[0].StartFrame);
+    }
+
+    [Fact]
+    public void TrySpawn_WithStartFrame_ShouldStoreIt()
+    {
+        var pool = new ParticlePool3D(1);
+
+        pool.TrySpawn(Vector3.Zero, Vector3.Zero, 1f, startFrame: 3);
+
+        Assert.Equal(3, pool[0].StartFrame);
+    }
+
+    [Fact]
     public void TrySpawn_WhenFull_ShouldReturnFalse()
     {
         var pool = new ParticlePool3D(2);

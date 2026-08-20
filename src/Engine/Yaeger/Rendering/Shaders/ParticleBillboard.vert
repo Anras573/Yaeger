@@ -8,6 +8,8 @@ layout(location = 2) in vec3 aInstancePosition;
 layout(location = 3) in vec2 aInstanceSize;
 layout(location = 4) in float aInstanceRotation;
 layout(location = 5) in vec4 aInstanceColor;
+// (uMin, vMin, uMax, vMax) of this particle's current flipbook frame — BillboardMath.GetFrameUv.
+layout(location = 6) in vec4 aInstanceUvRect;
 
 uniform mat4 uViewProj;
 // World-space camera right/up axes (BillboardMath.ExtractCameraAxes) — every particle's quad is
@@ -33,7 +35,8 @@ void main() {
         + uCameraRight * rotatedCorner.x
         + uCameraUp * rotatedCorner.y;
 
-    vTexCoord = aTexCoord;
+    // Map the quad-local [0,1] texcoord into this particle's flipbook frame sub-rect.
+    vTexCoord = mix(aInstanceUvRect.xy, aInstanceUvRect.zw, aTexCoord);
     vColor = aInstanceColor;
     gl_Position = uViewProj * vec4(worldPos, 1.0);
 }
