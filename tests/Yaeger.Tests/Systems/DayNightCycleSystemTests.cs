@@ -297,6 +297,75 @@ public class DayNightCycleSystemTests
         Assert.Equal(system.CurrentLighting.KeyLight, light);
     }
 
+    // ── ProceduralSky wiring ──────────────────────────────────────────────────
+
+    [Fact]
+    public void Update_WithProceduralSky_WritesSunAndMoonDirectionAndDaylightFactor()
+    {
+        var (world, _) = WorldWithCycle(normalizedTime: TimeOfDay.Noon);
+        var sky = world.CreateEntity("sky");
+        world.AddComponent(sky, ProceduralSky.Default);
+        var system = new DayNightCycleSystem(world);
+
+        system.Update(0f);
+
+        Assert.True(world.TryGetComponent<ProceduralSky>(sky, out var updated));
+        Assert.Equal(system.CurrentLighting.SunDirection, updated.SunDirection);
+        Assert.Equal(system.CurrentLighting.MoonDirection, updated.MoonDirection);
+        Assert.Equal(system.CurrentLighting.DaylightFactor, updated.DaylightFactor, precision: 5);
+    }
+
+    [Fact]
+    public void Update_WithProceduralSky_LeavesArtDirectionFieldsUntouched()
+    {
+        var (world, _) = WorldWithCycle(normalizedTime: TimeOfDay.Noon);
+        var sky = world.CreateEntity("sky");
+        var original = ProceduralSky.Default with
+        {
+            CloudCoverage = 0.8f,
+            StarDensity = 0.5f,
+            MoonPhase = 0.1f,
+            Elapsed = 12f,
+        };
+        world.AddComponent(sky, original);
+        var system = new DayNightCycleSystem(world);
+
+        system.Update(0f);
+
+        Assert.True(world.TryGetComponent<ProceduralSky>(sky, out var updated));
+        Assert.Equal(original.CloudWind, updated.CloudWind);
+        Assert.Equal(original.CloudScale, updated.CloudScale);
+        Assert.Equal(original.CloudCoverage, updated.CloudCoverage);
+        Assert.Equal(original.StarDensity, updated.StarDensity);
+        Assert.Equal(original.MoonPhase, updated.MoonPhase);
+        Assert.Equal(original.Elapsed, updated.Elapsed);
+    }
+
+    [Fact]
+    public void Update_WithProceduralSky_DoesNotAffectTheSingleKeyLightFallback()
+    {
+        var (world, clock) = WorldWithCycle(normalizedTime: TimeOfDay.Noon);
+        var sky = world.CreateEntity("sky");
+        world.AddComponent(sky, ProceduralSky.Default);
+        var system = new DayNightCycleSystem(world);
+
+        system.Update(0f);
+
+        Assert.True(world.TryGetComponent<DirectionalLight>(clock, out var light));
+        Assert.Equal(system.CurrentLighting.KeyLight, light);
+    }
+
+    [Fact]
+    public void Update_WithoutAProceduralSky_DoesNotThrow()
+    {
+        var (world, _) = WorldWithCycle(normalizedTime: TimeOfDay.Noon);
+        var system = new DayNightCycleSystem(world);
+
+        var exception = Record.Exception(() => system.Update(0f));
+
+        Assert.Null(exception);
+    }
+
     [Fact]
     public void Update_RunningAFullCycle_KeepsTheLightPointingSomewhereValid()
     {

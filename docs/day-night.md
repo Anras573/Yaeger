@@ -224,3 +224,4 @@ per-entity scene data, so it's supplied in code.
 - [lighting.md](lighting.md) — the light components the cycle drives
 - [shadows.md](shadows.md) — the shadow rig the moving sun feeds
 - [pbr.md](pbr.md) — where the ambient term lands in the shading model
+- [sky.md](sky.md) — `ProceduralSky`, driven the same "auto-picked-up" way as `CelestialLight`

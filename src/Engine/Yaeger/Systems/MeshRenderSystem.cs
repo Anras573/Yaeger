@@ -12,10 +12,13 @@ namespace Yaeger.Systems;
 /// <see cref="Material3D"/> components and issues draw calls via <see cref="Renderer3D"/>.
 /// Wire this to <see cref="Window.OnRender"/>, not <see cref="Window.OnUpdate"/>.
 /// Pass a <see cref="SkyboxRenderer"/> and <see cref="CubemapRegistry"/> to render any
-/// <see cref="Skybox"/> entity automatically. Pass a <see cref="ShadowMapRenderer"/> to render
+/// <see cref="Skybox"/> entity automatically, or a <see cref="ProceduralSkyRenderer"/> to render any
+/// <see cref="ProceduralSky"/> entity the same way — the two sky kinds are independent and dispatched
+/// by which component the scene carries. Pass a <see cref="ShadowMapRenderer"/> to render
 /// directional-light shadows via an extra depth pre-pass. Pass an <see cref="EnvironmentMapRegistry"/>
-/// to light PBR materials from that same skybox (image-based lighting); scenes without a skybox,
-/// or without a registered <see cref="EnvironmentMap"/> for it, keep the flat ambient term.
+/// to light PBR materials from the cubemap skybox (image-based lighting); scenes without one, or
+/// without a registered <see cref="EnvironmentMap"/> for it, keep the flat ambient term — a
+/// <see cref="ProceduralSky"/> does not currently contribute IBL.
 /// </summary>
 public class MeshRenderSystem(
     Renderer3D renderer,
@@ -26,7 +29,8 @@ public class MeshRenderSystem(
     SkyboxRenderer? skyboxRenderer = null,
     CubemapRegistry? cubemapRegistry = null,
     ShadowMapRenderer? shadowMapRenderer = null,
-    EnvironmentMapRegistry? environmentMaps = null
+    EnvironmentMapRegistry? environmentMaps = null,
+    ProceduralSkyRenderer? proceduralSkyRenderer = null
 )
 {
     /// <summary>
@@ -81,6 +85,7 @@ public class MeshRenderSystem(
         // matters is that it doesn't flicker between them, which picking by intensity avoids.
         var shadowLightIndex = BrightestLightIndex(directionalLights);
         var hasSkybox = TryGetFirstSkybox(out var skybox);
+        var hasProceduralSky = TryGetFirstProceduralSky(out var proceduralSky);
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
         var paletteStore = world.GetStore<BonePalette>();
@@ -247,6 +252,10 @@ public class MeshRenderSystem(
             if (cubemapRegistry.TryGet(skybox, out var cubemap))
                 skyboxRenderer.Draw(cubemap, view, projection);
         }
+        else if (proceduralSkyRenderer != null && hasCamera && hasProceduralSky)
+        {
+            proceduralSkyRenderer.Draw(proceduralSky, view, projection);
+        }
 
         // Transparent/additive pass: sorted back-to-front by view depth so overlapping blended
         // objects (Transparent and Additive share this one sorted pass — see TransparencySorter)
@@ -293,6 +302,20 @@ public class MeshRenderSystem(
         }
 
         skybox = default;
+        return false;
+    }
+
+    // Returns the first ProceduralSky entity found, mirroring TryGetFirstSkybox's "first X in the
+    // world" convention.
+    private bool TryGetFirstProceduralSky(out ProceduralSky sky)
+    {
+        foreach (var (_, proceduralSky) in world.GetStore<ProceduralSky>().All())
+        {
+            sky = proceduralSky;
+            return true;
+        }
+
+        sky = default;
         return false;
     }
 
