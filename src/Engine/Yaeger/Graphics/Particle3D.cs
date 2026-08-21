@@ -34,6 +34,14 @@ public struct Particle3D
     /// </summary>
     public float InitialRotation;
 
+    /// <summary>
+    /// Flipbook frame index this particle spawned on (see
+    /// <see cref="ParticleEmitter3D.RandomStartFrame"/>). 0 — frame 0 — for every particle when
+    /// that field is false, which is what keeps a non-animated 1×1 grid rendering the same way it
+    /// always has.
+    /// </summary>
+    public int StartFrame;
+
     /// <summary>Age as a fraction of lifetime, clamped to [0, 1].</summary>
     public readonly float NormalizedAge => Lifetime > 0f ? Math.Clamp(Age / Lifetime, 0f, 1f) : 1f;
 }

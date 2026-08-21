@@ -31,6 +31,14 @@ public sealed class RenderTarget : IDisposable
     /// <summary>Handle of the colour attachment, sampled by whatever pass reads this target's output.</summary>
     public uint ColorTexture => _colorTexture;
 
+    /// <summary>
+    /// Handle of the depth attachment, for a pass (e.g. soft particles — see
+    /// <c>Renderer3D.SetSceneDepth</c>) that needs to sample this target's depth after the opaque
+    /// pass has written it. Only meaningful when this target was constructed with
+    /// <c>hasDepth: true</c>; 0 otherwise.
+    /// </summary>
+    public uint DepthTexture => _depthTexture;
+
     public RenderTarget(
         GL gl,
         int width,

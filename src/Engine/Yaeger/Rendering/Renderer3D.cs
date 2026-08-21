@@ -139,6 +139,11 @@ public sealed class Renderer3D : IDisposable
     private int _particleInstanceCapacity;
     private bool _hasParticleInstanceBuffer;
 
+    // Soft-particle scene depth: rebound on every DrawParticles call (see DrawParticles), since
+    // unit 9 is otherwise untouched by anything else but re-binding defensively costs nothing and
+    // keeps this robust regardless of what runs between SetSceneDepth and the next particle draw.
+    private uint _sceneDepthTexture;
+
     /// <param name="gl">The window's OpenGL context.</param>
     /// <param name="hdrOutput">
     /// When false (the default), the PBR path's final colour is Reinhard tone-mapped and
@@ -163,6 +168,7 @@ public sealed class Renderer3D : IDisposable
         (_particleVao, _particleQuadVbo) = CreateParticleQuad();
         _particleShader.Bind();
         _particleShader.SetUniformInt("uTexture", 0);
+        _particleShader.SetUniformInt("uSceneDepth", 9);
         _particleShader.Unbind();
         BindSamplerUnits();
         BindDefaultPbrTextures();
@@ -172,6 +178,9 @@ public sealed class Renderer3D : IDisposable
         DisableIBL();
         // Establishes the "off" uniform state so a scene that never calls SetFog is unchanged.
         DisableFog();
+        // Establishes the "off" (hard-cutoff) uniform state so a scene that never calls
+        // SetSceneDepth renders particles exactly as it did before soft particles existed.
+        DisableSceneDepth();
         // Skinning and instancing are opt-in per draw; default to the static-mesh, non-instanced path.
         _shader.Bind();
         _shader.SetUniformInt("uSkinned", 0);
@@ -404,6 +413,57 @@ public sealed class Renderer3D : IDisposable
         _shader.Bind();
         _shader.SetUniformInt("uFogEnabled", 0);
         _shader.Unbind();
+    }
+
+    /// <summary>
+    /// Binds a depth texture holding the opaque scene's depth (e.g. from a <see cref="RenderTarget"/>
+    /// constructed with a depth attachment) for the particle pass's soft-particle fade — see
+    /// <see cref="Graphics.ParticleEmitter3D.SoftFade"/>. Call once per frame, after the opaque pass
+    /// has written that texture's depth and before <see cref="DrawParticles"/>.
+    /// </summary>
+    /// <param name="depthTexture">A complete depth texture matching the camera this frame renders with.</param>
+    /// <param name="near">The camera's near plane — see <see cref="Graphics.Camera3D.Near"/>.</param>
+    /// <param name="far">The camera's far plane — see <see cref="Graphics.Camera3D.Far"/>.</param>
+    /// <param name="viewportWidth">Current viewport width in pixels, for mapping a fragment's screen position to a depth-texture UV.</param>
+    /// <param name="viewportHeight">Current viewport height in pixels.</param>
+    public void SetSceneDepth(
+        uint depthTexture,
+        float near,
+        float far,
+        int viewportWidth,
+        int viewportHeight
+    )
+    {
+        _sceneDepthTexture = depthTexture;
+
+        var n = near > 0f ? near : 0.0001f;
+        var f = far > n ? far : n + 1f;
+        var width = viewportWidth > 0 ? viewportWidth : 1;
+        var height = viewportHeight > 0 ? viewportHeight : 1;
+
+        _particleShader.Bind();
+        _particleShader.SetUniformInt("uSoftFadeSceneAvailable", 1);
+        _particleShader.SetUniformFloat("uNear", n);
+        _particleShader.SetUniformFloat("uFar", f);
+        _particleShader.SetUniformVec2("uInvViewportSize", new Vector2(1f / width, 1f / height));
+        _particleShader.Unbind();
+    }
+
+    /// <summary>
+    /// Disables the soft-particle scene depth sample: every particle fades exactly as it did before
+    /// this feature existed (a hard depth-test cutoff, no fade), regardless of each emitter's
+    /// <see cref="Graphics.ParticleEmitter3D.SoftFade"/>. This is the default state until
+    /// <see cref="SetSceneDepth"/> is called; exists so a shared <see cref="Renderer3D"/> doesn't
+    /// leak a previous scene's depth texture into one that doesn't supply its own (mirrors
+    /// <see cref="DisableShadows"/>/<see cref="DisableIBL"/>/<see cref="DisableFog"/>).
+    /// </summary>
+    public void DisableSceneDepth()
+    {
+        _sceneDepthTexture = _defaultTexture;
+
+        _particleShader.Bind();
+        _particleShader.SetUniformInt("uSoftFadeSceneAvailable", 0);
+        _particleShader.Unbind();
     }
 
     /// <summary>
@@ -664,6 +724,11 @@ public sealed class Renderer3D : IDisposable
     /// so Transparent and Additive emitters can be interleaved with each other in one sorted
     /// sequence. Unlit — particles don't read scene lighting/shadows. No-op for an empty span.
     /// </summary>
+    /// <param name="softFadeDistance">
+    /// This emitter's <see cref="Graphics.ParticleEmitter3D.SoftFade"/> — world units over which a
+    /// particle fades out as it nears scene geometry behind it. 0 (the default when an emitter never
+    /// sets it) disables the fade regardless of whether <see cref="SetSceneDepth"/> was called.
+    /// </param>
     internal unsafe void DrawParticles(
         ReadOnlySpan<ParticleInstanceData> instances,
         Vector3 cameraRight,
@@ -671,7 +736,8 @@ public sealed class Renderer3D : IDisposable
         Matrix4x4 viewProj,
         string? texturePath,
         TextureManager textures,
-        MaterialBlendMode blendMode
+        MaterialBlendMode blendMode,
+        float softFadeDistance = 0f
     )
     {
         if (instances.IsEmpty)
@@ -683,6 +749,10 @@ public sealed class Renderer3D : IDisposable
         _particleShader.SetUniformMatrix4("uViewProj", viewProj);
         _particleShader.SetUniformVec3("uCameraRight", cameraRight);
         _particleShader.SetUniformVec3("uCameraUp", cameraUp);
+        _particleShader.SetUniformFloat(
+            "uSoftFadeDistance",
+            float.IsFinite(softFadeDistance) ? MathF.Max(softFadeDistance, 0f) : 0f
+        );
 
         // Select the unit before Get so a first-time Texture ctor binds on this unit rather than
         // clobbering whichever unit happened to be active (mirrors BindMaterial's reasoning).
@@ -691,6 +761,14 @@ public sealed class Renderer3D : IDisposable
             textures.Get(texturePath).Bind(TextureUnit.Texture0);
         else
             _gl.BindTexture(TextureTarget.Texture2D, _defaultTexture);
+
+        // Re-bound on every draw (unlike the PBR/shadow/IBL fallbacks, which are bound once at
+        // construction and never touched again): unit 9 is exclusive to the particle shader today,
+        // but re-binding defensively here costs nothing and keeps this correct even if that stops
+        // being true later.
+        _gl.ActiveTexture(TextureUnit.Texture9);
+        _gl.BindTexture(TextureTarget.Texture2D, _sceneDepthTexture);
+        _gl.ActiveTexture(TextureUnit.Texture0);
 
         EnsureParticleInstanceCapacity(instances.Length);
 
@@ -809,6 +887,17 @@ public sealed class Renderer3D : IDisposable
         );
         _gl.EnableVertexAttribArray(5);
         _gl.VertexAttribDivisor(5, 1);
+
+        _gl.VertexAttribPointer(
+            6,
+            4,
+            VertexAttribPointerType.Float,
+            false,
+            stride,
+            (void*)(10 * sizeof(float))
+        );
+        _gl.EnableVertexAttribArray(6);
+        _gl.VertexAttribDivisor(6, 1);
 
         _gl.BindVertexArray(0);
     }

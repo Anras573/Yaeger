@@ -17,12 +17,21 @@ namespace Yaeger.Systems;
 /// Call <see cref="Render"/> from the render callback, after <see cref="MeshRenderSystem.Render"/>
 /// (particles draw in their own pass, on top of the opaque/transparent mesh passes).
 /// </summary>
+/// <param name="sceneDepthSource">
+/// Optional source of the opaque scene's depth, for soft particles (see
+/// <see cref="ParticleEmitter3D.SoftFade"/>) — a <see cref="RenderTarget"/> constructed with a depth
+/// attachment that the scene's opaque pass has already rendered into this frame (e.g. a
+/// <see cref="PostProcessStack"/>'s own scene target). <c>null</c> (the default) disables soft
+/// particles entirely: every emitter fades exactly as it did before this feature existed, regardless
+/// of its own <c>SoftFade</c> value.
+/// </param>
 public class ParticleRenderSystem3D(
     Renderer3D renderer,
     TextureManager textureManager,
     World world,
     Window window,
-    ParticleSystem3D particleSystem3D
+    ParticleSystem3D particleSystem3D,
+    RenderTarget? sceneDepthSource = null
 )
 {
     // Reused across frames so sorting the emitter draw order doesn't allocate — mirrors
@@ -33,8 +42,25 @@ public class ParticleRenderSystem3D(
 
     public void Render()
     {
-        var (view, viewProj) = GetCameraMatrices();
+        var (view, viewProj, near, far) = GetCameraMatrices();
         var (cameraRight, cameraUp) = BillboardMath.ExtractCameraAxes(view);
+
+        if (sceneDepthSource != null)
+        {
+            renderer.SetSceneDepth(
+                sceneDepthSource.DepthTexture,
+                near,
+                far,
+                sceneDepthSource.Width,
+                sceneDepthSource.Height
+            );
+        }
+        else
+        {
+            // Keep the opt-in robust the same way MeshRenderSystem's shadow/IBL branches do: clear
+            // any stale depth-texture state so this scene doesn't sample a leftover/deleted texture.
+            renderer.DisableSceneDepth();
+        }
 
         _transparentEmitters.Clear();
         _additiveEmitters.Clear();
@@ -83,6 +109,7 @@ public class ParticleRenderSystem3D(
         var startColor = emitter.StartColor.ToVector4();
         var endColor = emitter.EndColor.ToVector4();
         var velocityStretch = MathF.Max(emitter.VelocityStretch, 0f);
+        var totalFrames = Math.Max(emitter.FrameColumns, 1) * Math.Max(emitter.FrameRows, 1);
 
         _instanceScratch.Clear();
         for (var i = 0; i < pool.AliveCount; i++)
@@ -108,12 +135,25 @@ public class ParticleRenderSystem3D(
             var rotation = projectedSpeed > 0f ? velocityRotation : particle.InitialRotation;
             var alongVelocity = baseSize + projectedSpeed * velocityStretch;
 
+            var frameIndex = BillboardMath.ComputeFrameIndex(
+                particle.StartFrame,
+                particle.Age,
+                emitter.FrameRate,
+                totalFrames
+            );
+            var (uvMin, uvMax) = BillboardMath.GetFrameUv(
+                emitter.FrameColumns,
+                emitter.FrameRows,
+                frameIndex
+            );
+
             _instanceScratch.Add(
                 new ParticleInstanceData(
                     particle.Position,
                     new Vector2(alongVelocity, baseSize),
                     rotation,
-                    color
+                    color,
+                    new Vector4(uvMin.X, uvMin.Y, uvMax.X, uvMax.Y)
                 )
             );
         }
@@ -125,20 +165,21 @@ public class ParticleRenderSystem3D(
             viewProj,
             emitter.TexturePath,
             textureManager,
-            blendMode
+            blendMode,
+            emitter.SoftFade
         );
     }
 
-    private (Matrix4x4 View, Matrix4x4 ViewProj) GetCameraMatrices()
+    private (Matrix4x4 View, Matrix4x4 ViewProj, float Near, float Far) GetCameraMatrices()
     {
         foreach (var (_, camera) in world.GetStore<Camera3D>().All())
         {
             var size = window.Size;
             var aspectRatio = size.Y > 0f ? size.X / size.Y : 1f;
             var view = camera.ViewMatrix;
-            return (view, view * camera.ProjectionMatrix(aspectRatio));
+            return (view, view * camera.ProjectionMatrix(aspectRatio), camera.Near, camera.Far);
         }
 
-        return (Matrix4x4.Identity, Matrix4x4.Identity);
+        return (Matrix4x4.Identity, Matrix4x4.Identity, 0.1f, 1000f);
     }
 }

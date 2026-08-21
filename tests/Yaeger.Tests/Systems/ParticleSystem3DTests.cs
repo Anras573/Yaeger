@@ -553,6 +553,86 @@ public class ParticleSystem3DTests
         }
     }
 
+    // ── Flipbook frames ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Update_WithoutRandomStartFrame_ShouldSpawnEveryParticleOnFrameZero()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                MaxParticles = 32,
+                EmitRate = 1000f,
+                ParticleLifetime = 10f,
+                FrameColumns = 4,
+                FrameRows = 2,
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        Assert.True(pool.AliveCount > 1);
+        for (var i = 0; i < pool.AliveCount; i++)
+            Assert.Equal(0, pool[i].StartFrame);
+    }
+
+    [Fact]
+    public void Update_WithRandomStartFrame_ShouldVaryStartFrameAcrossParticles()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                MaxParticles = 64,
+                EmitRate = 1000f,
+                ParticleLifetime = 10f,
+                FrameColumns = 4,
+                FrameRows = 2,
+                RandomStartFrame = true,
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        var startFrames = new HashSet<int>();
+        for (var i = 0; i < pool.AliveCount; i++)
+        {
+            Assert.InRange(pool[i].StartFrame, 0, 7); // 4 columns * 2 rows
+            startFrames.Add(pool[i].StartFrame);
+        }
+        Assert.True(startFrames.Count > 1);
+    }
+
+    [Fact]
+    public void Update_WithRandomStartFrameOnSingleFrameGrid_ShouldAlwaysBeZero()
+    {
+        var world = new World();
+        var system = new ParticleSystem3D(world, seed: 42);
+        var entity = CreateEmitter(
+            world,
+            new ParticleEmitter3D(TexturePath)
+            {
+                MaxParticles = 32,
+                EmitRate = 1000f,
+                ParticleLifetime = 10f,
+                RandomStartFrame = true, // FrameColumns/FrameRows left at their 1x1 default
+            }
+        );
+
+        system.Update(1f);
+
+        Assert.True(system.TryGetPool(entity, out var pool));
+        for (var i = 0; i < pool.AliveCount; i++)
+            Assert.Equal(0, pool[i].StartFrame);
+    }
+
     // ── Forces: acceleration, drag, turbulence ──────────────────────────────
 
     [Fact]
