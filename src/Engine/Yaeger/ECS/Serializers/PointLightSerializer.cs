@@ -14,7 +14,8 @@ namespace Yaeger.ECS.Serializers;
 ///   "type": "PointLight",
 ///   "color": [255, 255, 255],
 ///   "intensity": 1.0,
-///   "range": 10.0
+///   "range": 10.0,
+///   "castsShadows": false
 /// }
 /// </code>
 /// The light's world position comes from the entity's <see cref="Transform3D"/>, so it is not
@@ -38,6 +39,11 @@ public sealed class PointLightSerializer : IComponentSerializer
             Color = ComponentJson.GetOptionalColor(element, "color", defaults.Color),
             Intensity = ComponentJson.GetOptionalSingle(element, "intensity", defaults.Intensity),
             Range = ComponentJson.GetOptionalSingle(element, "range", defaults.Range),
+            CastsShadows = ComponentJson.GetOptionalBoolean(
+                element,
+                "castsShadows",
+                defaults.CastsShadows
+            ),
         };
         return (world, entity) => world.AddComponent(entity, component);
     }
@@ -54,6 +60,7 @@ public sealed class PointLightSerializer : IComponentSerializer
             ["color"] = ComponentJson.Write(light.Color),
             ["intensity"] = light.Intensity,
             ["range"] = light.Range,
+            ["castsShadows"] = light.CastsShadows,
         };
     }
 }

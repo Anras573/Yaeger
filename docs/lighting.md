@@ -15,7 +15,9 @@ none renders exactly as it did before this feature existed.
 
 A directional light can also cast shadows via shadow mapping — see [shadows.md](shadows.md). There
 is one shadow map, so one caster: with two directional lights the brighter one casts and the other
-is unshadowed.
+is unshadowed. A `PointLight` with `CastsShadows` set casts a cube shadow map the same way, capped at
+`Renderer3D.MaxShadowCastingPointLights` casters at once — see
+[shadows.md#point-light-shadows](shadows.md#point-light-shadows). Spot lights don't cast shadows yet.
 Both point/spot lights and shadows light a `Transparent`-blend-mode material the same as an
 opaque one; the one difference is that a `Transparent` material does not itself cast a shadow
 (see [pbr.md#transparency](pbr.md#transparency)).

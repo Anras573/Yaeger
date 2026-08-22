@@ -79,6 +79,13 @@ public sealed class Renderer3D : IDisposable
     /// <summary>Maximum number of spot lights the fragment shader can accumulate per frame.</summary>
     public const int MaxSpotLights = 8;
 
+    /// <summary>
+    /// Maximum number of point lights that can cast a cube shadow map at once. Six face renders per
+    /// light makes this expensive relative to the 16-light shading budget, so it's capped well
+    /// below it — see <see cref="PointLight.CastsShadows"/> for what happens past the cap.
+    /// </summary>
+    public const int MaxShadowCastingPointLights = 2;
+
     // Per-light uniform names depend only on the array index, so build them once and reuse them
     // every frame. Interpolating them inside the per-frame upload loops would allocate a fresh
     // string per light field on every call.
@@ -97,6 +104,14 @@ public sealed class Renderer3D : IDisposable
     private static readonly string[] SpotOuterCosNames;
     private static readonly string[] SpotRangeNames;
 
+    // Point shadow slots: flat (non-struct-field) uniform array names/units, one per shadow-casting
+    // slot rather than per point light — see SetPointShadows.
+    private static readonly string[] PointShadowMapSamplerNames;
+    private static readonly string[] PointShadowCasterIndexNames;
+    private static readonly string[] PointShadowFarPlaneNames;
+    private static readonly string[] PointShadowBiasNames;
+    private static readonly TextureUnit[] PointShadowTextureUnits;
+
     static Renderer3D()
     {
         DirDirectionNames = BuildNames("uDirLights", "direction", MaxDirectionalLights);
@@ -113,6 +128,20 @@ public sealed class Renderer3D : IDisposable
         SpotInnerCosNames = BuildNames("uSpotLights", "innerCos", MaxSpotLights);
         SpotOuterCosNames = BuildNames("uSpotLights", "outerCos", MaxSpotLights);
         SpotRangeNames = BuildNames("uSpotLights", "range", MaxSpotLights);
+
+        PointShadowMapSamplerNames = BuildFlatNames("uPointShadowMap", MaxShadowCastingPointLights);
+        PointShadowCasterIndexNames = BuildFlatNames(
+            "uPointShadowCasterIndex",
+            MaxShadowCastingPointLights
+        );
+        PointShadowFarPlaneNames = BuildFlatNames(
+            "uPointShadowFarPlane",
+            MaxShadowCastingPointLights
+        );
+        PointShadowBiasNames = BuildFlatNames("uPointShadowBias", MaxShadowCastingPointLights);
+        PointShadowTextureUnits = new TextureUnit[MaxShadowCastingPointLights];
+        for (var slot = 0; slot < MaxShadowCastingPointLights; slot++)
+            PointShadowTextureUnits[slot] = TextureUnit.Texture10 + slot;
     }
 
     private static string[] BuildNames(string array, string field, int count)
@@ -120,6 +149,18 @@ public sealed class Renderer3D : IDisposable
         var names = new string[count];
         for (var i = 0; i < count; i++)
             names[i] = $"{array}[{i}].{field}";
+        return names;
+    }
+
+    // Like BuildNames, but for plain (non-struct-field) uniform arrays — "uName0", "uName1", not
+    // struct-array element names — used for the point shadow slots, whose samplers can't be a real
+    // GLSL sampler array (dynamic indexing of a sampler array isn't defined in GLSL 330; see
+    // SetPointShadows).
+    private static string[] BuildFlatNames(string name, int count)
+    {
+        var names = new string[count];
+        for (var i = 0; i < count; i++)
+            names[i] = $"{name}{i}";
         return names;
     }
 
@@ -195,6 +236,9 @@ public sealed class Renderer3D : IDisposable
         // (the pre-existing single-directional-light path) render exactly as before.
         SetPointLights([]);
         SetSpotLights([]);
+        // DisablePointShadows also binds the default cubemap on units 10/11, so no separate setup
+        // is needed — mirrors DisableShadows/DisableIBL above.
+        DisablePointShadows();
     }
 
     // Sampler-to-texture-unit assignments never change after link, so set them once here rather
@@ -211,6 +255,8 @@ public sealed class Renderer3D : IDisposable
         _shader.SetUniformInt("uIrradianceMap", 6);
         _shader.SetUniformInt("uPrefilteredMap", 7);
         _shader.SetUniformInt("uBrdfLut", 8);
+        for (var slot = 0; slot < MaxShadowCastingPointLights; slot++)
+            _shader.SetUniformInt(PointShadowMapSamplerNames[slot], 10 + slot);
         _shader.Unbind();
     }
 
@@ -309,6 +355,84 @@ public sealed class Renderer3D : IDisposable
         // disposed, leaving the statically-used sampler incomplete even though sampling is gated off.
         BindDefaultShadowTexture();
     }
+
+    // The point shadow samplers (units 10/11) are statically used by the fragment shader the same
+    // way uShadowMap is, so each must point at a complete texture even when its slot is unused.
+    // Reuses the existing 1x1 white cubemap (already needed for the IBL fallback) — sampling its
+    // .r channel back as "distance" reads 1.0 (the far plane), i.e. "no occluder found", which is
+    // exactly the unshadowed default a disabled slot needs.
+    private void BindDefaultPointShadowTexture(int slot)
+    {
+        _gl.ActiveTexture(PointShadowTextureUnits[slot]);
+        _gl.BindTexture(TextureTarget.TextureCubeMap, _defaultCubemap);
+        _gl.ActiveTexture(TextureUnit.Texture0);
+    }
+
+    /// <summary>One shadow-casting point light's cube shadow map, uploaded via <see cref="SetPointShadows"/>.</summary>
+    /// <param name="LightIndex">
+    /// Index into the span most recently passed to <see cref="SetPointLights"/> — only that light's
+    /// contribution samples this slot's cubemap.
+    /// </param>
+    /// <param name="CubemapTexture">The depth cubemap <see cref="PointShadowMapRenderer.BeginFace"/> rendered into.</param>
+    /// <param name="FarPlane">
+    /// The far plane the cubemap was captured with — the casting light's own
+    /// <see cref="PointLight.Range"/>, needed to turn the map's normalized stored distance back into
+    /// a world-space one.
+    /// </param>
+    /// <param name="Bias">World-space depth bias for this slot's shadow test (see <see cref="PointShadowSettings.Bias"/>).</param>
+    public readonly record struct PointShadowCaster(
+        int LightIndex,
+        uint CubemapTexture,
+        float FarPlane,
+        float Bias
+    );
+
+    /// <summary>
+    /// Uploads the active point-light shadow casters for this frame. Call once per frame, after the
+    /// point shadow pass has populated each slot's cubemap and before the draw loop — mirrors
+    /// <see cref="SetShadowMap"/>'s place in the frame, extended to
+    /// <see cref="MaxShadowCastingPointLights"/> independent slots instead of one. At most
+    /// <see cref="MaxShadowCastingPointLights"/> casters are used; any extras are ignored (select
+    /// which ones with <see cref="PointShadowMapRenderer.SelectShadowCasters"/> before calling this).
+    /// Passing an empty span is <see cref="DisablePointShadows"/>.
+    /// </summary>
+    public void SetPointShadows(ReadOnlySpan<PointShadowCaster> casters)
+    {
+        _shader.Bind();
+        for (var slot = 0; slot < MaxShadowCastingPointLights; slot++)
+        {
+            if (slot < casters.Length)
+            {
+                var caster = casters[slot];
+                _shader.SetUniformInt(PointShadowCasterIndexNames[slot], caster.LightIndex);
+                _shader.SetUniformFloat(
+                    PointShadowFarPlaneNames[slot],
+                    MathF.Max(SanitizeNonNegative(caster.FarPlane), 1e-4f)
+                );
+                _shader.SetUniformFloat(
+                    PointShadowBiasNames[slot],
+                    SanitizeNonNegative(caster.Bias)
+                );
+
+                _gl.ActiveTexture(PointShadowTextureUnits[slot]);
+                _gl.BindTexture(TextureTarget.TextureCubeMap, caster.CubemapTexture);
+                _gl.ActiveTexture(TextureUnit.Texture0);
+            }
+            else
+            {
+                _shader.SetUniformInt(PointShadowCasterIndexNames[slot], -1);
+                BindDefaultPointShadowTexture(slot);
+            }
+        }
+        _shader.Unbind();
+    }
+
+    /// <summary>
+    /// Disables point-light shadow sampling: every point light's contribution is treated as fully
+    /// lit. This is the default state until <see cref="SetPointShadows"/> is called with a non-empty
+    /// span.
+    /// </summary>
+    public void DisablePointShadows() => SetPointShadows([]);
 
     // The IBL samplers (irradiance/prefiltered cubemaps, BRDF LUT) are statically used by the
     // fragment shader, so — like the PBR and shadow fallbacks above — they must point at complete

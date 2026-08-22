@@ -245,6 +245,7 @@ public class Serializer3DTests
             Color = new Color(10, 20, 30, 40),
             Intensity = 3f,
             Range = 25f,
+            CastsShadows = true,
         };
 
         var reloaded = RoundTrip(original, "lamp");
@@ -252,6 +253,15 @@ public class Serializer3DTests
         AssertColorEqual(original.Color, reloaded.Color);
         Assert.Equal(original.Intensity, reloaded.Intensity, precision: 5);
         Assert.Equal(original.Range, reloaded.Range, precision: 5);
+        Assert.Equal(original.CastsShadows, reloaded.CastsShadows);
+    }
+
+    [Fact]
+    public void PointLight_MissingCastsShadows_DefaultsToFalse()
+    {
+        var component = Deserialize<PointLight>("""{ "type": "PointLight", "intensity": 2.0 }""");
+
+        Assert.False(component.CastsShadows);
     }
 
     // ── SpotLight ────────────────────────────────────────────────────────────
