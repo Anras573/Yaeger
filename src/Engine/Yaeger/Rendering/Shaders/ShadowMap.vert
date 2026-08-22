@@ -12,7 +12,7 @@ uniform mat4 uModel;
 uniform int uInstanced;
 
 // GPU skinning: same palette/gating scheme as Renderer3D.vert (uSkinned gates the whole path, an
-// out-of-range bone index falls back to identity skin). Only position needs skinning here — the
+// out-of-range bone index falls back to identity skin). Only position needs skinning here - the
 // depth-only pass never reads normals/tangents.
 const int MAX_BONES = 128;
 layout(std140) uniform Bones {

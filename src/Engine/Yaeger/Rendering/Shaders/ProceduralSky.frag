@@ -56,7 +56,7 @@ float valueNoise(vec2 p)
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
-// Five octaves of value noise, each doubling frequency and halving amplitude — enough to break up
+// Five octaves of value noise, each doubling frequency and halving amplitude - enough to break up
 // the single-frequency look without the cost growing unreasonably; the sky is drawn once per pixel
 // per frame, not iterated like the particle turbulence field.
 float cloudFbm(vec2 p)
@@ -150,7 +150,7 @@ float moonPhaseMask(vec3 dir, vec3 moonDir, float angularRadius, float phase)
 
 // Hashes a view direction's star-grid cell to decide whether a star sits there and how bright it
 // is. Scaling by a fixed grid density before flooring means each cell subtends a small, roughly
-// constant angle regardless of view direction — good enough for point-like stars in a game sky,
+// constant angle regardless of view direction - good enough for point-like stars in a game sky,
 // with the usual mild clustering near a unit cube's corners that this technique is known for.
 float starField(vec3 dir, float density)
 {
@@ -178,7 +178,7 @@ void main()
         color += vec3(star) * starVisibility;
     }
 
-    // Clouds: a sky-dome planar projection (seamless by construction — it's a continuous function
+    // Clouds: a sky-dome planar projection (seamless by construction - it's a continuous function
     // of dir, not a wrapped UV atlas) of scrolling fBm noise, lit warm on the sun side and cool in
     // shadow, faded out near the horizon both to hide the projection's singularity there and
     // because a cloud layer silhouetted edge-on would otherwise read as a hard seam.
@@ -196,7 +196,7 @@ void main()
         color = mix(color, cloudColor, cloud * horizonFade);
     }
 
-    // Moon, then sun on top — the sun always wins on the rare frame the (never astronomically
+    // Moon, then sun on top - the sun always wins on the rare frame the (never astronomically
     // accurate, near-opposite) two discs would overlap.
     float moon = moonPhaseMask(dir, uMoonDirection, kMoonAngularRadius, uMoonPhase);
     color += kMoonColor * moon;
