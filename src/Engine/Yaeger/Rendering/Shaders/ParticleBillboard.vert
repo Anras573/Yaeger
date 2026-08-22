@@ -8,11 +8,11 @@ layout(location = 2) in vec3 aInstancePosition;
 layout(location = 3) in vec2 aInstanceSize;
 layout(location = 4) in float aInstanceRotation;
 layout(location = 5) in vec4 aInstanceColor;
-// (uMin, vMin, uMax, vMax) of this particle's current flipbook frame — BillboardMath.GetFrameUv.
+// (uMin, vMin, uMax, vMax) of this particle's current flipbook frame - BillboardMath.GetFrameUv.
 layout(location = 6) in vec4 aInstanceUvRect;
 
 uniform mat4 uViewProj;
-// World-space camera right/up axes (BillboardMath.ExtractCameraAxes) — every particle's quad is
+// World-space camera right/up axes (BillboardMath.ExtractCameraAxes) - every particle's quad is
 // built from these two vectors so it always faces the camera, however the camera is oriented.
 uniform vec3 uCameraRight;
 uniform vec3 uCameraUp;

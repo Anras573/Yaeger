@@ -8,14 +8,14 @@ layout(location = 5) in vec4 aBoneWeights;
 layout(location = 6) in mat4 aInstanceModel;
 
 // Combined view*projection for the cube face currently being captured (see
-// PointShadowMapRenderer.ComputeFaceViewProjection) — same "one combined matrix" shape as
+// PointShadowMapRenderer.ComputeFaceViewProjection) - same "one combined matrix" shape as
 // ShadowMap.vert's uLightSpace, just recomputed per face instead of once per light.
 uniform mat4 uLightSpace;
 uniform mat4 uModel;
 uniform int uInstanced;
 
 // GPU skinning: identical scheme to ShadowMap.vert (uSkinned gates the whole path, an
-// out-of-range bone index falls back to identity skin). Only position needs skinning here — the
+// out-of-range bone index falls back to identity skin). Only position needs skinning here - the
 // depth-only pass never reads normals/tangents.
 const int MAX_BONES = 128;
 layout(std140) uniform Bones {
@@ -23,7 +23,7 @@ layout(std140) uniform Bones {
 };
 uniform int uSkinned;
 
-// World-space position, for the fragment shader to measure distance from the light — gl_Position
+// World-space position, for the fragment shader to measure distance from the light - gl_Position
 // alone (clip space) can't recover this.
 out vec3 vWorldPos;
 

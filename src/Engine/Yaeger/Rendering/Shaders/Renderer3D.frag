@@ -32,7 +32,7 @@ uniform float uShininess;
 
 // Blend mode: 0 = Opaque, 1 = Cutout (alpha test via discard), 2 = Transparent, 3 = Additive
 // (Transparent and Additive both render in the same depth-write-off pass on the CPU side; only the
-// glBlendFunc differs between them, selected per-draw by Renderer3D.ApplyBlendFunc — the shader
+// glBlendFunc differs between them, selected per-draw by Renderer3D.ApplyBlendFunc - the shader
 // itself computes the same alpha-weighted colour either way). uOpacity is an extra alpha factor
 // independent of any texture's own alpha channel; uAlphaCutoff only matters for Cutout.
 uniform float uOpacity;
@@ -52,7 +52,7 @@ uniform float uEmissiveIntensity;
 uniform int   uHdrOutput;
 
 // Distance fog: mixes fragment colour toward uFogColor as camera distance grows. Applied after
-// lighting/emissive/ambient, before the alpha write, identically in both shading paths — see
+// lighting/emissive/ambient, before the alpha write, identically in both shading paths - see
 // Renderer3D.SetFog. uFogMode: 0 = exponential-squared (uFogDensity), 1 = linear (uFogStart/uFogEnd).
 uniform int   uFogEnabled;
 uniform vec4  uFogColor;
@@ -81,7 +81,7 @@ uniform int      uShadowLightIndex;
 uniform vec3  uCameraPos;
 
 // Scene-wide ambient for the PBR path, pre-multiplied by its intensity on the CPU side (see
-// Renderer3D.SetAmbient). Defaults to vec3(0.03) — the constant this replaced — and is unused
+// Renderer3D.SetAmbient). Defaults to vec3(0.03) - the constant this replaced - and is unused
 // while uUseIBL is set, since image-based lighting supplies a directional ambient instead.
 uniform vec3  uAmbientLight;
 
@@ -116,10 +116,10 @@ uniform PointLight uPointLights[MAX_POINT_LIGHTS];
 uniform int        uSpotLightCount;
 uniform SpotLight  uSpotLights[MAX_SPOT_LIGHTS];
 
-// Point-light cube shadow maps: two independent slots (flat uniforms, not a sampler array —
+// Point-light cube shadow maps: two independent slots (flat uniforms, not a sampler array -
 // dynamic indexing of a sampler array isn't defined in GLSL 330), each optionally bound to one of
 // uPointLights[] by index. A slot's uCasterIndex is -1 when unused. Each cubemap stores linear
-// distance from its light, normalized by uFarPlane — see PointShadowMap.frag.
+// distance from its light, normalized by uFarPlane - see PointShadowMap.frag.
 uniform samplerCube uPointShadowMap0;
 uniform samplerCube uPointShadowMap1;
 uniform int         uPointShadowCasterIndex0;
@@ -271,10 +271,10 @@ float directionalShadow(vec3 N, vec3 L) {
 }
 
 // One point-light shadow slot's visibility, given the fragment-to-light vector already computed by
-// the caller (toLight, dist). Samples the slot's cubemap along -toLight (light-to-fragment — the
+// the caller (toLight, dist). Samples the slot's cubemap along -toLight (light-to-fragment - the
 // direction the map was captured along, matching PointShadowMap.frag/gl_FragDepth's own
 // light-relative distance), scales the stored normalized value back to world units by the slot's
-// far plane, and compares against the fragment's actual distance. No PCF — cube shadows are
+// far plane, and compares against the fragment's actual distance. No PCF - cube shadows are
 // already the expensive part of this feature; softening is a follow-up if it's worth the cost.
 float pointShadowSlot(samplerCube map, float farPlane, float bias, vec3 toLight, float dist) {
     float closest = texture(map, -toLight).r * farPlane;
