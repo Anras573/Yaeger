@@ -28,6 +28,11 @@ namespace Yaeger.Systems;
 /// its own entity and leaves the clock entity's own light alone — see docs/day-night.md.
 /// </para>
 /// <para>
+/// Every <see cref="ProceduralSky"/> entity in the world also gets its sun/moon direction and
+/// night↔day blend written each update, independently of the <see cref="CelestialLight"/>/key-light
+/// choice above — see docs/sky.md.
+/// </para>
+/// <para>
 /// Tone-map exposure is reported on <see cref="CurrentLighting"/> rather than applied — see
 /// <see cref="DayNightLighting.Exposure"/> for why.
 /// </para>
@@ -89,6 +94,8 @@ public class DayNightCycleSystem : IUpdateSystem
             if (!ApplyCelestialLights(lighting))
                 _world.AddComponent(entity, lighting.KeyLight);
 
+            ApplyProceduralSky(lighting);
+
             return;
         }
     }
@@ -107,6 +114,26 @@ public class DayNightCycleSystem : IUpdateSystem
         }
 
         return applied;
+    }
+
+    // Writes the sun/moon direction and the night<->day blend onto every ProceduralSky entity —
+    // the same "auto-picked-up" relationship ApplyCelestialLights has with CelestialLight, so a sky
+    // renderer sees a moving sun with no per-frame wiring of its own. Unconditional (unlike
+    // ApplyCelestialLights) because it doesn't compete with the single-key-light fallback: a scene
+    // can have zero, one, or several ProceduralSky entities without changing what gets written to
+    // the clock entity's own light.
+    private void ApplyProceduralSky(in DayNightLighting lighting)
+    {
+        foreach ((Entity entity, ProceduralSky sky) in _world.GetStore<ProceduralSky>())
+        {
+            var updated = sky with
+            {
+                SunDirection = lighting.SunDirection,
+                MoonDirection = lighting.MoonDirection,
+                DaylightFactor = lighting.DaylightFactor,
+            };
+            _world.AddComponent(entity, updated);
+        }
     }
 
     private static float Advance(in TimeOfDay time, float deltaTime)
