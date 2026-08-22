@@ -132,9 +132,10 @@ directly, with no further linearisation, the same way it already treats `Lo`/`em
   there's no HDR skybox support yet to prefilter from.
 - Local reflection probes, parallax-corrected cubemaps, and screen-space reflections are out of
   scope; this is a single environment for the whole scene.
-- A `ProceduralSky` ([sky.md](sky.md)) contributes no IBL — only a `Skybox` cubemap can be prefiltered
-  here. Lighting a PBR scene from a procedural sky needs baking it to a cubemap first, which this
-  registry doesn't do.
+- `EnvironmentMapRegistry` itself only prefilters a `Skybox` cubemap, and only once, at registration.
+  Lighting a PBR scene from a `ProceduralSky` instead — one that tracks a moving sun rather than
+  staying fixed — goes through `ProceduralSkyIbl`, which bakes the sky to a cubemap and re-prefilters
+  on a throttle. See [sky.md#sky-driven-image-based-lighting](sky.md#sky-driven-image-based-lighting).
 
 ## `Material3D` PBR fields
 
