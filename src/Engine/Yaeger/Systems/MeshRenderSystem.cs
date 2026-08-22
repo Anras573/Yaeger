@@ -20,7 +20,11 @@ namespace Yaeger.Systems;
 /// <see cref="ProceduralSkyIbl"/> to light them from a <see cref="ProceduralSky"/> instead — when
 /// both would apply, the cubemap skybox's environment map wins (matching the draw-order precedence
 /// between the two sky kinds below); scenes with neither, or without a baked/registered
-/// <see cref="EnvironmentMap"/>, keep the flat ambient term.
+/// <see cref="EnvironmentMap"/>, keep the flat ambient term. Pass a
+/// <see cref="PointShadowMapRenderer"/> to cast cube shadow maps from up to
+/// <see cref="Renderer3D.MaxShadowCastingPointLights"/> <see cref="PointLight"/>s with
+/// <see cref="PointLight.CastsShadows"/> set — nearest the camera win past the cap. Scenes with none
+/// flagged pay nothing beyond the one-time renderer construction.
 /// </summary>
 public class MeshRenderSystem(
     Renderer3D renderer,
@@ -33,7 +37,8 @@ public class MeshRenderSystem(
     ShadowMapRenderer? shadowMapRenderer = null,
     EnvironmentMapRegistry? environmentMaps = null,
     ProceduralSkyRenderer? proceduralSkyRenderer = null,
-    ProceduralSkyIbl? proceduralSkyIbl = null
+    ProceduralSkyIbl? proceduralSkyIbl = null,
+    PointShadowMapRenderer? pointShadowMapRenderer = null
 )
 {
     /// <summary>
@@ -51,6 +56,14 @@ public class MeshRenderSystem(
     private DirectionalLight[]? _directionalLights;
     private (Vector3 Position, PointLight Light)[]? _pointLights;
     private (Vector3 Position, SpotLight Light)[]? _spotLights;
+
+    // Scratch buffers for point-light shadow casters, sized to the renderer's cap and reused across
+    // frames the same way the light-collection arrays above are.
+    private readonly int[] _pointShadowCasterSlots = new int[
+        Renderer3D.MaxShadowCastingPointLights
+    ];
+    private readonly Renderer3D.PointShadowCaster[] _pointShadowCasters =
+        new Renderer3D.PointShadowCaster[Renderer3D.MaxShadowCastingPointLights];
 
     // Groups non-skinned entities by (MeshHandle, Material3D) for the main pass. Reused across
     // frames (see MeshInstanceBatcher's own remarks).
@@ -76,6 +89,16 @@ public class MeshRenderSystem(
     // Reused across frames like _mainBatcher/_shadowBatcher above; cleared (not reallocated) each
     // frame so a scene with a stable transparent-entity count doesn't reallocate once warmed up.
     private readonly List<TransparentDraw> _transparentDraws = new();
+
+    // Skinned point-shadow casters for whichever light's pass is currently running: can't be folded
+    // into _shadowBatcher (grouped by mesh only) since a bone palette is per-entity state, same
+    // reasoning the directional pass's immediate skinning path documents. Collected once per light
+    // and redrawn across all six faces, since every face of one light shares the same caster set.
+    private readonly List<(
+        GpuMesh Mesh,
+        Matrix4x4 Model,
+        Matrix4x4[] BonePalette
+    )> _pointShadowSkinnedCasters = new();
 
     public void Render()
     {
@@ -113,6 +136,35 @@ public class MeshRenderSystem(
         if (castsShadows)
             RenderShadowPass(shadowLight, sceneCenter, paletteStore);
 
+        // Point shadow pre-pass: same "owns the framebuffer/viewport state, runs before
+        // BeginFrame3D" reasoning as the directional pass above, extended to up to
+        // MaxShadowCastingPointLights lights x 6 faces each. Nearest-to-camera lights with
+        // CastsShadows set win the slots; a world with none flagged never enters the pass at all.
+        var pointShadowCasterCount = 0;
+        if (pointShadowMapRenderer != null)
+        {
+            pointShadowCasterCount = PointShadowMapRenderer.SelectShadowCasters(
+                _pointLights!.AsSpan(0, pointLightCount),
+                cameraPos,
+                _pointShadowCasterSlots
+            );
+
+            for (var slot = 0; slot < pointShadowCasterCount; slot++)
+            {
+                var lightIndex = _pointShadowCasterSlots[slot];
+                var (position, light) = _pointLights![lightIndex];
+                RenderPointShadowPass(slot, position, light.Range, paletteStore);
+                _pointShadowCasters[slot] = new Renderer3D.PointShadowCaster(
+                    lightIndex,
+                    pointShadowMapRenderer.CubemapFor(slot),
+                    light.Range,
+                    pointShadowMapRenderer.Settings.Bias
+                );
+            }
+
+            pointShadowMapRenderer.EndFrame((int)window.Size.X, (int)window.Size.Y);
+        }
+
         renderer.BeginFrame3D();
         renderer.SetSceneLighting(directionalLights, cameraPos);
         // Uploaded unconditionally (falling back to AmbientLight.Default) for the same reason
@@ -140,6 +192,11 @@ public class MeshRenderSystem(
             // any stale shadow state so this scene doesn't sample a leftover/deleted depth texture.
             renderer.DisableShadows();
         }
+
+        // Uploaded unconditionally, same "clear stale state" reasoning as the directional branch
+        // above: an empty span is DisablePointShadows, so a world with nothing flagged (or without a
+        // pointShadowMapRenderer at all) never leaves a previous scene's casters bound.
+        renderer.SetPointShadows(_pointShadowCasters.AsSpan(0, pointShadowCasterCount));
 
         if (
             environmentMaps != null
@@ -413,6 +470,95 @@ public class MeshRenderSystem(
 
         var size = window.Size;
         shadowMap.EndPass((int)size.X, (int)size.Y);
+    }
+
+    // Renders one shadow-casting point light's six cube faces into pointShadowMapRenderer's slot.
+    // Casters are collected once (range-culled against the light, not frustum-culled against the
+    // camera — same "off-screen geometry still casts" reasoning as the directional pass) and
+    // redrawn across all six faces, since every face of one light shares the same caster set.
+    private void RenderPointShadowPass(
+        int slot,
+        Vector3 lightPosition,
+        float range,
+        ComponentStorage<BonePalette> paletteStore
+    )
+    {
+        var pointShadowMap = pointShadowMapRenderer!;
+        // A non-positive/non-finite range can't bound anything; fall back to a tiny one so the pass
+        // still runs (an empty shadow map) rather than dividing by zero in the capture shader.
+        var effectiveRange = float.IsFinite(range) && range > 0f ? range : 0.01f;
+
+        _shadowBatcher.Clear();
+        _pointShadowSkinnedCasters.Clear();
+
+        var aabbStore = world.GetStore<Aabb3D>();
+
+        foreach (
+            (
+                Entity entity,
+                MeshHandle handle,
+                Transform3D transform,
+                Material3D material
+            ) in world.Query<MeshHandle, Transform3D, Material3D>()
+        )
+        {
+            if (TransparencySorter.IsTransparent(material))
+                continue;
+
+            if (!meshRegistry.TryGet(handle, out var mesh))
+                continue;
+
+            var modelMatrix = transform.ModelMatrix;
+
+            // Distance-based culling: a caster outside the light's range doesn't belong in its pass
+            // at all. Uses the caster's own Aabb3D (transformed to world space) when present for a
+            // closest-point-of-the-box distance; falls back to treating it as a point at its model
+            // matrix's translation otherwise, same "AABB if present, else a point" shape the main
+            // pass's frustum culling uses.
+            float distanceToLight;
+            if (aabbStore.TryGet(entity, out var aabb))
+            {
+                var (center, radius) = aabb.Transform(modelMatrix).BoundingSphere();
+                distanceToLight = Vector3.Distance(center, lightPosition) - radius;
+            }
+            else
+            {
+                distanceToLight = Vector3.Distance(modelMatrix.Translation, lightPosition);
+            }
+
+            if (distanceToLight > effectiveRange)
+                continue;
+
+            var hasPalette =
+                paletteStore.TryGet(entity, out var palette) && palette.Matrices is { Length: > 0 };
+
+            if (hasPalette)
+                _pointShadowSkinnedCasters.Add((mesh, modelMatrix, palette.Matrices));
+            else
+                _shadowBatcher.Add(handle, default, modelMatrix);
+        }
+
+        for (var face = 0; face < 6; face++)
+        {
+            pointShadowMap.BeginFace(slot, face, lightPosition, effectiveRange);
+
+            foreach (var (mesh, model, bonePalette) in _pointShadowSkinnedCasters)
+                pointShadowMap.Draw(mesh, model, bonePalette);
+
+            foreach (var group in _shadowBatcher.Groups)
+            {
+                if (!meshRegistry.TryGet(group.Handle, out var mesh))
+                    continue;
+
+                if (group.Models.Count >= InstancingThreshold)
+                    pointShadowMap.DrawInstanced(mesh, CollectionsMarshal.AsSpan(group.Models));
+                else
+                    foreach (var modelMatrix in group.Models)
+                        pointShadowMap.Draw(mesh, modelMatrix);
+            }
+
+            pointShadowMap.EndFace();
+        }
     }
 
     private (

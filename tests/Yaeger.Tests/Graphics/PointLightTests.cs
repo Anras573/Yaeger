@@ -18,6 +18,7 @@ public class PointLightTests
         Assert.Equal(default(Color), light.Color);
         Assert.Equal(0f, light.Intensity);
         Assert.Equal(0f, light.Range);
+        Assert.False(light.CastsShadows);
     }
 
     [Fact]
@@ -61,5 +62,6 @@ public class PointLightTests
         Assert.Equal(Color.White, light.Color);
         Assert.Equal(1f, light.Intensity);
         Assert.Equal(10f, light.Range);
+        Assert.False(light.CastsShadows);
     }
 }

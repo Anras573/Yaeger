@@ -116,6 +116,19 @@ uniform PointLight uPointLights[MAX_POINT_LIGHTS];
 uniform int        uSpotLightCount;
 uniform SpotLight  uSpotLights[MAX_SPOT_LIGHTS];
 
+// Point-light cube shadow maps: two independent slots (flat uniforms, not a sampler array -
+// dynamic indexing of a sampler array isn't defined in GLSL 330), each optionally bound to one of
+// uPointLights[] by index. A slot's uCasterIndex is -1 when unused. Each cubemap stores linear
+// distance from its light, normalized by uFarPlane - see PointShadowMap.frag.
+uniform samplerCube uPointShadowMap0;
+uniform samplerCube uPointShadowMap1;
+uniform int         uPointShadowCasterIndex0;
+uniform int         uPointShadowCasterIndex1;
+uniform float       uPointShadowFarPlane0;
+uniform float       uPointShadowFarPlane1;
+uniform float       uPointShadowBias0;
+uniform float       uPointShadowBias1;
+
 const float PI = 3.14159265359;
 
 // Smooth, range-based distance attenuation (UE4-style): an inverse-square falloff windowed
@@ -257,6 +270,29 @@ float directionalShadow(vec3 N, vec3 L) {
     return mix(1.0, current - bias > closest ? 0.0 : 1.0, strength);
 }
 
+// One point-light shadow slot's visibility, given the fragment-to-light vector already computed by
+// the caller (toLight, dist). Samples the slot's cubemap along -toLight (light-to-fragment - the
+// direction the map was captured along, matching PointShadowMap.frag/gl_FragDepth's own
+// light-relative distance), scales the stored normalized value back to world units by the slot's
+// far plane, and compares against the fragment's actual distance. No PCF - cube shadows are
+// already the expensive part of this feature; softening is a follow-up if it's worth the cost.
+float pointShadowSlot(samplerCube map, float farPlane, float bias, vec3 toLight, float dist) {
+    float closest = texture(map, -toLight).r * farPlane;
+    return dist - bias > closest ? 0.0 : 1.0;
+}
+
+// Visibility for point light index `lightIndex`'s shadow, in [0, 1]: 1.0 (fully lit) unless that
+// light currently occupies one of the two shadow slots, in which case its map decides. Two slots
+// unrolled rather than a loop over an array, since sampler arrays can't be dynamically indexed in
+// GLSL 330 (see the uPointShadowMap0/1 declarations above).
+float pointShadow(int lightIndex, vec3 toLight, float dist) {
+    if (lightIndex == uPointShadowCasterIndex0)
+        return pointShadowSlot(uPointShadowMap0, uPointShadowFarPlane0, uPointShadowBias0, toLight, dist);
+    if (lightIndex == uPointShadowCasterIndex1)
+        return pointShadowSlot(uPointShadowMap1, uPointShadowFarPlane1, uPointShadowBias1, toLight, dist);
+    return 1.0;
+}
+
 void main() {
     vec3 N = normalize(vNormal);
 
@@ -323,8 +359,9 @@ void main() {
             float dist = length(toLight);
             vec3 Lp = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
             float att = attenuate(dist, uPointLights[i].range);
+            float shadow = pointShadow(i, toLight, dist);
             vec3 radiance = uPointLights[i].color.rgb * uPointLights[i].intensity * att;
-            Lo += pbrContribution(N, V, Lp, radiance, albedo, metallic, roughness, F0);
+            Lo += pbrContribution(N, V, Lp, radiance, albedo, metallic, roughness, F0) * shadow;
         }
 
         // Spot lights.
@@ -400,10 +437,11 @@ void main() {
             float dist = length(toLight);
             vec3 Lp = toLight * inversesqrt(max(dot(toLight, toLight), 1e-10));
             float att = attenuate(dist, uPointLights[i].range);
+            float shadow = pointShadow(i, toLight, dist);
             vec3 radiance = uPointLights[i].color.rgb * uPointLights[i].intensity * att;
             lit += phongContribution(
                 N, V, Lp, radiance, texColor.rgb, uSpecularColor.rgb, uShininess
-            );
+            ) * shadow;
         }
 
         // Spot lights.
