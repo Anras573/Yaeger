@@ -12,6 +12,13 @@ public sealed class CubemapTexture : IDisposable
     private readonly GL _gl;
     private readonly uint _handle;
 
+    /// <summary>
+    /// The underlying GL cubemap texture handle. Internal — used by <see cref="IblPrefilter"/> to
+    /// prefilter this texture without going through <see cref="Bind"/>/<see cref="Unbind"/> for
+    /// each render pass.
+    /// </summary>
+    internal uint Handle => _handle;
+
     public unsafe CubemapTexture(
         GL gl,
         string right,

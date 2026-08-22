@@ -16,9 +16,11 @@ namespace Yaeger.Systems;
 /// <see cref="ProceduralSky"/> entity the same way — the two sky kinds are independent and dispatched
 /// by which component the scene carries. Pass a <see cref="ShadowMapRenderer"/> to render
 /// directional-light shadows via an extra depth pre-pass. Pass an <see cref="EnvironmentMapRegistry"/>
-/// to light PBR materials from the cubemap skybox (image-based lighting); scenes without one, or
-/// without a registered <see cref="EnvironmentMap"/> for it, keep the flat ambient term — a
-/// <see cref="ProceduralSky"/> does not currently contribute IBL.
+/// to light PBR materials from the cubemap skybox (image-based lighting), or a
+/// <see cref="ProceduralSkyIbl"/> to light them from a <see cref="ProceduralSky"/> instead — when
+/// both would apply, the cubemap skybox's environment map wins (matching the draw-order precedence
+/// between the two sky kinds below); scenes with neither, or without a baked/registered
+/// <see cref="EnvironmentMap"/>, keep the flat ambient term.
 /// </summary>
 public class MeshRenderSystem(
     Renderer3D renderer,
@@ -30,7 +32,8 @@ public class MeshRenderSystem(
     CubemapRegistry? cubemapRegistry = null,
     ShadowMapRenderer? shadowMapRenderer = null,
     EnvironmentMapRegistry? environmentMaps = null,
-    ProceduralSkyRenderer? proceduralSkyRenderer = null
+    ProceduralSkyRenderer? proceduralSkyRenderer = null,
+    ProceduralSkyIbl? proceduralSkyIbl = null
 )
 {
     /// <summary>
@@ -145,6 +148,14 @@ public class MeshRenderSystem(
         )
         {
             renderer.SetEnvironmentMap(environmentMap!);
+        }
+        else if (
+            proceduralSkyIbl != null
+            && hasProceduralSky
+            && proceduralSkyIbl.TryGet(out var skyEnvironmentMap)
+        )
+        {
+            renderer.SetEnvironmentMap(skyEnvironmentMap!);
         }
         else
         {

@@ -3,9 +3,10 @@
 Two independent ways to render what surrounds a 3D scene:
 
 - **`Skybox`** — six images sampled as a cubemap. Static; see [pbr.md#image-based-lighting](pbr.md#image-based-lighting)
-  for how it also drives IBL.
+  for how it drives IBL via `EnvironmentMapRegistry`, prefiltered once at registration.
 - **`ProceduralSky`** — a shader-computed sky with no assets: a gradient that tracks the sun, sun
-  and moon discs, a rotating star field, and drifting clouds. This page covers that one.
+  and moon discs, a rotating star field, and drifting clouds. This page covers that one, including
+  its own throttled IBL path ([Sky-driven image-based lighting](#sky-driven-image-based-lighting)).
 
 `MeshRenderSystem` dispatches whichever component the scene carries; a scene with neither renders no
 sky at all, and a scene with both keeps drawing the cubemap (see [Dispatch](#dispatch) below) — so
@@ -14,10 +15,10 @@ adding `ProceduralSky` support never changes an existing `Skybox` scene's output
 ## Setup
 
 ```csharp
-using var proceduralSky = new ProceduralSkyRenderer(window.Gl);
+using var proceduralSkyRenderer = new ProceduralSkyRenderer(window.Gl);
 
-var sky = world.CreateEntity("sky");
-world.AddComponent(sky, ProceduralSky.Default);
+var skyEntity = world.CreateEntity("sky");
+world.AddComponent(skyEntity, ProceduralSky.Default);
 
 var skySystem = new ProceduralSkySystem(world);
 window.OnUpdate += dt => skySystem.Update((float)dt);
@@ -28,7 +29,7 @@ var meshRenderSystem = new MeshRenderSystem(
     textures,
     world,
     window,
-    proceduralSkyRenderer: proceduralSky
+    proceduralSkyRenderer: proceduralSkyRenderer
 );
 ```
 
@@ -124,10 +125,66 @@ scene has one (unchanged from before this component existed); otherwise it draws
 the scene has one and a renderer was supplied. A scene with neither renders no sky, same as omitting
 both today.
 
-Unlike `Skybox`, `ProceduralSky` does not currently contribute image-based lighting — a scene wanting
-IBL from a procedural sky still needs a `Skybox`/`CubemapRegistry`/`EnvironmentMapRegistry` set up
-alongside it (baking a procedural sky's own output into a prefiltered cubemap is a separate concern
-from rendering the sky itself).
+## Sky-driven image-based lighting
+
+A `ProceduralSky` can also light PBR materials — ambient and reflections that track the sky through a
+full day/night cycle, rather than a flat driven `AmbientLight` — via `ProceduralSkyIbl`. It's the
+dynamic counterpart to `EnvironmentMapRegistry` (which prefilters a static `Skybox` cubemap once, at
+registration, and never again): `ProceduralSkyIbl` bakes the current sky into a cubemap and
+re-prefilters it on a throttle, since the sky changes continuously but re-running the full prefilter
+chain every frame would be wasteful.
+
+```csharp
+using var proceduralSkyRenderer = new ProceduralSkyRenderer(window.Gl);
+using var iblPrefilter = new IblPrefilter(window.Gl);
+var proceduralSkyIbl = new ProceduralSkyIbl(proceduralSkyRenderer, iblPrefilter);
+
+window.OnUpdate += dt =>
+{
+    // ...ProceduralSkySystem.Update / DayNightCycleSystem.Update as usual...
+    world.TryGetComponent<ProceduralSky>(skyEntity, out var sky);
+    proceduralSkyIbl.Update(sky, (float)dt, (int)window.Size.X, (int)window.Size.Y);
+};
+
+var meshRenderSystem = new MeshRenderSystem(
+    renderer3D, meshRegistry, textures, world, window,
+    proceduralSkyRenderer: proceduralSkyRenderer,
+    proceduralSkyIbl: proceduralSkyIbl
+);
+```
+
+`Update` is caller-driven and belongs in `OnUpdate`, not `OnRender` — the same reason
+`EnvironmentMapRegistry.Register` is a separate, explicit call rather than something
+`MeshRenderSystem` triggers itself: tying the bake to the render loop would tie its cadence to frame
+rate instead of to the throttle below. `MeshRenderSystem` only ever reads the result
+(`ProceduralSkyIbl.TryGet`); when both a cubemap `Skybox`'s environment map and a `ProceduralSky`'s
+are available, the cubemap one wins, matching the two sky renderers' own draw-order precedence.
+
+### The throttle
+
+`ProceduralSkyIbl.Settings` (`ProceduralSkyIblSettings`, defaults `MinRebakeInterval = 2s`,
+`SunDirectionThresholdDegrees = 3°`) gates re-baking on **both** conditions at once: the minimum
+interval must have elapsed, *and* the sun must have moved past the angle threshold since the last
+bake. Requiring both — rather than either — is deliberate: the interval is a hard floor on re-bake
+rate no matter how fast the sun moves (a short `DayLengthSeconds` would otherwise cross a small angle
+threshold many times within one interval window, defeating the point of throttling at all), and the
+angle check only skips a bake once the floor allows one but the sky genuinely hasn't changed enough to
+be worth it (a paused or very slow cycle). The decision is a pure static
+(`ProceduralSkyIbl.ShouldRebake`) so it's unit-tested directly, including a simulated fast day/night
+cycle asserting the rebake count stays bounded.
+
+The first `Update` call always bakes (there's nothing to compare against yet); after that, GL
+resources are reused across bakes — `ProceduralSkyRenderer.Bake` renders into one persistent cubemap
+it owns, and `ProceduralSkyIbl` disposes the previous `EnvironmentMap` before storing the new one — so
+a cycle running for minutes doesn't leak texture handles.
+
+### What doesn't change
+
+A scene with a static six-image `Skybox` keeps using `EnvironmentMapRegistry`'s register-once path and
+pays nothing extra by `ProceduralSkyIbl` existing — the two are independent, opt-in types. Nothing
+about `Renderer3D.SetEnvironmentMap`/`DisableIBL` changed either: `ProceduralSkyIbl` produces the same
+`EnvironmentMap` type `IblPrefilter.Prefilter` always has, just from a baked cubemap instead of a
+loaded one.
 
 ## Serialization
 
@@ -150,5 +207,5 @@ role a serialized `DirectionalLight` plays in a day/night scene.
 ## Related
 
 - [day-night.md](day-night.md) — the `TimeOfDay` clock that drives `SunDirection`/`MoonDirection`/`DaylightFactor`
-- [pbr.md#image-based-lighting](pbr.md#image-based-lighting) — the cubemap `Skybox` path and its IBL bake
-- [lighting.md](lighting.md) — the light components a moving sun also drives
+- [pbr.md#image-based-lighting](pbr.md#image-based-lighting) — `IblPrefilter`/`EnvironmentMapRegistry`, and the cubemap `Skybox`'s register-once IBL path `ProceduralSkyIbl` mirrors
+- [lighting.md](lighting.md) — the light components a moving sun also drives, and `AmbientLight` — the cheap fallback everywhere IBL is off

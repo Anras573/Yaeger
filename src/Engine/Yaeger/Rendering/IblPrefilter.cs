@@ -23,9 +23,12 @@ namespace Yaeger.Rendering;
 /// <c>Renderer3D</c>'s PBR path samples them directly with no further linearisation.
 /// </para>
 /// <para>
-/// <b>Cost:</b> prefiltering is a one-off, GPU-bound pass per call to <see cref="Prefilter"/> —
-/// call it once when a skybox is registered (see <see cref="EnvironmentMapRegistry"/>), not every
-/// frame; re-prefiltering a runtime-changed skybox is out of scope.
+/// <b>Cost:</b> prefiltering is a one-off, GPU-bound pass per call to
+/// <see cref="Prefilter(CubemapTexture, int, int)"/>/<see cref="Prefilter(uint, int, int)"/> — for a
+/// static <see cref="CubemapTexture"/> skybox, call it once when the skybox is registered (see
+/// <see cref="EnvironmentMapRegistry"/>), not every frame. A sky that changes at runtime (see
+/// <c>ProceduralSkyIbl</c>) re-prefilters on its own throttle instead — still not every frame, just
+/// not a fixed one-off.
 /// </para>
 /// </remarks>
 public sealed class IblPrefilter : IDisposable
@@ -239,7 +242,22 @@ public sealed class IblPrefilter : IDisposable
     public EnvironmentMap Prefilter(CubemapTexture source, int viewportWidth, int viewportHeight)
     {
         ArgumentNullException.ThrowIfNull(source);
+        return Prefilter(source.Handle, viewportWidth, viewportHeight);
+    }
 
+    /// <summary>
+    /// Prefilters a raw GL cubemap texture handle into a new <see cref="EnvironmentMap"/> — the same
+    /// work as <see cref="Prefilter(CubemapTexture, int, int)"/>, for a cubemap that isn't backed by
+    /// a <see cref="CubemapTexture"/> (e.g. one baked from a <c>ProceduralSky</c> by
+    /// <c>ProceduralSkyRenderer.Bake</c>, see <c>ProceduralSkyIbl</c>). The caller retains ownership
+    /// of <paramref name="sourceCubemapHandle"/> — it's only sampled here, never deleted.
+    /// </summary>
+    /// <param name="sourceCubemapHandle">A valid, complete GL cubemap texture (all six faces).</param>
+    /// <param name="viewportWidth">Current window viewport width, restored afterward — the offscreen
+    /// passes resize the viewport to each capture resolution as they run.</param>
+    /// <param name="viewportHeight">Current window viewport height, restored the same way.</param>
+    public EnvironmentMap Prefilter(uint sourceCubemapHandle, int viewportWidth, int viewportHeight)
+    {
         _gl.Disable(EnableCap.DepthTest);
         _gl.Disable(EnableCap.CullFace);
         _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _fbo);
@@ -247,8 +265,8 @@ public sealed class IblPrefilter : IDisposable
         {
             _brdfLut ??= RenderBrdfLut();
 
-            var irradianceMap = RenderIrradianceCubemap(source);
-            var (prefilteredMap, mipCount) = RenderPrefilteredCubemap(source);
+            var irradianceMap = RenderIrradianceCubemap(sourceCubemapHandle);
+            var (prefilteredMap, mipCount) = RenderPrefilteredCubemap(sourceCubemapHandle);
 
             return new EnvironmentMap(_gl, irradianceMap, prefilteredMap, mipCount, _brdfLut.Value);
         }
@@ -263,14 +281,26 @@ public sealed class IblPrefilter : IDisposable
         }
     }
 
-    private uint RenderIrradianceCubemap(CubemapTexture source)
+    private void BindSource(uint sourceHandle)
+    {
+        _gl.ActiveTexture(TextureUnit.Texture0);
+        _gl.BindTexture(TextureTarget.TextureCubeMap, sourceHandle);
+    }
+
+    private void UnbindSource()
+    {
+        _gl.ActiveTexture(TextureUnit.Texture0);
+        _gl.BindTexture(TextureTarget.TextureCubeMap, 0);
+    }
+
+    private uint RenderIrradianceCubemap(uint sourceHandle)
     {
         var cubemap = CreateEmptyCubemap(IrradianceResolution, mipLevels: 1);
 
         _gl.Viewport(0, 0, IrradianceResolution, IrradianceResolution);
         _irradianceShader.Bind();
         _irradianceShader.SetUniformInt("uSource", 0);
-        source.Bind(TextureUnit.Texture0);
+        BindSource(sourceHandle);
 
         for (var face = 0; face < FaceDirections.Length; face++)
         {
@@ -280,18 +310,18 @@ public sealed class IblPrefilter : IDisposable
             DrawUnitCube();
         }
 
-        source.Unbind(TextureUnit.Texture0);
+        UnbindSource();
         _irradianceShader.Unbind();
         return cubemap;
     }
 
-    private (uint Handle, int MipCount) RenderPrefilteredCubemap(CubemapTexture source)
+    private (uint Handle, int MipCount) RenderPrefilteredCubemap(uint sourceHandle)
     {
         var cubemap = CreateEmptyCubemap(PrefilteredBaseResolution, PrefilteredMipLevels);
 
         _prefilterShader.Bind();
         _prefilterShader.SetUniformInt("uSource", 0);
-        source.Bind(TextureUnit.Texture0);
+        BindSource(sourceHandle);
 
         for (var mip = 0; mip < PrefilteredMipLevels; mip++)
         {
@@ -311,7 +341,7 @@ public sealed class IblPrefilter : IDisposable
             }
         }
 
-        source.Unbind(TextureUnit.Texture0);
+        UnbindSource();
         _prefilterShader.Unbind();
         return (cubemap, PrefilteredMipLevels);
     }
