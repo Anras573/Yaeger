@@ -1,5 +1,6 @@
 using System.Numerics;
 using Yaeger.Graphics;
+using Yaeger.Physics;
 
 namespace Yaeger.Inspector;
 
@@ -82,7 +83,11 @@ public static class ViewportPicking
     /// Ray-vs-oriented-box test: transforms the ray into the box's local space via the inverse of
     /// <paramref name="model"/> and runs a standard slab test against <paramref name="box"/>. On a
     /// hit, <paramref name="distance"/> is the ray parameter of the nearest intersection (clamped to
-    /// the entry point, or the exit point if the ray starts inside the box).
+    /// the entry point, or the exit point if the ray starts inside the box). Thin wrapper over
+    /// <see cref="RayAabbIntersection.TryIntersect"/> — the same math backs
+    /// <c>World.Raycast</c>/<c>RaycastAll</c> for gameplay 3D queries (see docs/queries.md), so
+    /// viewport picking and world queries agree on every edge case instead of maintaining two
+    /// copies of the slab test.
     /// </summary>
     public static bool TryIntersectRayAabb(
         Vector3 rayOrigin,
@@ -90,82 +95,7 @@ public static class ViewportPicking
         Aabb3D box,
         Matrix4x4 model,
         out float distance
-    )
-    {
-        distance = 0f;
-        if (!Matrix4x4.Invert(model, out var inverseModel))
-            return false;
-
-        var localOrigin = Vector3.Transform(rayOrigin, inverseModel);
-        var localDirection = Vector3.TransformNormal(rayDirection, inverseModel);
-
-        var tMin = float.NegativeInfinity;
-        var tMax = float.PositiveInfinity;
-
-        if (
-            !SlabIntersect(
-                localOrigin.X,
-                localDirection.X,
-                box.Min.X,
-                box.Max.X,
-                ref tMin,
-                ref tMax
-            )
-        )
-            return false;
-        if (
-            !SlabIntersect(
-                localOrigin.Y,
-                localDirection.Y,
-                box.Min.Y,
-                box.Max.Y,
-                ref tMin,
-                ref tMax
-            )
-        )
-            return false;
-        if (
-            !SlabIntersect(
-                localOrigin.Z,
-                localDirection.Z,
-                box.Min.Z,
-                box.Max.Z,
-                ref tMin,
-                ref tMax
-            )
-        )
-            return false;
-
-        // The box is entirely behind the ray's origin.
-        if (tMax < 0f)
-            return false;
-
-        distance = tMin >= 0f ? tMin : tMax;
-        return true;
-    }
-
-    private static bool SlabIntersect(
-        float origin,
-        float direction,
-        float min,
-        float max,
-        ref float tMin,
-        ref float tMax
-    )
-    {
-        if (MathF.Abs(direction) < 1e-12f)
-            // Ray parallel to this slab: only intersects if the origin already lies within it.
-            return origin >= min && origin <= max;
-
-        var t1 = (min - origin) / direction;
-        var t2 = (max - origin) / direction;
-        if (t1 > t2)
-            (t1, t2) = (t2, t1);
-
-        tMin = MathF.Max(tMin, t1);
-        tMax = MathF.Min(tMax, t2);
-        return tMin <= tMax;
-    }
+    ) => RayAabbIntersection.TryIntersect(rayOrigin, rayDirection, box, model, out distance, out _);
 
     /// <summary>
     /// Finds the point along the infinite line through <paramref name="axisOrigin"/> in unit
