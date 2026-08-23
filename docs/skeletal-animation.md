@@ -10,17 +10,22 @@ they simply carry zero skin weights and take the identity-skin path in the shade
    populates `Skeleton` (the bone hierarchy + inverse bind poses) and `Animations`
    (`IReadOnlyList<AnimationClip>`). Each `Vertex3D` carries up to four `BoneIndices`/`BoneWeights`.
 2. **Register** — put the skeleton and its clips into a `SkeletonRegistry`, which hands back a
-   `SkeletonHandle` (mirrors how `GpuMeshRegistry` works for meshes).
+   `SkeletonHandle` (mirrors how `GpuMeshRegistry` works for meshes). Also pass the skinned
+   vertices (`IEnumerable<SkinnedVertex>`) if you want frustum culling — see
+   [Frustum culling](#frustum-culling) below.
 3. **Attach components** — give the mesh entity the `SkeletonHandle` and an `AnimationPlayer`
    (current clip, time, loop, speed) alongside the usual `MeshHandle` / `Transform3D` / `Material3D`.
 4. **Update** — `SkeletalAnimationSystem.Update(dt)` advances the player, samples the clip into
    per-bone local transforms, resolves the world-space matrix palette through the hierarchy, and
-   writes it to a `BonePalette` component. Call `SkeletalAnimationSystem.CrossFadeTo(entity, clip,
-   duration)` instead of assigning `AnimationPlayer.CurrentClip` directly to blend into the new
-   clip over `duration` seconds rather than popping to it — see [Crossfading](#crossfading) below.
+   writes it to a `BonePalette` component — and, when the skeleton was registered with vertex data,
+   an `Aabb3D` bounding the current pose (see [Frustum culling](#frustum-culling)). Call
+   `SkeletalAnimationSystem.CrossFadeTo(entity, clip, duration)` instead of assigning
+   `AnimationPlayer.CurrentClip` directly to blend into the new clip over `duration` seconds rather
+   than popping to it — see [Crossfading](#crossfading) below.
 5. **Render** — `MeshRenderSystem` detects the `BonePalette` and routes the entity through
    `Renderer3D`'s skinning draw, uploading the palette to a bone-matrix uniform buffer (UBO). The
-   vertex shader blends up to four bone matrices per vertex.
+   vertex shader blends up to four bone matrices per vertex. Entities carrying the `Aabb3D` from
+   step 4 are frustum-culled exactly like static meshes — no render-path changes needed.
 
 ## Types
 
@@ -32,8 +37,10 @@ they simply carry zero skin weights and take the identity-skin path in the shade
 | `BoneTrack(BoneIndex, Positions, Rotations, Scales)` | Per-bone keyframe tracks; `Sample(time)` → local matrix. |
 | `AnimationClip(Name, Duration, Tracks, Events)` | A named clip; `Sample(time, locals)` fills per-bone locals; `SampleTRS(time, ...)` fills separate translation/rotation/scale spans for blending. `Events` is an optional array of named markers — see [Completion and events](#completion-and-events) below. |
 | `SkeletonHandle` / `AnimationPlayer` / `BonePalette` | ECS components. `AnimationPlayer` also holds in-progress crossfade state (`PreviousClip`/`PreviousTime`/`FadeDuration`/`FadeElapsed`), set by `CrossFadeTo` rather than by hand, and `IsFinished` (see below). |
-| `SkeletonRegistry` | Stores skeletons + clips, keyed by handle. |
-| `SkeletalAnimationSystem` | `IUpdateSystem` that drives playback and writes the palette. |
+| `SkinnedVertex(Position, BoneIndices, BoneWeights)` | A vertex's bind-pose position + skin influences, passed to `Register` for frustum culling. |
+| `SkeletonBoneBounds(BindPositions, Radii)` | Per-bone bind-pose pivot + max influence radius, computed by `Register` from `SkinnedVertex` data. |
+| `SkeletonRegistry` | Stores skeletons + clips (+ optional bone bounds), keyed by handle. |
+| `SkeletalAnimationSystem` | `IUpdateSystem` that drives playback, writes the palette, and (when bone bounds are available) the per-frame `Aabb3D`. |
 
 ## Usage
 
@@ -41,7 +48,12 @@ they simply carry zero skin weights and take the identity-skin path in the shade
 var modelScene = AssimpLoader.LoadScene("Assets/CesiumMan/CesiumMan.gltf");
 
 var skeletonRegistry = new SkeletonRegistry();
-var handle = skeletonRegistry.Register(modelScene.Skeleton!, modelScene.Animations);
+// Passing the skinned vertices lets the registry precompute each bone's max influence radius,
+// which SkeletalAnimationSystem uses to write a per-frame Aabb3D for frustum culling.
+var skinnedVertices = modelScene.Meshes.SelectMany(
+    m => m.Mesh.Vertices.Select(v => new SkinnedVertex(v.Position, v.BoneIndices, v.BoneWeights))
+);
+var handle = skeletonRegistry.Register(modelScene.Skeleton!, modelScene.Animations, skinnedVertices);
 var clip = skeletonRegistry.GetClipNames(handle).FirstOrDefault();
 
 foreach (var mesh in modelScene.Meshes)
@@ -159,6 +171,29 @@ Not in scope: importing markers from glTF/FBX (author them in code, or wherever 
 registered) and 2D animation events (`AnimationState` already has the completion half; frame-indexed
 events there are a separate feature).
 
+## Frustum culling
+
+A bind-pose `Aabb3D` wouldn't bound an animated mesh, so `MeshRenderSystem`'s frustum culling
+needs a bound recomputed for the *current* pose every frame — without re-walking every vertex.
+
+When `SkeletonRegistry.Register` is given the skinned vertices (as in [Usage](#usage) above), it
+computes, once per bone: the bone's bind-pose pivot (its world position in the rest pose) and the
+farthest any vertex with a non-zero weight to that bone sits from that pivot, in bind space (its
+max influence radius). This is static per skeleton — it never needs recomputing.
+
+Every `SkeletalAnimationSystem.Update` call then transforms each bone's bind-pose pivot by that
+bone's entry in the just-resolved `BonePalette` — giving the bone's *current* animated world
+position, since the palette already folds in the inverse bind pose — and expands it by the bone's
+precomputed radius. The union of these per-bone boxes is written as the entity's `Aabb3D`, which
+`MeshRenderSystem` then culls against exactly like a static mesh's — no render-path changes needed.
+Cost is proportional to bone count, not vertex count, and allocates nothing per frame.
+
+This is deliberately conservative rather than tight: linear blend skinning places a vertex at a
+convex combination of its influencing bones' transformed positions, and the union of per-bone boxes
+is itself convex, so it contains any such combination — a swinging limb never pops in and out of
+view at the edge of the screen. A skeleton registered without vertex data (`vertices: null`, the
+default) leaves its entities uncullable, same as before this existed.
+
 ## Notes & limitations
 
 - **Bone cap** — the shader palette holds up to `Renderer3D.MaxBones` (128) matrices. The skeleton
@@ -169,6 +204,11 @@ events there are a separate feature).
 - **Influences** — up to four bones per vertex; the loader keeps the heaviest four and renormalises.
 - **Model matrix** — for skinned entities use `Transform3D.Identity`; the bone world transforms run
   from the scene root, so the skin already positions vertices in scene space.
+- **Culling assumes rigid-ish bones** — the per-bone radius is a bind-space distance, carried
+  through the palette unchanged; it stays exact under rotation/translation (the common case) but a
+  clip that scales a bone non-uniformly could in principle stretch a vertex further than the radius
+  accounts for. Not a concern for typical rig/clip authoring, and out of scope for now — see
+  [Frustum culling](#frustum-culling).
 
 See [`Samples/SkinnedMeshDemo`](../Samples/SkinnedMeshDemo) for a complete example that plays the
 KhronosGroup CesiumMan walk cycle.

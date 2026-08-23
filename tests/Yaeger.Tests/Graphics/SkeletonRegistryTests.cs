@@ -65,4 +65,107 @@ public class SkeletonRegistryTests
         var registry = new SkeletonRegistry();
         Assert.Throws<ArgumentNullException>(() => registry.Register(null!));
     }
+
+    // ── Bone bounds (issue #197) ─────────────────────────────────────────────
+
+    [Fact]
+    public void Register_WithoutVertices_ShouldNotExposeBoneBounds()
+    {
+        var registry = new SkeletonRegistry();
+        var handle = registry.Register(SingleBone());
+
+        Assert.False(registry.TryGetBoneBounds(handle, out _));
+    }
+
+    [Fact]
+    public void Register_WithVertices_ShouldComputeBindPositionAndMaxRadiusPerBone()
+    {
+        // Two independent bones (both roots, no hierarchy needed for this): bone 0's inverse bind
+        // pose places its bind-pose pivot at (1,0,0); bone 1's at (-2,0,0).
+        var skeleton = new Skeleton(
+            [new Bone("a", -1, Matrix4x4.Identity), new Bone("b", -1, Matrix4x4.Identity)],
+            [
+                Matrix4x4.CreateTranslation(-1, 0, 0), // inverse of translation(1,0,0)
+                Matrix4x4.CreateTranslation(2, 0, 0), // inverse of translation(-2,0,0)
+            ]
+        );
+
+        var vertices = new[]
+        {
+            // Weighted fully to bone 0, 3 units from its pivot (1,0,0) -> (4,0,0).
+            new SkinnedVertex(
+                new Vector3(4, 0, 0),
+                new Vector4(0, 0, 0, 0),
+                new Vector4(1, 0, 0, 0)
+            ),
+            // Weighted fully to bone 0, only 1 unit from its pivot -> must not win over the 3-unit one.
+            new SkinnedVertex(
+                new Vector3(2, 0, 0),
+                new Vector4(0, 0, 0, 0),
+                new Vector4(1, 0, 0, 0)
+            ),
+            // Weighted fully to bone 1, 0.5 units from its pivot (-2,0,0).
+            new SkinnedVertex(
+                new Vector3(-2, 0.5f, 0),
+                new Vector4(1, 0, 0, 0),
+                new Vector4(1, 0, 0, 0)
+            ),
+        };
+
+        var registry = new SkeletonRegistry();
+        var handle = registry.Register(skeleton, vertices: vertices);
+
+        Assert.True(registry.TryGetBoneBounds(handle, out var bounds));
+        Assert.Equal(new Vector3(1, 0, 0), bounds!.BindPositions[0]);
+        Assert.Equal(new Vector3(-2, 0, 0), bounds.BindPositions[1]);
+        Assert.Equal(3f, bounds.Radii[0], 4);
+        Assert.Equal(0.5f, bounds.Radii[1], 4);
+    }
+
+    [Fact]
+    public void Register_VertexWithZeroWeightInfluence_ShouldNotContributeToRadius()
+    {
+        var skeleton = SingleBone();
+        var vertices = new[]
+        {
+            // Far from the bone but with zero weight — must be ignored entirely.
+            new SkinnedVertex(new Vector3(100, 0, 0), Vector4.Zero, Vector4.Zero),
+        };
+
+        var registry = new SkeletonRegistry();
+        var handle = registry.Register(skeleton, vertices: vertices);
+
+        Assert.True(registry.TryGetBoneBounds(handle, out var bounds));
+        Assert.Equal(0f, bounds!.Radii[0]);
+    }
+
+    [Fact]
+    public void Register_VertexWithOutOfRangeBoneIndex_ShouldBeIgnored()
+    {
+        var skeleton = SingleBone();
+        var vertices = new[]
+        {
+            new SkinnedVertex(
+                new Vector3(5, 0, 0),
+                new Vector4(7, 0, 0, 0), // index 7 doesn't exist on a 1-bone skeleton
+                new Vector4(1, 0, 0, 0)
+            ),
+        };
+
+        var registry = new SkeletonRegistry();
+        var handle = registry.Register(skeleton, vertices: vertices);
+
+        Assert.True(registry.TryGetBoneBounds(handle, out var bounds));
+        Assert.Equal(0f, bounds!.Radii[0]);
+    }
+
+    [Fact]
+    public void Register_EmptyVertexList_ShouldExposeZeroRadiiRatherThanNoBounds()
+    {
+        var registry = new SkeletonRegistry();
+        var handle = registry.Register(SingleBone(), vertices: []);
+
+        Assert.True(registry.TryGetBoneBounds(handle, out var bounds));
+        Assert.Equal(0f, bounds!.Radii[0]);
+    }
 }
