@@ -927,4 +927,222 @@ public class SkeletalAnimationSystemTests
 
         Assert.Equal(["riseMark"], fired);
     }
+
+    // ── Frustum culling bounds (issue #197) ─────────────────────────────────
+
+    [Fact]
+    public void Update_SkeletonRegisteredWithoutVertices_ShouldNotWriteAabb3D()
+    {
+        // Backward compatibility: a skeleton registered without vertex data (BuildRig's default)
+        // must leave entities exactly as culling-agnostic as before this feature existed.
+        var (registry, handle) = BuildRig();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("slide"));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.1f);
+
+        Assert.False(world.TryGetComponent<Aabb3D>(entity, out _));
+    }
+
+    [Fact]
+    public void Update_BoneBoundsWithNoWeightedVertices_ShouldNotWriteAabb3D()
+    {
+        // A skeleton registered with vertex data, but where nothing actually weighs onto the bone
+        // (radius stays 0), must also skip writing a degenerate zero-size bound.
+        var registry = new SkeletonRegistry();
+        var skeleton = new Skeleton(
+            [new Bone("root", -1, Matrix4x4.Identity)],
+            [Matrix4x4.Identity]
+        );
+        var clip = new AnimationClip("idle", 1f, []);
+        var handle = registry.Register(skeleton, [clip], vertices: []);
+
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("idle"));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.1f);
+
+        Assert.False(world.TryGetComponent<Aabb3D>(entity, out _));
+    }
+
+    [Fact]
+    public void Update_WithBoneBounds_ShouldWriteAabbCenteredOnAnimatedBonePosition()
+    {
+        // Single bone sliding on X (BuildRig's "slide" clip), this time registered with a vertex 1.5
+        // units from the bind-pose pivot -> radius 1.5.
+        var registry = new SkeletonRegistry();
+        var skeleton = new Skeleton(
+            [new Bone("root", -1, Matrix4x4.Identity)],
+            [Matrix4x4.Identity]
+        );
+        var clip = new AnimationClip(
+            "slide",
+            1f,
+            [
+                new BoneTrack(
+                    0,
+                    [new VectorKey(0f, Vector3.Zero), new VectorKey(1f, new Vector3(10f, 0f, 0f))],
+                    [],
+                    []
+                ),
+            ]
+        );
+        var vertices = new[]
+        {
+            new SkinnedVertex(new Vector3(1.5f, 0f, 0f), Vector4.Zero, new Vector4(1, 0, 0, 0)),
+        };
+        var handle = registry.Register(skeleton, [clip], vertices);
+
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("slide", loop: true, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0.5f); // halfway: bone at X=5
+
+        Assert.True(world.TryGetComponent<Aabb3D>(entity, out var aabb));
+        Assert.Equal(5f - 1.5f, aabb.Min.X, 2);
+        Assert.Equal(5f + 1.5f, aabb.Max.X, 2);
+        Assert.Equal(-1.5f, aabb.Min.Y, 2);
+        Assert.Equal(1.5f, aabb.Max.Y, 2);
+    }
+
+    [Theory]
+    [InlineData(0f)] // extreme: start of the swing
+    [InlineData(0.25f)]
+    [InlineData(0.5f)]
+    [InlineData(0.75f)]
+    [InlineData(1f)] // extreme: end of the swing (180 degrees around)
+    public void Update_WideRotationSwing_AabbAlwaysContainsTheAnimatedVertex(float sampleTime)
+    {
+        // A single bone rotating 180 degrees around Z over 1s, with an "outstretched arm" vertex 2
+        // units from the pivot: a wide swing from (2,0,0) to (-2,0,0) that must stay bounded at every
+        // sampled time, including both extremes.
+        var registry = new SkeletonRegistry();
+        var skeleton = new Skeleton(
+            [new Bone("root", -1, Matrix4x4.Identity)],
+            [Matrix4x4.Identity]
+        );
+        var swing = new AnimationClip(
+            "swing",
+            1f,
+            [
+                new BoneTrack(
+                    0,
+                    [],
+                    [
+                        new QuaternionKey(0f, Quaternion.Identity),
+                        new QuaternionKey(
+                            1f,
+                            Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI)
+                        ),
+                    ],
+                    []
+                ),
+            ]
+        );
+        var vertices = new[]
+        {
+            new SkinnedVertex(new Vector3(2f, 0f, 0f), Vector4.Zero, new Vector4(1, 0, 0, 0)),
+        };
+        var handle = registry.Register(skeleton, [swing], vertices);
+
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(
+            entity,
+            new AnimationPlayer("swing", loop: false, speed: 1f) { Time = sampleTime }
+        );
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(0f); // resolves the palette/bound at exactly Time = sampleTime
+
+        Assert.True(world.TryGetComponent<BonePalette>(entity, out var palette));
+        var actualVertexPos = Vector3.Transform(new Vector3(2f, 0f, 0f), palette.Matrices[0]);
+
+        Assert.True(world.TryGetComponent<Aabb3D>(entity, out var aabb));
+        AssertContains(aabb, actualVertexPos);
+    }
+
+    [Fact]
+    public void Update_BlendedVertexAcrossTwoDivergingBones_AabbStillContainsSkinnedPosition()
+    {
+        // Two bones, both at the origin in bind pose, sliding apart in opposite directions; a
+        // vertex weighted 50/50 between them stays put at the midpoint (symmetric blend) even
+        // though each bone individually moves far from it — this only stays bounded because the
+        // union of the two per-bone boxes is itself convex (see ComputeAnimatedBounds's remarks).
+        var registry = new SkeletonRegistry();
+        var skeleton = new Skeleton(
+            [new Bone("left", -1, Matrix4x4.Identity), new Bone("right", -1, Matrix4x4.Identity)],
+            [Matrix4x4.Identity, Matrix4x4.Identity]
+        );
+        var diverge = new AnimationClip(
+            "diverge",
+            1f,
+            [
+                new BoneTrack(
+                    0,
+                    [new VectorKey(0f, Vector3.Zero), new VectorKey(1f, new Vector3(5f, 0f, 0f))],
+                    [],
+                    []
+                ),
+                new BoneTrack(
+                    1,
+                    [new VectorKey(0f, Vector3.Zero), new VectorKey(1f, new Vector3(-5f, 0f, 0f))],
+                    [],
+                    []
+                ),
+            ]
+        );
+        var vertices = new[]
+        {
+            new SkinnedVertex(
+                new Vector3(0f, 1f, 0f),
+                new Vector4(0, 1, 0, 0),
+                new Vector4(0.5f, 0.5f, 0f, 0f)
+            ),
+        };
+        var handle = registry.Register(skeleton, [diverge], vertices);
+
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, handle);
+        world.AddComponent(entity, new AnimationPlayer("diverge", loop: false, speed: 1f));
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        system.Update(1f); // fully diverged: bones at (5,0,0) and (-5,0,0)
+
+        Assert.True(world.TryGetComponent<BonePalette>(entity, out var palette));
+        var skinnedPos =
+            0.5f * Vector3.Transform(new Vector3(0f, 1f, 0f), palette.Matrices[0])
+            + 0.5f * Vector3.Transform(new Vector3(0f, 1f, 0f), palette.Matrices[1]);
+
+        Assert.True(world.TryGetComponent<Aabb3D>(entity, out var aabb));
+        AssertContains(aabb, skinnedPos);
+    }
+
+    private static void AssertContains(Aabb3D aabb, Vector3 point)
+    {
+        const float tolerance = 1e-3f;
+        Assert.True(
+            point.X >= aabb.Min.X - tolerance && point.X <= aabb.Max.X + tolerance,
+            $"X {point.X} outside [{aabb.Min.X}, {aabb.Max.X}]"
+        );
+        Assert.True(
+            point.Y >= aabb.Min.Y - tolerance && point.Y <= aabb.Max.Y + tolerance,
+            $"Y {point.Y} outside [{aabb.Min.Y}, {aabb.Max.Y}]"
+        );
+        Assert.True(
+            point.Z >= aabb.Min.Z - tolerance && point.Z <= aabb.Max.Z + tolerance,
+            $"Z {point.Z} outside [{aabb.Min.Z}, {aabb.Max.Z}]"
+        );
+    }
 }

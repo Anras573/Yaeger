@@ -44,7 +44,13 @@ var skeletonHandle = default(SkeletonHandle);
 string? clipName = null;
 if (modelScene.Skeleton is { } skeleton)
 {
-    skeletonHandle = skeletonRegistry.Register(skeleton, modelScene.Animations);
+    // Feeding the skinned vertex data lets SkeletonRegistry precompute each bone's max influence
+    // radius, which SkeletalAnimationSystem then uses to write a per-frame Aabb3D — enabling
+    // frustum culling for the entities driven by this skeleton (see docs/skeletal-animation.md).
+    var skinnedVertices = modelScene.Meshes.SelectMany(m =>
+        m.Mesh.Vertices.Select(v => new SkinnedVertex(v.Position, v.BoneIndices, v.BoneWeights))
+    );
+    skeletonHandle = skeletonRegistry.Register(skeleton, modelScene.Animations, skinnedVertices);
     clipName = skeletonRegistry.GetClipNames(skeletonHandle).FirstOrDefault();
     Console.WriteLine(clipName != null ? $"Playing clip '{clipName}'" : "No animation clips found");
 }
@@ -67,8 +73,9 @@ foreach (var modelMesh in modelScene.Meshes)
         world.AddComponent(entity, Transform3D.Identity);
         world.AddComponent(entity, skeletonHandle);
         world.AddComponent(entity, new AnimationPlayer(clipName, loop: true, speed: 1f));
-        // Deliberately no Aabb3D: a bind-pose box wouldn't bound the animated mesh, so skip frustum
-        // culling for skinned entities.
+        // No Aabb3D added here: SkeletalAnimationSystem writes one itself each frame, computed from
+        // the resolved bone palette (see the SkinnedVertex registration above), so it always bounds
+        // the current animated pose rather than a stale bind-pose box.
     }
     else
     {

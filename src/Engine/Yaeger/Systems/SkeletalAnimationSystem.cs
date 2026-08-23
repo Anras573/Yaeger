@@ -27,6 +27,13 @@ namespace Yaeger.Systems;
 /// clip — never by the fade-out source, so a fading-out loop doesn't keep reporting finished or
 /// emitting its own markers once a fade begins. See docs/skeletal-animation.md.
 /// </para>
+/// <para>
+/// When <see cref="SkeletonRegistry.TryGetBoneBounds"/> has data for the entity's skeleton (i.e. it
+/// was registered with vertex data), <see cref="Update"/> also writes a conservative world-space
+/// <see cref="Aabb3D"/> for the resolved pose, letting <c>MeshRenderSystem</c> frustum-cull skinned
+/// entities the same way it already does static ones — no render-path changes needed. A skeleton
+/// registered without vertex data leaves its entities uncullable, same as before this existed.
+/// </para>
 /// </remarks>
 public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skeletons) : IUpdateSystem
 {
@@ -227,9 +234,70 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
 
             skeleton.ComputeMatrixPalette(locals, palette.Matrices.AsSpan(0, boneCount));
             world.AddComponent(entity, palette);
+
+            if (
+                skeletons.TryGetBoneBounds(handle, out var boneBounds)
+                && ComputeAnimatedBounds(boneBounds, palette.Matrices.AsSpan(0, boneCount))
+                    is { } bounds
+            )
+            {
+                world.AddComponent(entity, bounds);
+            }
         }
 
         RemoveStaleMarkerBaselines();
+    }
+
+    // Guards against a bound that lands exactly on the animated pose due to floating-point rounding
+    // between this computation and the render-time skinning it approximates — cheap insurance against
+    // the one failure mode that matters more than a tight box (see docs/skeletal-animation.md).
+    private const float BoundsPadding = 1e-3f;
+
+    // Builds a conservative world-space (pre-model, i.e. the same space GPU skinning produces before
+    // uModel is applied — see Renderer3D.vert) bound for the current pose: each bone's bind-pose
+    // pivot (SkeletonBoneBounds.BindPositions) transformed by its resolved palette entry gives that
+    // bone's current animated position (the palette already folds in the inverse bind pose, so this
+    // is exactly what the GPU does to a vertex sitting at the bone's own origin); expanding by the
+    // bone's precomputed max influence radius bounds every vertex weighted to it, since linear blend
+    // skinning places a vertex at a convex combination of its influencing bones' transformed
+    // positions, and the union of per-bone boxes (itself convex) contains any such combination.
+    // Bones with a zero radius (no vertex weighted to them) are skipped rather than contributing a
+    // degenerate point, so a body part driven entirely by unweighted helper bones doesn't need to be
+    // accounted for. Allocation-free and O(boneCount), independent of vertex count.
+    private static Aabb3D? ComputeAnimatedBounds(
+        SkeletonBoneBounds boneBounds,
+        ReadOnlySpan<Matrix4x4> palette
+    )
+    {
+        var hasBound = false;
+        var min = Vector3.Zero;
+        var max = Vector3.Zero;
+
+        for (var i = 0; i < palette.Length; i++)
+        {
+            var radius = boneBounds.Radii[i];
+            if (radius <= 0f)
+                continue;
+
+            var worldPos = Vector3.Transform(boneBounds.BindPositions[i], palette[i]);
+            var padded = new Vector3(radius + BoundsPadding);
+            var boneMin = worldPos - padded;
+            var boneMax = worldPos + padded;
+
+            if (!hasBound)
+            {
+                min = boneMin;
+                max = boneMax;
+                hasBound = true;
+            }
+            else
+            {
+                min = Vector3.Min(min, boneMin);
+                max = Vector3.Max(max, boneMax);
+            }
+        }
+
+        return hasBound ? new Aabb3D(min, max) : null;
     }
 
     private void RemoveStaleMarkerBaselines()
