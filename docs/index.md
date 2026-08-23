@@ -22,6 +22,7 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a
 - **Sequencing** — ordered/parallel timed steps (waits, tween/clip starters, predicates, callbacks) with pause/resume/stop/skip-to-end, for directed cutscene-style beats ([sequencing.md](sequencing.md))
 - **Tilemaps** — batched, camera-culled tile grids with merged-collider physics support and Tiled (`.tmj`) import ([tilemaps.md](tilemaps.md))
 - **2D physics** — spatial-hash broadphase, AABB/circle collision detection, impulse-based resolution, fixed-timestep stepping, and tunneling prevention ([physics.md](physics.md))
+- **3D queries** — `World.Raycast`/`RaycastAll` against `Aabb3D` bounds, with layer/mask filtering ([queries.md](queries.md))
 - **Audio system** with OpenAL support — WAV and OGG Vorbis (streamed or fully decoded), master/music/SFX volume groups ([audio-system.md](audio-system.md))
 - **Text rendering** via HarfBuzz/Skia
 - **UI system** — ECS-based screen-space panels, buttons, and labels ([ui.md](ui.md))

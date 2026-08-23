@@ -4,6 +4,14 @@ namespace Yaeger.Graphics;
 
 public record struct Aabb3D(Vector3 Min, Vector3 Max)
 {
+    /// <summary>
+    /// The collision layer (bit index, [0, 31]) this box belongs to for
+    /// <see cref="Yaeger.Physics.WorldRaycastExtensions.Raycast"/>'s optional mask filtering —
+    /// same bit-index convention as <c>BoxCollider2D.Layer</c>. Defaults to 0, so an unconfigured
+    /// box is hit by the default <c>mask</c> (which matches every layer).
+    /// </summary>
+    public int Layer { get; init; }
+
     public static Aabb3D FromPositions(ReadOnlySpan<Vector3> positions)
     {
         if (positions.IsEmpty)
