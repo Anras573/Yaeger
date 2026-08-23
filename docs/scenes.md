@@ -33,6 +33,43 @@ Scenes extend the existing prefab pipeline — they reuse `ComponentRegistry` an
 
 Asset paths in `texturePath` (and similar fields) are resolved relative to `AppContext.BaseDirectory` (the directory that contains the application's executable), matching the convention used by `AssetPath.Resolve`, `SceneLoader.Load`, and `SceneSaver.Save`.
 
+## Why hand-written serializers instead of System.Text.Json/Newtonsoft reflection?
+
+`IComponentSerializer` implementations are built *on top of* `System.Text.Json` — `Deserialize`
+takes a `JsonElement` and `TrySerialize` returns a `JsonNode`, so all actual JSON
+tokenizing/writing goes through STJ. What's hand-written is the mapping layer between JSON and ECS
+components, and that layer can't be a generic reflection-based `JsonSerializer.Deserialize<T>()`
+call for a few structural reasons:
+
+- **A component doesn't just deserialize into a value — it has to add itself to a `World`.**
+  `Deserialize` returns `Action<World, Entity>`, not a component instance. That's what lets
+  `Parent` resolve its `parentTag` against `World.GetEntity` at *apply* time, after every entity in
+  the file already exists (see [Cross-entity references](#cross-entity-references) below) — a
+  generic deserializer has no concept of deferring construction until the rest of the entity graph
+  is in place.
+- **The `"type"` string dispatches to one of many `struct` component types via a runtime-extensible
+  registry** (`ComponentRegistry`), not a closed hierarchy attributes can describe. Components have
+  no shared base class (`ComponentStorage<T>` requires `where T : struct`), and game code registers
+  its own serializers alongside the engine's at runtime.
+- **The assembly split forces it.** `Yaeger.Core` has no Silk.NET dependency, but a component like
+  `Text` only compiles into the native `Yaeger` assembly. Its serializer lives under
+  `Serializers/Native/` and is only registered by `RegisterNativeEngineComponents()` — two
+  `IComponentSerializer` implementations model that split trivially; one reflection-driven
+  converter couldn't.
+- **Round-tripping is deliberately asymmetric per component.** `MeshHandle` is intentionally left
+  unserializable (its `Id` is a runtime-assigned registry key, not portable across runs) — see
+  [Saving](#saving) below. Lenient input shapes (`Transform2DSerializer` accepts a `Vector2` as
+  either `[x, y]` or `{ "x": ..., "y": ... }`) and field-specific errors (`ComponentRegistry`
+  listing all registered types when an unknown one is used) are also easier to reason about as
+  plain code than as converter attributes.
+
+In short: reflection-based (de)serialization is a great fit when JSON mirrors a POCO's shape, but
+here JSON has to drive a struct-based ECS with deferred cross-entity references, a
+runtime-extensible type registry, and an assembly boundary that changes which components even
+exist per runtime. A hand-written `IComponentSerializer` per component ends up no larger than the
+custom `JsonConverter<T>` that would otherwise be needed per component — and additionally gets the
+deferred-apply hook and the opt-out write direction for free.
+
 ## API
 
 ### Loading
