@@ -13,6 +13,12 @@ public sealed class GpuMesh : IDisposable
     private const uint InstanceModelLocation = 6;
     private const uint InstanceNormalMatrixLocation = 10;
 
+    // Per-instance bone-palette base offset for instanced skinning (see
+    // Renderer3D.DrawInstancedSkinned): one float, read with VertexAttribDivisor 1 like the instance
+    // transform attributes above, but backed by its own buffer since it's only ever populated
+    // alongside a skinned instanced draw (DrawInstancedSkinned), never the static one (DrawInstanced).
+    private const uint InstancePaletteOffsetLocation = 13;
+
     private readonly GL _gl;
     private readonly uint _vao;
     private readonly Buffer<Vertex3D> _vbo;
@@ -21,6 +27,9 @@ public sealed class GpuMesh : IDisposable
     private uint _instanceVbo;
     private int _instanceCapacity;
     private bool _hasInstanceBuffer;
+    private uint _paletteOffsetVbo;
+    private int _paletteOffsetCapacity;
+    private bool _hasPaletteOffsetBuffer;
 
     public unsafe GpuMesh(GL gl, MeshData data)
     {
@@ -110,6 +119,99 @@ public sealed class GpuMesh : IDisposable
         _gl.BindVertexArray(0);
     }
 
+    /// <summary>
+    /// Draws <paramref name="transforms"/>.Length copies of this mesh in a single
+    /// <c>glDrawElementsInstanced</c> call with GPU skinning enabled, streaming each instance's model/
+    /// normal matrix (identically to <see cref="DrawInstanced"/>) plus its bone-palette base offset —
+    /// an index into <see cref="Renderer3D"/>'s bone-palette texture buffer, read by
+    /// <c>aInstancePaletteBase</c> in <c>Renderer3D.vert</c>. <paramref name="paletteOffsets"/> must
+    /// be the same length as <paramref name="transforms"/>. No-op for an empty span. Internal: shared
+    /// plumbing between <see cref="Renderer3D"/> and <see cref="ShadowMapRenderer"/>, the only callers.
+    /// </summary>
+    internal unsafe void DrawInstancedSkinned(
+        ReadOnlySpan<InstanceData> transforms,
+        ReadOnlySpan<float> paletteOffsets
+    )
+    {
+        if (transforms.IsEmpty)
+            return;
+
+        EnsureInstanceCapacity(transforms.Length);
+        EnsurePaletteOffsetCapacity(paletteOffsets.Length);
+
+        _gl.BindVertexArray(_vao);
+
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _instanceVbo);
+        fixed (InstanceData* ptr = transforms)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.ArrayBuffer,
+                0,
+                (nuint)(transforms.Length * sizeof(InstanceData)),
+                ptr
+            );
+        }
+
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _paletteOffsetVbo);
+        fixed (float* ptr = paletteOffsets)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.ArrayBuffer,
+                0,
+                (nuint)(paletteOffsets.Length * sizeof(float)),
+                ptr
+            );
+        }
+
+        _gl.DrawElementsInstanced(
+            PrimitiveType.Triangles,
+            _indexCount,
+            DrawElementsType.UnsignedInt,
+            (void*)0,
+            (uint)transforms.Length
+        );
+        _gl.BindVertexArray(0);
+    }
+
+    // Lazily creates the palette-offset VBO on first use and grows it (doubling, orphaning the old
+    // store) whenever a skinned instanced draw needs more capacity than it currently has — mirrors
+    // EnsureInstanceCapacity exactly, just against a single-float attribute instead of InstanceData's.
+    private unsafe void EnsurePaletteOffsetCapacity(int count)
+    {
+        if (_hasPaletteOffsetBuffer && count <= _paletteOffsetCapacity)
+            return;
+
+        _gl.BindVertexArray(_vao);
+
+        if (!_hasPaletteOffsetBuffer)
+        {
+            _paletteOffsetVbo = _gl.GenBuffer();
+            _hasPaletteOffsetBuffer = true;
+        }
+
+        _paletteOffsetCapacity = Math.Max(count, Math.Max(_paletteOffsetCapacity * 2, 64));
+        _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _paletteOffsetVbo);
+        _gl.BufferData(
+            BufferTargetARB.ArrayBuffer,
+            (nuint)(_paletteOffsetCapacity * sizeof(float)),
+            null,
+            BufferUsageARB.DynamicDraw
+        );
+
+        _gl.VertexAttribPointer(
+            InstancePaletteOffsetLocation,
+            1,
+            VertexAttribPointerType.Float,
+            false,
+            sizeof(float),
+            (void*)0
+        );
+        _gl.EnableVertexAttribArray(InstancePaletteOffsetLocation);
+        _gl.VertexAttribDivisor(InstancePaletteOffsetLocation, 1);
+
+        _gl.BindVertexArray(0);
+    }
+
     // Lazily creates the instance VBO on first use and grows it (doubling, orphaning the old store)
     // whenever a draw needs more capacity than it currently has. Vertex attribute pointers only need
     // to be (re-)established when the buffer handle itself changes or grows — VertexAttribPointer
@@ -180,5 +282,7 @@ public sealed class GpuMesh : IDisposable
         _ebo.Dispose();
         if (_hasInstanceBuffer)
             _gl.DeleteBuffer(_instanceVbo);
+        if (_hasPaletteOffsetBuffer)
+            _gl.DeleteBuffer(_paletteOffsetVbo);
     }
 }

@@ -518,3 +518,7 @@ Samples/SkinnedMeshDemo/_cesium-fetch/
 # DamagedHelmet sample — fetched at build time, not committed
 Samples/DamagedHelmet/Assets/DamagedHelmet/
 Samples/DamagedHelmet/_damagedhelmet-fetch/
+
+# CrowdDemo sample — fetched at build time, not committed
+Samples/CrowdDemo/Assets/CesiumMan/
+Samples/CrowdDemo/_cesium-fetch/
