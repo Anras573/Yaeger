@@ -33,11 +33,19 @@ public sealed class ShadowMapRenderer : IDisposable
     // from Renderer3D's own binding point so the two renderers' bone data never depend on draw order.
     private const uint BoneBlockBinding = 1;
 
+    // Texture unit the instanced-skinning bone-palette buffer texture (uBonePalette) is bound to.
+    // The depth-only shader never samples any other texture, so any unit works; bound once at
+    // construction and never touched again, same reasoning as Renderer3D.BonePaletteTextureUnit.
+    private const int BonePaletteTextureUnit = 0;
+
     private readonly GL _gl;
     private readonly Shader _shader;
     private readonly uint _fbo;
     private readonly uint _depthTexture;
     private readonly uint _boneUbo;
+    private readonly uint _bonePaletteBuffer;
+    private readonly uint _bonePaletteTexture;
+    private int _bonePaletteCapacityTexels;
     private readonly int _resolution;
 
     /// <summary>The settings the renderer was constructed with.</summary>
@@ -77,6 +85,10 @@ public sealed class ShadowMapRenderer : IDisposable
         _depthTexture = CreateDepthTexture(_resolution);
         _fbo = CreateFramebuffer(_depthTexture);
         _boneUbo = CreateBoneUbo();
+        (_bonePaletteBuffer, _bonePaletteTexture) = CreateBonePaletteTextureBuffer();
+        _shader.Bind();
+        _shader.SetUniformInt("uBonePalette", BonePaletteTextureUnit);
+        _shader.Unbind();
     }
 
     /// <summary>
@@ -275,6 +287,78 @@ public sealed class ShadowMapRenderer : IDisposable
         DrawCallCount++;
     }
 
+    private int[]? _boneCountScratch;
+    private float[]? _paletteOffsetScratch;
+    private Vector4[]? _boneTexelScratch;
+
+    /// <summary>
+    /// Renders <paramref name="models"/>.Length skinned shadow casters into the depth map in one or
+    /// more instanced draw calls — mirrors
+    /// <see cref="Renderer3D.DrawInstancedSkinned"/> (see <see cref="InstancedSkinningPlanner"/> for
+    /// when more than one call happens). Call between Begin/End. No-op for an empty span.
+    /// </summary>
+    public void DrawInstancedSkinned(
+        GpuMesh mesh,
+        ReadOnlySpan<Matrix4x4> models,
+        IReadOnlyList<Matrix4x4[]> bonePalettes,
+        IReadOnlyList<int> paletteOffsets
+    )
+    {
+        if (models.IsEmpty)
+            return;
+
+        if (_boneCountScratch == null || _boneCountScratch.Length < models.Length)
+            _boneCountScratch = new int[Math.Max(models.Length, 64)];
+        for (var i = 0; i < models.Length; i++)
+            _boneCountScratch[i] = bonePalettes[i].Length;
+
+        var chunks = InstancedSkinningPlanner.PlanChunks(
+            new ArraySegment<int>(_boneCountScratch, 0, models.Length)
+        );
+
+        _shader.SetUniformInt("uSkinned", 1);
+        _shader.SetUniformInt("uInstanced", 1);
+
+        foreach (var (start, count) in chunks)
+            DrawSkinnedChunk(mesh, models, bonePalettes, paletteOffsets, start, count);
+    }
+
+    // Mirrors Renderer3D.DrawSkinnedChunk: rebases each instance's group-wide PaletteOffsets entry to
+    // be relative to this chunk's own palette buffer (always packed starting at texel 0).
+    private unsafe void DrawSkinnedChunk(
+        GpuMesh mesh,
+        ReadOnlySpan<Matrix4x4> models,
+        IReadOnlyList<Matrix4x4[]> bonePalettes,
+        IReadOnlyList<int> paletteOffsets,
+        int start,
+        int count
+    )
+    {
+        if (_instanceScratch == null || _instanceScratch.Length < count)
+            _instanceScratch = new InstanceData[Math.Max(count, 64)];
+        if (_paletteOffsetScratch == null || _paletteOffsetScratch.Length < count)
+            _paletteOffsetScratch = new float[Math.Max(count, 64)];
+
+        var baseOffset = paletteOffsets[start];
+        for (var i = 0; i < count; i++)
+        {
+            _instanceScratch[i] = new InstanceData(models[start + i]);
+            _paletteOffsetScratch[i] = paletteOffsets[start + i] - baseOffset;
+        }
+
+        var texelTotal = BonePaletteBuffer.TotalTexels(bonePalettes, start, count);
+        if (_boneTexelScratch == null || _boneTexelScratch.Length < texelTotal)
+            _boneTexelScratch = new Vector4[Math.Max(texelTotal, 256)];
+        BonePaletteBuffer.Pack(bonePalettes, start, count, _boneTexelScratch.AsSpan(0, texelTotal));
+        UploadBonePaletteTexels(_boneTexelScratch.AsSpan(0, texelTotal));
+
+        mesh.DrawInstancedSkinned(
+            _instanceScratch.AsSpan(0, count),
+            _paletteOffsetScratch.AsSpan(0, count)
+        );
+        DrawCallCount++;
+    }
+
     /// <summary>
     /// Restores the default framebuffer and the supplied viewport (the window's drawable size) so
     /// the subsequent lighting pass renders to the screen as usual.
@@ -404,11 +488,78 @@ public sealed class ShadowMapRenderer : IDisposable
         _gl.BindBuffer(BufferTargetARB.UniformBuffer, 0);
     }
 
+    // Mirrors Renderer3D.CreateBonePaletteTextureBuffer: a plain GL buffer object aliased by a
+    // GL_TEXTURE_BUFFER texture, sampled in ShadowMap.vert as `uBonePalette`. Distinct buffer/texture
+    // from Renderer3D's own, same "independent of Renderer3D" reasoning as the bone UBO above.
+    private unsafe (uint Buffer, uint Texture) CreateBonePaletteTextureBuffer()
+    {
+        var buffer = _gl.GenBuffer();
+        _gl.BindBuffer(BufferTargetARB.TextureBuffer, buffer);
+        _gl.BufferData(BufferTargetARB.TextureBuffer, 0, null, BufferUsageARB.DynamicDraw);
+        _gl.BindBuffer(BufferTargetARB.TextureBuffer, 0);
+
+        var texture = _gl.GenTexture();
+        _gl.ActiveTexture(TextureUnit.Texture0 + BonePaletteTextureUnit);
+        _gl.BindTexture(TextureTarget.TextureBuffer, texture);
+        _gl.TexBuffer(TextureTarget.TextureBuffer, SizedInternalFormat.Rgba32fArb, buffer);
+        _gl.ActiveTexture(TextureUnit.Texture0);
+
+        return (buffer, texture);
+    }
+
+    private unsafe void EnsureBonePaletteCapacity(int texelCount)
+    {
+        if (texelCount <= _bonePaletteCapacityTexels)
+            return;
+
+        _bonePaletteCapacityTexels = Math.Max(
+            texelCount,
+            Math.Max(_bonePaletteCapacityTexels * 2, 256)
+        );
+
+        _gl.BindBuffer(BufferTargetARB.TextureBuffer, _bonePaletteBuffer);
+        _gl.BufferData(
+            BufferTargetARB.TextureBuffer,
+            (nuint)(_bonePaletteCapacityTexels * sizeof(Vector4)),
+            null,
+            BufferUsageARB.DynamicDraw
+        );
+        _gl.BindBuffer(BufferTargetARB.TextureBuffer, 0);
+
+        _gl.ActiveTexture(TextureUnit.Texture0 + BonePaletteTextureUnit);
+        _gl.BindTexture(TextureTarget.TextureBuffer, _bonePaletteTexture);
+        _gl.TexBuffer(
+            TextureTarget.TextureBuffer,
+            SizedInternalFormat.Rgba32fArb,
+            _bonePaletteBuffer
+        );
+        _gl.ActiveTexture(TextureUnit.Texture0);
+    }
+
+    private unsafe void UploadBonePaletteTexels(ReadOnlySpan<Vector4> texels)
+    {
+        EnsureBonePaletteCapacity(texels.Length);
+
+        _gl.BindBuffer(BufferTargetARB.TextureBuffer, _bonePaletteBuffer);
+        fixed (Vector4* ptr = texels)
+        {
+            _gl.BufferSubData(
+                BufferTargetARB.TextureBuffer,
+                0,
+                (nuint)(texels.Length * sizeof(Vector4)),
+                ptr
+            );
+        }
+        _gl.BindBuffer(BufferTargetARB.TextureBuffer, 0);
+    }
+
     public void Dispose()
     {
         _shader.Dispose();
         _gl.DeleteFramebuffer(_fbo);
         _gl.DeleteTexture(_depthTexture);
         _gl.DeleteBuffer(_boneUbo);
+        _gl.DeleteTexture(_bonePaletteTexture);
+        _gl.DeleteBuffer(_bonePaletteBuffer);
     }
 }

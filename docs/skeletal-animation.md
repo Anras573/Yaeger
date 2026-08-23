@@ -23,9 +23,13 @@ they simply carry zero skin weights and take the identity-skin path in the shade
    `AnimationPlayer.CurrentClip` directly to blend into the new clip over `duration` seconds rather
    than popping to it — see [Crossfading](#crossfading) below.
 5. **Render** — `MeshRenderSystem` detects the `BonePalette` and routes the entity through
-   `Renderer3D`'s skinning draw, uploading the palette to a bone-matrix uniform buffer (UBO). The
-   vertex shader blends up to four bone matrices per vertex. Entities carrying the `Aabb3D` from
-   step 4 are frustum-culled exactly like static meshes — no render-path changes needed.
+   `Renderer3D`'s skinning draw. A single character (or any group below
+   `MeshRenderSystem.InstancingThreshold`) uploads its palette to a bone-matrix uniform buffer (UBO),
+   same as before. A crowd of characters sharing `(MeshHandle, Material3D, SkeletonHandle)` at or
+   above the threshold instances instead — see [Instanced skinning](instancing.md#instanced-skinning)
+   in docs/instancing.md. Either way the vertex shader blends up to four bone matrices per vertex.
+   Entities carrying the `Aabb3D` from step 4 are frustum-culled exactly like static meshes — no
+   render-path changes needed.
 
 ## Types
 
@@ -196,11 +200,16 @@ default) leaves its entities uncullable, same as before this existed.
 
 ## Notes & limitations
 
-- **Bone cap** — the shader palette holds up to `Renderer3D.MaxBones` (128) matrices. The skeleton
-  indexes every scene node (not just skinning joints), so this caps the total node count. If a vertex
-  references a bone index outside `[0, 128)`, the shader safely falls back to identity skin (bind
-  pose) for that vertex rather than reading out of bounds — so over-cap models degrade gracefully
-  rather than crashing. Models within typical joint counts (the CesiumMan sample has 22) are unaffected.
+- **Bone cap** — the immediate (non-instanced) draw path's UBO palette holds up to
+  `Renderer3D.MaxBones` (128) matrices. The skeleton indexes every scene node (not just skinning
+  joints), so this caps the total node count for that path. If a vertex references a bone index
+  outside `[0, 128)`, the shader safely falls back to identity skin (bind pose) for that vertex
+  rather than reading out of bounds — so over-cap models degrade gracefully rather than crashing.
+  Models within typical joint counts (the CesiumMan sample has 22) are unaffected. The instanced
+  skinning path (see docs/instancing.md#instanced-skinning) isn't bound by this 128 cap — its
+  texture-buffer palette scales with the group's total bone count instead — but is itself capped
+  per draw call by `InstancedSkinningPlanner.MaxPaletteTexels` (16384 bones), split into more calls
+  rather than dropped past that.
 - **Influences** — up to four bones per vertex; the loader keeps the heaviest four and renormalises.
 - **Model matrix** — for skinned entities use `Transform3D.Identity`; the bone world transforms run
   from the scene root, so the skin already positions vertices in scene space.
@@ -211,4 +220,6 @@ default) leaves its entities uncullable, same as before this existed.
   [Frustum culling](#frustum-culling).
 
 See [`Samples/SkinnedMeshDemo`](../Samples/SkinnedMeshDemo) for a complete example that plays the
-KhronosGroup CesiumMan walk cycle.
+KhronosGroup CesiumMan walk cycle, and
+[`Samples/CrowdDemo`](../Samples/CrowdDemo) for many characters sharing one skeleton drawing through
+the instanced skinning path (see docs/instancing.md#instanced-skinning).

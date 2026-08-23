@@ -124,4 +124,133 @@ public class MeshInstanceBatcherTests
         // entries, so it must not surface as an empty group.
         Assert.Empty(batcher.Groups);
     }
+
+    [Fact]
+    public void Add_NonSkinnedGroup_IsNotSkinned()
+    {
+        var batcher = new MeshInstanceBatcher();
+        batcher.Add(new MeshHandle(1), MaterialA, Matrix4x4.Identity);
+
+        var group = batcher.Groups.Single();
+
+        Assert.False(group.IsSkinned);
+        Assert.Equal(default, group.Skeleton);
+        Assert.Empty(group.BonePalettes);
+        Assert.Empty(group.PaletteOffsets);
+    }
+
+    [Fact]
+    public void AddSkinned_SameMeshMaterialAndSkeleton_AccumulatesIntoOneGroup()
+    {
+        var batcher = new MeshInstanceBatcher();
+        var handle = new MeshHandle(1);
+        var skeleton = new SkeletonHandle(1);
+
+        batcher.AddSkinned(handle, MaterialA, skeleton, Matrix4x4.Identity, new Matrix4x4[2]);
+        batcher.AddSkinned(handle, MaterialA, skeleton, Matrix4x4.Identity, new Matrix4x4[2]);
+
+        var group = batcher.Groups.Single();
+
+        Assert.True(group.IsSkinned);
+        Assert.Equal(skeleton, group.Skeleton);
+        Assert.Equal(2, group.Models.Count);
+        Assert.Equal(2, group.BonePalettes.Count);
+    }
+
+    [Fact]
+    public void AddSkinned_DifferentSkeleton_ProducesSeparateGroupsEvenWithSameMeshAndMaterial()
+    {
+        var batcher = new MeshInstanceBatcher();
+        var handle = new MeshHandle(1);
+
+        batcher.AddSkinned(
+            handle,
+            MaterialA,
+            new SkeletonHandle(1),
+            Matrix4x4.Identity,
+            new Matrix4x4[2]
+        );
+        batcher.AddSkinned(
+            handle,
+            MaterialA,
+            new SkeletonHandle(2),
+            Matrix4x4.Identity,
+            new Matrix4x4[3]
+        );
+
+        var groups = batcher.Groups.ToList();
+
+        Assert.Equal(2, groups.Count);
+        Assert.All(groups, g => Assert.Single(g.Models));
+    }
+
+    [Fact]
+    public void AddSkinned_ComputesCumulativePaletteOffsetsFromEachInstancesBoneCount()
+    {
+        var batcher = new MeshInstanceBatcher();
+        var handle = new MeshHandle(1);
+        var skeleton = new SkeletonHandle(1);
+
+        batcher.AddSkinned(handle, MaterialA, skeleton, Matrix4x4.Identity, new Matrix4x4[2]);
+        batcher.AddSkinned(handle, MaterialA, skeleton, Matrix4x4.Identity, new Matrix4x4[3]);
+        batcher.AddSkinned(handle, MaterialA, skeleton, Matrix4x4.Identity, new Matrix4x4[4]);
+
+        var group = batcher.Groups.Single();
+
+        Assert.Equal([0, 2, 5], group.PaletteOffsets);
+    }
+
+    [Fact]
+    public void Clear_ThenAddSkinned_ResetsCumulativePaletteOffset()
+    {
+        var batcher = new MeshInstanceBatcher();
+        var handle = new MeshHandle(1);
+        var skeleton = new SkeletonHandle(1);
+        batcher.AddSkinned(handle, MaterialA, skeleton, Matrix4x4.Identity, new Matrix4x4[5]);
+
+        batcher.Clear();
+        batcher.AddSkinned(handle, MaterialA, skeleton, Matrix4x4.Identity, new Matrix4x4[3]);
+
+        var group = batcher.Groups.Single();
+
+        Assert.Equal([0], group.PaletteOffsets);
+    }
+
+    [Fact]
+    public void Add_AndAddSkinned_SameMeshAndMaterial_ProduceSeparateGroups()
+    {
+        var batcher = new MeshInstanceBatcher();
+        var handle = new MeshHandle(1);
+
+        batcher.Add(handle, MaterialA, Matrix4x4.Identity);
+        batcher.AddSkinned(
+            handle,
+            MaterialA,
+            new SkeletonHandle(1),
+            Matrix4x4.Identity,
+            new Matrix4x4[2]
+        );
+
+        var groups = batcher.Groups.ToList();
+
+        Assert.Equal(2, groups.Count);
+        Assert.Contains(groups, g => !g.IsSkinned);
+        Assert.Contains(groups, g => g.IsSkinned);
+    }
+
+    [Fact]
+    public void AddSkinned_NullBonePalette_Throws()
+    {
+        var batcher = new MeshInstanceBatcher();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            batcher.AddSkinned(
+                new MeshHandle(1),
+                MaterialA,
+                new SkeletonHandle(1),
+                Matrix4x4.Identity,
+                null!
+            )
+        );
+    }
 }

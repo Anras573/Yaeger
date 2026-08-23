@@ -115,6 +115,7 @@ public class MeshRenderSystem(
         CameraFrustum? frustum = hasCamera ? CameraFrustum.FromMatrix(viewProj) : null;
         var aabbStore = hasCamera ? world.GetStore<Aabb3D>() : null;
         var paletteStore = world.GetStore<BonePalette>();
+        var skeletonStore = world.GetStore<SkeletonHandle>();
 
         // Collect first so the lazily-allocated buffers are populated before we slice them.
         var pointLightCount = CollectPointLights();
@@ -134,7 +135,7 @@ public class MeshRenderSystem(
                 > 0f;
 
         if (castsShadows)
-            RenderShadowPass(shadowLight, sceneCenter, paletteStore);
+            RenderShadowPass(shadowLight, sceneCenter, paletteStore, skeletonStore);
 
         // Point shadow pre-pass: same "owns the framebuffer/viewport state, runs before
         // BeginFrame3D" reasoning as the directional pass above, extended to up to
@@ -255,11 +256,13 @@ public class MeshRenderSystem(
                     continue;
             }
 
-            // Skinned meshes carry a per-frame bone palette (written by SkeletalAnimationSystem);
-            // route them through the immediate skinning draw path — bone palettes are per-entity
-            // state, so they can't be folded into the instanced path below. Static meshes are
-            // grouped instead of drawn immediately, so a group sharing mesh + material can collapse
-            // into a single instanced draw call once collection finishes.
+            // Skinned meshes carry a per-frame bone palette (written by SkeletalAnimationSystem).
+            // When they also carry a SkeletonHandle, group them by (mesh, material, skeleton) just
+            // like static meshes are grouped by (mesh, material) — a group at or above
+            // InstancingThreshold collapses into one Renderer3D.DrawInstancedSkinned call instead of
+            // one per entity (see MeshInstanceBatcher.AddSkinned). Without a SkeletonHandle (unusual,
+            // but not invalid — nothing requires one to carry a BonePalette) there's no skeleton to
+            // group by, so it falls back to the immediate per-entity skinning draw.
             var hasPalette =
                 paletteStore.TryGet(entity, out var palette) && palette.Matrices is { Length: > 0 };
 
@@ -275,6 +278,10 @@ public class MeshRenderSystem(
                         hasPalette ? palette.Matrices : null
                     )
                 );
+            }
+            else if (hasPalette && skeletonStore.TryGet(entity, out var skeleton))
+            {
+                _mainBatcher.AddSkinned(handle, material, skeleton, modelMatrix, palette.Matrices);
             }
             else if (hasPalette)
             {
@@ -298,7 +305,34 @@ public class MeshRenderSystem(
             if (!meshRegistry.TryGet(group.Handle, out var mesh))
                 continue;
 
-            if (group.Models.Count >= InstancingThreshold)
+            if (group.IsSkinned)
+            {
+                if (group.Models.Count >= InstancingThreshold)
+                {
+                    renderer.DrawInstancedSkinned(
+                        mesh,
+                        CollectionsMarshal.AsSpan(group.Models),
+                        group.BonePalettes,
+                        group.PaletteOffsets,
+                        viewProj,
+                        group.Material,
+                        textureManager
+                    );
+                }
+                else
+                {
+                    for (var i = 0; i < group.Models.Count; i++)
+                        renderer.Draw(
+                            mesh,
+                            group.Models[i],
+                            viewProj,
+                            group.Material,
+                            textureManager,
+                            group.BonePalettes[i]
+                        );
+                }
+            }
+            else if (group.Models.Count >= InstancingThreshold)
             {
                 renderer.DrawInstanced(
                     mesh,
@@ -407,7 +441,8 @@ public class MeshRenderSystem(
     private void RenderShadowPass(
         DirectionalLight light,
         Vector3 sceneCenter,
-        ComponentStorage<BonePalette> paletteStore
+        ComponentStorage<BonePalette> paletteStore,
+        ComponentStorage<SkeletonHandle> skeletonStore
     )
     {
         // Caller guards on shadowMapRenderer != null; hoist to a non-null local so the whole method
@@ -444,13 +479,23 @@ public class MeshRenderSystem(
             if (!meshRegistry.TryGet(handle, out var mesh))
                 continue;
 
-            // Skinned casters take the immediate per-entity skinning path — same reasoning as the
-            // main pass above: a bone palette is per-entity state, so it can't be folded into the
-            // instanced group below. Non-skinned casters are unaffected, including the instanced path.
+            // Skinned casters with a SkeletonHandle are grouped by (mesh, skeleton) the same way the
+            // main pass groups them — a group at or above InstancingThreshold collapses into one
+            // ShadowMapRenderer.DrawInstancedSkinned call. Without a SkeletonHandle they fall back to
+            // the immediate per-entity skinning path. Non-skinned casters are unaffected, including
+            // the instanced path.
             var hasPalette =
                 paletteStore.TryGet(entity, out var palette) && palette.Matrices is { Length: > 0 };
 
-            if (hasPalette)
+            if (hasPalette && skeletonStore.TryGet(entity, out var skeleton))
+                _shadowBatcher.AddSkinned(
+                    handle,
+                    default,
+                    skeleton,
+                    transform.ModelMatrix,
+                    palette.Matrices
+                );
+            else if (hasPalette)
                 shadowMap.Draw(mesh, transform.ModelMatrix, palette.Matrices);
             else
                 _shadowBatcher.Add(handle, default, transform.ModelMatrix);
@@ -461,7 +506,24 @@ public class MeshRenderSystem(
             if (!meshRegistry.TryGet(group.Handle, out var mesh))
                 continue;
 
-            if (group.Models.Count >= InstancingThreshold)
+            if (group.IsSkinned)
+            {
+                if (group.Models.Count >= InstancingThreshold)
+                {
+                    shadowMap.DrawInstancedSkinned(
+                        mesh,
+                        CollectionsMarshal.AsSpan(group.Models),
+                        group.BonePalettes,
+                        group.PaletteOffsets
+                    );
+                }
+                else
+                {
+                    for (var i = 0; i < group.Models.Count; i++)
+                        shadowMap.Draw(mesh, group.Models[i], group.BonePalettes[i]);
+                }
+            }
+            else if (group.Models.Count >= InstancingThreshold)
                 shadowMap.DrawInstanced(mesh, CollectionsMarshal.AsSpan(group.Models));
             else
                 foreach (var modelMatrix in group.Models)
