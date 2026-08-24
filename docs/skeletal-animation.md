@@ -45,6 +45,8 @@ they simply carry zero skin weights and take the identity-skin path in the shade
 | `SkeletonBoneBounds(BindPositions, Radii)` | Per-bone bind-pose pivot + max influence radius, computed by `Register` from `SkinnedVertex` data. |
 | `SkeletonRegistry` | Stores skeletons + clips (+ optional bone bounds), keyed by handle. |
 | `SkeletalAnimationSystem` | `IUpdateSystem` that drives playback, writes the palette, and (when bone bounds are available) the per-frame `Aabb3D`. |
+| `SkeletalState(ClipName, Loop, FadeDuration)` / `SpeedThreshold(State, MinSpeed)` / `SkeletalAnimationStateMachine` | ECS component (+ value types) for locomotion-driven clip selection — see [below](#locomotion-driven-clip-selection-skeletalanimationstatemachine). |
+| `SkeletalAnimationStateMachineSystem` | Switches a `SkeletalAnimationStateMachine` entity's clip via `Play` requests or speed thresholds, driving `SkeletalAnimationSystem.CrossFadeTo`. |
 
 ## Usage
 
@@ -102,6 +104,87 @@ switch as assigning `CurrentClip` directly, and clears any fade already in progr
 Bones that lack a track in one of the two clips fall back to the skeleton's bind pose
 (`Bone.LocalTransform`, decomposed into translation/rotation/scale) for that clip's contribution to
 the blend — the same fallback the single-clip path uses for untracked bones.
+
+## Locomotion-driven clip selection: SkeletalAnimationStateMachine
+
+`CrossFadeTo` blends cleanly between clips, but something still has to decide *which* clip should
+be playing — without it, a character that stops walking keeps walking on the spot until game code
+notices and calls `CrossFadeTo` itself. `SkeletalAnimationStateMachine` +
+`SkeletalAnimationStateMachineSystem` is the 3D analogue of `AnimationStateMachine` (see
+docs/animation-system.md), sized the same way — "idle / walk / run", not a general animation graph:
+no blend trees, no transition-condition DSL.
+
+A "state" maps a name to a `SkeletalState(ClipName, Loop, FadeDuration)` — the clip to play, whether
+it loops, and an optional per-state crossfade duration overriding the machine's shared
+`DefaultFadeDuration`. Every switch, explicit or automatic, goes through `CrossFadeTo`, so it blends
+instead of popping; `SkeletalAnimationStateMachineSystem` also keeps `AnimationPlayer.Loop` in sync
+with the target state's own `Loop` flag, since `CrossFadeTo` itself only ever touches the clip and
+fade fields.
+
+```csharp
+using Yaeger.Graphics;
+using Yaeger.Systems;
+
+var states = new Dictionary<string, SkeletalState>
+{
+    ["idle"] = new SkeletalState("Idle"),
+    ["walk"] = new SkeletalState("Walk"),
+    ["run"] = new SkeletalState("Run"),
+};
+
+var entity = world.CreateEntity();
+world.AddComponent(entity, skeletonHandle);
+world.AddComponent(entity, new AnimationPlayer("Idle", loop: true));
+world.AddComponent(entity, new SkeletalAnimationStateMachine(states, initialState: "idle"));
+
+var animationSystem = new SkeletalAnimationSystem(world, skeletonRegistry);
+var stateMachineSystem = new SkeletalAnimationStateMachineSystem(world, animationSystem);
+
+// Game code decides when to switch:
+stateMachineSystem.Play(entity, "run");
+
+// Run the state machine system AFTER whatever moves the entity (so a same-frame speed change is
+// seen this frame) and BEFORE SkeletalAnimationSystem, so a switch requested this frame is what
+// gets sampled this frame rather than one frame later.
+window.OnUpdate += deltaTime =>
+{
+    pathFollowSystem.Update((float)deltaTime);
+    stateMachineSystem.Update((float)deltaTime);
+    animationSystem.Update((float)deltaTime);
+};
+```
+
+Re-requesting the state that's already active is a no-op — no crossfade, no restart — unless
+`RestartOnReplay` is set to `true` at construction, mirroring `AnimationStateMachine`'s posture.
+Requesting an undefined state throws `ArgumentException`, the same as `AnimationStateMachineSystem.Play`.
+
+### Speed-driven selection
+
+Passing `speedThresholds` lets an entity pick its own state without any game code at all, as long as
+it also carries a `PathFollow3D` (see docs/path-follow.md): each `Update`, the system reads
+`PathFollow3D.CurrentSpeed` and requests whichever threshold's state matches — unless an explicit
+`Play` call was already made that same frame, which always wins.
+
+```csharp
+SpeedThreshold[] thresholds =
+[
+    new("idle", MinSpeed: 0f),
+    new("walk", MinSpeed: 0.5f),
+    new("run", MinSpeed: 3f),
+];
+
+world.AddComponent(
+    entity,
+    new SkeletalAnimationStateMachine(states, "idle", speedThresholds: thresholds, speedHysteresis: 0.2f)
+);
+```
+
+`speedHysteresis` (units/second) keeps a character hovering right at a threshold from flickering
+between the two adjacent states: the active state holds until speed drops below *its own* threshold
+minus the hysteresis margin, rather than switching back the moment speed dips under the boundary
+that raised it. Moving to a *faster* state is never delayed this way — only downward transitions
+need the guard. Without a `PathFollow3D` on the entity, `speedThresholds` has no effect and the
+machine only switches via explicit `Play` calls.
 
 ## Completion and events
 
