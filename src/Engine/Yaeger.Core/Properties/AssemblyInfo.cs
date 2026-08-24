@@ -5,3 +5,8 @@ using System.Runtime.CompilerServices;
 // ECS/Serializers/Native/ and Yaeger.csproj) reuse this assembly's internal helpers, e.g.
 // ComponentJson/ComponentJson2D, instead of duplicating their logic.
 [assembly: InternalsVisibleTo("Yaeger")]
+
+// Lets Yaeger.Tests unit-test the internal pure-math helpers of Core-only systems (e.g.
+// PathFollow3DSystem's facing/rotation math) directly, the same way it already does for
+// Yaeger-only systems like CameraRigSystem via that assembly's own InternalsVisibleTo.
+[assembly: InternalsVisibleTo("Yaeger.Tests")]
