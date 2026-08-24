@@ -100,7 +100,8 @@ Samples/
 ├── TextRenderingExample/    # Text rendering demo
 ├── PostProcessingDemo/      # Render-to-texture post-processing (vignette + bloom, toggled at runtime)
 ├── TweenDemo/               # Data-driven transform/light/material animation with easing
-└── SequenceDemo/            # Ordered/parallel cutscene beats (lift, doors, reveal) with skip-to-end
+├── SequenceDemo/            # Ordered/parallel cutscene beats (lift, doors, reveal) with skip-to-end
+└── OneShotAudioDemo/        # Pooled one-shot positional SFX under sustained overlapping fire
 ```
 
 ## License

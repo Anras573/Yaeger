@@ -13,6 +13,7 @@ Vorbis audio, either fully decoded into memory (short SFX) or streamed from a ri
 - **Streaming**: `StreamingSoundSource` streams an OGG file through a small ring of buffers instead of decoding the whole thing into memory — the right choice for music
 - **Volume groups**: `AudioMixer` applies master/music/SFX multipliers on top of each source's own volume, and changes take effect on already-playing sources immediately
 - **Positional (3D) audio**: `AudioSource3D` + `AudioSystem` pan and attenuate a sound by its entity's position, with the listener tracking the active `Camera3D`/`Camera2D`
+- **One-shot SFX**: `AudioSystem.PlayOneShot` fires a positioned sound with no entity and no cleanup, backed by a fixed, recycled voice pool so a busy scene degrades gracefully instead of exhausting OpenAL sources
 - **Flexible Playback**: Control volume, pitch, looping, and 3D positioning
 - **Resource Management**: Proper disposal of audio resources
 
@@ -305,6 +306,89 @@ a live audio device and stays untested per the repo's test conventions.
 
 See `Samples/DamagedHelmet` for a working example: a looping hum on the helmet pans and
 attenuates as the camera orbits around it.
+
+## One-shot positional SFX
+
+`AudioSource3D` is the right model for a persistent emitter — a humming generator, a looping
+engine — but every impact, footstep, and shot needing its own entity purely to make a noise
+doesn't scale: OpenAL implementations expose a finite number of sources (OpenAL Soft commonly
+allocates in the 32–256 range), and a sustained firefight would hit that ceiling with sounds
+dropping and no diagnostic. `AudioSystem.PlayOneShot` is the fire-and-forget path for that case:
+
+```csharp
+using Yaeger.Audio;
+using Yaeger.Systems;
+
+var impactBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/impact.wav");
+
+// oneShotVoiceBudget defaults to 32; oneShotStealPolicy defaults to VoiceStealPolicy.Quietest.
+var audioSystem = new AudioSystem(world, window.AudioContext);
+
+window.OnUpdate += deltaTime =>
+{
+    audioSystem.Update((float)deltaTime);
+
+    if (somethingJustGotHit)
+        audioSystem.PlayOneShot(impactBuffer, hitPosition, gain: 0.8f);
+};
+```
+
+No entity, no component, and no cleanup — the call plays the sound and returns immediately. A
+`Vector2` overload is also available for 2D games, mapped onto the same Z=0 plane
+`AudioSource3D`'s 2D fallback and a `Camera2D` listener use (see "The listener" above).
+
+### The voice pool
+
+`AudioSystem` owns a fixed pool of `OneShotVoiceBudget` voices (constructor parameter
+`oneShotVoiceBudget`, default 32), each backed by one OpenAL source that's recycled once its
+playback finishes rather than created and destroyed per call — so firing hundreds of one-shots a
+second never approaches OpenAL's own source ceiling. Size the budget to the platform you're
+targeting; `Samples/OneShotAudioDemo` deliberately uses a small budget (8) so the stealing policy
+below is exercised continuously rather than only in a rare worst case.
+
+When every voice is busy, the next `PlayOneShot` call either steals one or is dropped, decided by
+`AudioSystem.OneShotStealPolicy` (constructor parameter `oneShotStealPolicy`, settable at any time
+— including mid-game) — one of four `VoiceStealPolicy` values:
+
+- `Quietest` (the default) — steal the in-use voice with the lowest `gain`
+- `MostDistant` — steal the in-use voice farthest from the listener
+- `Oldest` — steal the in-use voice that's been playing longest
+- `DropNew` — never steal; the incoming one-shot is dropped instead
+
+### Priority
+
+`PlayOneShot`'s optional `priority` parameter (default `0`, higher is more important) protects a
+voice from being stolen by anything less important — a scripted key sound played with
+`priority: 10` is never displaced by ambient chatter played at the default `0`, regardless of
+`OneShotStealPolicy`. A request can still be dropped even under `Quietest`/`MostDistant`/`Oldest`
+if every in-use voice outranks it; that's when a request is dropped rather than stealing something
+more important. Voices of equal priority remain eligible for stealing by policy as usual.
+
+The stealing decision itself is pure CPU-side logic (`Yaeger.Audio.OneShotVoicePool`), with no
+OpenAL dependency, so it's unit-tested directly (`OneShotVoicePoolTests`) the same way
+`AudioSpatialMath` is — `AudioSystem` is the thin layer that turns its allocation decisions into
+real OpenAL source calls.
+
+### Failure mode
+
+A dropped one-shot (budget exhausted, no eligible voice to steal) fails loudly via `Debug.Fail` in
+debug builds so it's caught during development, and is a silent no-op in release builds — that's
+expected, graceful degradation under load, not the failure mode this feature exists to remove
+(OpenAL source creation itself failing and going silent with no recycling and no diagnostic at
+all).
+
+### Interaction with everything else
+
+One-shot voices are created the same way `AudioSource3D`'s sources are (absolute world position,
+not listener-relative — see "Interaction with non-positional playback" above), respect
+`AudioMixer` volume groups exactly like `SoundSource` (`PlayOneShot`'s `group` parameter, default
+`AudioGroup.Sfx`), and are entirely additive to `AudioSource3D`'s dedicated per-entity sources —
+neither path affects the other's voice budget. Disposing `AudioSystem` releases every voice in the
+pool alongside every `AudioSource3D` source it owns.
+
+See `Samples/OneShotAudioDemo` for a working example: a deliberately small voice budget under
+constant overlapping fire, with the steal policy swappable live (keys 1–4) and a high-priority
+subset of impacts (drawn gold) that are never stolen by the rest.
 
 ## Out of scope
 

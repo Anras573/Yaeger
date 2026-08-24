@@ -25,6 +25,7 @@ public static class KeyMapper
         { Key.Number1, Keys.Num1 },
         { Key.Number2, Keys.Num2 },
         { Key.Number3, Keys.Num3 },
+        { Key.Number4, Keys.Num4 },
         { Key.C, Keys.C },
         { Key.F1, Keys.F1 },
         { Key.B, Keys.B },
