@@ -28,7 +28,7 @@ public sealed class SoundSource : IDisposable
     private readonly AL _al;
     private readonly uint _sourceId;
     private readonly AudioMixer _mixer;
-    private readonly AudioGroup _group;
+    private AudioGroup _group;
     private float _gain = 1f;
     private bool _disposed;
 
@@ -102,6 +102,30 @@ public sealed class SoundSource : IDisposable
             }
 
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the volume group this source belongs to, for <see cref="AudioContext.Mixer"/>.
+    /// Changing it immediately recomputes and re-applies this source's effective gain — used by
+    /// <c>AudioSystem</c>'s one-shot voice pool, which recycles a single OpenAL source across
+    /// requests that may target different groups.
+    /// </summary>
+    public AudioGroup Group
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _group;
+        }
+        set
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_group == value)
+                return;
+
+            _group = value;
+            PushGain();
         }
     }
 

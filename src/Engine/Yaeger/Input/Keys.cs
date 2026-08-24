@@ -21,6 +21,7 @@ public enum Keys
     Num1,
     Num2,
     Num3,
+    Num4,
     C,
     F1,
     B,
