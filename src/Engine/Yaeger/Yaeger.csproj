@@ -44,6 +44,7 @@
     <Compile Remove="Systems\ParallaxSystem.cs" />
     <Compile Remove="Systems\ParticleSystem.cs" />
     <Compile Remove="Systems\ParticleSystem3D.cs" />
+    <Compile Remove="Systems\PathFollow3DSystem.cs" />
     <Compile Remove="Systems\ProceduralSkySystem.cs" />
     <Compile Remove="Systems\SequenceSystem.cs" />
     <Compile Remove="Systems\TransformHierarchySystem.cs" />

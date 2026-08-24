@@ -47,6 +47,10 @@
     <Compile Include="..\Yaeger\Systems\ParticleSystem.cs" Link="Systems\ParticleSystem.cs" />
     <Compile Include="..\Yaeger\Systems\ParticleSystem3D.cs" Link="Systems\ParticleSystem3D.cs" />
     <Compile
+      Include="..\Yaeger\Systems\PathFollow3DSystem.cs"
+      Link="Systems\PathFollow3DSystem.cs"
+    />
+    <Compile
       Include="..\Yaeger\Systems\ProceduralSkySystem.cs"
       Link="Systems\ProceduralSkySystem.cs"
     />
