@@ -28,14 +28,6 @@ var random = new Random(1);
 var autoFireRate = 24f; // one-shots per second
 var timeSinceLastFire = 0f;
 
-var policies = new[]
-{
-    VoiceStealPolicy.Quietest,
-    VoiceStealPolicy.MostDistant,
-    VoiceStealPolicy.Oldest,
-    VoiceStealPolicy.DropNew,
-};
-
 Console.WriteLine(
     $"Voice budget: {audioSystem.OneShotVoiceBudget}, policy: {audioSystem.OneShotStealPolicy}"
 );
@@ -43,10 +35,10 @@ Console.WriteLine("Space: burst  Up/Down: rate  1-4: steal policy  ESC: quit");
 
 Keyboard.AddKeyDown(Keys.Escape, window.Close);
 Keyboard.AddKeyDown(Keys.Space, () => FireBurst(12));
-Keyboard.AddKeyDown(Keys.Num1, () => SetPolicy(policies[0]));
-Keyboard.AddKeyDown(Keys.Num2, () => SetPolicy(policies[1]));
-Keyboard.AddKeyDown(Keys.Num3, () => SetPolicy(policies[2]));
-Keyboard.AddKeyDown(Keys.Num4, () => SetPolicy(policies[3]));
+Keyboard.AddKeyDown(Keys.Num1, () => SetPolicy(VoiceStealPolicy.Quietest));
+Keyboard.AddKeyDown(Keys.Num2, () => SetPolicy(VoiceStealPolicy.MostDistant));
+Keyboard.AddKeyDown(Keys.Num3, () => SetPolicy(VoiceStealPolicy.Oldest));
+Keyboard.AddKeyDown(Keys.Num4, () => SetPolicy(VoiceStealPolicy.DropNew));
 Keyboard.AddKeyDown(Keys.Up, () => SetAutoFireRate(autoFireRate + 8f));
 Keyboard.AddKeyDown(Keys.Down, () => SetAutoFireRate(autoFireRate - 8f));
 
