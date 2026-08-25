@@ -62,4 +62,81 @@
     <RemoveDir Directories="$(_SponzaFetchDir)" />
     <Message Text="Sponza assets ready at $(_SponzaDir)" Importance="high" />
   </Target>
+
+  <!--
+    Fetch the CC0 "Knight Character" rigged humanoid (by Quaternius, distributed via OpenGameArt)
+    on first build. This is a zip-hosted asset rather than a git repository, so it follows the same
+    fetch/cache/CI-skip shape as FetchSponzaAssets above but verifies the download against a pinned
+    SHA256 checksum instead of relying on git for integrity. See Assets/Knight.NOTICE.md for the
+    licence and source record. Skipped in CI (CI env var is set automatically by GitHub Actions).
+  -->
+  <Target
+    Name="FetchKnightAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/Knight/KnightCharacter.fbx')"
+  >
+    <PropertyGroup>
+      <_KnightUrl>https://opengameart.org/sites/default/files/Knight%20Character%20by%20%40Quaternius.zip</_KnightUrl>
+      <_KnightSha256>36aed14d0e27282bd006982e00206a852b1d8c00fc72f95c2437d9b4b5dccdb9</_KnightSha256>
+      <_KnightDir>$(MSBuildProjectDirectory)/Assets/Knight</_KnightDir>
+      <_KnightFetchDir>$(MSBuildProjectDirectory)/_knight-fetch</_KnightFetchDir>
+      <_KnightZipPath>$(_KnightFetchDir)/knight.zip</_KnightZipPath>
+      <_KnightExtractDir>$(_KnightFetchDir)/extracted</_KnightExtractDir>
+      <_KnightFbxExtractPath>$(_KnightExtractDir)/Knight Character by @Quaternius/FBX/KnightCharacter.fbx</_KnightFbxExtractPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the download/extract is retried on the next build -->
+    <RemoveDir
+      Directories="$(_KnightFetchDir)"
+      Condition="Exists('$(_KnightFetchDir)') And !Exists('$(_KnightFbxExtractPath)')"
+    />
+
+    <MakeDir Directories="$(_KnightFetchDir)" Condition="!Exists('$(_KnightFetchDir)')" />
+
+    <!-- Download only when the fetch cache does not yet hold an extracted (i.e. verified) copy -->
+    <DownloadFile
+      SourceUrl="$(_KnightUrl)"
+      DestinationFolder="$(_KnightFetchDir)"
+      DestinationFileName="knight.zip"
+      Condition="!Exists('$(_KnightZipPath)') And !Exists('$(_KnightFbxExtractPath)')"
+    />
+
+    <!-- Verify the download against a pinned checksum before extracting anything from it -->
+    <GetFileHash
+      Files="$(_KnightZipPath)"
+      Algorithm="SHA256"
+      Condition="Exists('$(_KnightZipPath)') And !Exists('$(_KnightFbxExtractPath)')"
+    >
+      <Output TaskParameter="Items" ItemName="_KnightZipHash" />
+    </GetFileHash>
+    <PropertyGroup>
+      <_KnightActualSha256>@(_KnightZipHash->'%(FileHash)')</_KnightActualSha256>
+    </PropertyGroup>
+    <!-- A mismatch deletes the bad zip so the next build retries the download instead of reusing it -->
+    <Delete
+      Files="$(_KnightZipPath)"
+      Condition="'$(_KnightActualSha256)' != '' And '$(_KnightActualSha256.ToLower())' != '$(_KnightSha256)'"
+    />
+    <Error
+      Condition="'$(_KnightActualSha256)' != '' And '$(_KnightActualSha256.ToLower())' != '$(_KnightSha256)'"
+      Text="Knight Character zip failed SHA256 verification (expected $(_KnightSha256), got $(_KnightActualSha256)); deleted so the next build retries the download."
+    />
+
+    <Unzip
+      SourceFiles="$(_KnightZipPath)"
+      DestinationFolder="$(_KnightExtractDir)"
+      Condition="!Exists('$(_KnightFbxExtractPath)')"
+    />
+
+    <!-- Collect the file after extraction so the item finds it -->
+    <ItemGroup>
+      <_KnightFiles Include="$(_KnightFbxExtractPath)" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_KnightDir)" Condition="!Exists('$(_KnightDir)')" />
+    <Copy SourceFiles="@(_KnightFiles)" DestinationFolder="$(_KnightDir)" />
+    <Copy SourceFiles="@(_KnightFiles)" DestinationFolder="$(TargetDir)Assets/Knight" />
+    <RemoveDir Directories="$(_KnightFetchDir)" />
+    <Message Text="Knight character assets ready at $(_KnightDir)" Importance="high" />
+  </Target>
 </Project>
