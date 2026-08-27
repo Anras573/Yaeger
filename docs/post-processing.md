@@ -30,6 +30,13 @@ Each frame, `PostProcessStack.Render(renderScene)`:
 This ordering (which surface each pass reads/writes) is planned by `PostProcessPlanner.Plan`, a
 pure C# function with no GL calls — see [Testing](#testing) below.
 
+A `MeshRenderSystem` constructed with a `ShadowMapRenderer`/`PointShadowMapRenderer` (see
+[shadows.md](shadows.md)) works inside `renderScene` with no special handling: each shadow pass
+runs before the main lighting pass and restores whichever framebuffer was bound when it started —
+the scene target `PostProcessStack` bound in step 1, not the backbuffer — so the main pass still
+lands where the stack expects it. See `Samples/SponzaNight` for HDR bloom and both shadow kinds
+composed together.
+
 Render UI/inspector overlays **after** `PostProcessStack.Render` returns, so they land on the
 backbuffer untouched by the effect chain:
 

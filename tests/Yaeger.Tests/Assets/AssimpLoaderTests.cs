@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Numerics;
 using Silk.NET.Assimp;
 using Xunit;
@@ -369,6 +370,95 @@ public class AssimpLoaderTests
             File.Delete(path);
         }
     }
+
+    [SkippableFact]
+    public void LoadScene_SkinnedMeshWithNonIdentityNodeTransform_ShouldBakeTransformIntoVertices()
+    {
+        Skip.IfNot(IsAssimpAvailable(), "Native Assimp library not available.");
+
+        // A skinned mesh's bone offset matrices (inverse bind poses) are computed relative to the
+        // mesh NODE's own world transform at bind time — the same space a static mesh's vertices are
+        // placed in via ModelMesh.Transform at render time. Skinned rendering has no such separate
+        // slot (Transform3D.Identity is the convention — the skin already positions vertices in scene
+        // space), so that node transform has to be baked into the vertex data itself instead, or the
+        // mesh skins into the wrong space entirely (see Assets/Knight.NOTICE.md in Samples/SponzaNight
+        // for the real asset — a Blender FBX export — that first exposed this).
+        //
+        // This is a minimal skinned glTF triangle: node 0 carries the mesh + skin plus a non-identity
+        // scale of 2, one joint (node 1) at identity, one identity inverse bind matrix, and every
+        // vertex fully weighted to that single joint — so at bind pose the skin palette is identity
+        // and the only thing that can move a vertex from its authored (0,0,0)/(1,0,0)/(0,1,0)
+        // positions is the fix under test.
+        const string gltf = """
+            {
+              "asset": { "version": "2.0" },
+              "scene": 0,
+              "scenes": [ { "nodes": [ 0, 1 ] } ],
+              "nodes": [
+                { "mesh": 0, "skin": 0, "scale": [ 2.0, 2.0, 2.0 ] },
+                { "name": "joint" }
+              ],
+              "meshes": [
+                {
+                  "primitives": [
+                    {
+                      "attributes": { "POSITION": 0, "JOINTS_0": 2, "WEIGHTS_0": 3 },
+                      "indices": 1
+                    }
+                  ]
+                }
+              ],
+              "skins": [ { "inverseBindMatrices": 4, "joints": [ 1 ] } ],
+              "buffers": [
+                {
+                  "byteLength": 180,
+                  "uri": "data:application/octet-stream;base64,AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAAAAABAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAIA/AAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAAAAAAIA/"
+                }
+              ],
+              "bufferViews": [
+                { "buffer": 0, "byteOffset": 0, "byteLength": 36, "target": 34962 },
+                { "buffer": 0, "byteOffset": 36, "byteLength": 6, "target": 34963 },
+                { "buffer": 0, "byteOffset": 44, "byteLength": 24, "target": 34962 },
+                { "buffer": 0, "byteOffset": 68, "byteLength": 48, "target": 34962 },
+                { "buffer": 0, "byteOffset": 116, "byteLength": 64 }
+              ],
+              "accessors": [
+                {
+                  "bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3",
+                  "min": [ 0.0, 0.0, 0.0 ], "max": [ 1.0, 1.0, 0.0 ]
+                },
+                { "bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR" },
+                { "bufferView": 2, "componentType": 5123, "count": 3, "type": "VEC4" },
+                { "bufferView": 3, "componentType": 5126, "count": 3, "type": "VEC4" },
+                { "bufferView": 4, "componentType": 5126, "count": 1, "type": "MAT4" }
+              ]
+            }
+            """;
+        var path = WriteTempObj(gltf, ".gltf");
+        try
+        {
+            var scene = AssimpLoader.LoadScene(path);
+
+            Assert.NotNull(scene.Skeleton);
+            Assert.Single(scene.Meshes);
+
+            var positions = scene.Meshes[0].Mesh.Vertices.Select(v => v.Position).ToArray();
+            Assert.Contains(positions, p => IsClose(p, new Vector3(0f, 0f, 0f)));
+            Assert.Contains(positions, p => IsClose(p, new Vector3(2f, 0f, 0f)));
+            Assert.Contains(positions, p => IsClose(p, new Vector3(0f, 2f, 0f)));
+
+            // The un-baked positions the fix must NOT leave in place — guards against a regression
+            // that silently stops applying the node transform.
+            Assert.DoesNotContain(positions, p => IsClose(p, new Vector3(1f, 0f, 0f)));
+            Assert.DoesNotContain(positions, p => IsClose(p, new Vector3(0f, 1f, 0f)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    private static bool IsClose(Vector3 a, Vector3 b) => Vector3.Distance(a, b) < 1e-3f;
 
     [Fact]
     public void LoadScene_FileNotFound_ShouldThrowFileNotFoundException()

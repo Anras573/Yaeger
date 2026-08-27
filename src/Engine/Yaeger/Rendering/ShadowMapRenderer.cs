@@ -48,6 +48,12 @@ public sealed class ShadowMapRenderer : IDisposable
     private int _bonePaletteCapacityTexels;
     private readonly int _resolution;
 
+    // The framebuffer bound when BeginPass was called, restored by EndPass instead of a hardcoded 0
+    // — a caller rendering the main pass into its own offscreen target (PostProcessStack's scene
+    // FBO, say) would otherwise have that target silently swapped for the backbuffer once the shadow
+    // pass finishes. -1 means "nothing captured yet" (EndPass called without a matching BeginPass).
+    private int _callerFramebuffer = -1;
+
     /// <summary>The settings the renderer was constructed with.</summary>
     public ShadowSettings Settings { get; }
 
@@ -224,6 +230,8 @@ public sealed class ShadowMapRenderer : IDisposable
         ShadowStrength = ComputeShadowStrength(light, Settings);
         DrawCallCount = 0;
 
+        _callerFramebuffer = _gl.GetInteger(GLEnum.FramebufferBinding);
+
         var resolution = (uint)_resolution;
         _gl.Viewport(0, 0, resolution, resolution);
         _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _fbo);
@@ -360,13 +368,16 @@ public sealed class ShadowMapRenderer : IDisposable
     }
 
     /// <summary>
-    /// Restores the default framebuffer and the supplied viewport (the window's drawable size) so
-    /// the subsequent lighting pass renders to the screen as usual.
+    /// Restores whichever framebuffer was bound when <see cref="BeginPass(DirectionalLight, Vector3)"/>
+    /// was called (the backbuffer for a caller rendering straight to the screen, or an offscreen
+    /// target's FBO for one wrapped in something like <see cref="PostProcessStack"/>) and the
+    /// supplied viewport (the window's drawable size), so the subsequent lighting pass renders
+    /// wherever the caller actually intended.
     /// </summary>
     public void EndPass(int viewportWidth, int viewportHeight)
     {
         _shader.Unbind();
-        _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        _gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)Math.Max(_callerFramebuffer, 0));
         _gl.Viewport(0, 0, (uint)Math.Max(viewportWidth, 1), (uint)Math.Max(viewportHeight, 1));
 
         // Restore the engine's default 3D state changed in BeginPass so a caller that doesn't

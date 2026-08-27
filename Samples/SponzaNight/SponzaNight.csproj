@@ -1,0 +1,146 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SponzaNight</RootNamespace>
+    <!-- Requires native libassimp at runtime. On Linux: apt install libassimp-dev -->
+    <!-- On Windows/macOS: place the native binary alongside the executable. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Engine\Yaeger\Yaeger.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!--
+    Fetch the KhronosGroup Sponza assets on first build using git sparse-checkout.
+    Skipped in CI (CI env var is set automatically by GitHub Actions).
+    On first build the target copies directly to $(TargetDir); on subsequent builds
+    the <None Update="Assets\**"> rule above handles the output copy.
+    Duplicated from Samples/Sponza/Sponza.csproj rather than shared via a common .targets file, so
+    this sample stays independently buildable — the same pattern SkinnedMeshDemo/CrowdDemo use for
+    their own copies of the CesiumMan fetch target.
+  -->
+  <Target
+    Name="FetchSponzaAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/Sponza/Sponza.gltf')"
+  >
+    <PropertyGroup>
+      <_SponzaDir>$(MSBuildProjectDirectory)/Assets/Sponza</_SponzaDir>
+      <_SponzaFetchDir>$(MSBuildProjectDirectory)/_sponza-fetch</_SponzaFetchDir>
+      <_SponzaGltfFetchPath>$(_SponzaFetchDir)/Models/Sponza/glTF/Sponza.gltf</_SponzaGltfFetchPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the clone is retried on the next build -->
+    <RemoveDir
+      Directories="$(_SponzaFetchDir)"
+      Condition="Exists('$(_SponzaFetchDir)') And !Exists('$(_SponzaGltfFetchPath)')"
+    />
+
+    <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
+    <Exec
+      Command="git clone --filter=blob:none --no-checkout --sparse --depth=1 https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_SponzaFetchDir)&quot; &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; sparse-checkout set Models/Sponza/glTF &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; checkout"
+      Condition="!Exists('$(_SponzaFetchDir)')"
+    />
+
+    <!-- Collect files after the clone so the glob finds them -->
+    <ItemGroup>
+      <_SponzaFiles Include="$(_SponzaFetchDir)/Models/Sponza/glTF/**/*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_SponzaDir)" Condition="!Exists('$(_SponzaDir)')" />
+    <Copy SourceFiles="@(_SponzaFiles)" DestinationFolder="$(_SponzaDir)/%(RecursiveDir)" />
+    <Copy
+      SourceFiles="@(_SponzaFiles)"
+      DestinationFolder="$(TargetDir)Assets/Sponza/%(RecursiveDir)"
+    />
+    <RemoveDir Directories="$(_SponzaFetchDir)" />
+    <Message Text="Sponza assets ready at $(_SponzaDir)" Importance="high" />
+  </Target>
+
+  <!--
+    Fetch the CC0 "Knight Character" rigged humanoid (by Quaternius, distributed via OpenGameArt)
+    on first build. This is a zip-hosted asset rather than a git repository, so it follows the same
+    fetch/cache/CI-skip shape as FetchSponzaAssets above but verifies the download against a pinned
+    SHA256 checksum instead of relying on git for integrity. See Assets/Knight.NOTICE.md for the
+    licence and source record. Skipped in CI (CI env var is set automatically by GitHub Actions).
+    Duplicated from Samples/Sponza/Sponza.csproj — see the comment on FetchSponzaAssets above.
+  -->
+  <Target
+    Name="FetchKnightAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/Knight/KnightCharacter.fbx')"
+  >
+    <PropertyGroup>
+      <_KnightUrl>https://opengameart.org/sites/default/files/Knight%20Character%20by%20%40Quaternius.zip</_KnightUrl>
+      <_KnightSha256>36aed14d0e27282bd006982e00206a852b1d8c00fc72f95c2437d9b4b5dccdb9</_KnightSha256>
+      <_KnightDir>$(MSBuildProjectDirectory)/Assets/Knight</_KnightDir>
+      <_KnightFetchDir>$(MSBuildProjectDirectory)/_knight-fetch</_KnightFetchDir>
+      <_KnightZipPath>$(_KnightFetchDir)/knight.zip</_KnightZipPath>
+      <_KnightExtractDir>$(_KnightFetchDir)/extracted</_KnightExtractDir>
+      <_KnightFbxExtractPath>$(_KnightExtractDir)/Knight Character by @Quaternius/FBX/KnightCharacter.fbx</_KnightFbxExtractPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the download/extract is retried on the next build -->
+    <RemoveDir
+      Directories="$(_KnightFetchDir)"
+      Condition="Exists('$(_KnightFetchDir)') And !Exists('$(_KnightFbxExtractPath)')"
+    />
+
+    <MakeDir Directories="$(_KnightFetchDir)" Condition="!Exists('$(_KnightFetchDir)')" />
+
+    <!-- Download only when the fetch cache does not yet hold an extracted (i.e. verified) copy -->
+    <DownloadFile
+      SourceUrl="$(_KnightUrl)"
+      DestinationFolder="$(_KnightFetchDir)"
+      DestinationFileName="knight.zip"
+      Condition="!Exists('$(_KnightZipPath)') And !Exists('$(_KnightFbxExtractPath)')"
+    />
+
+    <!-- Verify the download against a pinned checksum before extracting anything from it -->
+    <GetFileHash
+      Files="$(_KnightZipPath)"
+      Algorithm="SHA256"
+      Condition="Exists('$(_KnightZipPath)') And !Exists('$(_KnightFbxExtractPath)')"
+    >
+      <Output TaskParameter="Items" ItemName="_KnightZipHash" />
+    </GetFileHash>
+    <PropertyGroup>
+      <_KnightActualSha256>@(_KnightZipHash->'%(FileHash)')</_KnightActualSha256>
+    </PropertyGroup>
+    <!-- A mismatch deletes the bad zip so the next build retries the download instead of reusing it -->
+    <Delete
+      Files="$(_KnightZipPath)"
+      Condition="'$(_KnightActualSha256)' != '' And '$(_KnightActualSha256.ToLower())' != '$(_KnightSha256)'"
+    />
+    <Error
+      Condition="'$(_KnightActualSha256)' != '' And '$(_KnightActualSha256.ToLower())' != '$(_KnightSha256)'"
+      Text="Knight Character zip failed SHA256 verification (expected $(_KnightSha256), got $(_KnightActualSha256)); deleted so the next build retries the download."
+    />
+
+    <Unzip
+      SourceFiles="$(_KnightZipPath)"
+      DestinationFolder="$(_KnightExtractDir)"
+      Condition="!Exists('$(_KnightFbxExtractPath)')"
+    />
+
+    <!-- Collect the file after extraction so the item finds it -->
+    <ItemGroup>
+      <_KnightFiles Include="$(_KnightFbxExtractPath)" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_KnightDir)" Condition="!Exists('$(_KnightDir)')" />
+    <Copy SourceFiles="@(_KnightFiles)" DestinationFolder="$(_KnightDir)" />
+    <Copy SourceFiles="@(_KnightFiles)" DestinationFolder="$(TargetDir)Assets/Knight" />
+    <RemoveDir Directories="$(_KnightFetchDir)" />
+    <Message Text="Knight character assets ready at $(_KnightDir)" Importance="high" />
+  </Target>
+</Project>

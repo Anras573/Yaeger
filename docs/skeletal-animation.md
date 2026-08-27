@@ -295,7 +295,16 @@ default) leaves its entities uncullable, same as before this existed.
   rather than dropped past that.
 - **Influences** — up to four bones per vertex; the loader keeps the heaviest four and renormalises.
 - **Model matrix** — for skinned entities use `Transform3D.Identity`; the bone world transforms run
-  from the scene root, so the skin already positions vertices in scene space.
+  from the scene root, so the skin already positions vertices in scene space. This assumes the
+  source file's own mesh node has an identity transform, true for every glTF-sourced model this
+  pipeline ships with (`CesiumMan`, `DamagedHelmet`) — `AssimpLoader.LoadScene` bakes a skinned
+  mesh's own (non-identity) node transform into its vertex data at load time so this holds for other
+  formats too, an FBX whose mesh node carries its own scale/rotation (a common Blender export
+  artifact) included — see the Knight character in `Samples/SponzaNight`, and the code comment on
+  `AssimpLoader.ExtractMeshData`, for the asset that exposed the gap this closes. A non-identity
+  `Transform3D` on a skinned entity (as `SponzaNight`'s knight uses, to size a character whose
+  armature *object* — not its mesh node — separately carries its own baked scale) is layered on top
+  of the skin as usual, the same as any static mesh's.
 - **Culling assumes rigid-ish bones** — the per-bone radius is a bind-space distance, carried
   through the palette unchanged; it stays exact under rotation/translation (the common case) but a
   clip that scales a bone non-uniformly could in principle stretch a vertex further than the radius
