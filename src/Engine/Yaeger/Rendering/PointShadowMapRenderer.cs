@@ -59,6 +59,11 @@ public sealed class PointShadowMapRenderer : IDisposable
 
     private InstanceData[]? _instanceScratch;
 
+    // The framebuffer bound when the frame's first BeginFace was called, restored by EndFrame instead
+    // of a hardcoded 0 — see ShadowMapRenderer's identical field for why. -1 means "not yet captured
+    // this frame"; EndFrame resets it so the next frame captures afresh.
+    private int _callerFramebuffer = -1;
+
     /// <summary>The settings this renderer was constructed with.</summary>
     public PointShadowSettings Settings { get; }
 
@@ -96,6 +101,9 @@ public sealed class PointShadowMapRenderer : IDisposable
     public void BeginFace(int slot, int faceIndex, Vector3 lightPosition, float farPlane)
     {
         DrawCallCount = 0;
+
+        if (_callerFramebuffer < 0)
+            _callerFramebuffer = _gl.GetInteger(GLEnum.FramebufferBinding);
 
         var resolution = (uint)_resolution;
         _gl.Viewport(0, 0, resolution, resolution);
@@ -179,15 +187,31 @@ public sealed class PointShadowMapRenderer : IDisposable
     public void EndFace()
     {
         _shader.Unbind();
-        _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        // Deliberately leaves this face's FBO bound rather than rebinding a hardcoded 0: the next
+        // BeginFace (same frame) rebinds its own FBO/face texture unconditionally regardless, and
+        // rebinding 0 here would be wrong for a caller whose real target isn't the backbuffer — see
+        // EndFrame, which is what actually restores the caller's framebuffer once every face is done.
     }
 
     /// <summary>
-    /// Restores the default framebuffer and the supplied viewport (the window's drawable size) once
-    /// every slot/face this frame has been rendered. Call after the last <see cref="EndFace"/>.
+    /// Restores whichever framebuffer was bound when this frame's first <see cref="BeginFace"/> was
+    /// called (the backbuffer for a caller rendering straight to the screen, or an offscreen target's
+    /// FBO for one wrapped in something like <see cref="PostProcessStack"/>) and the supplied viewport
+    /// (the window's drawable size), once every slot/face this frame has been rendered. Call after the
+    /// last <see cref="EndFace"/>.
     /// </summary>
     public void EndFrame(int viewportWidth, int viewportHeight)
     {
+        // A frame with no shadow-casting slots this call never ran a BeginFace to capture from, so
+        // there's nothing to restore — the framebuffer the caller had bound before calling into this
+        // renderer at all is still exactly what's bound now, and rebinding a hardcoded 0 here would
+        // wrongly clobber it (e.g. a caller rendering into PostProcessStack's offscreen scene target).
+        if (_callerFramebuffer >= 0)
+        {
+            _gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)_callerFramebuffer);
+            _callerFramebuffer = -1;
+        }
+
         _gl.Viewport(0, 0, (uint)Math.Max(viewportWidth, 1), (uint)Math.Max(viewportHeight, 1));
         _gl.Enable(EnableCap.CullFace);
         _gl.CullFace(TriangleFace.Back);

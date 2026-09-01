@@ -102,7 +102,8 @@ Samples/
 ├── PostProcessingDemo/      # Render-to-texture post-processing (vignette + bloom, toggled at runtime)
 ├── TweenDemo/               # Data-driven transform/light/material animation with easing
 ├── SequenceDemo/            # Ordered/parallel cutscene beats (lift, doors, reveal) with skip-to-end
-└── OneShotAudioDemo/        # Pooled one-shot positional SFX under sustained overlapping fire
+├── OneShotAudioDemo/        # Pooled one-shot positional SFX under sustained overlapping fire
+└── SponzaNight/             # Living Sponza: braziers, a patrolling knight, and a day/night cycle
 ```
 
 ## License

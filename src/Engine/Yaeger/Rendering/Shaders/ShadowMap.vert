@@ -24,7 +24,7 @@ layout(std140) uniform Bones {
 };
 uniform int uSkinned;
 
-// Instanced skinning's bone-palette texture buffer — same layout/convention as Renderer3D.vert's
+// Instanced skinning's bone-palette texture buffer - same layout/convention as Renderer3D.vert's
 // uBonePalette, but this shadow shader's own texture buffer (ShadowMapRenderer keeps its bone data
 // independent of Renderer3D's, same as the UBO above already does).
 uniform samplerBuffer uBonePalette;

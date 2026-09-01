@@ -23,7 +23,7 @@ uniform mat4 uLightSpaceMatrix;
 uniform int uInstanced;
 
 // GPU skinning: a palette of bone matrices, either the fixed-size uniform buffer below (immediate,
-// non-instanced draws) or the per-instance texture buffer further down (instanced draws — a crowd of
+// non-instanced draws) or the per-instance texture buffer further down (instanced draws - a crowd of
 // characters can't share one 128-matrix UBO, since each instance has its own pose). uSkinned gates
 // the whole path so static meshes (all weights zero) are unaffected; uInstanced picks which palette
 // source an individual skinned vertex reads.
@@ -35,7 +35,7 @@ uniform int uSkinned;
 
 // Instanced skinning's bone-palette texture buffer: every drawn instance's resolved skinning
 // matrices, packed back-to-back by Renderer3D.DrawInstancedSkinned (see BonePaletteBuffer), each
-// bone occupying 4 consecutive texels (its columns, raw-memory order — the same convention
+// bone occupying 4 consecutive texels (its columns, raw-memory order - the same convention
 // SetBoneMatrices already uses for the UBO above). aInstancePaletteBase is this instance's starting
 // bone slot; texel index = (aInstancePaletteBase + boneIndex) * 4 + column.
 uniform samplerBuffer uBonePalette;
@@ -65,7 +65,7 @@ void main() {
         if (wSum > 1e-4) {
             if (uInstanced != 0) {
                 // The instanced palette buffer is sized exactly to this draw's instances (see
-                // InstancedSkinningPlanner), so every in-range bone index is valid by construction —
+                // InstancedSkinningPlanner), so every in-range bone index is valid by construction -
                 // no bounds guard needed here, unlike the fixed MAX_BONES UBO below.
                 int base = int(aInstancePaletteBase);
                 skin =

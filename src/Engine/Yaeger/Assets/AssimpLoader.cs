@@ -150,7 +150,13 @@ public static class AssimpLoader
             var assimpMesh = scene->MMeshes[meshIdx];
             if (!meshDataCache.TryGetValue(meshIdx, out var meshData))
             {
-                meshData = ExtractMeshData(assimpMesh, nameToIndex, inverseBindPoses, ref hasSkin);
+                meshData = ExtractMeshData(
+                    assimpMesh,
+                    nameToIndex,
+                    inverseBindPoses,
+                    worldTransform,
+                    ref hasSkin
+                );
                 meshDataCache[meshIdx] = meshData;
             }
 
@@ -201,6 +207,7 @@ public static class AssimpLoader
         Mesh* mesh,
         Dictionary<string, int> nameToIndex,
         Matrix4x4[] inverseBindPoses,
+        Matrix4x4 nodeWorldTransform,
         ref bool hasSkin
     )
     {
@@ -213,6 +220,22 @@ public static class AssimpLoader
         // weights per bone (each bone lists the vertices it affects); invert that into per-vertex.
         var influences = ExtractInfluences(mesh, nameToIndex, inverseBindPoses, ref hasSkin);
 
+        // A skinned mesh's bone offset matrices (each bone's inverse bind pose) are computed by the
+        // exporter/Assimp relative to the mesh NODE's own world transform at bind time — the same
+        // space a static mesh's vertices are placed in via ModelMesh.Transform, applied by the
+        // renderer at draw time. Skinned rendering has no such separate slot (the convention is
+        // Transform3D.Identity — "the skin already positions vertices in scene space", see
+        // docs/skeletal-animation.md), so that space has to be baked into the vertex data itself
+        // instead. Most models (glTF-sourced ones especially) export skinned meshes with an identity
+        // node transform, making this a no-op; an FBX whose mesh node carries its own non-identity
+        // transform (a common "forgot to apply transform before export" artifact) would otherwise
+        // skin into completely the wrong space — bind poses computed for one space, applied to
+        // vertices living in another. Only applied to skinned meshes: a static mesh's ModelMesh.Transform
+        // already carries this same worldTransform for the renderer to apply, so baking it into the
+        // vertices too would apply it twice.
+        var isSkinned = influences != null;
+        var bakeTransform = isSkinned && nodeWorldTransform != Matrix4x4.Identity;
+
         for (var i = 0u; i < vertCount; i++)
         {
             var pos = mesh->MVertices[i];
@@ -220,6 +243,16 @@ public static class AssimpLoader
             var uv =
                 uvChannel0 != null ? new Vector2(uvChannel0[i].X, uvChannel0[i].Y) : Vector2.Zero;
             var tangent = hasTangents ? mesh->MTangents[i] : Vector3.Zero;
+
+            if (bakeTransform)
+            {
+                pos = Vector3.Transform(pos, nodeWorldTransform);
+                norm = Vector3.Normalize(Vector3.TransformNormal(norm, nodeWorldTransform));
+                if (hasTangents)
+                    tangent = Vector3.Normalize(
+                        Vector3.TransformNormal(tangent, nodeWorldTransform)
+                    );
+            }
 
             var boneIndices = influences != null ? influences[i].Indices : Vector4.Zero;
             var boneWeights = influences != null ? influences[i].NormalizedWeights() : Vector4.Zero;

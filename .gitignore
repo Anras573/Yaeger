@@ -524,3 +524,9 @@ Samples/DamagedHelmet/_damagedhelmet-fetch/
 # CrowdDemo sample — fetched at build time, not committed
 Samples/CrowdDemo/Assets/CesiumMan/
 Samples/CrowdDemo/_cesium-fetch/
+
+# SponzaNight sample — fetched at build time, not committed
+Samples/SponzaNight/Assets/Sponza/
+Samples/SponzaNight/_sponza-fetch/
+Samples/SponzaNight/Assets/Knight/
+Samples/SponzaNight/_knight-fetch/
