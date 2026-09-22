@@ -208,6 +208,20 @@ public sealed partial class ImGuiInspector
         if (_world.TryGetComponent<SpotLight>(entity, out var spotLight))
             DrawSpotLightSection(entity, spotLight);
 
+        // ── Curated hierarchy components ─────────────────────────────────────
+        // Parent is always drawn (even absent) so its editor doubles as the way to add one; the
+        // local transforms are only meaningful — and only shown — alongside a Parent.
+        DrawParentSection(entity);
+
+        if (_world.TryGetComponent<Parent>(entity, out _))
+        {
+            if (_world.TryGetComponent<LocalTransform2D>(entity, out var localTransform2D))
+                DrawLocalTransform2DSection(entity, localTransform2D);
+
+            if (_world.TryGetComponent<LocalTransform3D>(entity, out var localTransform3D))
+                DrawLocalTransform3DSection(entity, localTransform3D);
+        }
+
         // ── Other registered components (read-only + remove button) ──────────
         if (_registry != null)
         {
@@ -216,6 +230,8 @@ public sealed partial class ImGuiInspector
                 if (serializer.TypeId is "Transform2D" or "Camera2D" or "Sprite")
                     continue;
                 if (Curated3DTypeIds.Contains(serializer.TypeId))
+                    continue;
+                if (CuratedHierarchyTypeIds.Contains(serializer.TypeId))
                     continue;
 
                 if (!EntityHasComponent(entity, serializer))

@@ -141,6 +141,14 @@ visually jump, and rejects a drop that would create a cycle. See
 `src/Engine/Yaeger/Inspector/EntityReparenting.cs` (the pure cycle-detection/transform math) and
 `ImGuiInspector.Hierarchy.cs` (the ImGui glue).
 
+The component panel offers the same editing via curated sections instead of drag-and-drop: a
+**Parent** section (shown for every entity, root or not) with an entity picker — a combo box
+pre-filtered to candidates that wouldn't create a cycle, a **Set** button, and a **Clear** button
+once a `Parent` exists — plus `LocalTransform2D`/`LocalTransform3D` drag-editors (position,
+rotation, scale) shown only once the entity carries a `Parent`. Picking a new parent through **Set**
+goes through the same cycle check and local-transform recompute as the drag-and-drop path above.
+See `ImGuiInspector.ComponentEditorsHierarchy.cs`.
+
 ## See also
 
 - `src/Engine/Yaeger/ECS/Parent.cs`
