@@ -25,7 +25,8 @@ namespace Yaeger.Inspector;
 /// Split by concern across partial files: this one holds construction and the top-level render
 /// loop. See <c>ImGuiInspector.Gizmos.cs</c> (world-space selection gizmos + viewport
 /// picking/dragging), <c>ImGuiInspector.MainWindow.cs</c> (the ImGui panel's layout — entity list,
-/// component column, save row), <c>ImGuiInspector.ComponentEditors2D.cs</c>/
+/// component column, save row), <c>ImGuiInspector.Hierarchy.cs</c> (drag-and-drop reparenting in
+/// the entity tree), <c>ImGuiInspector.ComponentEditors2D.cs</c>/
 /// <c>ImGuiInspector.ComponentEditors3D.cs</c> (the curated per-component-type editors),
 /// <c>ImGuiInspector.AddComponent.cs</c> (the "Add Component" row), and
 /// <c>ImGuiInspector.Commands.cs</c> (the deferred add/remove/destroy command queue).
