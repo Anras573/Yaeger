@@ -11,10 +11,10 @@
             "projectPath": "${workspaceFolder}/Samples/UiDemo/UiDemo.csproj"
         },
         {
-            "name": "C#: TextRenderingExample Debug",
+            "name": "C#: FeatureGallery Debug",
             "type": "dotnet",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/TextRenderingExample/TextRenderingExample.csproj"
+            "projectPath": "${workspaceFolder}/Samples/FeatureGallery/FeatureGallery.csproj"
         },
         {
             "name": "C#: Sponza Debug",
@@ -59,12 +59,6 @@
             "projectPath": "${workspaceFolder}/Samples/ParticleDemo/ParticleDemo.csproj"
         },
         {
-            "name": "C#: MouseDemo Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/MouseDemo/MouseDemo.csproj"
-        },
-        {
             "name": "C#: DamagedHelmet Debug",
             "type": "dotnet",
             "request": "launch",
@@ -87,12 +81,6 @@
             "type": "dotnet",
             "request": "launch",
             "projectPath": "${workspaceFolder}/Samples/BrowserDemo/BrowserDemo.csproj"
-        },
-        {
-            "name": "C#: BouncingBalls Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/BouncingBalls/BouncingBalls.csproj"
         },
         {
             "name": "C#: Animation2D Debug",

@@ -43,6 +43,24 @@ public static class Keyboard
         KeyUpActions[key] = action;
     }
 
+    /// <summary>
+    /// Removes the action bound to the specified key's key-down event, if any.
+    /// </summary>
+    /// <param name="key"></param>
+    public static void RemoveKeyDown(Keys key)
+    {
+        KeyDownActions.Remove(key);
+    }
+
+    /// <summary>
+    /// Removes the action bound to the specified key's key-up event, if any.
+    /// </summary>
+    /// <param name="key"></param>
+    public static void RemoveKeyUp(Keys key)
+    {
+        KeyUpActions.Remove(key);
+    }
+
     private static void OnKeyDown(IKeyboard _, Key key, int _2)
     {
         if (!KeyMapper.TryGetMappedKey(key, out var mappedKey))

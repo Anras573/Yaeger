@@ -236,7 +236,7 @@ window.OnRender += delta =>
     // stack's offscreen scene target is already bound.
     postProcessStack.Render(meshRenderSystem.Render);
 
-    // Opt-in headless screenshot hook (see Samples/TextRenderingExample): set YAEGER_SCREENSHOT
+    // Opt-in headless screenshot hook (see Samples/FeatureGallery/Scenes/TextRendering): set YAEGER_SCREENSHOT
     // to a file path to capture the first rendered frame as a PNG and exit — handy for
     // showcasing/reproducing rendering bugs (e.g. from a CI run or a headless Xvfb session)
     // without a human watching the window.

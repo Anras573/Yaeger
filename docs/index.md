@@ -84,10 +84,9 @@ src/Engine/
 Samples/
 ├── Pong/                    # Classic Pong game
 ├── Platformer/              # Full 2D platformer level — the platformer-support epic's integration proof
-├── BouncingBalls/           # Physics demo
+├── FeatureGallery/          # One window, a menu of small single-feature demo scenes (Mouse, Text Rendering, Bouncing Balls, ...)
 ├── Animation2D/             # Sprite-sheet animation demo
 ├── CameraDemo/              # Opt-in 2D camera demo
-├── MouseDemo/               # Mouse input demo
 ├── ParticleDemo/            # Particle effects demo (fire, smoke, explosions)
 ├── SceneDemo/               # JSON scene loading demo
 ├── CornellBox/              # 3D Cornell Box + F1 editor overlay demo
@@ -98,7 +97,6 @@ Samples/
 ├── BrowserDemo/             # Blazor/WebAssembly interactive paddle-and-ball demo
 ├── RenderingStressTest/     # Renderer stress test
 ├── MeshInstancingDemo/      # Instanced 3D rendering stress test
-├── TextRenderingExample/    # Text rendering demo
 ├── PostProcessingDemo/      # Render-to-texture post-processing (vignette + bloom, toggled at runtime)
 ├── TweenDemo/               # Data-driven transform/light/material animation with easing
 ├── SequenceDemo/            # Ordered/parallel cutscene beats (lift, doors, reveal) with skip-to-end
