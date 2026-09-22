@@ -155,6 +155,15 @@ The style is runtime-only — it is not saved with scenes.
 All mutations are deferred until after the ImGui draw pass to avoid invalidating the world's
 iterators mid-frame.
 
+### Reparenting in the entity list
+
+The entity list renders as a tree, grouped by `Parent.ParentEntity` (see [hierarchy.md](hierarchy.md)).
+Drag an entity node onto another to make it that entity's child, or drop it onto the "Entities"
+header to remove `Parent` and make it a root again. A drop that would create a cycle (dropping an
+entity onto one of its own descendants) is rejected, and `LocalTransform2D`/`LocalTransform3D` is
+recomputed on drop so the entity keeps its current world position/rotation/scale instead of
+jumping.
+
 ## Saving scenes
 
 If you pass a `ComponentRegistry` to the constructor, the **Save Scene** row writes the world out

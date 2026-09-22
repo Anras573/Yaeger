@@ -130,11 +130,23 @@ Saving a `Parent` back out requires the parent entity to be tagged; `SceneSaver`
 
 - **Hierarchy-aware physics** — colliders stay world-space; a parented `BoxCollider2D`/
   `CircleCollider2D` does not automatically follow its parent's motion.
-- **Editor drag-to-reparent** — the `ImGuiInspector` overlay doesn't have a hierarchy UI yet.
+
+## Editor support
+
+The `ImGuiInspector` entity list renders as a tree grouped by `Parent.ParentEntity` and supports
+drag-and-drop reparenting: drag an entity node onto another to add/replace its `Parent`, or drop it
+onto the "Entities" header to remove `Parent` and make it a root again. The drop recomputes
+`LocalTransform2D`/`LocalTransform3D` (the inverse of the composition above) so the entity doesn't
+visually jump, and rejects a drop that would create a cycle. See
+`src/Engine/Yaeger/Inspector/EntityReparenting.cs` (the pure cycle-detection/transform math) and
+`ImGuiInspector.Hierarchy.cs` (the ImGui glue).
 
 ## See also
 
 - `src/Engine/Yaeger/ECS/Parent.cs`
 - `src/Engine/Yaeger/Systems/TransformHierarchySystem.cs`
 - `src/Engine/Yaeger/Graphics/LocalTransform2D.cs`, `LocalTransform3D.cs`
+- `src/Engine/Yaeger/Inspector/EntityReparenting.cs`, `ImGuiInspector.Hierarchy.cs` — editor
+  drag-and-drop reparenting
 - [scenes.md](scenes.md) — the prefab/scene JSON pipeline `Parent` plugs into
+- [editor.md](editor.md) — the `ImGuiInspector` overlay

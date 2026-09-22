@@ -58,6 +58,9 @@ public sealed partial class ImGuiInspector
     private void DrawEntityListColumn()
     {
         ImGui.Text("Entities");
+        // Drop target for un-parenting: dragging an entity onto the header removes its Parent,
+        // making it a root again.
+        AcceptEntityDrop(null);
         ImGui.Separator();
 
         // Snapshot to a sorted list so we don't mutate during iteration
@@ -119,8 +122,12 @@ public sealed partial class ImGuiInspector
         if (_selectedEntity == entity)
             flags |= ImGuiTreeNodeFlags.Selected;
 
-        var nodeId = $"{EntityDisplayLabel(entity)}##entity_{entity.Id}";
+        var label = EntityDisplayLabel(entity);
+        var nodeId = $"{label}##entity_{entity.Id}";
         var open = ImGui.TreeNodeEx(nodeId, flags);
+
+        BeginEntityDragSource(entity, label);
+        AcceptEntityDrop(entity);
 
         if (ImGui.IsItemClicked())
             _selectedEntity = entity;
