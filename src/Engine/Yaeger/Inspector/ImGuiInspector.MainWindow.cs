@@ -62,26 +62,84 @@ public sealed partial class ImGuiInspector
 
         // Snapshot to a sorted list so we don't mutate during iteration
         var entities = _world.Entities.OrderBy(e => e.Id).ToArray();
+        var entitySet = entities.ToHashSet();
 
+        // Bucket entities by Parent.ParentEntity to draw a tree instead of a flat list.
+        // An entity whose declared parent no longer exists in the world is treated as a root
+        // (rather than dropped) so it's never silently hidden from the inspector.
+        var childrenByParent = new Dictionary<Entity, List<Entity>>();
+        var roots = new List<Entity>();
         foreach (var entity in entities)
         {
-            // Tags are user-provided; strip "##" so ImGui doesn't treat it as an ID separator.
-            // The explicit "##entity_{id}" suffix gives each Selectable a unique stable ID.
-            var display = _world.TryGetTag(entity, out var tag)
-                ? $"{tag.Replace("##", "#-#")}  (#{entity.Id})"
-                : $"Entity#{entity.Id}";
-            var selectableId = $"{display}##entity_{entity.Id}";
-
-            var selected = _selectedEntity == entity;
-            if (ImGui.Selectable(selectableId, selected))
-                _selectedEntity = entity;
+            if (
+                _world.TryGetComponent<Parent>(entity, out var parent)
+                && entitySet.Contains(parent.ParentEntity)
+            )
+            {
+                if (!childrenByParent.TryGetValue(parent.ParentEntity, out var siblings))
+                    childrenByParent[parent.ParentEntity] = siblings = [];
+                siblings.Add(entity);
+            }
+            else
+            {
+                roots.Add(entity);
+            }
         }
+
+        var visiting = new HashSet<Entity>();
+        foreach (var root in roots)
+            DrawEntityTreeNode(root, childrenByParent, visiting);
 
         ImGui.Separator();
 
         if (ImGui.SmallButton("New Entity"))
             _pendingWorldOps.Add(w => _selectedEntity = w.CreateEntity());
     }
+
+    private void DrawEntityTreeNode(
+        Entity entity,
+        Dictionary<Entity, List<Entity>> childrenByParent,
+        HashSet<Entity> visiting
+    )
+    {
+        // Guards against a Parent cycle (which TransformHierarchySystem itself rejects by
+        // throwing): rather than recursing forever, stop descending and mark the entity so it's
+        // still visible instead of silently missing from the tree.
+        if (!visiting.Add(entity))
+        {
+            ImGui.TextDisabled($"{EntityDisplayLabel(entity)} (cyclic parent)");
+            return;
+        }
+
+        var hasChildren = childrenByParent.TryGetValue(entity, out var children);
+
+        var flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+        if (!hasChildren)
+            flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
+        if (_selectedEntity == entity)
+            flags |= ImGuiTreeNodeFlags.Selected;
+
+        var nodeId = $"{EntityDisplayLabel(entity)}##entity_{entity.Id}";
+        var open = ImGui.TreeNodeEx(nodeId, flags);
+
+        if (ImGui.IsItemClicked())
+            _selectedEntity = entity;
+
+        if (hasChildren && open)
+        {
+            foreach (var child in children!)
+                DrawEntityTreeNode(child, childrenByParent, visiting);
+            ImGui.TreePop();
+        }
+
+        visiting.Remove(entity);
+    }
+
+    // Tags are user-provided; strip "##" so ImGui doesn't treat it as an ID separator.
+    private string EntityDisplayLabel(Entity entity) =>
+        _world.TryGetTag(entity, out var tag)
+            ? $"{tag.Replace("##", "#-#")}  (#{entity.Id})"
+            : $"Entity#{entity.Id}";
 
     // ── Component inspector (right column) ───────────────────────────────────
 
