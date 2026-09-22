@@ -50,6 +50,14 @@ public sealed class GizmoStyle
     /// </summary>
     public Vector4? SpotLightColor { get; set; }
 
+    /// <summary>
+    /// Colour of the line <see cref="EntityGizmos"/> draws between a selected
+    /// <see cref="Yaeger.ECS.Parent"/>-linked entity and its immediate parent/children, so a
+    /// hierarchy relationship is visible in the viewport and not just implied by the transform it
+    /// resolves to. Default a translucent violet, distinct from the axis/bounds/light colours.
+    /// </summary>
+    public Vector4 HierarchyLinkColor { get; set; } = new(0.7f, 0.4f, 1f, 0.6f);
+
     // ── Sizes / scale factors ─────────────────────────────────────────────────
 
     /// <summary>

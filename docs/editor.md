@@ -76,6 +76,7 @@ the entity is and *which way it faces* while you drag its values:
 | `PointLight` | a wireframe sphere tracing the light's `Range`, in the light's colour |
 | `SpotLight` | a wireframe cone from the light along its `Direction`, opened to the outer cone angle |
 | `Camera3D` | a yellow view frustum showing what the camera frames |
+| `Parent` | a translucent violet line from the selected entity to its resolved parent position, plus one to each of its immediate children — see below |
 
 Lights and the camera are coloured to match, so a selected red point light shows a red range sphere.
 Gizmos are drawn on top of the scene (no depth testing), so a light tucked behind a wall is still
@@ -92,6 +93,16 @@ default; untick **Show selection gizmos** at the bottom of the inspector (or set
 > Because the gizmos read the live world every frame, dragging a `DirectionalLight`'s direction or a
 > `SpotLight`'s cone angle updates the gizmo immediately — no extra wiring beyond the standard
 > *scene first, overlay last* render order.
+
+### Visualising parent-child links
+
+Selecting an entity that is part of a [hierarchy](hierarchy.md) — it carries a `Parent`, or another
+entity's `Parent` points at it — draws a `GizmoStyle.HierarchyLinkColor` line from the selected
+entity's resolved world position to its parent's, and one more to each of its immediate children.
+This is scoped to the selection's immediate family (not the whole hierarchy) so the overlay stays
+cheap regardless of scene size, and works identically for a `Transform2D` or `Transform3D` chain
+since both already hold the resolved world position `TransformHierarchySystem` writes each update —
+the gizmo just connects two positions, it doesn't resolve local transforms itself.
 
 ### Clicking and dragging in the viewport
 
@@ -143,6 +154,7 @@ inspector.GizmoStyle.LineWidth = 2f;                        // thicker lines
 | `LineWidth` | Gizmo line width in pixels (driver-dependent clamping applies) |
 | `HandleHoverColor` | Colour a translate-axis handle switches to while hovered or dragged (default white) |
 | `HandleHitTolerancePixels` | Screen-space pixel tolerance for grabbing a translate-axis handle (default 8) |
+| `HierarchyLinkColor` | Colour of the parent/child link line drawn for a selected `Parent`-linked entity (default translucent violet) |
 
 The style is runtime-only — it is not saved with scenes.
 

@@ -149,6 +149,10 @@ rotation, scale) shown only once the entity carries a `Parent`. Picking a new pa
 goes through the same cycle check and local-transform recompute as the drag-and-drop path above.
 See `ImGuiInspector.ComponentEditorsHierarchy.cs`.
 
+Selecting a hierarchy-linked entity in the viewport also draws a connecting line to its resolved
+parent position (and one to each immediate child) among the selection gizmos — see
+[editor.md's "Visualising parent-child links"](editor.md#visualising-parent-child-links).
+
 ## See also
 
 - `src/Engine/Yaeger/ECS/Parent.cs`
