@@ -28,7 +28,9 @@ namespace Yaeger.Inspector;
 /// component column, save row), <c>ImGuiInspector.Hierarchy.cs</c> (drag-and-drop reparenting in
 /// the entity tree), <c>ImGuiInspector.ComponentEditors2D.cs</c>/
 /// <c>ImGuiInspector.ComponentEditors3D.cs</c> (the curated per-component-type editors),
-/// <c>ImGuiInspector.AddComponent.cs</c> (the "Add Component" row), and
+/// <c>ImGuiInspector.ComponentEditorsHierarchy.cs</c> (the curated <see cref="Parent"/>/
+/// <see cref="Yaeger.Graphics.LocalTransform2D"/>/<see cref="Yaeger.Graphics.LocalTransform3D"/>
+/// editors), <c>ImGuiInspector.AddComponent.cs</c> (the "Add Component" row), and
 /// <c>ImGuiInspector.Commands.cs</c> (the deferred add/remove/destroy command queue).
 /// </remarks>
 public sealed partial class ImGuiInspector : IDisposable
@@ -54,6 +56,19 @@ public sealed partial class ImGuiInspector : IDisposable
         "DirectionalLight",
         "PointLight",
         "SpotLight",
+    ];
+
+    // Curated hierarchy component type ids, handled by ImGuiInspector.ComponentEditorsHierarchy.cs
+    // rather than the generic read-only registry loop or the "Add Component" combo's fallback
+    // entry. Parent is editable there directly (entity picker + Clear) even for entities that
+    // don't carry one yet, so it is never offered through the generic "Add Component" flow;
+    // LocalTransform2D/LocalTransform3D are added/removed there as a side effect of setting or
+    // clearing Parent, so they are omitted from "Add Component" too.
+    private static readonly string[] CuratedHierarchyTypeIds =
+    [
+        "Parent",
+        "LocalTransform2D",
+        "LocalTransform3D",
     ];
 
     public ImGuiInspector(Window window, World world, ComponentRegistry? registry = null)

@@ -53,6 +53,8 @@ cover the engine's built-in components:
 | `SpotLight` | colour, intensity, direction, inner/outer cone angles (degrees), range |
 | `MeshHandle` | mesh id (read-only — assigned in code) |
 | `Transform2D`, `Camera2D`, `Sprite` | the original 2D editors |
+| `Parent` | entity picker (see below) |
+| `LocalTransform2D`, `LocalTransform3D` | position, rotation, scale — same layout as `Transform2D`/`Transform3D` |
 
 > **Rotation note:** quaternions are awkward to edit by hand, so `Transform3D` rotation is exposed
 > as Euler degrees (pitch X, yaw Y, roll Z). The displayed value is cached per selection so small
@@ -163,6 +165,23 @@ header to remove `Parent` and make it a root again. A drop that would create a c
 entity onto one of its own descendants) is rejected, and `LocalTransform2D`/`LocalTransform3D` is
 recomputed on drop so the entity keeps its current world position/rotation/scale instead of
 jumping.
+
+### Editing Parent and the local transforms in the component panel
+
+The **Parent** section is always shown for the selected entity — even one that's currently a root
+— so it doubles as the way to add a `Parent`, not just edit one. It shows the current parent (or
+"none — root entity"), a combo box listing every other entity that wouldn't create a cycle if
+picked (the same check `TransformHierarchySystem.Update` enforces at runtime, applied before the
+combo is even populated), a **Set** button to commit the pick, and — when the entity has a
+`Parent` — a **Clear** button that removes it and makes the entity a root again. Picking a new
+parent goes through the same `LocalTransform2D`/`LocalTransform3D` recompute as drag-and-drop
+reparenting above, so the entity doesn't visually jump.
+
+`LocalTransform2D`/`LocalTransform3D` only show up once the entity carries a `Parent` (they're
+meaningless without one) and only if the corresponding component is already present — mirroring
+`Transform2D`/`Transform3D`'s own drag-editors for position/rotation/scale. Removing one just stops
+`TransformHierarchySystem` from resolving that axis (2D or 3D) for the entity; it doesn't touch
+`Parent` itself.
 
 ## Saving scenes
 

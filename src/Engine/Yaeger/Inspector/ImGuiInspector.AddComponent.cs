@@ -126,6 +126,8 @@ public sealed partial class ImGuiInspector
                     continue;
                 if (Curated3DTypeIds.Contains(serializer.TypeId))
                     continue;
+                if (CuratedHierarchyTypeIds.Contains(serializer.TypeId))
+                    continue;
                 if (!EntityHasComponent(entity, serializer))
                     items.Add(serializer.TypeId);
             }
