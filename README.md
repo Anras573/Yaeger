@@ -78,10 +78,9 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
 - `tests/Yaeger.Tests/` - Unit test suite (ECS, Graphics, Physics, Assets, Font, Rendering, Systems, Browser)
 - `Samples/` - Example games and demos
   - `Pong/` - Classic Pong game implementation
-  - `BouncingBalls/` - Physics demo
+  - `FeatureGallery/` - One window, a menu of small single-feature demo scenes (Mouse input, Text Rendering, Bouncing Balls, ...)
   - `Animation2D/` - Sprite-sheet animation demo
   - `CameraDemo/` - Opt-in 2D camera (pan / zoom / rotate)
-  - `MouseDemo/` - Mouse input (paint trail + scroll resize)
   - `ParticleDemo/` - Particle effects (fire, smoke, explosions)
   - `SceneDemo/` - JSON scene loading
   - `CornellBox/` - 3D Cornell Box + F1 editor overlay
@@ -91,7 +90,6 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
   - `UiDemo/` - UI system demo (menu + HUD with buttons, panels, labels)
   - `BrowserDemo/` - Blazor/WebAssembly interactive paddle-and-ball demo (keyboard, mouse & touch)
   - `RenderingStressTest/` - Renderer stress test (FPS vs sprite count)
-  - `TextRenderingExample/` - Text rendering demo
   - `PostProcessingDemo/` - Render-to-texture post-processing (vignette + bloom, toggled at runtime)
 - `docs/` - Documentation (see [`docs/index.md`](docs/index.md))
 

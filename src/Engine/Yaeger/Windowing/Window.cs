@@ -106,7 +106,7 @@ public sealed class Window : IDisposable
     /// <summary>
     /// Fires once, synchronously, while the GL context is still alive — after <see cref="Close"/>
     /// is called (or the OS window is closed) but before the native window/context is torn down.
-    /// Dispose any GL-owning object here (see <c>Samples/TextRenderingExample</c>) rather than via
+    /// Dispose any GL-owning object here (see <c>Samples/FeatureGallery/Scenes/TextRendering</c>) rather than via
     /// a top-level <c>using var</c> declared before <see cref="Run"/>: those dispose after
     /// <see cref="Run"/> returns, by which point the context is already gone and the first
     /// not-yet-resolved GL call in that object's <c>Dispose()</c> throws

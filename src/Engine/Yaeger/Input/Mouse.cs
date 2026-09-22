@@ -104,6 +104,31 @@ public static class Mouse
         ScrollActions.Add(action);
     }
 
+    /// <summary>
+    /// Removes the action bound to the specified button's button-down event, if any.
+    /// </summary>
+    public static void RemoveButtonDown(MouseButton button)
+    {
+        ButtonDownActions.Remove(button);
+    }
+
+    /// <summary>
+    /// Removes the action bound to the specified button's button-up event, if any.
+    /// </summary>
+    public static void RemoveButtonUp(MouseButton button)
+    {
+        ButtonUpActions.Remove(button);
+    }
+
+    /// <summary>
+    /// Removes a previously added scroll action. No-op if <paramref name="action"/> was never
+    /// added via <see cref="AddScroll"/>, or has already been removed.
+    /// </summary>
+    public static void RemoveScroll(Action<float> action)
+    {
+        ScrollActions.Remove(action);
+    }
+
     public static bool IsButtonPressed(MouseButton button) => PressedButtons.Contains(button);
 
     private static void OnButtonDown(IMouse _, Silk.NET.Input.MouseButton button)
