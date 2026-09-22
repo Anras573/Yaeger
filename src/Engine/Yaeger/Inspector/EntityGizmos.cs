@@ -48,6 +48,9 @@ public static class EntityGizmos
     {
         style ??= DefaultStyle;
         var scale = EffectiveScale(style);
+
+        BuildHierarchyLinks(world, entity, builder, style);
+
         // 2D gizmos live in the Z = 0 plane and are projected through a Camera2D-derived (or
         // identity) view-projection by the inspector. An entity is treated as either 2D or 3D for
         // gizmo purposes — never both — to stay consistent with
@@ -103,6 +106,64 @@ public static class EntityGizmos
 
         if (world.TryGetComponent<Camera3D>(entity, out var camera))
             BuildCamera(builder, camera, aspectRatio, style);
+    }
+
+    /// <summary>
+    /// Draws a line from <paramref name="entity"/>'s resolved world position to its parent's (when it
+    /// carries a <see cref="Parent"/> component) plus one to each of its immediate children (entities
+    /// whose own <see cref="Parent"/> points back at it) — just the selected entity's immediate
+    /// family, not the whole hierarchy, so the overlay stays cheap regardless of scene size.
+    /// <see cref="Transform2D"/>/<see cref="Transform3D"/> already hold the resolved world position
+    /// for a hierarchy child (<see cref="Yaeger.Systems.TransformHierarchySystem"/> writes it every
+    /// update), so no separate local/world composition is needed here — same shape whether the link
+    /// crosses 2D or 3D entities.
+    /// </summary>
+    private static void BuildHierarchyLinks(
+        World world,
+        Entity entity,
+        GizmoBuilder builder,
+        GizmoStyle style
+    )
+    {
+        if (!TryGetWorldPosition(world, entity, out var entityPosition))
+            return;
+
+        if (
+            world.TryGetComponent<Parent>(entity, out var parent)
+            && world.Entities.Contains(parent.ParentEntity)
+            && TryGetWorldPosition(world, parent.ParentEntity, out var parentPosition)
+        )
+            builder.AddLine(entityPosition, parentPosition, style.HierarchyLinkColor);
+
+        foreach (var (childEntity, child) in world.GetStore<Parent>().All())
+        {
+            if (!child.ParentEntity.Equals(entity) || childEntity.Equals(entity))
+                continue;
+
+            if (TryGetWorldPosition(world, childEntity, out var childPosition))
+                builder.AddLine(entityPosition, childPosition, style.HierarchyLinkColor);
+        }
+    }
+
+    // A hierarchy link only needs a position, whether the entity is a Transform2D (lifted to the
+    // Z = 0 plane, matching AddAxes2D/AddRect) or Transform3D — never both, mirroring Build's own
+    // 2D-or-3D treatment of an entity.
+    private static bool TryGetWorldPosition(World world, Entity entity, out Vector3 position)
+    {
+        if (world.TryGetComponent<Transform2D>(entity, out var transform2D))
+        {
+            position = new Vector3(transform2D.Position.X, transform2D.Position.Y, 0f);
+            return true;
+        }
+
+        if (world.TryGetComponent<Transform3D>(entity, out var transform3D))
+        {
+            position = transform3D.Position;
+            return true;
+        }
+
+        position = Vector3.Zero;
+        return false;
     }
 
     private static void BuildTransform2D(

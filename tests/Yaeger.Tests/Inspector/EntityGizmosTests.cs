@@ -664,4 +664,132 @@ public class EntityGizmosTests
             }
         );
     }
+
+    // ── Hierarchy links (issue #255) ───────────────────────────────────────────
+
+    [Fact]
+    public void EntityWithParent_DrawsLinkToParentWorldPosition()
+    {
+        var world = new World();
+        var parent = world.CreateEntity();
+        world.AddComponent(parent, new Transform2D(new Vector2(10, 0), 0f, Vector2.One));
+        var child = world.CreateEntity();
+        // The resolved world position TransformHierarchySystem would have written; EntityGizmos
+        // doesn't resolve local transforms itself, it just connects whatever Transform2D already
+        // holds for each entity.
+        world.AddComponent(child, new Transform2D(new Vector2(12, 0), 0f, Vector2.One));
+        world.AddComponent(child, new Parent(parent));
+
+        var lines = Build(world, child);
+
+        Assert.Contains(
+            lines,
+            l =>
+                (l.Start == new Vector3(12, 0, 0) && l.End == new Vector3(10, 0, 0))
+                || (l.End == new Vector3(12, 0, 0) && l.Start == new Vector3(10, 0, 0))
+        );
+    }
+
+    [Fact]
+    public void EntityWithParent_LinkUsesHierarchyLinkColor()
+    {
+        var world = new World();
+        var parent = world.CreateEntity();
+        world.AddComponent(parent, new Transform2D(new Vector2(10, 0), 0f, Vector2.One));
+        var child = world.CreateEntity();
+        world.AddComponent(child, new Transform2D(new Vector2(12, 0), 0f, Vector2.One));
+        world.AddComponent(child, new Parent(parent));
+
+        var linkColor = new Vector4(0.1f, 0.2f, 0.3f, 0.4f);
+        var style = new GizmoStyle { HierarchyLinkColor = linkColor };
+
+        var lines = Build(world, child, style);
+
+        Assert.Contains(lines, l => l.Color == linkColor);
+    }
+
+    [Fact]
+    public void EntityWithDestroyedParent_DrawsNoLink()
+    {
+        var world = new World();
+        var parent = world.CreateEntity();
+        world.AddComponent(parent, new Transform2D(new Vector2(10, 0), 0f, Vector2.One));
+        var child = world.CreateEntity();
+        world.AddComponent(child, new Transform2D(new Vector2(12, 0), 0f, Vector2.One));
+        world.AddComponent(child, new Parent(parent));
+
+        world.DestroyEntity(parent);
+
+        // Stale Parent pointing at a destroyed entity must not draw a line to a non-existent point
+        // (there is nothing to resolve a world position from).
+        var lines = Build(world, child);
+
+        Assert.DoesNotContain(lines, l => l.Color == new GizmoStyle().HierarchyLinkColor);
+    }
+
+    [Fact]
+    public void SelectedParent_DrawsLinksToImmediateChildrenOnly()
+    {
+        var world = new World();
+        var parent = world.CreateEntity();
+        world.AddComponent(parent, new Transform2D(Vector2.Zero, 0f, Vector2.One));
+
+        var child = world.CreateEntity();
+        world.AddComponent(child, new Transform2D(new Vector2(5, 0), 0f, Vector2.One));
+        world.AddComponent(child, new Parent(parent));
+
+        var grandchild = world.CreateEntity();
+        world.AddComponent(grandchild, new Transform2D(new Vector2(9, 0), 0f, Vector2.One));
+        world.AddComponent(grandchild, new Parent(child));
+
+        var lines = Build(world, parent);
+
+        // A link to the immediate child (at X = 5) is drawn from the selected parent...
+        Assert.Contains(
+            lines,
+            l =>
+                (l.Start == new Vector3(0, 0, 0) && l.End == new Vector3(5, 0, 0))
+                || (l.End == new Vector3(0, 0, 0) && l.Start == new Vector3(5, 0, 0))
+        );
+        // ...but not all the way down to the grandchild (at X = 9) — only the immediate family.
+        Assert.DoesNotContain(lines, l => l.Start.X == 9f || l.End.X == 9f);
+    }
+
+    [Fact]
+    public void EntityWithoutParentOrChildren_DrawsNoHierarchyLink()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(new Vector2(1, 1), 0f, Vector2.One));
+
+        var lines = Build(world, entity);
+
+        Assert.DoesNotContain(lines, l => l.Color == new GizmoStyle().HierarchyLinkColor);
+    }
+
+    [Fact]
+    public void EntityWithParent_3D_DrawsLinkToParentWorldPosition()
+    {
+        var world = new World();
+        var parent = world.CreateEntity();
+        world.AddComponent(
+            parent,
+            new Transform3D(new Vector3(0, 10, 0), Quaternion.Identity, Vector3.One)
+        );
+        var child = world.CreateEntity();
+        world.AddComponent(
+            child,
+            new Transform3D(new Vector3(0, 8, 0), Quaternion.Identity, Vector3.One)
+        );
+        world.AddComponent(child, new Parent(parent));
+
+        var lines = Build(world, child);
+
+        Assert.Contains(
+            lines,
+            l =>
+                (l.Start == new Vector3(0, 8, 0) && l.End == new Vector3(0, 10, 0))
+                || (l.End == new Vector3(0, 8, 0) && l.Start == new Vector3(0, 10, 0))
+        );
+    }
 }
