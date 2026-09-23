@@ -61,7 +61,7 @@ FeatureGallery scene names are also listed in [its README](../Samples/FeatureGal
 | Sequencing | [Sequence](../Samples/FeatureGallery/Scenes/Sequence) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Sequence"` |
 | Tilemaps | [Platformer](../Samples/Platformer) (code-built); Tiled `.tmj` import not in a sample yet — `tests/Yaeger.Tests/ECS/TiledMapLoaderTests.cs` | `--project Samples/Platformer/Platformer.csproj` |
 | 2D physics | [Platformer](../Samples/Platformer) (character controller, platforms); [Bouncing Balls](../Samples/FeatureGallery/Scenes/BouncingBalls) gallery scene (impulse resolution) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Bouncing Balls"` |
-| 3D queries | Not in a sample yet — `tests/Yaeger.Tests/Physics/WorldRaycastExtensionsTests.cs` | — |
+| 3D queries | [Raycast](../Samples/FeatureGallery/Scenes/Raycast) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Raycast"` |
 | Audio | [Platformer](../Samples/Platformer) (streamed music, pooled one-shots); [Damaged Helmet](../Samples/FeatureGallery/Scenes/DamagedHelmet) (`AudioSource3D`) | `--project Samples/Platformer/Platformer.csproj` |
 | Text rendering | [Text Rendering](../Samples/FeatureGallery/Scenes/TextRendering) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Text Rendering"` |
 | UI | [Platformer](../Samples/Platformer/Systems/GameFlowSystem.cs) (title/pause/HUD); the FeatureGallery menu itself | `--project Samples/Platformer/Platformer.csproj` |

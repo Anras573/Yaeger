@@ -75,4 +75,8 @@ parallel to a slab, zero-thickness bounds).
 
 ## See it in action
 
-No sample exercises this yet — the unit tests are the runnable reference: `tests/Yaeger.Tests/Physics/WorldRaycastExtensionsTests.cs`.
+`Samples/FeatureGallery` — `--scene Raycast`: a field of boxes across two layers. LMB fires
+`Raycast` (tints the nearest hit and drops a marker oriented along its normal); Shift+LMB fires
+`RaycastAll` (tints every box along the ray and reports the hit count/distances on the HUD); `M`
+cycles the layer mask. The unit tests are the other runnable reference:
+`tests/Yaeger.Tests/Physics/WorldRaycastExtensionsTests.cs`.

@@ -37,6 +37,9 @@ public static class KeyMapper
         { Key.KeypadAdd, Keys.Plus },
         { Key.Minus, Keys.Minus },
         { Key.KeypadSubtract, Keys.Minus },
+        { Key.M, Keys.M },
+        { Key.ShiftLeft, Keys.Shift },
+        { Key.ShiftRight, Keys.Shift },
         // Add more mappings as needed
     };
 
