@@ -10,6 +10,7 @@ using FeatureGallery.Scenes.Raycast;
 using FeatureGallery.Scenes.Sequence;
 using FeatureGallery.Scenes.SkinnedMesh;
 using FeatureGallery.Scenes.Sponza;
+using FeatureGallery.Scenes.SpotLights;
 using FeatureGallery.Scenes.TextRendering;
 using FeatureGallery.Scenes.Tween;
 using Yaeger.Windowing;
@@ -35,6 +36,7 @@ Func<IDemoScene>[] scenes =
     () => new HierarchyScene(),
     () => new RaycastScene(),
     () => new CameraRigScene(),
+    () => new SpotLightsScene(),
 ];
 
 _ = new SceneHost(window, scenes, ParseSceneArg(args));

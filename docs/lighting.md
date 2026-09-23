@@ -175,4 +175,4 @@ procedurally generated cubemap in a `CubemapRegistry` and passes a `SkyboxRender
 - [`Samples/FeatureGallery/Scenes/CornellBox`](../Samples/FeatureGallery/Scenes/CornellBox) — directional + coloured `PointLight`s: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"`
 - [`Samples/FeatureGallery/Scenes/DamagedHelmet`](../Samples/FeatureGallery/Scenes/DamagedHelmet) — sun plus fill/rim point lights, cubemap `Skybox`: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Damaged Helmet"`
 - [`Samples/SponzaNight`](../Samples/SponzaNight) — `LightFlicker` braziers: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`
-- `SpotLight` isn't in a sample yet — see `tests/Yaeger.Tests/Graphics/SpotLightTests.cs`.
+- [`Samples/FeatureGallery/Scenes/SpotLights`](../Samples/FeatureGallery/Scenes/SpotLights) — sweeping coloured `SpotLight`s, a camera-following flashlight, and cone-angle/PBR toggles: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Spot Lights"`

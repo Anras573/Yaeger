@@ -40,6 +40,9 @@ public static class KeyMapper
         { Key.M, Keys.M },
         { Key.ShiftLeft, Keys.Shift },
         { Key.ShiftRight, Keys.Shift },
+        { Key.F, Keys.F },
+        { Key.LeftBracket, Keys.LeftBracket },
+        { Key.RightBracket, Keys.RightBracket },
         // Add more mappings as needed
     };
 

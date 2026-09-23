@@ -33,5 +33,8 @@ public enum Keys
     Minus,
     M,
     Shift,
+    F,
+    LeftBracket,
+    RightBracket,
     // Add more keys as needed
 }
