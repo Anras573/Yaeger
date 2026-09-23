@@ -58,3 +58,7 @@ A fog colour that warms at the horizon and cools at night is a natural output of
 driver (see [day-night.md](day-night.md)), but that coupling belongs in the driver, not in the
 renderer: update the `FogSettings` component's `Color` yourself (e.g. alongside `TimeOfDay`) rather
 than expecting `Renderer3D` to derive it.
+
+## See it in action
+
+[`Samples/SponzaNight`](../Samples/SponzaNight) — a `FogSettings` entity whose colour the sample lerps between night and day values from `TimeOfDay`: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`

@@ -299,3 +299,9 @@ are alive in it, visible via `Renderer3D.DrawCallCount`.
   meshes.
 - No GPU-side simulation, mesh particles, sub-emitters, particle collision, or soft
   (depth-faded) particles — see issue #195's scope.
+
+## See it in action
+
+- 2D: [`Samples/Platformer/Systems/ParticleEffectsSystem.cs`](../Samples/Platformer/Systems/ParticleEffectsSystem.cs) — run dust, landing puff, coin sparkle: `dotnet run --project Samples/Platformer/Platformer.csproj`
+- 3D: [`Samples/FeatureGallery/Scenes/CornellBox`](../Samples/FeatureGallery/Scenes/CornellBox) — additive embers: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"`
+- 3D: [`Samples/SponzaNight`](../Samples/SponzaNight) — shaped, turbulent brazier fire: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`

@@ -209,3 +209,8 @@ role a serialized `DirectionalLight` plays in a day/night scene.
 - [day-night.md](day-night.md) — the `TimeOfDay` clock that drives `SunDirection`/`MoonDirection`/`DaylightFactor`
 - [pbr.md#image-based-lighting](pbr.md#image-based-lighting) — `IblPrefilter`/`EnvironmentMapRegistry`, and the cubemap `Skybox`'s register-once IBL path `ProceduralSkyIbl` mirrors
 - [lighting.md](lighting.md) — the light components a moving sun also drives, and `AmbientLight` — the cheap fallback everywhere IBL is off
+
+## See it in action
+
+- `ProceduralSky`: [`Samples/SponzaNight`](../Samples/SponzaNight): `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`
+- Cubemap `Skybox`: [`Samples/FeatureGallery/Scenes/DamagedHelmet`](../Samples/FeatureGallery/Scenes/DamagedHelmet): `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Damaged Helmet"`

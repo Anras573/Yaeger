@@ -54,6 +54,13 @@ Run the Pong sample:
 dotnet run --project Samples/Pong/Pong.csproj
 ```
 
+Browse the single-feature demos, optionally jumping straight into one:
+
+```bash
+dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj
+dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"
+```
+
 Run a benchmark (perf smoke test):
 
 ```bash
@@ -76,17 +83,13 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
 - `src/Engine/Yaeger/` - Native runtime (references `Yaeger.Core`): windowing, 2D/3D rendering, audio, input bindings, font runtime, UI + editor overlay, and model loaders — the Silk.NET/OpenGL/OpenAL-dependent pieces
 - `src/Engine/Yaeger.Browser/` - Browser runtime adapters (WebGL 2.0 render surface, browser input/time sources)
 - `tests/Yaeger.Tests/` - Unit test suite (ECS, Graphics, Physics, Assets, Font, Rendering, Systems, Browser)
-- `Samples/` - Example games and demos
-  - `Pong/` - Classic Pong game implementation
-  - `FeatureGallery/` - One window, a menu of small single-feature demo scenes (Mouse input, Text Rendering, Bouncing Balls, ...)
-  - `Platformer/` - Complete 2D platformer: physics, tilemaps, camera follow (+ a debug free camera), animation (state machine and plain), parallax, particles, UI (title/pause/HUD), pooled one-shot audio, and scene/prefab loading — see [`Samples/Platformer/README.md`](Samples/Platformer/README.md) for a feature -> file table
-  - `CornellBox/` - 3D Cornell Box + F1 editor overlay
-  - `Sponza/` - glTF Sponza scene rendered through the PBR path
-  - `DamagedHelmet/` - glTF DamagedHelmet model with skybox, lights, and an orbiting camera
-  - `SkinnedMeshDemo/` - glTF skeletal animation (GPU skinning) demo
-  - `BrowserDemo/` - Blazor/WebAssembly interactive paddle-and-ball demo (keyboard, mouse & touch)
+- `Samples/` - Example games and demos (see [`docs/index.md#where-to-see-it`](docs/index.md#where-to-see-it) for which sample shows each feature)
+  - `Pong/` - Minimal hello-world: a complete game in one `Program.cs`
+  - `Platformer/` - 2D showcase: physics, tilemaps, camera follow (+ a debug free camera), animation, parallax, particles, UI (title/pause/HUD), pooled one-shot audio, and scene loading — see [`Samples/Platformer/README.md`](Samples/Platformer/README.md) for a feature -> file table
+  - `SponzaNight/` - 3D showcase: day/night cycle, procedural sky, fog, brazier fire and flickering lights, shadows, a patrolling skinned knight, HDR bloom
+  - `FeatureGallery/` - One window, a menu of small single-feature scenes (Mouse, Text Rendering, Bouncing Balls, Cornell Box, Tween, Sequence, Skinned Mesh, Sponza, Damaged Helmet, Post-Processing) — see [`Samples/FeatureGallery/README.md`](Samples/FeatureGallery/README.md)
   - `Benchmarks/` - Perf smoke tests (sprite batching, mesh instancing, crowd/skinning instancing), one clean process per benchmark
-  - `PostProcessingDemo/` - Render-to-texture post-processing (vignette + bloom, toggled at runtime)
+  - `BrowserDemo/` - Blazor/WebAssembly interactive paddle-and-ball demo (keyboard, mouse & touch)
 - `docs/` - Documentation (see [`docs/index.md`](docs/index.md))
 
 ## Usage

@@ -149,3 +149,8 @@ kinematic `RigidBody2D`, and `PlatformPathSystem.Update` sets its `Velocity2D` t
 waypoint every step, advancing (reversing for ping-pong, wrapping for loop) once within an
 arrival tolerance. This is entirely optional — nothing about rider carrying depends on it, and a
 game is free to drive a kinematic platform's velocity however it wants.
+
+## See it in action
+
+- [`Samples/Platformer`](../Samples/Platformer) — `CharacterController2D`, merged tilemap colliders, one-way and moving platforms (`PlatformPath`): `dotnet run --project Samples/Platformer/Platformer.csproj`
+- [`Samples/FeatureGallery/Scenes/BouncingBalls`](../Samples/FeatureGallery/Scenes/BouncingBalls) — impulse-resolved bodies, **Space** toggles the collider debug overlay: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Bouncing Balls"`

@@ -38,7 +38,7 @@ Running samples requires a display; `System.PlatformNotSupportedException` in he
 
 ## Architecture
 
-Yaeger is a modular 2D/3D game engine built around ECS. Games wire it together at the `Program.cs` level (see `Samples/Pong/` for 2D, `Samples/FeatureGallery/Scenes/CornellBox/` and `Samples/FeatureGallery/Scenes/Sponza/` for 3D, `Samples/Platformer/` for a full 2D platformer composing physics/animation/camera/audio together). Per-feature documentation lives in `docs/` (start at `docs/index.md`).
+Yaeger is a modular 2D/3D game engine built around ECS. Games wire it together at the `Program.cs` level (`Samples/Pong/` is the minimal example; `Samples/Platformer/` and `Samples/SponzaNight/` are the 2D and 3D showcases composing many features together; `Samples/FeatureGallery/` holds small single-feature scenes behind a menu (`--scene <Name>`); `Samples/Benchmarks/` holds perf smoke tests; `Samples/BrowserDemo/` is the WebAssembly host). Per-feature documentation lives in `docs/` (start at `docs/index.md`, whose "Where to see it" table maps each feature to the sample that shows it).
 
 ### Assembly split
 

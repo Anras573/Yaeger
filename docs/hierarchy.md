@@ -162,3 +162,7 @@ parent position (and one to each immediate child) among the selection gizmos —
   drag-and-drop reparenting
 - [scenes.md](scenes.md) — the prefab/scene JSON pipeline `Parent` plugs into
 - [editor.md](editor.md) — the `ImGuiInspector` overlay
+
+## See it in action
+
+No sample exercises this yet — the unit tests are the runnable reference: `tests/Yaeger.Tests/Systems/TransformHierarchySystemTests.cs` and `tests/Yaeger.Tests/Inspector/EntityReparentingTests.cs`.

@@ -241,3 +241,8 @@ bloom, in an HDR chain with `ToneMapEffect` last. Press **B** to toggle bloom, *
 vignette, **T** to toggle tone mapping's operator (Reinhard/ACES filmic), **P** to toggle the whole
 stack, and compare against the plain scene. One box is authored with `EmissiveIntensity` above 1 so
 it blooms and reads as a genuine light source instead of clamping to flat white.
+
+## See it in action
+
+- [`Samples/FeatureGallery/Scenes/PostProcessing`](../Samples/FeatureGallery/Scenes/PostProcessing) — vignette, bloom and tone mapping toggled at runtime: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Post-Processing"`
+- [`Samples/SponzaNight`](../Samples/SponzaNight) — an HDR bloom chain in a full scene: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`

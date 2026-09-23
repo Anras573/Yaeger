@@ -170,3 +170,8 @@ Isometric/hexagonal/infinite maps, multiple tilesets, compressed or Base64-encod
 image layers, and group layers are out of scope — `TiledMapLoader` throws a
 `TiledMapLoadException` describing which unsupported feature was hit. It is import-only; there
 is no path back out to `.tmj`.
+
+## See it in action
+
+- [`Samples/Platformer`](../Samples/Platformer) — a code-built `Tilemap` with merged collision (`Program.cs`): `dotnet run --project Samples/Platformer/Platformer.csproj`
+- Tiled (`.tmj`) import isn't in a sample yet — see `tests/Yaeger.Tests/ECS/TiledMapLoaderTests.cs`.

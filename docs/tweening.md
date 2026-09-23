@@ -155,3 +155,7 @@ the entity it is attached to (self-tweening).
   component field requires adding a new `TweenChannel` case to `TweenSystem`.
 - `AnimationSystem` already owns 2D sprite-frame animation; `Tween` does not animate `Sprite`/
   `SpriteSheet` frame indices.
+
+## See it in action
+
+[`Samples/FeatureGallery/Scenes/Tween`](../Samples/FeatureGallery/Scenes/Tween) — transform, light and material tweens with easing and looping: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Tween"`

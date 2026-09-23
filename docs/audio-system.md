@@ -399,3 +399,9 @@ death impacts given a higher `priority` so they're never stolen by an ambient co
   per-source Doppler factors)
 - Streaming positional audio (`StreamingSoundSource` stays listener-relative only; use
   `AudioSource3D`, which is buffer-backed, for spatialized sound)
+
+## See it in action
+
+- [`Samples/Platformer`](../Samples/Platformer) — streamed OGG music (`StreamingSoundSource`) and jump/coin/stomp SFX through the pooled one-shot voice budget (`Program.cs`): `dotnet run --project Samples/Platformer/Platformer.csproj`
+- [`Samples/FeatureGallery/Scenes/DamagedHelmet`](../Samples/FeatureGallery/Scenes/DamagedHelmet) — a positional `AudioSource3D` hum spatialized by `AudioSystem`: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Damaged Helmet"`
+- [`Samples/SponzaNight`](../Samples/SponzaNight) — knight footsteps as positional one-shots: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`

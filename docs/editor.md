@@ -211,3 +211,8 @@ The one exception is `MeshHandle`: its `Id` is an opaque, runtime-assigned key i
 `GpuMeshRegistry` that is not portable across runs, so it is intentionally not serialized — a saved
 scene keeps an entity's `Transform3D`, `Material3D`, lights, etc., but the mesh must be re-assigned
 in code on load. Without a registry the Save row is disabled and the inspector is edit-only.
+
+## See it in action
+
+- [`Samples/FeatureGallery/Scenes/CornellBox`](../Samples/FeatureGallery/Scenes/CornellBox) — press **F1**: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"`
+- Also wired into the `Sponza` and `Damaged Helmet` gallery scenes and [`Samples/SponzaNight`](../Samples/SponzaNight) (**F1** in each).

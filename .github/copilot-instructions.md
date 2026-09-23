@@ -101,7 +101,7 @@ Two static classes initialised by the `Window`:
 
 - `src/Engine/Yaeger/` — core engine library
 - `tests/Yaeger.Tests/` — xUnit test suite
-- `Samples/` — runnable example games and demos (one subdirectory per sample)
+- `Samples/` — runnable examples: `Pong` (minimal), `Platformer` (2D showcase), `SponzaNight` (3D showcase), `FeatureGallery` (single-feature scenes behind a menu, `--scene <Name>`), `Benchmarks` (perf smoke tests), `BrowserDemo` (WebAssembly host). `docs/index.md`'s "Where to see it" table maps each feature to its sample.
 - `docs/` — documentation (animation, audio, physics, testing guides)
 
 ## Development Workflow

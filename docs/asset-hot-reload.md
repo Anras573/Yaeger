@@ -111,3 +111,7 @@ keeps whatever it already had.
 - `src/Engine/Yaeger/Rendering/Texture.cs` (`TryReload`) / `TextureManager.cs` (`Reload`) — texture re-upload
 - [`scenes.md`](scenes.md) — the scene file format and `SceneLoader`/`SceneSaver` API
 - [`editor.md`](editor.md) — the in-game inspector this pairs with for a full tweak loop
+
+## See it in action
+
+No sample exercises this yet — the unit tests are the runnable reference: `tests/Yaeger.Tests/Assets/HotReload/`.

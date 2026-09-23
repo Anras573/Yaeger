@@ -201,3 +201,8 @@ across the floor from the angled directional light.
 
 For a light that moves, see [day-night.md](day-night.md) — a `TimeOfDay`-driven sun works with the
 shadow rig as-is, and `AutoFit` is what keeps its shadows framed from sunrise to sunset.
+
+## See it in action
+
+- [`Samples/FeatureGallery/Scenes/CornellBox`](../Samples/FeatureGallery/Scenes/CornellBox) — directional PCF shadow map: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"`
+- [`Samples/SponzaNight`](../Samples/SponzaNight) — a moving sun plus point-light shadows from the braziers: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`
