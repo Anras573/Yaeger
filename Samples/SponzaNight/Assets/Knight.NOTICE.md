@@ -5,7 +5,8 @@ Fetched automatically at build time by the `FetchKnightAssets` target in `Sponza
 committed record of where it came from and under what terms, per `Assets/Knight/` not being
 tracked in git. Identical to `Samples/Sponza/Assets/Knight.NOTICE.md` — this sample fetches its own
 independent copy rather than sharing `Samples/Sponza`'s, the same "each sample is independently
-buildable" convention `SkinnedMeshDemo`/`CrowdDemo` follow for their own copies of CesiumMan.
+buildable" convention `SkinnedMeshDemo`/`Benchmarks` (its crowd benchmark) follow for their own
+copies of CesiumMan.
 
 - **Asset**: "Knight Character" (lowpoly rigged humanoid with idle/walk/run/roll/death/attack
   animations)

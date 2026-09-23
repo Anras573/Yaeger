@@ -23,10 +23,11 @@
             "projectPath": "${workspaceFolder}/Samples/SceneDemo/SceneDemo.csproj"
         },
         {
-            "name": "C#: RenderingStressTest Debug",
+            "name": "C#: Benchmarks (sprites) Debug",
             "type": "dotnet",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/RenderingStressTest/RenderingStressTest.csproj"
+            "projectPath": "${workspaceFolder}/Samples/Benchmarks/Benchmarks.csproj",
+            "args": ["sprites"]
         },
         {
             "name": "C#: Pong Debug",

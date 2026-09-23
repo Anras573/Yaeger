@@ -75,8 +75,9 @@ unit-tested) splits it into as many chunks as needed, each drawn with its own
 `Renderer3D.DrawInstancedSkinned`/`ShadowMapRenderer.DrawInstancedSkinned` call — every instance is
 still drawn, just via more than one call once a single group is that large.
 
-See `Samples/CrowdDemo` for a live demo: many CesiumMan characters sharing one skeleton, each
-playing the walk clip out of phase, printing the resulting draw-call count once per second.
+See `Samples/Benchmarks` (its `crowd` benchmark) for a live demo: many CesiumMan characters sharing
+one skeleton, each playing the walk clip out of phase, printing the resulting draw-call count once
+per second.
 
 ## Measuring it
 
@@ -85,8 +86,8 @@ since the last `BeginFrame3D`/`BeginPass` — an instanced group of any size cou
 a skinned group past the palette size cap above, one per chunk). Read them after
 `MeshRenderSystem.Render()` to verify a scene collapsed to the expected number of calls.
 
-See `Samples/MeshInstancingDemo` for a live demo: a large grid of boxes sharing two materials,
-printing FPS and both draw-call counts once per second. Press **I** to force
+See `Samples/Benchmarks` (its `instancing` benchmark) for a live demo: a large grid of boxes
+sharing two materials, printing FPS and both draw-call counts once per second. Press **I** to force
 `InstancingThreshold` to `int.MaxValue` (disabling instancing) and compare against the default.
 
 ## Tuning / limitations
