@@ -2,6 +2,7 @@ using FeatureGallery;
 using FeatureGallery.Scenes.BouncingBalls;
 using FeatureGallery.Scenes.CornellBox;
 using FeatureGallery.Scenes.DamagedHelmet;
+using FeatureGallery.Scenes.Hierarchy;
 using FeatureGallery.Scenes.Mouse;
 using FeatureGallery.Scenes.PostProcessing;
 using FeatureGallery.Scenes.Sequence;
@@ -29,6 +30,7 @@ Func<IDemoScene>[] scenes =
     () => new SponzaScene(),
     () => new DamagedHelmetScene(),
     () => new PostProcessingScene(),
+    () => new HierarchyScene(),
 ];
 
 _ = new SceneHost(window, scenes, ParseSceneArg(args));

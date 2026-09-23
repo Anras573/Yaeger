@@ -165,4 +165,17 @@ parent position (and one to each immediate child) among the selection gizmos —
 
 ## See it in action
 
-No sample exercises this yet — the unit tests are the runnable reference: `tests/Yaeger.Tests/Systems/TransformHierarchySystemTests.cs` and `tests/Yaeger.Tests/Inspector/EntityReparentingTests.cs`.
+`Samples/FeatureGallery/Scenes/Hierarchy` — a three-level 3D "orrery": a sun rotating in place, a
+planet parented to it at a `LocalTransform3D` offset (orbiting because its parent rotates), and a
+moon parented to the planet the same way. `1`/`2`/`3` selects a body and `+`/`-` changes its own
+spin speed, showing how a child inherits its parent's motion; `O` destroys the planet to
+demonstrate orphaning, and `R` rebuilds the scene. `F1` opens the `ImGuiInspector` for the
+hierarchy tree view, drag-and-drop reparenting, and the parent-link gizmos. Run with:
+
+```bash
+dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene Hierarchy
+```
+
+The unit tests remain the reference for the composition math itself:
+`tests/Yaeger.Tests/Systems/TransformHierarchySystemTests.cs` and
+`tests/Yaeger.Tests/Inspector/EntityReparentingTests.cs`.

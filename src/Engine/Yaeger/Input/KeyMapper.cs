@@ -32,6 +32,11 @@ public static class KeyMapper
         { Key.V, Keys.V },
         { Key.P, Keys.P },
         { Key.T, Keys.T },
+        { Key.O, Keys.O },
+        { Key.Equal, Keys.Plus },
+        { Key.KeypadAdd, Keys.Plus },
+        { Key.Minus, Keys.Minus },
+        { Key.KeypadSubtract, Keys.Minus },
         // Add more mappings as needed
     };
 

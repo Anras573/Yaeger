@@ -28,5 +28,8 @@ public enum Keys
     V,
     P,
     T,
+    O,
+    Plus,
+    Minus,
     // Add more keys as needed
 }

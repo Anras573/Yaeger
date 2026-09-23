@@ -36,6 +36,7 @@ are fetched automatically on first build (skipped in CI) — see `Assets.targets
 | Sponza | `Sponza` | WASD move, Q/E up/down, RMB-drag look, `F1`: toggle inspector |
 | Damaged Helmet | `Damaged Helmet` | LMB-drag: orbit · scroll: zoom · `SPACE`: pause auto-orbit · `F1`: toggle inspector |
 | Post-Processing | `Post-Processing` | `B`: bloom · `V`: vignette · `T`: tone-map operator · `P`: toggle stack |
+| Hierarchy | `Hierarchy` | `1`/`2`/`3`: select sun/planet/moon · `+`/`-`: adjust selected body's spin speed · `O`: destroy the planet (orphans the moon) · `R`: rebuild · `F1`: toggle inspector |
 
 Every scene also returns to the menu on `ESC`.
 

@@ -41,7 +41,7 @@ FeatureGallery scene names are also listed in [its README](../Samples/FeatureGal
 |---|---|---|
 | ECS | [Pong](../Samples/Pong) — the minimal end-to-end game | `--project Samples/Pong/Pong.csproj` |
 | Prefabs & scenes | [Platformer](../Samples/Platformer) `Scenes/background.json` via `SceneLoader` | `--project Samples/Platformer/Platformer.csproj` |
-| Entity hierarchy | Not in a sample yet — `tests/Yaeger.Tests/Systems/TransformHierarchySystemTests.cs` | — |
+| Entity hierarchy | [Hierarchy](../Samples/FeatureGallery/Scenes/Hierarchy) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene Hierarchy` |
 | 2D rendering | [Platformer](../Samples/Platformer); [Pong](../Samples/Pong) | `--project Samples/Platformer/Platformer.csproj` |
 | 3D lighting | [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox), [Damaged Helmet](../Samples/FeatureGallery/Scenes/DamagedHelmet) gallery scenes; [SponzaNight](../Samples/SponzaNight) for `LightFlicker` | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
 | Shadows | [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox) (directional); [SponzaNight](../Samples/SponzaNight) (moving sun + point lights) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
