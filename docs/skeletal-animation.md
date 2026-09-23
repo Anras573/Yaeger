@@ -313,5 +313,6 @@ default) leaves its entities uncullable, same as before this existed.
 
 See [`Samples/FeatureGallery/Scenes/SkinnedMesh`](../Samples/FeatureGallery/Scenes/SkinnedMesh) for a complete example that plays the
 KhronosGroup CesiumMan walk cycle, and
-[`Samples/CrowdDemo`](../Samples/CrowdDemo) for many characters sharing one skeleton drawing through
-the instanced skinning path (see docs/instancing.md#instanced-skinning).
+[`Samples/Benchmarks`](../Samples/Benchmarks) (its `crowd` benchmark) for many characters sharing
+one skeleton drawing through the instanced skinning path (see
+docs/instancing.md#instanced-skinning).

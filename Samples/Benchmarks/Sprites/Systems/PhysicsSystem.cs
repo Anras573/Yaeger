@@ -1,8 +1,8 @@
-using RenderingStressTest.Components;
+using Benchmarks.Sprites.Components;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 
-namespace RenderingStressTest.Systems;
+namespace Benchmarks.Sprites.Systems;
 
 public class PhysicsSystem(World world)
 {

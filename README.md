@@ -54,10 +54,10 @@ Run the Pong sample:
 dotnet run --project Samples/Pong/Pong.csproj
 ```
 
-Run the rendering stress test:
+Run a benchmark (perf smoke test):
 
 ```bash
-dotnet run --project Samples/RenderingStressTest/RenderingStressTest.csproj
+dotnet run --project Samples/Benchmarks -- sprites|instancing|crowd
 ```
 
 ## Testing
@@ -89,7 +89,7 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
   - `SkinnedMeshDemo/` - glTF skeletal animation (GPU skinning) demo
   - `UiDemo/` - UI system demo (menu + HUD with buttons, panels, labels)
   - `BrowserDemo/` - Blazor/WebAssembly interactive paddle-and-ball demo (keyboard, mouse & touch)
-  - `RenderingStressTest/` - Renderer stress test (FPS vs sprite count)
+  - `Benchmarks/` - Perf smoke tests (sprite batching, mesh instancing, crowd/skinning instancing), one clean process per benchmark
   - `PostProcessingDemo/` - Render-to-texture post-processing (vignette + bloom, toggled at runtime)
 - `docs/` - Documentation (see [`docs/index.md`](docs/index.md))
 

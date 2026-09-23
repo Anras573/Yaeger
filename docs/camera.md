@@ -30,7 +30,7 @@ At `Zoom = 1` with window aspect ratio `A`, the visible world span is `[-A, A] Ã
 var renderSystem = new UnifiedRenderSystem(renderer, null, world, window);
 ```
 
-If you omit the `Window`, `UnifiedRenderSystem` skips camera updates and the renderer keeps whatever view-projection it was last set to (identity by default). Samples that don't need a camera (`Pong`, `FeatureGallery`'s Bouncing Balls scene, `Animation2D`, `RenderingStressTest`) pass no window and render in NDC.
+If you omit the `Window`, `UnifiedRenderSystem` skips camera updates and the renderer keeps whatever view-projection it was last set to (identity by default). Samples that don't need a camera (`Pong`, `FeatureGallery`'s Bouncing Balls scene, `Animation2D`, `Benchmarks`' `sprites` benchmark) pass no window and render in NDC.
 
 If multiple `Camera2D` entities exist, the **first one** encountered during iteration wins. There's no `MainCamera` tag component yet â€” add one when you need deterministic multi-camera selection.
 

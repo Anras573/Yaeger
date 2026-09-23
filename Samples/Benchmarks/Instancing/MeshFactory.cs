@@ -1,7 +1,7 @@
 using System.Numerics;
 using Yaeger.Rendering;
 
-namespace MeshInstancingDemo;
+namespace Benchmarks.Instancing;
 
 internal static class MeshFactory
 {

@@ -93,8 +93,7 @@ Samples/
 ├── SceneDemo/               # JSON scene loading demo
 ├── UiDemo/                  # UI system demo (menu + HUD with buttons, panels, labels)
 ├── BrowserDemo/             # Blazor/WebAssembly interactive paddle-and-ball demo
-├── RenderingStressTest/     # Renderer stress test
-├── MeshInstancingDemo/      # Instanced 3D rendering stress test
+├── Benchmarks/              # Perf smoke tests (sprites, instancing, crowd) — one clean process per benchmark
 ├── OneShotAudioDemo/        # Pooled one-shot positional SFX under sustained overlapping fire
 └── SponzaNight/             # Living Sponza: braziers, a patrolling knight, and a day/night cycle
 ```

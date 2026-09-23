@@ -516,9 +516,9 @@ Samples/FeatureGallery/_damagedhelmet-fetch/
 Samples/FeatureGallery/Assets/SkinnedMesh/CesiumMan/
 Samples/FeatureGallery/_cesium-fetch/
 
-# CrowdDemo sample — fetched at build time, not committed
-Samples/CrowdDemo/Assets/CesiumMan/
-Samples/CrowdDemo/_cesium-fetch/
+# Benchmarks sample (crowd benchmark) — fetched at build time, not committed
+Samples/Benchmarks/Assets/Crowd/CesiumMan/
+Samples/Benchmarks/_cesium-fetch/
 
 # SponzaNight sample — fetched at build time, not committed
 Samples/SponzaNight/Assets/Sponza/
