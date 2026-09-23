@@ -9,10 +9,6 @@
       "Samples\\Pong\\Pong.csproj",
       "Samples\\Benchmarks\\Benchmarks.csproj",
       "Samples\\FeatureGallery\\FeatureGallery.csproj",
-      "Samples\\Animation2D\\Animation2D.csproj",
-      "Samples\\CameraDemo\\CameraDemo.csproj",
-      "Samples\\SceneDemo\\SceneDemo.csproj",
-      "Samples\\ParticleDemo\\ParticleDemo.csproj",
       "Samples\\BrowserDemo\\BrowserDemo.csproj"
     ]
   }
