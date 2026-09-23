@@ -304,8 +304,9 @@ position mapping (`AudioSpatialMath.ToListenerPlane`) is pure C# with no OpenAL 
 it's unit-tested directly (`AudioSpatialMathTests`) — unlike the rest of this system, which needs
 a live audio device and stays untested per the repo's test conventions.
 
-See `Samples/DamagedHelmet` for a working example: a looping hum on the helmet pans and
-attenuates as the camera orbits around it.
+See `Samples/FeatureGallery/Scenes/DamagedHelmet` for a working example: a looping hum on the
+helmet pans and attenuates as the camera orbits around it
+(`dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Damaged Helmet"`).
 
 ## One-shot positional SFX
 

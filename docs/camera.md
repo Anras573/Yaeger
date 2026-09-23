@@ -107,8 +107,9 @@ for tracking a target and reacting to impacts.
 ### Free-fly controller
 
 `FreeFlyCameraSystem` is the WASD + right-mouse-drag fly camera every 3D sample used to hand-roll
-separately (`Samples/SkinnedMeshDemo`, `Samples/Sponza`, and `Samples/CornellBox` each shipped a
-near-identical 70-odd-line `FreeFlySystem` — now gone, replaced by this one shared controller):
+separately (the `SkinnedMesh`, `Sponza`, and `CornellBox` scenes now under
+`Samples/FeatureGallery/Scenes/` each shipped a near-identical 70-odd-line `FreeFlySystem` — now
+gone, replaced by this one shared controller):
 
 ```csharp
 var freeFlySystem = new FreeFlyCameraSystem(world, cameraEntity, moveSpeed: 10f);
@@ -119,7 +120,7 @@ window.OnUpdate += deltaTime => freeFlySystem.Update((float)deltaTime);
 
 Hold the right mouse button and move the mouse to look around; W/A/S/D moves forward/strafe, E/Q
 rises/falls. `moveSpeed` (world units/second) and `lookSensitivity` are constructor parameters —
-`CornellBox` uses `moveSpeed: 3f` for its small room, `Sponza`/`SkinnedMeshDemo` use the `10f`
+`CornellBox` uses `moveSpeed: 3f` for its small room, `Sponza`/`SkinnedMesh` use the `10f`
 default-sized scale. It writes straight to `Camera3D.Position`/`Target` and never touches
 `Transform3D` — a free-fly camera has no parent, so there's nothing to bridge.
 
@@ -224,5 +225,5 @@ meshRenderSystem.Render();
   it with `SequenceSystem` (see [sequencing.md](sequencing.md)).
 - **Orbit/turntable and first-person controllers** — only the fly camera is provided so far.
 
-See `Samples/SkinnedMeshDemo`, `Samples/Sponza`, and `Samples/CornellBox` for `FreeFlyCameraSystem`
-in use.
+See `Samples/FeatureGallery/Scenes/SkinnedMesh`, `Samples/FeatureGallery/Scenes/Sponza`, and
+`Samples/FeatureGallery/Scenes/CornellBox` for `FreeFlyCameraSystem` in use.

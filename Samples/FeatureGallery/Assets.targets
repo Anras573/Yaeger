@@ -1,0 +1,137 @@
+<Project>
+  <!--
+    Fetch the KhronosGroup Sponza assets on first build using git sparse-checkout.
+    Skipped in CI (CI env var is set automatically by GitHub Actions).
+    On first build the target copies directly to $(TargetDir); on subsequent builds
+    the <None Update="Assets\**"> rule in FeatureGallery.csproj handles the output copy.
+  -->
+  <Target
+    Name="FetchSponzaAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/Sponza/Sponza.gltf')"
+  >
+    <PropertyGroup>
+      <_SponzaDir>$(MSBuildProjectDirectory)/Assets/Sponza</_SponzaDir>
+      <_SponzaFetchDir>$(MSBuildProjectDirectory)/_sponza-fetch</_SponzaFetchDir>
+      <_SponzaGltfFetchPath>$(_SponzaFetchDir)/Models/Sponza/glTF/Sponza.gltf</_SponzaGltfFetchPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the clone is retried on the next build -->
+    <RemoveDir
+      Directories="$(_SponzaFetchDir)"
+      Condition="Exists('$(_SponzaFetchDir)') And !Exists('$(_SponzaGltfFetchPath)')"
+    />
+
+    <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
+    <Exec
+      Command="git clone --filter=blob:none --no-checkout --sparse --depth=1 https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_SponzaFetchDir)&quot; &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; sparse-checkout set Models/Sponza/glTF &amp;&amp; git -C &quot;$(_SponzaFetchDir)&quot; checkout"
+      Condition="!Exists('$(_SponzaFetchDir)')"
+    />
+
+    <!-- Collect files after the clone so the glob finds them -->
+    <ItemGroup>
+      <_SponzaFiles Include="$(_SponzaFetchDir)/Models/Sponza/glTF/**/*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_SponzaDir)" Condition="!Exists('$(_SponzaDir)')" />
+    <Copy SourceFiles="@(_SponzaFiles)" DestinationFolder="$(_SponzaDir)/%(RecursiveDir)" />
+    <Copy
+      SourceFiles="@(_SponzaFiles)"
+      DestinationFolder="$(TargetDir)Assets/Sponza/%(RecursiveDir)"
+    />
+    <RemoveDir Directories="$(_SponzaFetchDir)" />
+    <Message Text="Sponza assets ready at $(_SponzaDir)" Importance="high" />
+  </Target>
+
+  <!--
+    Fetch the KhronosGroup DamagedHelmet assets on first build using git sparse-checkout.
+    Skipped in CI (CI env var is set automatically by GitHub Actions).
+    On first build the target copies directly to $(TargetDir); on subsequent builds
+    the <None Update="Assets\**"> rule in FeatureGallery.csproj handles the output copy.
+  -->
+  <Target
+    Name="FetchDamagedHelmetAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/DamagedHelmet/Model/DamagedHelmet.gltf')"
+  >
+    <!--
+      Fetched into an Assets/DamagedHelmet/Model/ subfolder, not directly into
+      Assets/DamagedHelmet/, because that folder also holds the committed hum.wav — nesting the
+      fetched (gitignored) model files keeps the .gitignore rule from also hiding the committed
+      audio asset.
+    -->
+    <PropertyGroup>
+      <_HelmetDir>$(MSBuildProjectDirectory)/Assets/DamagedHelmet/Model</_HelmetDir>
+      <_HelmetFetchDir>$(MSBuildProjectDirectory)/_damagedhelmet-fetch</_HelmetFetchDir>
+      <_HelmetGltfFetchPath>$(_HelmetFetchDir)/Models/DamagedHelmet/glTF/DamagedHelmet.gltf</_HelmetGltfFetchPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the clone is retried on the next build -->
+    <RemoveDir
+      Directories="$(_HelmetFetchDir)"
+      Condition="Exists('$(_HelmetFetchDir)') And !Exists('$(_HelmetGltfFetchPath)')"
+    />
+
+    <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
+    <Exec
+      Command="git clone --filter=blob:none --no-checkout --sparse --depth=1 https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_HelmetFetchDir)&quot; &amp;&amp; git -C &quot;$(_HelmetFetchDir)&quot; sparse-checkout set Models/DamagedHelmet/glTF &amp;&amp; git -C &quot;$(_HelmetFetchDir)&quot; checkout"
+      Condition="!Exists('$(_HelmetFetchDir)')"
+    />
+
+    <!-- Collect files after the clone so the glob finds them -->
+    <ItemGroup>
+      <_HelmetFiles Include="$(_HelmetFetchDir)/Models/DamagedHelmet/glTF/**/*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_HelmetDir)" Condition="!Exists('$(_HelmetDir)')" />
+    <Copy SourceFiles="@(_HelmetFiles)" DestinationFolder="$(_HelmetDir)/%(RecursiveDir)" />
+    <Copy
+      SourceFiles="@(_HelmetFiles)"
+      DestinationFolder="$(TargetDir)Assets/DamagedHelmet/Model/%(RecursiveDir)"
+    />
+    <RemoveDir Directories="$(_HelmetFetchDir)" />
+    <Message Text="DamagedHelmet assets ready at $(_HelmetDir)" Importance="high" />
+  </Target>
+
+  <!--
+    Fetch the KhronosGroup CesiumMan glTF (a rigged, animated humanoid) on first build using git
+    sparse-checkout. Skipped in CI (CI env var is set automatically by GitHub Actions).
+  -->
+  <Target
+    Name="FetchCesiumManAssets"
+    BeforeTargets="Build"
+    Condition="'$(CI)' != 'true' And !Exists('$(MSBuildProjectDirectory)/Assets/SkinnedMesh/CesiumMan/CesiumMan.gltf')"
+  >
+    <PropertyGroup>
+      <_CesiumDir>$(MSBuildProjectDirectory)/Assets/SkinnedMesh/CesiumMan</_CesiumDir>
+      <_CesiumFetchDir>$(MSBuildProjectDirectory)/_cesium-fetch</_CesiumFetchDir>
+      <_CesiumGltfFetchPath>$(_CesiumFetchDir)/Models/CesiumMan/glTF/CesiumMan.gltf</_CesiumGltfFetchPath>
+    </PropertyGroup>
+
+    <!-- Remove an incomplete fetch cache so the clone is retried on the next build -->
+    <RemoveDir
+      Directories="$(_CesiumFetchDir)"
+      Condition="Exists('$(_CesiumFetchDir)') And !Exists('$(_CesiumGltfFetchPath)')"
+    />
+
+    <!-- Clone with sparse shallow checkout only when the fetch cache does not yet exist -->
+    <Exec
+      Command="git clone --filter=blob:none --no-checkout --sparse --depth=1 https://github.com/KhronosGroup/glTF-Sample-Assets.git &quot;$(_CesiumFetchDir)&quot; &amp;&amp; git -C &quot;$(_CesiumFetchDir)&quot; sparse-checkout set Models/CesiumMan/glTF &amp;&amp; git -C &quot;$(_CesiumFetchDir)&quot; checkout"
+      Condition="!Exists('$(_CesiumFetchDir)')"
+    />
+
+    <!-- Collect files after the clone so the glob finds them -->
+    <ItemGroup>
+      <_CesiumFiles Include="$(_CesiumFetchDir)/Models/CesiumMan/glTF/**/*" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(_CesiumDir)" Condition="!Exists('$(_CesiumDir)')" />
+    <Copy SourceFiles="@(_CesiumFiles)" DestinationFolder="$(_CesiumDir)/%(RecursiveDir)" />
+    <Copy
+      SourceFiles="@(_CesiumFiles)"
+      DestinationFolder="$(TargetDir)Assets/SkinnedMesh/CesiumMan/%(RecursiveDir)"
+    />
+    <RemoveDir Directories="$(_CesiumFetchDir)" />
+    <Message Text="CesiumMan assets ready at $(_CesiumDir)" Importance="high" />
+  </Target>
+</Project>

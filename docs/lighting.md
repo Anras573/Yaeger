@@ -148,7 +148,7 @@ sampled frame happened to land.
 
 ## Samples
 
-`Samples/CornellBox` adds red, green, and blue `PointLight` entities inside the box to show
+`Samples/FeatureGallery/Scenes/CornellBox` adds red, green, and blue `PointLight` entities inside the box to show
 multiple coloured sources mixing across the walls and boxes.
 
 ## Two directional lights
@@ -165,7 +165,7 @@ A directional light doesn't have to be static: `TimeOfDay` + `DayNightCycleSyste
 colour, and intensity — plus the scene ambient — from a single clock, and can drive both bodies at
 once. See [day-night.md](day-night.md).
 
-`Samples/DamagedHelmet` combines a directional sun with warm-fill and cool-rim `PointLight`
+`Samples/FeatureGallery/Scenes/DamagedHelmet` combines a directional sun with warm-fill and cool-rim `PointLight`
 entities around a glTF model, and is the reference for the `Skybox` component: it registers a
 procedurally generated cubemap in a `CubemapRegistry` and passes a `SkyboxRenderer` to
 `MeshRenderSystem`.

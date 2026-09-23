@@ -84,22 +84,17 @@ src/Engine/
 Samples/
 ├── Pong/                    # Classic Pong game
 ├── Platformer/              # Full 2D platformer level — the platformer-support epic's integration proof
-├── FeatureGallery/          # One window, a menu of small single-feature demo scenes (Mouse, Text Rendering, Bouncing Balls, ...)
+├── FeatureGallery/          # One window, a menu of small single-feature demo scenes (Mouse, Text Rendering,
+│                            #   Bouncing Balls, Cornell Box, Tween, Sequence, Skinned Mesh, Sponza,
+│                            #   Damaged Helmet, Post-Processing, ...)
 ├── Animation2D/             # Sprite-sheet animation demo
 ├── CameraDemo/              # Opt-in 2D camera demo
 ├── ParticleDemo/            # Particle effects demo (fire, smoke, explosions)
 ├── SceneDemo/               # JSON scene loading demo
-├── CornellBox/              # 3D Cornell Box + F1 editor overlay demo
-├── Sponza/                  # glTF Sponza scene rendered through the PBR path
-├── DamagedHelmet/           # glTF DamagedHelmet model with skybox + IBL reflections, lights, and orbit camera
-├── SkinnedMeshDemo/         # glTF skeletal animation (GPU skinning) demo
 ├── UiDemo/                  # UI system demo (menu + HUD with buttons, panels, labels)
 ├── BrowserDemo/             # Blazor/WebAssembly interactive paddle-and-ball demo
 ├── RenderingStressTest/     # Renderer stress test
 ├── MeshInstancingDemo/      # Instanced 3D rendering stress test
-├── PostProcessingDemo/      # Render-to-texture post-processing (vignette + bloom, toggled at runtime)
-├── TweenDemo/               # Data-driven transform/light/material animation with easing
-├── SequenceDemo/            # Ordered/parallel cutscene beats (lift, doors, reveal) with skip-to-end
 ├── OneShotAudioDemo/        # Pooled one-shot positional SFX under sustained overlapping fire
 └── SponzaNight/             # Living Sponza: braziers, a patrolling knight, and a day/night cycle
 ```

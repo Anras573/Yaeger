@@ -13,7 +13,8 @@ namespace Yaeger.Systems;
 /// </summary>
 /// <remarks>
 /// Promoted from the three near-identical <c>FreeFlySystem</c> copies every 3D sample used to
-/// carry (<c>Samples/SkinnedMeshDemo</c>, <c>Samples/Sponza</c>, <c>Samples/CornellBox</c>).
+/// carry (the <c>SkinnedMesh</c>, <c>Sponza</c>, and <c>CornellBox</c> scenes now under
+/// <c>Samples/FeatureGallery/Scenes/</c>).
 /// Needs <see cref="Keyboard"/>/<see cref="Mouse"/>, so — like <see cref="CameraFollowSystem"/> —
 /// it lives in the native <c>Yaeger</c> assembly, not <c>Yaeger.Core</c>.
 /// </remarks>

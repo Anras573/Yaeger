@@ -196,7 +196,7 @@ be the cheaper cousin of this feature, much closer to the directional path).
 
 ## Sample
 
-`Samples/CornellBox` enables a 2048² PCF shadow map. The two interior boxes cast visible shadows
+`Samples/FeatureGallery/Scenes/CornellBox` enables a 2048² PCF shadow map. The two interior boxes cast visible shadows
 across the floor from the angled directional light.
 
 For a light that moves, see [day-night.md](day-night.md) — a `TimeOfDay`-driven sun works with the

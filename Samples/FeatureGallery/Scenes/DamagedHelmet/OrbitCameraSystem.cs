@@ -4,7 +4,7 @@ using Yaeger.Graphics;
 using Yaeger.Input;
 using Yaeger.Systems;
 
-namespace DamagedHelmet;
+namespace FeatureGallery.Scenes.DamagedHelmet;
 
 /// <summary>
 /// Keeps a <see cref="Camera3D"/> orbiting around a fixed target point. The camera slowly
@@ -42,9 +42,9 @@ internal sealed class OrbitCameraSystem(
         if (!world.TryGetComponent<Camera3D>(cameraEntity, out var camera))
             return;
 
-        if (Mouse.IsButtonPressed(MouseButton.Left))
+        if (Yaeger.Input.Mouse.IsButtonPressed(MouseButton.Left))
         {
-            var delta = Mouse.PositionDelta;
+            var delta = Yaeger.Input.Mouse.PositionDelta;
             _yaw -= delta.X * DragSensitivity;
             _pitch = Math.Clamp(_pitch + delta.Y * DragSensitivity, MinPitch, MaxPitch);
         }
@@ -53,7 +53,7 @@ internal sealed class OrbitCameraSystem(
             _yaw += AutoOrbitSpeed * deltaTime;
         }
 
-        var scroll = Mouse.ScrollDelta;
+        var scroll = Yaeger.Input.Mouse.ScrollDelta;
         if (scroll != 0f)
             _radius = Math.Clamp(_radius * (1f - scroll * ZoomSensitivity), _minRadius, _maxRadius);
 

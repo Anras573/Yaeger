@@ -236,7 +236,7 @@ see `docs/TESTING.md`.
 
 ## Sample
 
-`Samples/PostProcessingDemo` renders a handful of emissive boxes on a dark floor through vignette +
+`Samples/FeatureGallery/Scenes/PostProcessing` renders a handful of emissive boxes on a dark floor through vignette +
 bloom, in an HDR chain with `ToneMapEffect` last. Press **B** to toggle bloom, **V** to toggle
 vignette, **T** to toggle tone mapping's operator (Reinhard/ACES filmic), **P** to toggle the whole
 stack, and compare against the plain scene. One box is authored with `EmissiveIntensity` above 1 so

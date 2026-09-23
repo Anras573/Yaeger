@@ -30,7 +30,8 @@ window.OnUpdate += dt => tweenSystem.Update((float)dt);
 
 `TweenSystem` implements `IUpdateSystem` and lives in `Yaeger.Core` (no `Window`/GL dependency, same
 as `TransformHierarchySystem`), so it works in headless tests as well as native games. See
-`Samples/TweenDemo` for a complete program animating a transform, a light, and a material together.
+`Samples/FeatureGallery/Scenes/Tween` for a complete program animating a transform, a light, and a
+material together (`dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene Tween`).
 
 ## The `Tween` component
 
