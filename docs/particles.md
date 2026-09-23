@@ -31,7 +31,7 @@ window.OnRender += _ =>
 };
 ```
 
-See `Samples/ParticleDemo` for a complete program with a fire fountain, a smoke plume, and click-triggered explosions.
+See `Samples/Platformer/Systems/ParticleEffectsSystem.cs` for a complete program: a continuous dust puff while the player runs, a one-shot burst the instant it lands, and a one-shot sparkle burst on coin pickup.
 
 ## The `ParticleEmitter` component
 
@@ -49,7 +49,7 @@ See `Samples/ParticleDemo` for a complete program with a fire fountain, a smoke 
 
 The emitter entity must also carry a `Transform2D`; its `Position` is where particles spawn.
 
-For a radial burst (explosion), set `EmitDirection = Vector2.Zero` and `SpreadAngle = MathF.Tau`. For a one-shot effect, spawn an emitter entity, set `EmitRate` to `0` after a short burst window, and destroy the entity once its particles have died — `ParticleDemo` shows this pattern.
+For a radial burst (explosion), set `EmitDirection = Vector2.Zero` and `SpreadAngle = MathF.Tau`. For a one-shot effect, spawn an emitter entity, set `EmitRate` to `0` after a short burst window, and destroy the entity once its particles have died — `Samples/Platformer/Systems/ParticleEffectsSystem.cs`'s landing puff and coin sparkle both show this pattern.
 
 ## Update vs Render
 

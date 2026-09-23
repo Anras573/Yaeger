@@ -1,0 +1,58 @@
+{
+  "entities": [
+    {
+      "tag": "bg-sky",
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/parallax_sky.png" },
+        { "type": "Transform2D", "position": [28.0, 7.0], "scale": [123.2, 30.8] },
+        {
+          "type": "ParallaxLayer",
+          "scrollFactorX": 0.05,
+          "scrollFactorY": 0.0,
+          "basePosition": [28.0, 7.0]
+        },
+        { "type": "RenderLayer", "value": -2 }
+      ]
+    },
+    {
+      "tag": "bg-hills",
+      "components": [
+        { "type": "Sprite", "texturePath": "Assets/parallax_hills.png" },
+        { "type": "Transform2D", "position": [28.0, 3.0], "scale": [89.6, 8.0] },
+        {
+          "type": "ParallaxLayer",
+          "scrollFactorX": 0.3,
+          "scrollFactorY": 0.0,
+          "basePosition": [28.0, 3.0]
+        },
+        { "type": "RenderLayer", "value": -1 }
+      ]
+    },
+    {
+      "tag": "npc-idle",
+      "components": [
+        {
+          "type": "SpriteSheet",
+          "texturePath": "Assets/Idle.png",
+          "columns": 6,
+          "tint": [190, 220, 255, 255]
+        },
+        { "type": "Transform2D", "position": [5.5, 2.5], "scale": [1.0, 1.0] },
+        {
+          "type": "Animation",
+          "loop": true,
+          "frames": [
+            { "texturePath": "_unused_", "duration": 0.12 },
+            { "texturePath": "_unused_", "duration": 0.12 },
+            { "texturePath": "_unused_", "duration": 0.12 },
+            { "texturePath": "_unused_", "duration": 0.12 },
+            { "texturePath": "_unused_", "duration": 0.12 },
+            { "texturePath": "_unused_", "duration": 0.12 }
+          ]
+        },
+        { "type": "AnimationState" },
+        { "type": "RenderLayer", "value": 1 }
+      ]
+    }
+  ]
+}

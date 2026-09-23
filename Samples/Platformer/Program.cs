@@ -3,6 +3,7 @@ using Platformer.Components;
 using Platformer.Systems;
 using Yaeger.Audio;
 using Yaeger.ECS;
+using Yaeger.ECS.Serializers;
 using Yaeger.Font;
 using Yaeger.Graphics;
 using Yaeger.Input;
@@ -13,28 +14,28 @@ using Yaeger.Rendering;
 using Yaeger.Systems;
 using Yaeger.Windowing;
 
-// Platformer sample: the integration proof for the "platformer support" epic. A single,
-// complete Super-Mario-like level exercising every feature that epic added, composed the same
-// way a real game would: CharacterController2D for the player, a code-built Tilemap with merged
-// collision, one-way and moving platforms, patrolling stompable enemies, collectible coins, a
-// camera-follow with level bounds, parallax backgrounds, sprite flip + an AnimationStateMachine
-// for idle/run/jump/fall, streamed music + SFX, and keyboard + gamepad input.
+// Platformer sample: the integration proof for the "platformer support" epic, and the flagship
+// sample the engine's single-feature 2D demos (Animation2D, CameraDemo, ParticleDemo, SceneDemo,
+// UiDemo, OneShotAudioDemo) were absorbed into (#264) — see README.md's feature -> file table.
+// A single, complete Super-Mario-like level exercising every feature both epics added, composed
+// the same way a real game would: CharacterController2D for the player, a code-built Tilemap with
+// merged collision, one-way and moving platforms, patrolling stompable enemies, collectible
+// coins, a title screen and pause menu, an HUD, particle effects, pooled one-shot SFX, a
+// SceneLoader-driven background, a debug free camera, camera-follow with level bounds, parallax
+// backgrounds, sprite flip + an AnimationStateMachine for idle/run/jump/fall (plus one plain,
+// non-state-machine Animation on a decorative NPC), streamed music, and keyboard + gamepad input.
 //
-// Controls:
-//   A/D or ←/→   — move
-//   Space or ↑   — jump (hold longer for a higher jump; release early to cut it short)
-//   R            — restart after dying or winning
-//   ESC          — exit
-//   Gamepad      — left stick / D-pad to move, A to jump, Start to restart
+// Controls: see README.md for the full list.
 //
-// Out of scope (see the epic issue): multiple levels, menus, save games, power-ups.
+// Out of scope (see the epic issue): multiple levels, save games, power-ups.
 
 using var window = Window.Create();
 var world = new World();
 
 var renderer = new Renderer(window);
 var fontManager = new FontManager();
-var textRenderer = new TextRenderer(window);
+var textRenderer = new TextRenderer(window, fontManager);
+var font = fontManager.Load("Assets/Roboto-Regular.ttf");
 var renderSystem = new UnifiedRenderSystem(renderer, textRenderer, world, window);
 
 var physicsWorld = new PhysicsWorld2D(world);
@@ -45,6 +46,8 @@ var cameraFollowSystem = new CameraFollowSystem(world, window);
 var parallaxSystem = new ParallaxSystem(world);
 var animationSystem = new AnimationSystem(world);
 var stateMachineSystem = new AnimationStateMachineSystem(world);
+var particleEffects = new ParticleEffectsSystem(world, renderer);
+var audioSystem = new AudioSystem(world, window.AudioContext, oneShotVoiceBudget: 16);
 
 // ---------------------------------------------------------------------------------------------
 // Level: a code-built tilemap. Two tile types (both solid): grass-top ground and brick.
@@ -100,6 +103,17 @@ var tilemapTransform = new Transform2D(Vector2.Zero);
 world.AddComponent(tilemapEntity, tilemapTransform);
 world.AddComponent(tilemapEntity, tilemap);
 world.AddComponent(tilemapEntity, new RenderLayer(0));
+
+// ---------------------------------------------------------------------------------------------
+// Background decorations — not part of the Tiled-less tilemap above, so (per #264) they're
+// data-driven from a scene file via SceneLoader/PrefabLoader's shared ComponentRegistry instead
+// of code-built: both parallax layers, and a decorative NPC using a plain, non-state-machine
+// Animation (contrasted with the player's AnimationStateMachine below) to idle forever.
+// ---------------------------------------------------------------------------------------------
+var componentRegistry = new ComponentRegistry().RegisterEngineComponents();
+var sceneLoader = new SceneLoader(componentRegistry);
+var backgroundScene = sceneLoader.Load("Scenes/background.json");
+world.Instantiate(backgroundScene);
 
 // ---------------------------------------------------------------------------------------------
 // Player
@@ -159,33 +173,50 @@ void SetAnimState(string name)
     stateMachineSystem.Play(player, name);
 }
 
+void ResetPlayer()
+{
+    world.AddComponent(player, new Transform2D(spawnPosition, 0f, playerHalfSize * 2f));
+    world.AddComponent(player, Velocity2D.Zero);
+    facingLeft = false;
+    SetAnimState("idle");
+}
+
 // ---------------------------------------------------------------------------------------------
-// Coins
+// Coins and enemies — spawn positions are recorded so a full level restart can respawn exactly
+// what's been collected/defeated, without touching the (otherwise-static) platforms/goal.
 // ---------------------------------------------------------------------------------------------
 var coinHalfSize = new Vector2(0.25f, 0.25f);
+var coinSpawnPositions = new List<Vector2>();
 
-void CreateCoin(float x, float y)
+void SpawnCoin(Vector2 position)
 {
     var entity = world.CreateEntity();
-    world.AddComponent(entity, new Transform2D(new Vector2(x, y), 0f, coinHalfSize * 2f));
+    world.AddComponent(entity, new Transform2D(position, 0f, coinHalfSize * 2f));
     world.AddComponent(entity, new Sprite("Assets/coin.png"));
     world.AddComponent(entity, new Coin(coinHalfSize));
     world.AddComponent(entity, new RenderLayer(1));
 }
 
-// ---------------------------------------------------------------------------------------------
-// Enemies — kinematic bodies patrolling via PlatformPath, trigger colliders so they never
-// physically block the player (CharacterControllerSystem.SolidCandidates skips triggers);
-// PlayerInteractionSystem decides stomp vs. damage.
-// ---------------------------------------------------------------------------------------------
-var enemyHalfSize = new Vector2(0.4f, 0.4f);
-
-void CreateEnemyPatrol(int startColumn, int endColumn)
+void PlaceCoin(float x, float y)
 {
-    var y = TopOfGroundAt(startColumn) + enemyHalfSize.Y;
-    var start = new Vector2(startColumn + 0.5f, y);
-    var end = new Vector2(endColumn + 0.5f, y);
+    var position = new Vector2(x, y);
+    coinSpawnPositions.Add(position);
+    SpawnCoin(position);
+}
 
+void RespawnCoins()
+{
+    foreach (var (entity, _) in world.GetStore<Coin>().All().ToList())
+        world.DestroyEntity(entity);
+    foreach (var position in coinSpawnPositions)
+        SpawnCoin(position);
+}
+
+var enemyHalfSize = new Vector2(0.4f, 0.4f);
+var enemySpawns = new List<(Vector2 Start, Vector2 End)>();
+
+void SpawnEnemy(Vector2 start, Vector2 end)
+{
     var entity = world.CreateEntity();
     world.AddComponent(entity, new Transform2D(start, 0f, enemyHalfSize * 2f));
     world.AddComponent(entity, new Sprite("Assets/enemy.png"));
@@ -197,13 +228,30 @@ void CreateEnemyPatrol(int startColumn, int endColumn)
     world.AddComponent(entity, new RenderLayer(1));
 }
 
-CreateEnemyPatrol(16, 22);
-CreateEnemyPatrol(36, 42);
+void PlaceEnemyPatrol(int startColumn, int endColumn)
+{
+    var y = TopOfGroundAt(startColumn) + enemyHalfSize.Y;
+    var start = new Vector2(startColumn + 0.5f, y);
+    var end = new Vector2(endColumn + 0.5f, y);
+    enemySpawns.Add((start, end));
+    SpawnEnemy(start, end);
+}
 
-CreateCoin(16.5f, TopOfGroundAt(16) + 1.5f);
-CreateCoin(18.5f, TopOfGroundAt(18) + 1.9f);
-CreateCoin(20.5f, TopOfGroundAt(20) + 1.5f);
-CreateCoin(52.5f, TopOfGroundAt(52) + 1.3f);
+void RespawnEnemies()
+{
+    foreach (var (entity, _) in world.GetStore<Enemy>().All().ToList())
+        world.DestroyEntity(entity);
+    foreach (var (start, end) in enemySpawns)
+        SpawnEnemy(start, end);
+}
+
+PlaceEnemyPatrol(16, 22);
+PlaceEnemyPatrol(36, 42);
+
+PlaceCoin(16.5f, TopOfGroundAt(16) + 1.5f);
+PlaceCoin(18.5f, TopOfGroundAt(18) + 1.9f);
+PlaceCoin(20.5f, TopOfGroundAt(20) + 1.5f);
+PlaceCoin(52.5f, TopOfGroundAt(52) + 1.3f);
 
 // ---------------------------------------------------------------------------------------------
 // One-way platform — jump up through it from below, land on top. Sits above ground segment 3,
@@ -223,8 +271,8 @@ world.AddComponent(oneWayEntity, new BoxCollider2D(oneWayHalfSize * 2f, oneWay: 
 world.AddComponent(oneWayEntity, new RenderLayer(1));
 
 var oneWayTopSurfaceY = oneWayCenter.Y + oneWayHalfSize.Y;
-CreateCoin(oneWayColumn - 0.3f, oneWayTopSurfaceY + coinHalfSize.Y + 0.05f);
-CreateCoin(oneWayColumn + 1.3f, oneWayTopSurfaceY + coinHalfSize.Y + 0.05f);
+PlaceCoin(oneWayColumn - 0.3f, oneWayTopSurfaceY + coinHalfSize.Y + 0.05f);
+PlaceCoin(oneWayColumn + 1.3f, oneWayTopSurfaceY + coinHalfSize.Y + 0.05f);
 
 // ---------------------------------------------------------------------------------------------
 // Moving platform — bridges the second pit (columns 26-32), carrying the player across via
@@ -274,7 +322,8 @@ world.AddComponent(goalEntity, new Goal(goalHalfSize));
 world.AddComponent(goalEntity, new RenderLayer(1));
 
 // ---------------------------------------------------------------------------------------------
-// Camera + parallax background
+// Camera — CameraFollow tracks the player by default; the debug free-cam (see below) toggles it
+// off in favour of manual pan/zoom/rotate, the same Camera2D API Samples/CameraDemo demonstrated.
 // ---------------------------------------------------------------------------------------------
 var cameraEntity = world.CreateEntity("camera");
 world.AddComponent(cameraEntity, new Camera2D(spawnPosition, Zoom: 0.11f));
@@ -289,101 +338,56 @@ world.AddComponent(
 );
 world.AddComponent(cameraEntity, CameraBounds.FromTilemap(tilemap, tilemapTransform));
 
-var skyCenter = new Vector2(LevelWidth / 2f, LevelHeight / 2f);
-var skyEntity = world.CreateEntity();
-world.AddComponent(skyEntity, new Sprite("Assets/parallax_sky.png"));
-world.AddComponent(
-    skyEntity,
-    new Transform2D(skyCenter, 0f, new Vector2(LevelWidth * 2.2f, LevelHeight * 2.2f))
-);
-world.AddComponent(
-    skyEntity,
-    new ParallaxLayer(scrollFactorX: 0.05f, scrollFactorY: 0f) { BasePosition = skyCenter }
-);
-world.AddComponent(skyEntity, new RenderLayer(-2));
-
-var hillsCenter = new Vector2(LevelWidth / 2f, 3f);
-var hillsEntity = world.CreateEntity();
-world.AddComponent(hillsEntity, new Sprite("Assets/parallax_hills.png"));
-world.AddComponent(
-    hillsEntity,
-    new Transform2D(hillsCenter, 0f, new Vector2(LevelWidth * 1.6f, 8f))
-);
-world.AddComponent(
-    hillsEntity,
-    new ParallaxLayer(scrollFactorX: 0.3f, scrollFactorY: 0f) { BasePosition = hillsCenter }
-);
-world.AddComponent(hillsEntity, new RenderLayer(-1));
+var debugCameraSystem = new DebugCameraSystem(world, cameraEntity);
 
 // ---------------------------------------------------------------------------------------------
-// HUD
+// UI — title screen, pause menu, and HUD (coins/lives), all built with UiBuilder and owned by
+// GameFlowSystem, which also drives the game's state machine (see #264: replaces the old
+// Text/TextRenderer-based HUD with the UI system).
 // ---------------------------------------------------------------------------------------------
-var font = fontManager.Load("Assets/Roboto-Regular.ttf");
+var uiRenderer = new UiRenderer(window);
+var gameFlow = new GameFlowSystem(world, window, uiRenderer, textRenderer, font, startingLives: 3);
 
-var hudCoinsEntity = world.CreateEntity("hud-coins");
-world.AddComponent(hudCoinsEntity, new Text("Coins: 0", font, 22, Color.White));
-world.AddComponent(
-    hudCoinsEntity,
-    new Transform2D { Position = new Vector2(-0.95f, 0.9f), Scale = new Vector2(0.0035f) }
-);
+gameFlow.GameStarted += FullLevelReset;
+gameFlow.LevelRestarted += FullLevelReset;
+gameFlow.ReturnedToTitle += FullLevelReset;
+gameFlow.PlayerRespawned += ResetPlayer;
+gameFlow.ExitRequested += window.Close;
 
-var hudControlsEntity = world.CreateEntity("hud-controls");
-world.AddComponent(
-    hudControlsEntity,
-    new Text(
-        "A/D or arrows: move   Space/Up: jump   R: restart   Gamepad: stick + A",
-        font,
-        14,
-        Color.White
-    )
-);
-world.AddComponent(
-    hudControlsEntity,
-    new Transform2D { Position = new Vector2(-0.95f, -0.9f), Scale = new Vector2(0.0028f) }
-);
-
-var hudMessageEntity = world.CreateEntity("hud-message");
-world.AddComponent(hudMessageEntity, new Text("", font, 36, new Color(255, 220, 0)));
-world.AddComponent(
-    hudMessageEntity,
-    new Transform2D { Position = new Vector2(-0.55f, 0.05f), Scale = new Vector2(0.0045f) }
-);
-
-void SetMessage(string text) =>
-    world.AddComponent(hudMessageEntity, new Text(text, font, 36, new Color(255, 220, 0)));
+void FullLevelReset()
+{
+    ResetPlayer();
+    RespawnCoins();
+    RespawnEnemies();
+}
 
 // ---------------------------------------------------------------------------------------------
-// Audio
+// Audio — music streams continuously; jump/coin/stomp are one-shots routed through AudioSystem's
+// pooled voice budget (#264: replaces one dedicated SoundSource per sound, so a burst of nearby
+// pickups can never exhaust playback slots).
 // ---------------------------------------------------------------------------------------------
 var music = StreamingSoundSource.FromFile(window.AudioContext, "Assets/bgm.ogg");
 music.Looping = true;
 music.Gain = 0.35f;
 music.Play();
 
-var jumpSfx = SoundSource.Create(window.AudioContext, AudioGroup.Sfx);
-jumpSfx.SetBuffer(SoundBuffer.FromFile(window.AudioContext, "Assets/jump.wav"));
-
-var coinSfx = SoundSource.Create(window.AudioContext, AudioGroup.Sfx);
-coinSfx.SetBuffer(SoundBuffer.FromFile(window.AudioContext, "Assets/coin.wav"));
-
-var stompSfx = SoundSource.Create(window.AudioContext, AudioGroup.Sfx);
-stompSfx.SetBuffer(SoundBuffer.FromFile(window.AudioContext, "Assets/stomp.wav"));
+var jumpBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/jump.wav");
+var coinBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/coin.wav");
+var stompBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/stomp.wav");
 
 // ---------------------------------------------------------------------------------------------
-// Game state, input, and the per-frame update/render loop
+// Gameplay wiring, input, and the per-frame update/render loop
 // ---------------------------------------------------------------------------------------------
 var interactionSystem = new PlayerInteractionSystem(world, player);
-var score = 0;
 
-var state = GameState.Playing;
-
-interactionSystem.CoinCollected += () =>
+interactionSystem.CoinCollected += position =>
 {
-    score++;
-    world.AddComponent(hudCoinsEntity, new Text($"Coins: {score}", font, 22, Color.White));
-    coinSfx.Play();
+    gameFlow.CollectCoin();
+    particleEffects.SpawnCoinSparkle(position);
+    audioSystem.PlayOneShot(coinBuffer, position, gain: 0.8f, AudioGroup.Sfx, priority: 5);
 };
-interactionSystem.EnemyStomped += () => stompSfx.Play();
+interactionSystem.EnemyStomped += position =>
+    audioSystem.PlayOneShot(stompBuffer, position, gain: 0.9f, AudioGroup.Sfx, priority: 5);
 interactionSystem.PlayerHurt += Die;
 interactionSystem.GoalReached += Win;
 
@@ -393,7 +397,7 @@ const float JumpCutMultiplier = 0.45f;
 
 void TryJump()
 {
-    if (state != GameState.Playing)
+    if (!gameFlow.IsPlaying || debugCameraSystem.IsActive)
         return;
     if (!world.TryGetComponent<CharacterController2D>(player, out var controller))
         return;
@@ -403,12 +407,18 @@ void TryJump()
     var velocity = world.GetComponent<Velocity2D>(player);
     velocity.Linear.Y = JumpVelocity;
     world.AddComponent(player, velocity);
-    jumpSfx.Play();
+    audioSystem.PlayOneShot(
+        jumpBuffer,
+        world.GetComponent<Transform2D>(player).Position,
+        gain: 0.7f,
+        AudioGroup.Sfx,
+        priority: 3
+    );
 }
 
 void TryCutJump()
 {
-    if (state != GameState.Playing)
+    if (!gameFlow.IsPlaying)
         return;
 
     var velocity = world.GetComponent<Velocity2D>(player);
@@ -424,19 +434,33 @@ Keyboard.AddKeyDown(Keys.Space, TryJump);
 Keyboard.AddKeyUp(Keys.Space, TryCutJump);
 Keyboard.AddKeyDown(Keys.Up, TryJump);
 Keyboard.AddKeyUp(Keys.Up, TryCutJump);
-Keyboard.AddKeyDown(Keys.R, TryRestart);
+Keyboard.AddKeyDown(
+    Keys.C,
+    () =>
+    {
+        if (gameFlow.IsPlaying)
+            debugCameraSystem.Toggle();
+    }
+);
 Gamepad.AddButtonDown(GamepadButton.A, TryJump);
 Gamepad.AddButtonUp(GamepadButton.A, TryCutJump);
-Gamepad.AddButtonDown(GamepadButton.Start, TryRestart);
 
 window.OnUpdate += Update;
-window.OnRender += _ => renderSystem.Render();
+window.OnRender += _ =>
+{
+    renderSystem.Render();
+    particleEffects.Render();
+    gameFlow.Render();
+};
+window.OnResize += size => gameFlow.Resize(size);
 window.OnClosing += () =>
 {
     music.Dispose();
-    jumpSfx.Dispose();
-    coinSfx.Dispose();
-    stompSfx.Dispose();
+    jumpBuffer.Dispose();
+    coinBuffer.Dispose();
+    stompBuffer.Dispose();
+    audioSystem.Dispose();
+    uiRenderer.Dispose();
     textRenderer.Dispose();
     fontManager.Dispose();
     renderer.Dispose();
@@ -449,16 +473,24 @@ void Update(double deltaTimeD)
 {
     var dt = (float)deltaTimeD;
 
-    if (state == GameState.Playing)
+    gameFlow.Update(dt);
+
+    var playerControllable = gameFlow.IsPlaying && !debugCameraSystem.IsActive;
+    var worldActive = gameFlow.State != GameState.Paused;
+
+    if (playerControllable)
         HandleInput();
 
-    // PlatformPathSystem sets kinematic Velocity2D; PhysicsWorld2D moves it (and maintains
-    // tilemap collision) and must run before CharacterControllerSystem so a rider is carried
-    // by the platform's displacement this same step (see CLAUDE.md's moving-platform remarks).
-    platformPathSystem.Update(dt);
-    physicsWorld.Update(dt);
+    if (worldActive)
+    {
+        // PlatformPathSystem sets kinematic Velocity2D; PhysicsWorld2D moves it (and maintains
+        // tilemap collision) and must run before CharacterControllerSystem so a rider is carried
+        // by the platform's displacement this same step (see CLAUDE.md's moving-platform remarks).
+        platformPathSystem.Update(dt);
+        physicsWorld.Update(dt);
+    }
 
-    if (state == GameState.Playing)
+    if (playerControllable)
     {
         characterControllerSystem.Update(dt);
         interactionSystem.Update();
@@ -467,14 +499,36 @@ void Update(double deltaTimeD)
             Die();
     }
 
-    if (state == GameState.Playing)
-        UpdatePlayerAnimation();
+    if (worldActive)
+    {
+        if (playerControllable)
+            UpdatePlayerAnimation();
 
-    stateMachineSystem.Update(dt);
-    animationSystem.Update(dt);
-    cameraFollowSystem.Update(dt);
-    parallaxSystem.Update(dt);
+        stateMachineSystem.Update(dt);
+        animationSystem.Update(dt);
+
+        if (debugCameraSystem.IsActive)
+            debugCameraSystem.Update(dt);
+        else
+            cameraFollowSystem.Update(dt);
+
+        parallaxSystem.Update(dt);
+
+        var controller = world.GetComponent<CharacterController2D>(player);
+        var velocity = world.GetComponent<Velocity2D>(player);
+        var feetPosition =
+            world.GetComponent<Transform2D>(player).Position - new Vector2(0f, playerHalfSize.Y);
+        var horizontalSpeed = playerControllable ? velocity.Linear.X : 0f;
+        particleEffects.Update(
+            dt,
+            feetPosition,
+            playerControllable && controller.IsGrounded,
+            horizontalSpeed
+        );
+    }
+
     music.Update();
+    audioSystem.Update(dt);
 }
 
 void HandleInput()
@@ -520,41 +574,24 @@ void UpdatePlayerAnimation()
 
 void Die()
 {
-    if (state != GameState.Playing)
+    if (!gameFlow.IsPlaying)
         return;
 
-    state = GameState.Dead;
     SetAnimState("dead");
-    stompSfx.Play();
-    SetMessage("You died! Press R to restart");
+    audioSystem.PlayOneShot(
+        stompBuffer,
+        world.GetComponent<Transform2D>(player).Position,
+        gain: 0.9f,
+        AudioGroup.Sfx,
+        priority: 8
+    );
+    gameFlow.Die();
 }
 
 void Win()
 {
-    if (state != GameState.Playing)
+    if (!gameFlow.IsPlaying)
         return;
 
-    state = GameState.Won;
-    SetMessage("You win! Press R to restart");
-}
-
-void TryRestart()
-{
-    if (state == GameState.Playing)
-        return;
-
-    var transform = world.GetComponent<Transform2D>(player);
-    transform.Position = spawnPosition;
-    world.AddComponent(player, transform);
-    world.AddComponent(player, Velocity2D.Zero);
-    SetAnimState("idle");
-    SetMessage("");
-    state = GameState.Playing;
-}
-
-enum GameState
-{
-    Playing,
-    Dead,
-    Won,
+    gameFlow.Win();
 }

@@ -189,7 +189,9 @@ returned from `Deserialize` cover it.
 
 ## See also
 
-- `Samples/SceneDemo/` — end-to-end demo with a seven-entity scene and tag round-trip
+- `Samples/Platformer/Scenes/background.json` — end-to-end demo: parallax layers and a decorative
+  animated NPC (entities the level's tilemap doesn't carry) loaded via `SceneLoader`, see
+  `Samples/Platformer/Program.cs`
 - `src/Engine/Yaeger/ECS/SceneSaver.cs` — save-direction implementation
 - `src/Engine/Yaeger/ECS/SceneLoader.cs` — implementation
 - `src/Engine/Yaeger/ECS/Scene.cs` — in-memory scene representation

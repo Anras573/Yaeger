@@ -18,8 +18,8 @@ public class PlayerInteractionSystem(World world, Entity player)
     /// <summary>Upward velocity applied to the player immediately after stomping an enemy.</summary>
     public float StompBounceVelocity { get; set; } = 6f;
 
-    public event Action? CoinCollected;
-    public event Action? EnemyStomped;
+    public event Action<Vector2>? CoinCollected;
+    public event Action<Vector2>? EnemyStomped;
     public event Action? PlayerHurt;
     public event Action? GoalReached;
 
@@ -39,8 +39,9 @@ public class PlayerInteractionSystem(World world, Entity player)
             if (!Overlaps(playerCenter, playerHalf, coinTransform.Position, coin.HalfSize))
                 continue;
 
+            var position = coinTransform.Position;
             world.DestroyEntity(entity);
-            CoinCollected?.Invoke();
+            CoinCollected?.Invoke(position);
         }
 
         foreach (var (entity, enemy, enemyTransform) in world.Query<Enemy, Transform2D>().ToList())
@@ -55,10 +56,11 @@ public class PlayerInteractionSystem(World world, Entity player)
 
             if (isStomp)
             {
+                var position = enemyTransform.Position;
                 world.DestroyEntity(entity);
                 velocity.Linear.Y = StompBounceVelocity;
                 world.AddComponent(player, velocity);
-                EnemyStomped?.Invoke();
+                EnemyStomped?.Invoke(position);
             }
             else
             {

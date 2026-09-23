@@ -5,22 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "C#: UiDemo Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/UiDemo/UiDemo.csproj"
-        },
-        {
             "name": "C#: FeatureGallery Debug",
             "type": "dotnet",
             "request": "launch",
             "projectPath": "${workspaceFolder}/Samples/FeatureGallery/FeatureGallery.csproj"
-        },
-        {
-            "name": "C#: SceneDemo Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/SceneDemo/SceneDemo.csproj"
         },
         {
             "name": "C#: Benchmarks (sprites) Debug",
@@ -42,28 +30,10 @@
             "projectPath": "${workspaceFolder}/Samples/Platformer/Platformer.csproj"
         },
         {
-            "name": "C#: ParticleDemo Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/ParticleDemo/ParticleDemo.csproj"
-        },
-        {
-            "name": "C#: CameraDemo Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/CameraDemo/CameraDemo.csproj"
-        },
-        {
             "name": "C#: BrowserDemo Debug",
             "type": "dotnet",
             "request": "launch",
             "projectPath": "${workspaceFolder}/Samples/BrowserDemo/BrowserDemo.csproj"
-        },
-        {
-            "name": "C#: Animation2D Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/Animation2D/Animation2D.csproj"
         }
 
     ]

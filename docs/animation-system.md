@@ -193,7 +193,10 @@ world.AddComponent(entity, new AnimationState()); // Reset state
 ```
 
 For more than a couple of named states, `AnimationStateMachine` (below) turns this manual
-swap-both-components pattern into a declarative `Play("idle")` call.
+swap-both-components pattern into a declarative `Play("idle")` call. See
+`Samples/Platformer/Scenes/background.json` for this plain, non-state-machine path kept alongside
+the player's `AnimationStateMachine` — a decorative NPC just sets `Animation`/`AnimationState`
+once and lets it loop forever.
 
 ### Checking Animation Completion
 
