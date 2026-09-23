@@ -39,6 +39,7 @@ are fetched automatically on first build (skipped in CI) — see `Assets.targets
 | Hierarchy | `Hierarchy` | `1`/`2`/`3`: select sun/planet/moon · `+`/`-`: adjust selected body's spin speed · `O`: destroy the planet (orphans the moon) · `R`: rebuild · `F1`: toggle inspector |
 | Raycast | `Raycast` | WASD/Q/E move, RMB-drag look · LMB: raycast (nearest hit) · Shift+LMB: raycast all · `M`: cycle layer mask |
 | Camera Rig | `Camera Rig` | `1`: mounted (rides the cart) · `2`: tracking (fixed position, looks at the cart) · `3`: free (WASD/Q/E, RMB-drag look) · `+`/`-`: tracking smoothing · `Space`: camera shake |
+| Spot Lights | `Spot Lights` | WASD/Q/E move, RMB-drag look · `F`: toggle camera-following flashlight · `[`/`]`: narrow/widen all cone angles · `P`: toggle PBR shading |
 
 Every scene also returns to the menu on `ESC`.
 

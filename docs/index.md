@@ -43,7 +43,7 @@ FeatureGallery scene names are also listed in [its README](../Samples/FeatureGal
 | Prefabs & scenes | [Platformer](../Samples/Platformer) `Scenes/background.json` via `SceneLoader` | `--project Samples/Platformer/Platformer.csproj` |
 | Entity hierarchy | [Hierarchy](../Samples/FeatureGallery/Scenes/Hierarchy) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene Hierarchy` |
 | 2D rendering | [Platformer](../Samples/Platformer); [Pong](../Samples/Pong) | `--project Samples/Platformer/Platformer.csproj` |
-| 3D lighting | [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox), [Damaged Helmet](../Samples/FeatureGallery/Scenes/DamagedHelmet) gallery scenes; [SponzaNight](../Samples/SponzaNight) for `LightFlicker` | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
+| 3D lighting | [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox), [Damaged Helmet](../Samples/FeatureGallery/Scenes/DamagedHelmet), [Spot Lights](../Samples/FeatureGallery/Scenes/SpotLights) gallery scenes; [SponzaNight](../Samples/SponzaNight) for `LightFlicker` | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
 | Shadows | [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox) (directional); [SponzaNight](../Samples/SponzaNight) (moving sun + point lights) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
 | Instancing | [Benchmarks](../Samples/Benchmarks) `instancing` / `crowd` | `--project Samples/Benchmarks -- instancing` |
 | Fog | [SponzaNight](../Samples/SponzaNight) | `--project Samples/SponzaNight/SponzaNight.csproj` |
