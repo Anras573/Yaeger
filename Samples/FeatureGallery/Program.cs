@@ -1,5 +1,6 @@
 using FeatureGallery;
 using FeatureGallery.Scenes.BouncingBalls;
+using FeatureGallery.Scenes.CameraRig;
 using FeatureGallery.Scenes.CornellBox;
 using FeatureGallery.Scenes.DamagedHelmet;
 using FeatureGallery.Scenes.Hierarchy;
@@ -33,6 +34,7 @@ Func<IDemoScene>[] scenes =
     () => new PostProcessingScene(),
     () => new HierarchyScene(),
     () => new RaycastScene(),
+    () => new CameraRigScene(),
 ];
 
 _ = new SceneHost(window, scenes, ParseSceneArg(args));
