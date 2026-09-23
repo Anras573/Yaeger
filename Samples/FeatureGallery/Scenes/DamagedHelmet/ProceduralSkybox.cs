@@ -1,7 +1,7 @@
 using System.Numerics;
 using SkiaSharp;
 
-namespace DamagedHelmet;
+namespace FeatureGallery.Scenes.DamagedHelmet;
 
 /// <summary>
 /// Generates the six faces of a simple procedural sky cubemap — a vertical gradient from a warm

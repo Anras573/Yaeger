@@ -113,8 +113,8 @@ window.OnRender += _ =>
 };
 ```
 
-See `Samples/CornellBox` for a running example (an additive ember emitter and a velocity-stretched
-spark emitter).
+See `Samples/FeatureGallery/Scenes/CornellBox` for a running example (an additive ember emitter and
+a velocity-stretched spark emitter).
 
 ### The `ParticleEmitter3D` component
 

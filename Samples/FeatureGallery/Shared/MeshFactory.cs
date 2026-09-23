@@ -1,10 +1,34 @@
 using System.Numerics;
 using Yaeger.Rendering;
 
-namespace SequenceDemo;
+namespace FeatureGallery.Shared;
 
 internal static class MeshFactory
 {
+    // Creates a flat quad from 4 vertices in CCW order (when viewed from the normal side).
+    // Tangent is inferred from the first edge.
+    public static MeshData CreateQuad(
+        string name,
+        Vector3 v0,
+        Vector3 v1,
+        Vector3 v2,
+        Vector3 v3,
+        Vector3 normal
+    )
+    {
+        var tangent = Vector3.Normalize(v1 - v0);
+        return new MeshData(
+            name,
+            [
+                new Vertex3D(v0, normal, new Vector2(0f, 0f), tangent),
+                new Vertex3D(v1, normal, new Vector2(1f, 0f), tangent),
+                new Vertex3D(v2, normal, new Vector2(1f, 1f), tangent),
+                new Vertex3D(v3, normal, new Vector2(0f, 1f), tangent),
+            ],
+            [0u, 1u, 2u, 0u, 2u, 3u]
+        );
+    }
+
     // Creates a unit box centred at the origin with outward-facing normals on all six faces.
     // Scale, rotate, and position via Transform3D to get the desired shape and placement.
     public static MeshData CreateBox(string name)

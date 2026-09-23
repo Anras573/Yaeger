@@ -18,6 +18,10 @@ dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene Mou
 **Note:** Requires a display. `System.PlatformNotSupportedException` in headless environments is
 expected.
 
+**Note:** The Skinned Mesh, Sponza, and Damaged Helmet scenes load glTF models via AssimpLoader and
+require native libassimp at runtime (e.g. `apt install libassimp-dev` on Linux). Their model assets
+are fetched automatically on first build (skipped in CI) — see `Assets.targets`.
+
 ## Scenes
 
 | Scene | `--scene` name | Controls |
@@ -25,6 +29,13 @@ expected.
 | Mouse | `Mouse` | LMB (hold): paint sprites at the cursor · RMB: clear · Scroll wheel: resize the painted sprite |
 | Text Rendering | `Text Rendering` | None — a static showcase of font loading, the glyph atlas, and SDF text rendering across mixed sizes |
 | Bouncing Balls | `Bouncing Balls` | `SPACE`: toggle the collider-wireframe debug overlay |
+| Cornell Box | `Cornell Box` | WASD move, Q/E up/down, RMB-drag look, `F1`: toggle inspector |
+| Tween | `Tween` | None — a static camera watching data-driven tweens play out |
+| Sequence | `Sequence` | `SPACE`: skip to end · `R`: restart |
+| Skinned Mesh | `Skinned Mesh` | WASD move, Q/E up/down, RMB-drag look |
+| Sponza | `Sponza` | WASD move, Q/E up/down, RMB-drag look, `F1`: toggle inspector |
+| Damaged Helmet | `Damaged Helmet` | LMB-drag: orbit · scroll: zoom · `SPACE`: pause auto-orbit · `F1`: toggle inspector |
+| Post-Processing | `Post-Processing` | `B`: bloom · `V`: vignette · `T`: tone-map operator · `P`: toggle stack |
 
 Every scene also returns to the menu on `ESC`.
 

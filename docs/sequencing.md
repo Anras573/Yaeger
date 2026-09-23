@@ -24,7 +24,8 @@ window.OnUpdate += dt => sequenceSystem.Update((float)dt);
 
 `SequenceSystem` implements `IUpdateSystem` and lives in `Yaeger.Core` (no `Window`/GL dependency,
 same as `TransformHierarchySystem`/`TweenSystem`), so it works in headless tests as well as native
-games. See `Samples/SequenceDemo` for a complete multi-beat sequence.
+games. See `Samples/FeatureGallery/Scenes/Sequence` for a complete multi-beat sequence
+(`dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene Sequence`).
 
 ## Building a sequence: `SequenceBuilder`
 

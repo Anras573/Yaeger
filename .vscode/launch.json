@@ -17,18 +17,6 @@
             "projectPath": "${workspaceFolder}/Samples/FeatureGallery/FeatureGallery.csproj"
         },
         {
-            "name": "C#: Sponza Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/Sponza/Sponza.csproj"
-        },
-        {
-            "name": "C#: SkinnedMeshDemo Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/SkinnedMeshDemo/SkinnedMeshDemo.csproj"
-        },
-        {
             "name": "C#: SceneDemo Debug",
             "type": "dotnet",
             "request": "launch",
@@ -57,18 +45,6 @@
             "type": "dotnet",
             "request": "launch",
             "projectPath": "${workspaceFolder}/Samples/ParticleDemo/ParticleDemo.csproj"
-        },
-        {
-            "name": "C#: DamagedHelmet Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/DamagedHelmet/DamagedHelmet.csproj"
-        },
-        {
-            "name": "C#: CornellBox Debug",
-            "type": "dotnet",
-            "request": "launch",
-            "projectPath": "${workspaceFolder}/Samples/CornellBox/CornellBox.csproj"
         },
         {
             "name": "C#: CameraDemo Debug",

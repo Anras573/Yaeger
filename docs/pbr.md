@@ -189,8 +189,9 @@ material is flagged as PBR when the importer surfaces any metallic/roughness dat
 provides the metallic/roughness factor keys, whereas OBJ/MTL (Blinn-Phong) never does. Existing
 Blinn-Phong scenes therefore keep `UsePbr = false` and render exactly as before.
 
-The `Sponza` sample loads the KhronosGroup Sponza glTF and renders it through the PBR path; the
-`CornellBox` sample uses hand-authored Blinn-Phong materials.
+The `Samples/FeatureGallery/Scenes/Sponza` scene loads the KhronosGroup Sponza glTF and renders it
+through the PBR path; the `Samples/FeatureGallery/Scenes/CornellBox` scene uses hand-authored
+Blinn-Phong materials.
 
 ## Transparency
 

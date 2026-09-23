@@ -7,7 +7,7 @@ works for both 2D and 3D scenes, so it doubles as a lightweight 3D scene editor 
 render pass ends; with the recommended ordering below (scene first, overlay last) that is after the
 scene was drawn this frame, so the change shows up in the running game on the next frame.
 
-See it in action in [`Samples/CornellBox`](../Samples/CornellBox) — press **F1** to toggle the
+See it in action in [`Samples/FeatureGallery/Scenes/CornellBox`](../Samples/FeatureGallery/Scenes/CornellBox) — press **F1** to toggle the
 overlay, then drag entity values around while the scene renders.
 
 ## Wiring it up

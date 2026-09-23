@@ -1,7 +1,14 @@
 using FeatureGallery;
 using FeatureGallery.Scenes.BouncingBalls;
+using FeatureGallery.Scenes.CornellBox;
+using FeatureGallery.Scenes.DamagedHelmet;
 using FeatureGallery.Scenes.Mouse;
+using FeatureGallery.Scenes.PostProcessing;
+using FeatureGallery.Scenes.Sequence;
+using FeatureGallery.Scenes.SkinnedMesh;
+using FeatureGallery.Scenes.Sponza;
 using FeatureGallery.Scenes.TextRendering;
+using FeatureGallery.Scenes.Tween;
 using Yaeger.Windowing;
 
 // FeatureGallery: one window, a menu listing small single-feature demo scenes, switch between
@@ -15,6 +22,13 @@ Func<IDemoScene>[] scenes =
     () => new MouseScene(),
     () => new TextRenderingScene(),
     () => new BouncingBallsScene(),
+    () => new CornellBoxScene(),
+    () => new TweenScene(),
+    () => new SequenceScene(),
+    () => new SkinnedMeshScene(),
+    () => new SponzaScene(),
+    () => new DamagedHelmetScene(),
+    () => new PostProcessingScene(),
 ];
 
 _ = new SceneHost(window, scenes, ParseSceneArg(args));

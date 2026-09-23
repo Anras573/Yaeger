@@ -311,7 +311,7 @@ default) leaves its entities uncullable, same as before this existed.
   accounts for. Not a concern for typical rig/clip authoring, and out of scope for now — see
   [Frustum culling](#frustum-culling).
 
-See [`Samples/SkinnedMeshDemo`](../Samples/SkinnedMeshDemo) for a complete example that plays the
+See [`Samples/FeatureGallery/Scenes/SkinnedMesh`](../Samples/FeatureGallery/Scenes/SkinnedMesh) for a complete example that plays the
 KhronosGroup CesiumMan walk cycle, and
 [`Samples/CrowdDemo`](../Samples/CrowdDemo) for many characters sharing one skeleton drawing through
 the instanced skinning path (see docs/instancing.md#instanced-skinning).
