@@ -30,13 +30,13 @@ At `Zoom = 1` with window aspect ratio `A`, the visible world span is `[-A, A] �
 var renderSystem = new UnifiedRenderSystem(renderer, null, world, window);
 ```
 
-If you omit the `Window`, `UnifiedRenderSystem` skips camera updates and the renderer keeps whatever view-projection it was last set to (identity by default). Samples that don't need a camera (`Pong`, `FeatureGallery`'s Bouncing Balls scene, `Animation2D`, `Benchmarks`' `sprites` benchmark) pass no window and render in NDC.
+If you omit the `Window`, `UnifiedRenderSystem` skips camera updates and the renderer keeps whatever view-projection it was last set to (identity by default). Samples that don't need a camera (`Pong`, `FeatureGallery`'s Bouncing Balls scene, `Benchmarks`' `sprites` benchmark) pass no window and render in NDC.
 
 If multiple `Camera2D` entities exist, the **first one** encountered during iteration wins. There's no `MainCamera` tag component yet — add one when you need deterministic multi-camera selection.
 
 ## World-space sprites vs screen-space text
 
-`Renderer` applies the camera; `TextRenderer` does **not**. This is deliberate: in most 2D games, sprites are world objects (move with the camera) and text is UI (stays pinned). See `Samples/CameraDemo` for a direct demonstration — the HUD text stays at the top-left as the camera pans.
+`Renderer` applies the camera; `TextRenderer` does **not**. This is deliberate: in most 2D games, sprites are world objects (move with the camera) and text is UI (stays pinned). See `Samples/Platformer`'s HUD (built with the UI system, which is likewise always screen-space) for a direct demonstration — it stays at the top-left as the camera pans.
 
 If you need world-anchored labels (e.g., a name floating above a sprite), position a text entity at the anchor's world coordinates and multiply through manually, or file an issue and we can add a `UseCamera` flag to `Text`.
 
@@ -88,8 +88,9 @@ viewport on an axis (bounds smaller than the visible span), that axis is centere
 own midpoint instead of clamped — there's no position that avoids showing past the edge there
 anyway.
 
-See `Samples/CameraDemo` — press Space to toggle between manual pan/zoom/rotate and follow mode,
-where WASD moves a red target square that the camera tracks within the level bounds.
+See `Samples/Platformer` — it runs `CameraFollow` + `CameraBounds.FromTilemap` by default; press
+`C` to toggle a debug free camera (`Systems/DebugCameraSystem.cs`) that swaps it out for manual
+WASD pan, Q/E zoom, and arrow-key rotate, the same `Camera2D` API demonstrated standalone before.
 
 ### Known limitations
 

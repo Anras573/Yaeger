@@ -5,8 +5,9 @@ engine: UI elements are ordinary entities carrying UI components, updated by `Ui
 by `UiRenderSystem`. Everything is **screen-space** (pixel coordinates, origin at the top-left of
 the window) and deliberately ignores the `Camera2D` — a HUD stays put while the world scrolls.
 
-See it in action in [`Samples/UiDemo`](../Samples/UiDemo): a Play/Quit main menu that switches to
-a live-updating HUD.
+See it in action in [`Samples/Platformer`](../Samples/Platformer) (`Systems/GameFlowSystem.cs`): a
+title screen (Play/Quit), a pause menu (Resume/Restart/Quit to title), and a live-updating HUD
+(coins, lives).
 
 ## Components
 

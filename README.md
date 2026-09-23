@@ -79,15 +79,11 @@ For more information about testing, see the [Testing Guide](docs/TESTING.md).
 - `Samples/` - Example games and demos
   - `Pong/` - Classic Pong game implementation
   - `FeatureGallery/` - One window, a menu of small single-feature demo scenes (Mouse input, Text Rendering, Bouncing Balls, ...)
-  - `Animation2D/` - Sprite-sheet animation demo
-  - `CameraDemo/` - Opt-in 2D camera (pan / zoom / rotate)
-  - `ParticleDemo/` - Particle effects (fire, smoke, explosions)
-  - `SceneDemo/` - JSON scene loading
+  - `Platformer/` - Complete 2D platformer: physics, tilemaps, camera follow (+ a debug free camera), animation (state machine and plain), parallax, particles, UI (title/pause/HUD), pooled one-shot audio, and scene/prefab loading — see [`Samples/Platformer/README.md`](Samples/Platformer/README.md) for a feature -> file table
   - `CornellBox/` - 3D Cornell Box + F1 editor overlay
   - `Sponza/` - glTF Sponza scene rendered through the PBR path
   - `DamagedHelmet/` - glTF DamagedHelmet model with skybox, lights, and an orbiting camera
   - `SkinnedMeshDemo/` - glTF skeletal animation (GPU skinning) demo
-  - `UiDemo/` - UI system demo (menu + HUD with buttons, panels, labels)
   - `BrowserDemo/` - Blazor/WebAssembly interactive paddle-and-ball demo (keyboard, mouse & touch)
   - `Benchmarks/` - Perf smoke tests (sprite batching, mesh instancing, crowd/skinning instancing), one clean process per benchmark
   - `PostProcessingDemo/` - Render-to-texture post-processing (vignette + bloom, toggled at runtime)

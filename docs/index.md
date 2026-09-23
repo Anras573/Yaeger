@@ -83,18 +83,14 @@ src/Engine/
 ```
 Samples/
 ├── Pong/                    # Classic Pong game
-├── Platformer/              # Full 2D platformer level — the platformer-support epic's integration proof
+├── Platformer/              # Full 2D platformer level — title/pause UI, particles, pooled one-shot
+│                            #   audio, scene-loaded decorations, debug free camera, animation
+│                            #   (state machine + plain) — see Samples/Platformer/README.md
 ├── FeatureGallery/          # One window, a menu of small single-feature demo scenes (Mouse, Text Rendering,
 │                            #   Bouncing Balls, Cornell Box, Tween, Sequence, Skinned Mesh, Sponza,
 │                            #   Damaged Helmet, Post-Processing, ...)
-├── Animation2D/             # Sprite-sheet animation demo
-├── CameraDemo/              # Opt-in 2D camera demo
-├── ParticleDemo/            # Particle effects demo (fire, smoke, explosions)
-├── SceneDemo/               # JSON scene loading demo
-├── UiDemo/                  # UI system demo (menu + HUD with buttons, panels, labels)
 ├── BrowserDemo/             # Blazor/WebAssembly interactive paddle-and-ball demo
 ├── Benchmarks/              # Perf smoke tests (sprites, instancing, crowd) — one clean process per benchmark
-├── OneShotAudioDemo/        # Pooled one-shot positional SFX under sustained overlapping fire
 └── SponzaNight/             # Living Sponza: braziers, a patrolling knight, and a day/night cycle
 ```
 

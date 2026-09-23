@@ -344,8 +344,8 @@ No entity, no component, and no cleanup — the call plays the sound and returns
 `oneShotVoiceBudget`, default 32), each backed by one OpenAL source that's recycled once its
 playback finishes rather than created and destroyed per call — so firing hundreds of one-shots a
 second never approaches OpenAL's own source ceiling. Size the budget to the platform you're
-targeting; `Samples/OneShotAudioDemo` deliberately uses a small budget (8) so the stealing policy
-below is exercised continuously rather than only in a rare worst case.
+targeting; `Samples/Platformer` uses a budget of 16 so a burst of nearby coin pickups, jumps, and
+stomps can never exhaust playback slots.
 
 When every voice is busy, the next `PlayOneShot` call either steals one or is dropped, decided by
 `AudioSystem.OneShotStealPolicy` (constructor parameter `oneShotStealPolicy`, settable at any time
@@ -387,9 +387,9 @@ not listener-relative — see "Interaction with non-positional playback" above),
 neither path affects the other's voice budget. Disposing `AudioSystem` releases every voice in the
 pool alongside every `AudioSource3D` source it owns.
 
-See `Samples/OneShotAudioDemo` for a working example: a deliberately small voice budget under
-constant overlapping fire, with the steal policy swappable live (keys 1–4) and a high-priority
-subset of impacts (drawn gold) that are never stolen by the rest.
+See `Samples/Platformer` (`Program.cs`) for a working example: jump/coin/stomp SFX all routed
+through one `AudioSystem.PlayOneShot` call apiece instead of a dedicated `SoundSource` each, with
+death impacts given a higher `priority` so they're never stolen by an ambient coin pickup.
 
 ## Out of scope
 
