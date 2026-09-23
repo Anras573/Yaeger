@@ -233,4 +233,4 @@ See `Samples/FeatureGallery/Scenes/SkinnedMesh`, `Samples/FeatureGallery/Scenes/
 
 - [`Samples/Platformer`](../Samples/Platformer) — `CameraFollow` + `CameraBounds.FromTilemap` by default; **C** swaps in a manual pan/zoom/rotate `Camera2D` (`Systems/DebugCameraSystem.cs`): `dotnet run --project Samples/Platformer/Platformer.csproj`
 - [`Samples/FeatureGallery/Scenes/CornellBox`](../Samples/FeatureGallery/Scenes/CornellBox) (and the `Sponza`/`SkinnedMesh` scenes) — `FreeFlyCameraSystem`: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"`
-- The 3D camera rig's target tracking, `Transform3D` bridge and `CameraShake` aren't in a sample yet — see `tests/Yaeger.Tests/Systems/CameraRigSystemTests.cs`.
+- [`Samples/FeatureGallery/Scenes/CameraRig`](../Samples/FeatureGallery/Scenes/CameraRig) — the `Transform3D` bridge, `LookAtTarget`, and `CameraShake`, toggled live with `1`/`2`/`3`: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Camera Rig"`
