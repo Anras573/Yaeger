@@ -5,6 +5,7 @@ using FeatureGallery.Scenes.DamagedHelmet;
 using FeatureGallery.Scenes.Hierarchy;
 using FeatureGallery.Scenes.Mouse;
 using FeatureGallery.Scenes.PostProcessing;
+using FeatureGallery.Scenes.Raycast;
 using FeatureGallery.Scenes.Sequence;
 using FeatureGallery.Scenes.SkinnedMesh;
 using FeatureGallery.Scenes.Sponza;
@@ -31,6 +32,7 @@ Func<IDemoScene>[] scenes =
     () => new DamagedHelmetScene(),
     () => new PostProcessingScene(),
     () => new HierarchyScene(),
+    () => new RaycastScene(),
 ];
 
 _ = new SceneHost(window, scenes, ParseSceneArg(args));

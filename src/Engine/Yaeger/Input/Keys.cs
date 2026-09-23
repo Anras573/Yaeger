@@ -31,5 +31,7 @@ public enum Keys
     O,
     Plus,
     Minus,
+    M,
+    Shift,
     // Add more keys as needed
 }
