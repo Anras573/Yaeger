@@ -316,3 +316,9 @@ KhronosGroup CesiumMan walk cycle, and
 [`Samples/Benchmarks`](../Samples/Benchmarks) (its `crowd` benchmark) for many characters sharing
 one skeleton drawing through the instanced skinning path (see
 docs/instancing.md#instanced-skinning).
+
+## See it in action
+
+- [`Samples/FeatureGallery/Scenes/SkinnedMesh`](../Samples/FeatureGallery/Scenes/SkinnedMesh) — the CesiumMan walk cycle: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Skinned Mesh"`
+- [`Samples/SponzaNight`](../Samples/SponzaNight) — the knight's speed-driven idle/walk `SkeletalAnimationStateMachine`: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`
+- [`Samples/Benchmarks`](../Samples/Benchmarks) `crowd` — many characters through instanced skinning: `dotnet run --project Samples/Benchmarks -- crowd`

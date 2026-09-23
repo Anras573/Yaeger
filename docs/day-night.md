@@ -225,3 +225,7 @@ per-entity scene data, so it's supplied in code.
 - [shadows.md](shadows.md) — the shadow rig the moving sun feeds
 - [pbr.md](pbr.md) — where the ambient term lands in the shading model
 - [sky.md](sky.md) — `ProceduralSky`, driven the same "auto-picked-up" way as `CelestialLight`
+
+## See it in action
+
+[`Samples/SponzaNight`](../Samples/SponzaNight) — `TimeOfDay` driving sun/moon, ambient, fog and exposure; **←/→** scrub the clock, **Space** freezes it: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`

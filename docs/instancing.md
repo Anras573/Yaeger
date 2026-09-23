@@ -106,3 +106,8 @@ sharing two materials, printing FPS and both draw-call counts once per second. P
   (`PointShadowMapRenderer`) always take the immediate per-entity skinning path regardless of
   `SkeletonHandle`/group size — out of scope for now, consistent with point/spot shadows being out
   of scope for GPU skinning generally (see docs/shadows.md).
+
+## See it in action
+
+- [`Samples/Benchmarks`](../Samples/Benchmarks) `instancing` — a box grid collapsing to a couple of draw calls, **I** toggles instancing: `dotnet run --project Samples/Benchmarks -- instancing`
+- [`Samples/Benchmarks`](../Samples/Benchmarks) `crowd` — instanced skinning: `dotnet run --project Samples/Benchmarks -- crowd`

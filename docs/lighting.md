@@ -169,3 +169,10 @@ once. See [day-night.md](day-night.md).
 entities around a glTF model, and is the reference for the `Skybox` component: it registers a
 procedurally generated cubemap in a `CubemapRegistry` and passes a `SkyboxRenderer` to
 `MeshRenderSystem`.
+
+## See it in action
+
+- [`Samples/FeatureGallery/Scenes/CornellBox`](../Samples/FeatureGallery/Scenes/CornellBox) — directional + coloured `PointLight`s: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"`
+- [`Samples/FeatureGallery/Scenes/DamagedHelmet`](../Samples/FeatureGallery/Scenes/DamagedHelmet) — sun plus fill/rim point lights, cubemap `Skybox`: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Damaged Helmet"`
+- [`Samples/SponzaNight`](../Samples/SponzaNight) — `LightFlicker` braziers: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`
+- `SpotLight` isn't in a sample yet — see `tests/Yaeger.Tests/Graphics/SpotLightTests.cs`.

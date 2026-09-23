@@ -32,6 +32,44 @@ Yaeger is a modular, experimental 2D/3D game engine written in C#. It provides a
 - **Asset hot-reload** — opt-in, dev-time watcher that re-uploads changed textures and re-instantiates changed scenes without restarting ([asset-hot-reload.md](asset-hot-reload.md))
 - Extensible component and system design
 
+## Where to see it
+
+Each feature doc ends with a **See it in action** section; this is the same map in one place.
+FeatureGallery scene names are also listed in [its README](../Samples/FeatureGallery/README.md).
+
+| Feature | Where | `dotnet run …` |
+|---|---|---|
+| ECS | [Pong](../Samples/Pong) — the minimal end-to-end game | `--project Samples/Pong/Pong.csproj` |
+| Prefabs & scenes | [Platformer](../Samples/Platformer) `Scenes/background.json` via `SceneLoader` | `--project Samples/Platformer/Platformer.csproj` |
+| Entity hierarchy | Not in a sample yet — `tests/Yaeger.Tests/Systems/TransformHierarchySystemTests.cs` | — |
+| 2D rendering | [Platformer](../Samples/Platformer); [Pong](../Samples/Pong) | `--project Samples/Platformer/Platformer.csproj` |
+| 3D lighting | [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox), [Damaged Helmet](../Samples/FeatureGallery/Scenes/DamagedHelmet) gallery scenes; [SponzaNight](../Samples/SponzaNight) for `LightFlicker` | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
+| Shadows | [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox) (directional); [SponzaNight](../Samples/SponzaNight) (moving sun + point lights) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
+| Instancing | [Benchmarks](../Samples/Benchmarks) `instancing` / `crowd` | `--project Samples/Benchmarks -- instancing` |
+| Fog | [SponzaNight](../Samples/SponzaNight) | `--project Samples/SponzaNight/SponzaNight.csproj` |
+| PBR / IBL | [Sponza](../Samples/FeatureGallery/Scenes/Sponza) (minimal PBR), [Damaged Helmet](../Samples/FeatureGallery/Scenes/DamagedHelmet) (IBL) gallery scenes | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Damaged Helmet"` |
+| Sky | [SponzaNight](../Samples/SponzaNight) (`ProceduralSky`); [Damaged Helmet](../Samples/FeatureGallery/Scenes/DamagedHelmet) (cubemap `Skybox`) | `--project Samples/SponzaNight/SponzaNight.csproj` |
+| Day/night cycle | [SponzaNight](../Samples/SponzaNight) — ←/→ scrub, Space freezes | `--project Samples/SponzaNight/SponzaNight.csproj` |
+| Post-processing | [Post-Processing](../Samples/FeatureGallery/Scenes/PostProcessing) gallery scene; [SponzaNight](../Samples/SponzaNight) (HDR bloom) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Post-Processing"` |
+| Skeletal animation | [Skinned Mesh](../Samples/FeatureGallery/Scenes/SkinnedMesh) gallery scene; [SponzaNight](../Samples/SponzaNight) knight; [Benchmarks](../Samples/Benchmarks) `crowd` | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Skinned Mesh"` |
+| 3D path following | [SponzaNight](../Samples/SponzaNight) — the patrolling knight | `--project Samples/SponzaNight/SponzaNight.csproj` |
+| 2D camera | [Platformer](../Samples/Platformer) — follow + bounds; **C** for the manual debug camera | `--project Samples/Platformer/Platformer.csproj` |
+| 3D camera rig | `FreeFlyCameraSystem` in the [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox)/Sponza/Skinned Mesh scenes; target tracking and shake not in a sample yet — `tests/Yaeger.Tests/Systems/CameraRigSystemTests.cs` | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
+| 2D animation | [Platformer](../Samples/Platformer) — player state machine + plain NPC `Animation` | `--project Samples/Platformer/Platformer.csproj` |
+| Particles | 2D: [Platformer](../Samples/Platformer/Systems/ParticleEffectsSystem.cs); 3D: [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox), [SponzaNight](../Samples/SponzaNight) fire | `--project Samples/Platformer/Platformer.csproj` |
+| Tweening | [Tween](../Samples/FeatureGallery/Scenes/Tween) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Tween"` |
+| Sequencing | [Sequence](../Samples/FeatureGallery/Scenes/Sequence) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Sequence"` |
+| Tilemaps | [Platformer](../Samples/Platformer) (code-built); Tiled `.tmj` import not in a sample yet — `tests/Yaeger.Tests/ECS/TiledMapLoaderTests.cs` | `--project Samples/Platformer/Platformer.csproj` |
+| 2D physics | [Platformer](../Samples/Platformer) (character controller, platforms); [Bouncing Balls](../Samples/FeatureGallery/Scenes/BouncingBalls) gallery scene (impulse resolution) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Bouncing Balls"` |
+| 3D queries | Not in a sample yet — `tests/Yaeger.Tests/Physics/WorldRaycastExtensionsTests.cs` | — |
+| Audio | [Platformer](../Samples/Platformer) (streamed music, pooled one-shots); [Damaged Helmet](../Samples/FeatureGallery/Scenes/DamagedHelmet) (`AudioSource3D`) | `--project Samples/Platformer/Platformer.csproj` |
+| Text rendering | [Text Rendering](../Samples/FeatureGallery/Scenes/TextRendering) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Text Rendering"` |
+| UI | [Platformer](../Samples/Platformer/Systems/GameFlowSystem.cs) (title/pause/HUD); the FeatureGallery menu itself | `--project Samples/Platformer/Platformer.csproj` |
+| Input | Mouse: [Mouse](../Samples/FeatureGallery/Scenes/Mouse) gallery scene; keyboard + gamepad: [Platformer](../Samples/Platformer); touch: [BrowserDemo](../Samples/BrowserDemo) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Mouse"` |
+| Editor overlay | **F1** in the [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox), Sponza and Damaged Helmet scenes, and [SponzaNight](../Samples/SponzaNight) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
+| Asset hot-reload | Not in a sample yet — `tests/Yaeger.Tests/Assets/HotReload/` | — |
+| Browser / WebAssembly | [BrowserDemo](../Samples/BrowserDemo) | `--project Samples/BrowserDemo/BrowserDemo.csproj` |
+
 ## Quick Start
 
 ### Prerequisites
@@ -82,16 +120,12 @@ src/Engine/
 
 ```
 Samples/
-├── Pong/                    # Classic Pong game
-├── Platformer/              # Full 2D platformer level — title/pause UI, particles, pooled one-shot
-│                            #   audio, scene-loaded decorations, debug free camera, animation
-│                            #   (state machine + plain) — see Samples/Platformer/README.md
-├── FeatureGallery/          # One window, a menu of small single-feature demo scenes (Mouse, Text Rendering,
-│                            #   Bouncing Balls, Cornell Box, Tween, Sequence, Skinned Mesh, Sponza,
-│                            #   Damaged Helmet, Post-Processing, ...)
-├── BrowserDemo/             # Blazor/WebAssembly interactive paddle-and-ball demo
-├── Benchmarks/              # Perf smoke tests (sprites, instancing, crowd) — one clean process per benchmark
-└── SponzaNight/             # Living Sponza: braziers, a patrolling knight, and a day/night cycle
+├── Pong/            # Minimal hello-world: a complete game in one Program.cs
+├── Platformer/      # 2D showcase — physics, tilemap, camera, animation, particles, UI, audio, scenes
+├── SponzaNight/     # 3D showcase — day/night, procedural sky, fog, fire, shadows, skinned knight, HDR bloom
+├── FeatureGallery/  # One window, a menu of small single-feature scenes (2D and 3D); --scene <Name> to jump in
+├── Benchmarks/      # Perf smoke tests (sprites, instancing, crowd), one clean process each
+└── BrowserDemo/     # Blazor/WebAssembly host on the WebGL 2.0 backend
 ```
 
 ## License

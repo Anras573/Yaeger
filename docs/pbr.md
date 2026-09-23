@@ -244,3 +244,8 @@ pipeline and no general blend-state API — `Additive` is a second fixed blend f
 Both shading paths accumulate a directional light plus any point and spot lights in the scene. See
 [lighting.md](lighting.md) for the `DirectionalLight`, `PointLight`, and `SpotLight` components and
 their falloff behaviour.
+
+## See it in action
+
+- [`Samples/FeatureGallery/Scenes/Sponza`](../Samples/FeatureGallery/Scenes/Sponza) — the minimal glTF PBR reference: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Sponza"`
+- [`Samples/FeatureGallery/Scenes/DamagedHelmet`](../Samples/FeatureGallery/Scenes/DamagedHelmet) — PBR with image-based lighting from a prefiltered skybox: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Damaged Helmet"`

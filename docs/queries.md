@@ -72,3 +72,7 @@ no rendering dependency) so it can be unit-tested independent of a live window.
 over the same method — one implementation instead of two copies of the slab test, so world
 queries and viewport picking agree on every edge case (ray starting inside the box, a ray
 parallel to a slab, zero-thickness bounds).
+
+## See it in action
+
+No sample exercises this yet — the unit tests are the runnable reference: `tests/Yaeger.Tests/Physics/WorldRaycastExtensionsTests.cs`.

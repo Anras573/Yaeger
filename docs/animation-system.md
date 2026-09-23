@@ -310,3 +310,7 @@ reported the same way any `Animation` reports it: read `AnimationState.IsFinishe
   }
 }
 ```
+
+## See it in action
+
+[`Samples/Platformer`](../Samples/Platformer) — the player's idle/run/jump/fall `AnimationStateMachine` and `Sprite.FlipX` facing (`Program.cs`), plus a plain looping `Animation` on the decorative NPC in `Scenes/background.json`: `dotnet run --project Samples/Platformer/Platformer.csproj`

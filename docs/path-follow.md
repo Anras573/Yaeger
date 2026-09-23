@@ -117,3 +117,7 @@ spinning forever.
 - [physics.md](physics.md#platformpath-optional) — the 2D counterpart
 - [tweening.md](tweening.md), [sequencing.md](sequencing.md) — for scripted, one-off beats instead
   of a looping patrol
+
+## See it in action
+
+[`Samples/SponzaNight`](../Samples/SponzaNight) — the knight's `PathFollow3D` patrol around the atrium: `dotnet run --project Samples/SponzaNight/SponzaNight.csproj`

@@ -100,3 +100,8 @@ by hand — the systems only care about the components.
 required), then labels are delegated to the text renderer using the single default font passed at
 construction. Buttons pick their colour from `UiButtonState` (`Pressed` > `Hovered` > `Normal`),
 so hover/press feedback needs no game code.
+
+## See it in action
+
+- [`Samples/Platformer/Systems/GameFlowSystem.cs`](../Samples/Platformer/Systems/GameFlowSystem.cs) — title screen, pause menu and HUD: `dotnet run --project Samples/Platformer/Platformer.csproj`
+- [`Samples/FeatureGallery/SceneHost.cs`](../Samples/FeatureGallery/SceneHost.cs) — the gallery's own scene menu.

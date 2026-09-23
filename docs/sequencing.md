@@ -129,3 +129,7 @@ footgun it would be anywhere else in the engine.
 - No JSON/DSL cutscene file format — sequences are authored in code via `SequenceBuilder` only.
 - No branching, conditional graphs, or behaviour trees — steps are a flat ordered/parallel tree.
 - No rewind or scrubbing backwards; a sequence only ever moves forward (or is skipped to its end).
+
+## See it in action
+
+[`Samples/FeatureGallery/Scenes/Sequence`](../Samples/FeatureGallery/Scenes/Sequence) — lift, doors and reveal beats; **Space** skips to the end, **R** restarts: `dotnet run --project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Sequence"`

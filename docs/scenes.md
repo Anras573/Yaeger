@@ -199,3 +199,9 @@ returned from `Deserialize` cover it.
 - [hierarchy.md](hierarchy.md) — `world.DestroyHierarchy`, the cascading counterpart to `DestroyEntity`
 - [`asset-hot-reload.md`](asset-hot-reload.md) — watching a scene file for changes and re-instantiating via `SceneHotReload`
 - `docs/` — the broader engine docs index
+
+## See it in action
+
+[`Samples/Platformer`](../Samples/Platformer) — `Scenes/background.json` (parallax layers and an animated NPC) loaded via `SceneLoader` in `Program.cs`: `dotnet run --project Samples/Platformer/Platformer.csproj`
+
+No sample loads a standalone prefab through `PrefabLoader` yet — see `tests/Yaeger.Tests/ECS/PrefabLoaderTests.cs`.
