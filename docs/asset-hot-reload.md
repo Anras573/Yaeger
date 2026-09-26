@@ -114,4 +114,12 @@ keeps whatever it already had.
 
 ## See it in action
 
-No sample exercises this yet — the unit tests are the runnable reference: `tests/Yaeger.Tests/Assets/HotReload/`.
+`Samples/FeatureGallery/Scenes/HotReload/HotReloadScene.cs` (menu entry `Hot Reload`) wires this up
+exactly as shown above, plus a HUD showing the absolute path being watched and the last reload
+event. Edit `Samples/FeatureGallery/Assets/HotReload/scene.json` (move a sprite, change a tint) or
+overwrite `square.png`/`circle.png` in that same folder while the scene is running — the change
+shows up within about a second, no restart. In a Debug build the scene loads from, and watches,
+that source folder directly (found by walking up from `AppContext.BaseDirectory` for the directory
+containing `FeatureGallery.csproj`); a published build falls back to watching its own output-folder
+copy under `bin/`, since the source tree isn't deployed alongside it. The unit tests are the
+runnable reference for the lower-level pieces: `tests/Yaeger.Tests/Assets/HotReload/`.

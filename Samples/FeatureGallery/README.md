@@ -40,6 +40,7 @@ are fetched automatically on first build (skipped in CI) — see `Assets.targets
 | Raycast | `Raycast` | WASD/Q/E move, RMB-drag look · LMB: raycast (nearest hit) · Shift+LMB: raycast all · `M`: cycle layer mask |
 | Camera Rig | `Camera Rig` | `1`: mounted (rides the cart) · `2`: tracking (fixed position, looks at the cart) · `3`: free (WASD/Q/E, RMB-drag look) · `+`/`-`: tracking smoothing · `Space`: camera shake |
 | Spot Lights | `Spot Lights` | WASD/Q/E move, RMB-drag look · `F`: toggle camera-following flashlight · `[`/`]`: narrow/widen all cone angles · `P`: toggle PBR shading |
+| Hot Reload | `Hot Reload` | None — edit `Assets/HotReload/scene.json` (position, tint) or overwrite `square.png`/`circle.png` in the same folder while the scene runs; the HUD shows the absolute path being watched and the last reload. In a Debug build that's the source `Samples/FeatureGallery/Assets/HotReload/` folder; a published build watches its own output-folder copy instead |
 
 Every scene also returns to the menu on `ESC`.
 
