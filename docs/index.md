@@ -67,7 +67,7 @@ FeatureGallery scene names are also listed in [its README](../Samples/FeatureGal
 | UI | [Platformer](../Samples/Platformer/Systems/GameFlowSystem.cs) (title/pause/HUD); the FeatureGallery menu itself | `--project Samples/Platformer/Platformer.csproj` |
 | Input | Mouse: [Mouse](../Samples/FeatureGallery/Scenes/Mouse) gallery scene; keyboard + gamepad: [Platformer](../Samples/Platformer); touch: [BrowserDemo](../Samples/BrowserDemo) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Mouse"` |
 | Editor overlay | **F1** in the [Cornell Box](../Samples/FeatureGallery/Scenes/CornellBox), Sponza and Damaged Helmet scenes, and [SponzaNight](../Samples/SponzaNight) | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Cornell Box"` |
-| Asset hot-reload | Not in a sample yet — `tests/Yaeger.Tests/Assets/HotReload/` | — |
+| Asset hot-reload | [Hot Reload](../Samples/FeatureGallery/Scenes/HotReload) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene "Hot Reload"` |
 | Browser / WebAssembly | [BrowserDemo](../Samples/BrowserDemo) | `--project Samples/BrowserDemo/BrowserDemo.csproj` |
 
 ## Quick Start

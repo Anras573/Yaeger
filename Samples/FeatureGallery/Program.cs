@@ -4,6 +4,7 @@ using FeatureGallery.Scenes.CameraRig;
 using FeatureGallery.Scenes.CornellBox;
 using FeatureGallery.Scenes.DamagedHelmet;
 using FeatureGallery.Scenes.Hierarchy;
+using FeatureGallery.Scenes.HotReload;
 using FeatureGallery.Scenes.Mouse;
 using FeatureGallery.Scenes.PostProcessing;
 using FeatureGallery.Scenes.Raycast;
@@ -37,6 +38,7 @@ Func<IDemoScene>[] scenes =
     () => new RaycastScene(),
     () => new CameraRigScene(),
     () => new SpotLightsScene(),
+    () => new HotReloadScene(),
 ];
 
 _ = new SceneHost(window, scenes, ParseSceneArg(args));

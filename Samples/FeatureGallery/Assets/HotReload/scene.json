@@ -1,0 +1,25 @@
+{
+  "entities": [
+    {
+      "tag": "hotreload-square",
+      "components": [
+        { "type": "Sprite", "texturePath": "square.png", "tint": [235, 120, 90, 255] },
+        { "type": "Transform2D", "position": [-0.45, 0.2], "scale": [0.3, 0.3] }
+      ]
+    },
+    {
+      "tag": "hotreload-circle",
+      "components": [
+        { "type": "Sprite", "texturePath": "circle.png", "tint": [110, 180, 235, 255] },
+        { "type": "Transform2D", "position": [0.45, 0.2], "scale": [0.3, 0.3] }
+      ]
+    },
+    {
+      "tag": "hotreload-circle-2",
+      "components": [
+        { "type": "Sprite", "texturePath": "circle.png", "tint": [140, 220, 140, 255] },
+        { "type": "Transform2D", "position": [0.0, -0.45], "scale": [0.22, 0.22] }
+      ]
+    }
+  ]
+}

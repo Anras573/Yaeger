@@ -40,6 +40,15 @@ public class Renderer : IRenderSurface, IDisposable
 
     private Matrix4x4 _viewProjection = Matrix4x4.Identity;
 
+    /// <summary>
+    /// The texture cache this renderer draws from. Exposed so a caller can re-upload a changed
+    /// texture in place via <see cref="TextureManager.Reload"/> (dev-time asset hot-reload, see
+    /// <c>docs/asset-hot-reload.md</c>) — every quad already queued or submitted with that path
+    /// picks up the change with no handle churn, since <see cref="RenderBatch"/> resolves the
+    /// texture by path from this same instance on every flush.
+    /// </summary>
+    public TextureManager Textures => _textureManager;
+
     public Renderer(Window window)
     {
         _gl = window.Gl;
