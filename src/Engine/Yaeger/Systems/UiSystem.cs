@@ -1,6 +1,7 @@
 using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Input;
+using Yaeger.Platform;
 using Yaeger.UI;
 
 namespace Yaeger.Systems;
@@ -10,15 +11,15 @@ namespace Yaeger.Systems;
 /// and a <see cref="UiButton"/>, then writes the result to <see cref="UiButtonState"/>.
 /// Call <see cref="Update"/> from your game's update loop before rendering.
 /// </summary>
-public class UiSystem(World world) : IUpdateSystem
+public class UiSystem(World world, IInputState inputState) : IUpdateSystem
 {
     private bool _wasMousePressed;
     private readonly HashSet<Entity> _pressStartedOn = [];
 
     public void Update(float deltaTime)
     {
-        var mousePos = Mouse.Position;
-        var isMousePressed = Mouse.IsButtonPressed(MouseButton.Left);
+        var mousePos = inputState.MousePosition;
+        var isMousePressed = inputState.IsMouseButtonPressed(MouseButton.Left);
         var pressStartedThisFrame = !_wasMousePressed && isMousePressed;
 
         foreach ((Entity entity, UiRect rect, UiButton _) in world.Query<UiRect, UiButton>())

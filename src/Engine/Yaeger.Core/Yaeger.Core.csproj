@@ -60,8 +60,12 @@
       Link="Systems\TransformHierarchySystem.cs"
     />
     <Compile Include="..\Yaeger\Systems\TweenSystem.cs" Link="Systems\TweenSystem.cs" />
+    <Compile Include="..\Yaeger\Systems\UiSystem.cs" Link="Systems\UiSystem.cs" />
     <Compile Include="..\Yaeger\Input\Keys.cs" Link="Input\Keys.cs" />
     <Compile Include="..\Yaeger\Input\MouseButton.cs" Link="Input\MouseButton.cs" />
     <Compile Include="..\Yaeger\Input\GamepadButton.cs" Link="Input\GamepadButton.cs" />
+    <Compile Include="..\Yaeger\UI\UiRect.cs" Link="UI\UiRect.cs" />
+    <Compile Include="..\Yaeger\UI\UiButton.cs" Link="UI\UiButton.cs" />
+    <Compile Include="..\Yaeger\UI\UiButtonState.cs" Link="UI\UiButtonState.cs" />
   </ItemGroup>
 </Project>

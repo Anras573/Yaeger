@@ -57,7 +57,7 @@ public sealed class GameFlowSystem
         Lives = startingLives;
         _windowSize = window.Size;
 
-        _uiSystem = new UiSystem(world);
+        _uiSystem = new UiSystem(world, new NativeInputState());
         _uiRenderSystem = new UiRenderSystem(world, uiRenderer, textRenderer, font, window);
 
         ShowTitleMenu();
