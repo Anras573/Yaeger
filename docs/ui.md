@@ -33,7 +33,7 @@ var fontManager = new FontManager();
 var font = fontManager.Load("Assets/Roboto-Regular.ttf");
 var textRenderer = new TextRenderer(window, fontManager);
 var uiRenderer = new UiRenderer(window);
-var uiSystem = new UiSystem(world);
+var uiSystem = new UiSystem(world, new NativeInputState());
 var uiRenderSystem = new UiRenderSystem(world, uiRenderer, textRenderer, font, window);
 
 window.OnLoad += () =>
@@ -78,6 +78,13 @@ Ordering rules:
 - **Update:** call `uiSystem.Update(dt)` before any game code that polls `UiButtonState`.
 - **Render:** call `uiRenderSystem.Render()` **after** the game render systems so the UI overlays
   the scene. (If you also use the `ImGuiInspector` editor overlay, that still goes last of all.)
+
+`UiSystem` (and the `UiRect`/`UiButton`/`UiButtonState` components it hit-tests) take a
+`Yaeger.Platform.IInputState` rather than calling the native `Mouse` class directly, so they
+compile into `Yaeger.Core` and work anywhere an `IInputState` exists — pass `NativeInputState` on
+desktop or `BrowserInputState` in a `Yaeger.Browser` game to get click/tap hit-testing there too
+(including touch, since `BrowserInputState` maps `pointerdown`/`pointerup` onto the same mouse
+state). `UiRenderSystem` still requires a native `Window` and isn't available in the browser.
 
 ## UiBuilder
 

@@ -4,6 +4,7 @@ using Yaeger.ECS;
 using Yaeger.Font;
 using Yaeger.Graphics;
 using Yaeger.Input;
+using Yaeger.Platform;
 using Yaeger.Rendering;
 using Yaeger.Systems;
 using Yaeger.UI;
@@ -51,7 +52,7 @@ public sealed class SceneHost
         _font = _fontManager.Load("Assets/Shared/Roboto-Regular.ttf");
         _textRenderer = new TextRenderer(window, _fontManager);
         _uiRenderer = new UiRenderer(window);
-        _uiSystem = new UiSystem(_menuWorld);
+        _uiSystem = new UiSystem(_menuWorld, new NativeInputState());
         _uiRenderSystem = new UiRenderSystem(_menuWorld, _uiRenderer, _textRenderer, _font, window);
 
         window.OnLoad += OnLoad;

@@ -1,51 +1,29 @@
 using System.Numerics;
-using System.Reflection;
 using Yaeger.ECS;
 using Yaeger.Input;
+using Yaeger.Platform;
 using Yaeger.Systems;
 using Yaeger.UI;
 
 namespace Yaeger.Tests.Systems;
 
-// Tests mutate static Mouse state — prevent cross-class races with xUnit's parallel runner.
-[CollectionDefinition("Sequential", DisableParallelization = true)]
-public class SequentialCollection { }
-
-[Collection("Sequential")]
-public class UiSystemTests : IDisposable
+public class UiSystemTests
 {
-    private static readonly FieldInfo PositionField = RequireField(typeof(Mouse), "_position");
-    private static readonly FieldInfo PressedButtonsField = RequireField(
-        typeof(Mouse),
-        "PressedButtons"
-    );
-
-    private static FieldInfo RequireField(Type type, string name)
+    private sealed class FakeInputState : IInputState
     {
-        return type.GetField(name, BindingFlags.NonPublic | BindingFlags.Static)
-            ?? throw new InvalidOperationException(
-                $"{type.Name}.{name} was not found — was Mouse refactored?"
-            );
+        public Vector2 MousePosition { get; set; }
+        public bool MouseButtonPressed { get; set; }
+
+        public bool IsKeyPressed(Keys key) => false;
+
+        public bool IsMouseButtonPressed(MouseButton button) =>
+            button == MouseButton.Left && MouseButtonPressed;
+
+        public Vector2 MousePositionNdc => Vector2.Zero;
+        public float ScrollDelta => 0f;
     }
 
-    private static void SetMousePosition(Vector2 pos) => PositionField.SetValue(null, pos);
-
-    private static void SetMouseButton(bool pressed)
-    {
-        var set = (HashSet<MouseButton>)PressedButtonsField.GetValue(null)!;
-        if (pressed)
-            set.Add(MouseButton.Left);
-        else
-            set.Remove(MouseButton.Left);
-    }
-
-    public void Dispose()
-    {
-        SetMousePosition(Vector2.Zero);
-        SetMouseButton(false);
-    }
-
-    private static (World world, Entity button, UiSystem system) CreateScene(
+    private static (World world, Entity button, UiSystem system, FakeInputState input) CreateScene(
         float x,
         float y,
         float w,
@@ -59,14 +37,15 @@ public class UiSystemTests : IDisposable
             new UiRect { Position = new Vector2(x, y), Size = new Vector2(w, h) }
         );
         world.AddComponent(entity, new UiButton());
-        return (world, entity, new UiSystem(world));
+        var input = new FakeInputState();
+        return (world, entity, new UiSystem(world, input), input);
     }
 
     [Fact]
     public void Update_WhenMouseOutsideButton_ShouldNotSetIsHovered()
     {
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
-        SetMousePosition(new Vector2(50, 50));
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
+        input.MousePosition = new Vector2(50, 50);
 
         system.Update(0f);
 
@@ -79,8 +58,8 @@ public class UiSystemTests : IDisposable
     [Fact]
     public void Update_WhenMouseInsideButton_ShouldSetIsHovered()
     {
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
-        SetMousePosition(new Vector2(150, 120));
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
+        input.MousePosition = new Vector2(150, 120);
 
         system.Update(0f);
 
@@ -93,8 +72,8 @@ public class UiSystemTests : IDisposable
     [Fact]
     public void Update_WhenMouseOnTopLeftCorner_ShouldSetIsHovered()
     {
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
-        SetMousePosition(new Vector2(100, 100)); // inclusive left/top edge
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
+        input.MousePosition = new Vector2(100, 100); // inclusive left/top edge
 
         system.Update(0f);
 
@@ -104,8 +83,8 @@ public class UiSystemTests : IDisposable
     [Fact]
     public void Update_WhenMouseOnBottomRightEdge_ShouldNotSetIsHovered()
     {
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
-        SetMousePosition(new Vector2(300, 150)); // exclusive right/bottom edge
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
+        input.MousePosition = new Vector2(300, 150); // exclusive right/bottom edge
 
         system.Update(0f);
 
@@ -115,9 +94,9 @@ public class UiSystemTests : IDisposable
     [Fact]
     public void Update_WhenMousePressedInsideButton_ShouldSetIsPressed()
     {
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
-        SetMousePosition(new Vector2(150, 120));
-        SetMouseButton(true);
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
+        input.MousePosition = new Vector2(150, 120);
+        input.MouseButtonPressed = true;
 
         system.Update(0f);
 
@@ -130,13 +109,13 @@ public class UiSystemTests : IDisposable
     [Fact]
     public void Update_WhenMouseReleasedOverButton_ShouldSetWasClicked()
     {
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
-        SetMousePosition(new Vector2(150, 120));
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
+        input.MousePosition = new Vector2(150, 120);
 
-        SetMouseButton(true);
+        input.MouseButtonPressed = true;
         system.Update(0f); // press frame
 
-        SetMouseButton(false);
+        input.MouseButtonPressed = false;
         system.Update(0f); // release frame
 
         Assert.True(world.GetComponent<UiButtonState>(entity).WasClicked);
@@ -145,14 +124,14 @@ public class UiSystemTests : IDisposable
     [Fact]
     public void Update_WhenMouseReleasedOutsideButton_ShouldNotSetWasClicked()
     {
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
 
-        SetMousePosition(new Vector2(150, 120));
-        SetMouseButton(true);
+        input.MousePosition = new Vector2(150, 120);
+        input.MouseButtonPressed = true;
         system.Update(0f); // press inside
 
-        SetMousePosition(new Vector2(50, 50)); // move outside before release
-        SetMouseButton(false);
+        input.MousePosition = new Vector2(50, 50); // move outside before release
+        input.MouseButtonPressed = false;
         system.Update(0f); // release outside
 
         Assert.False(world.GetComponent<UiButtonState>(entity).WasClicked);
@@ -162,16 +141,16 @@ public class UiSystemTests : IDisposable
     public void Update_WhenPressStartedOutsideButton_ShouldNotSetWasClicked()
     {
         // Regression: holding mouse down elsewhere and dragging into a button must not click.
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
 
-        SetMousePosition(new Vector2(50, 50)); // outside
-        SetMouseButton(true);
+        input.MousePosition = new Vector2(50, 50); // outside
+        input.MouseButtonPressed = true;
         system.Update(0f); // press started outside — button not added to _pressStartedOn
 
-        SetMousePosition(new Vector2(150, 120)); // drag inside while still pressed
+        input.MousePosition = new Vector2(150, 120); // drag inside while still pressed
         system.Update(0f); // isHovered=true, but pressStartedThisFrame=false → not registered
 
-        SetMouseButton(false);
+        input.MouseButtonPressed = false;
         system.Update(0f); // release inside — must NOT fire WasClicked
 
         Assert.False(world.GetComponent<UiButtonState>(entity).WasClicked);
@@ -180,13 +159,13 @@ public class UiSystemTests : IDisposable
     [Fact]
     public void Update_WasClicked_ShouldBeTrueForExactlyOneFrame()
     {
-        var (world, entity, system) = CreateScene(100, 100, 200, 50);
-        SetMousePosition(new Vector2(150, 120));
+        var (world, entity, system, input) = CreateScene(100, 100, 200, 50);
+        input.MousePosition = new Vector2(150, 120);
 
-        SetMouseButton(true);
+        input.MouseButtonPressed = true;
         system.Update(0f);
 
-        SetMouseButton(false);
+        input.MouseButtonPressed = false;
         system.Update(0f); // release frame — WasClicked must be true here
         Assert.True(world.GetComponent<UiButtonState>(entity).WasClicked);
 
