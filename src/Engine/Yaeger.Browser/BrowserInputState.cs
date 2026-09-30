@@ -99,6 +99,13 @@ public sealed class BrowserInputState : IInputState
             Keys.Num1 => "Digit1",
             Keys.Num2 => "Digit2",
             Keys.Num3 => "Digit3",
+            Keys.Num4 => "Digit4",
+            Keys.Num5 => "Digit5",
+            Keys.Num6 => "Digit6",
+            Keys.Num7 => "Digit7",
+            Keys.Num8 => "Digit8",
+            Keys.Num9 => "Digit9",
+            Keys.Num0 => "Digit0",
             _ => key.ToString(),
         };
 }
