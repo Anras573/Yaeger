@@ -43,6 +43,12 @@ public static class KeyMapper
         { Key.F, Keys.F },
         { Key.LeftBracket, Keys.LeftBracket },
         { Key.RightBracket, Keys.RightBracket },
+        { Key.Number0, Keys.Num0 },
+        { Key.Number5, Keys.Num5 },
+        { Key.Number6, Keys.Num6 },
+        { Key.Number7, Keys.Num7 },
+        { Key.Number8, Keys.Num8 },
+        { Key.Number9, Keys.Num9 },
         // Add more mappings as needed
     };
 

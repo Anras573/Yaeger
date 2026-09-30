@@ -36,5 +36,11 @@ public enum Keys
     F,
     LeftBracket,
     RightBracket,
+    Num0,
+    Num5,
+    Num6,
+    Num7,
+    Num8,
+    Num9,
     // Add more keys as needed
 }
