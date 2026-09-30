@@ -10,7 +10,9 @@ public class TextureManager(GL gl) : IDisposable
     {
         if (_cache.TryGetValue(path, out var texture))
             return texture;
-        texture = new Texture(gl, path);
+        // The empty path is the engine-wide "no texture" sentinel (IRenderSurface.SolidTexturePath):
+        // it resolves to a 1x1 white texture so tinted quads render as flat colour.
+        texture = path.Length == 0 ? new Texture(gl) : new Texture(gl, path);
         _cache[path] = texture;
 
         return texture;
