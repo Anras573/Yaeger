@@ -7,7 +7,7 @@ public class Texture : IDisposable
 {
     private readonly GL _gl;
     private readonly uint _handle;
-    private readonly string _path;
+    private readonly string? _path;
 
     public int Width { get; private set; }
     public int Height { get; private set; }
@@ -67,6 +67,41 @@ public class Texture : IDisposable
         _gl.GenerateMipmap(TextureTarget.Texture2D);
     }
 
+    /// <summary>Creates a 1×1 opaque white texture, used to draw flat-coloured (untextured) quads.</summary>
+    public unsafe Texture(GL gl)
+    {
+        _gl = gl;
+        _handle = _gl.GenTexture();
+        _gl.BindTexture(TextureTarget.Texture2D, _handle);
+
+        Width = 1;
+        Height = 1;
+
+        byte* white = stackalloc byte[4] { 255, 255, 255, 255 };
+        _gl.TexImage2D(
+            TextureTarget.Texture2D,
+            0,
+            (int)InternalFormat.Rgba,
+            1,
+            1,
+            0,
+            PixelFormat.Rgba,
+            PixelType.UnsignedByte,
+            white
+        );
+
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter,
+            (int)GLEnum.Nearest
+        );
+        _gl.TexParameter(
+            TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter,
+            (int)GLEnum.Nearest
+        );
+    }
+
     /// <summary>
     /// Re-reads the file at this texture's path and re-uploads it into the existing GL handle,
     /// so every draw call already holding this <see cref="Texture"/> instance picks up the new
@@ -76,6 +111,9 @@ public class Texture : IDisposable
     /// </summary>
     public unsafe bool TryReload()
     {
+        if (_path is null)
+            return false;
+
         ImageResult image;
         try
         {
