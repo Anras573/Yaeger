@@ -152,6 +152,141 @@ function getOrLoadTexture(url) {
 }
 
 // ---------------------------------------------------------------------------
+// Text: Canvas 2D glyph atlases
+// ---------------------------------------------------------------------------
+
+const ATLAS_PAGE_SIZE = 1024;
+
+/** pathPrefix -> { family, px, dpr, pages: [{canvas, ctx, tex, dirty}], pen: {x, y, rowH}, glyphs: Map } */
+const glyphAtlases = new Map();
+
+/**
+ * Loads a font file (woff2/ttf/...) through the FontFace API and registers it under
+ * <paramref name="family"/> so Text entities can use it by that name.
+ */
+export async function fontLoad(family, url) {
+    const face = new FontFace(family, `url(${url})`);
+    await face.load();
+    document.fonts.add(face);
+}
+
+function fontCss(family, px) {
+    return `${px}px "${family}"`;
+}
+
+/** Returns [lineHeight, ascent] in CSS pixels for the font at sizePx. */
+export function fontLineMetrics(family, sizePx, dpr) {
+    const ctx = new OffscreenCanvas(1, 1).getContext('2d');
+    ctx.font = fontCss(family, sizePx * dpr);
+    const m = ctx.measureText('Mg');
+    const asc = m.fontBoundingBoxAscent ?? sizePx * dpr * 0.9;
+    const desc = m.fontBoundingBoxDescent ?? sizePx * dpr * 0.3;
+    return [(asc + desc) / dpr, asc / dpr];
+}
+
+function newAtlasPage(atlas, path) {
+    const canvas = new OffscreenCanvas(ATLAS_PAGE_SIZE, ATLAS_PAGE_SIZE);
+    const ctx = canvas.getContext('2d');
+    ctx.font = fontCss(atlas.family, atlas.px * atlas.dpr);
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#fff';
+    const page = { canvas, ctx, path, dirty: false };
+    atlas.pages.push(page);
+    atlas.pen = { x: 0, y: 0, rowH: 0 };
+    return page;
+}
+
+function uploadAtlasPage(page) {
+    if (!gl || !page.dirty) return;
+    let tex = textureCache.get(page.path);
+    if (!tex || tex === whiteTexture) {
+        tex = gl.createTexture();
+        textureCache.set(page.path, tex);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    // Same orientation as image textures: row 0 of the canvas is the top, v = 1.
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, page.canvas);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    page.dirty = false;
+}
+
+/**
+ * Rasterizes any not-yet-cached codepoints into the atlas for (family, size, dpr) and returns
+ * 11 numbers per requested codepoint:
+ *   [codepoint, page, advance, offsetX, offsetY, width, height, u0, v0, u1, v1]
+ * Lengths are in CSS pixels (raster size / dpr); offsetY is the quad bottom relative to the
+ * baseline (Y up); page -1 means no ink. Page p is the texture `${pathPrefix}${p}`.
+ */
+export function glyphAtlasEnsure(family, sizePx, dpr, pathPrefix, codepoints) {
+    let atlas = glyphAtlases.get(pathPrefix);
+    if (!atlas) {
+        atlas = { family, px: sizePx, dpr, pages: [], pen: null, glyphs: new Map() };
+        glyphAtlases.set(pathPrefix, atlas);
+    }
+
+    const out = [];
+    for (const cp of codepoints) {
+        let g = atlas.glyphs.get(cp);
+        if (!g) {
+            g = rasterizeGlyph(atlas, pathPrefix, cp);
+            atlas.glyphs.set(cp, g);
+        }
+        out.push(cp, ...g);
+    }
+    for (const page of atlas.pages) uploadAtlasPage(page);
+    return out;
+}
+
+function rasterizeGlyph(atlas, pathPrefix, cp) {
+    const { dpr } = atlas;
+    const ch = String.fromCodePoint(cp);
+    let page = atlas.pages[atlas.pages.length - 1];
+    if (!page) page = newAtlasPage(atlas, pathPrefix + '0');
+    const m = page.ctx.measureText(ch);
+    const advance = m.width / dpr;
+
+    const ink = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+    if (!(ink > 0)) return [-1, advance, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    // One pixel of padding on every side keeps linear filtering from bleeding neighbours in.
+    const L = Math.ceil(m.actualBoundingBoxLeft) + 1;
+    const R = Math.ceil(m.actualBoundingBoxRight) + 1;
+    const A = Math.ceil(m.actualBoundingBoxAscent) + 1;
+    const D = Math.ceil(m.actualBoundingBoxDescent) + 1;
+    const cw = Math.min(L + R, ATLAS_PAGE_SIZE);
+    const chh = Math.min(A + D, ATLAS_PAGE_SIZE);
+
+    let pen = atlas.pen;
+    if (pen.x + cw > ATLAS_PAGE_SIZE) {
+        pen.x = 0;
+        pen.y += pen.rowH;
+        pen.rowH = 0;
+    }
+    if (pen.y + chh > ATLAS_PAGE_SIZE) {
+        page = newAtlasPage(atlas, pathPrefix + atlas.pages.length);
+        pen = atlas.pen;
+    }
+
+    const cx = pen.x, cy = pen.y;
+    page.ctx.fillText(ch, cx + L, cy + A);
+    page.dirty = true;
+    pen.x += cw;
+    pen.rowH = Math.max(pen.rowH, chh);
+
+    const pageIndex = atlas.pages.length - 1;
+    const S = ATLAS_PAGE_SIZE;
+    return [
+        pageIndex, advance, -L / dpr, -D / dpr, cw / dpr, chh / dpr,
+        cx / S, 1 - (cy + chh) / S, (cx + cw) / S, 1 - cy / S,
+    ];
+}
+
+// ---------------------------------------------------------------------------
 // Input state  (unchanged from Canvas 2D version)
 // ---------------------------------------------------------------------------
 
@@ -469,6 +604,7 @@ export function disposeCanvas() {
             if (tex && tex !== whiteTexture) gl.deleteTexture(tex);
         });
         textureCache.clear();
+        glyphAtlases.clear();
         if (whiteTexture) { gl.deleteTexture(whiteTexture); whiteTexture = null; }
         if (vao) { gl.deleteVertexArray(vao); vao = null; }
         if (vbo) { gl.deleteBuffer(vbo); vbo = null; }
