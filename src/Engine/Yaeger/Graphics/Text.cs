@@ -3,9 +3,12 @@ namespace Yaeger.Graphics;
 /// <summary>
 /// Represents a text component that can be attached to an entity for rendering.
 /// </summary>
+/// <remarks>
+/// Platform-agnostic; native-only helpers live in <c>TextNativeExtensions</c>.
+/// </remarks>
 public record struct Text
 {
-    private Font.Font? _nativeFont;
+    private IFontHandle? _fontObject;
     private FontHandle _fontHandle;
 
     public string Content { get; set; }
@@ -17,53 +20,18 @@ public record struct Text
         {
             _ = value.Id;
             _fontHandle = value;
-            _nativeFont = null;
+            _fontObject = null;
         }
     }
 
     public int FontSize { get; set; }
     public Color Color { get; set; }
 
-    public Font.Font Font
-    {
-        get =>
-            _nativeFont
-            ?? throw new InvalidOperationException(
-                "Text does not have a native Yaeger.Font.Font instance. Use FontHandle for rendering."
-            );
-        set
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            _nativeFont = value;
-            _fontHandle = new FontHandle(value.Id);
-        }
-    }
-
     /// <summary>
-    /// Returns the native font instance when this component was created from one.
+    /// The font object this component was created from (e.g. a native font), or
+    /// <see langword="null"/> when it only carries a <see cref="FontHandle"/>.
     /// </summary>
-    public bool TryGetNativeFont(out Font.Font nativeFont)
-    {
-        if (_nativeFont is null)
-        {
-            nativeFont = default!;
-            return false;
-        }
-
-        nativeFont = _nativeFont;
-        return true;
-    }
-
-    public Text(string content, Font.Font font, int fontSize, Color color)
-    {
-        ArgumentNullException.ThrowIfNull(font);
-
-        Content = content;
-        _fontHandle = new FontHandle(font.Id);
-        FontSize = fontSize;
-        Color = color;
-        _nativeFont = font;
-    }
+    public readonly IFontHandle? FontObject => _fontObject;
 
     public Text(string content, FontHandle font, int fontSize, Color color)
     {
@@ -72,7 +40,7 @@ public record struct Text
         _fontHandle = font;
         FontSize = fontSize;
         Color = color;
-        _nativeFont = null;
+        _fontObject = null;
     }
 
     public Text(string content, IFontHandle font, int fontSize, Color color)
@@ -85,7 +53,7 @@ public record struct Text
         _fontHandle = handle;
         FontSize = fontSize;
         Color = color;
-        _nativeFont = font as Font.Font;
+        _fontObject = font is FontHandle ? null : font;
     }
 
     public void Deconstruct(

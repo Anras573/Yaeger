@@ -36,6 +36,8 @@
     <Compile Remove="Graphics\**\*.cs" />
     <Compile Remove="Physics\**\*.cs" />
     <Compile Remove="Sequencing\**\*.cs" />
+    <Compile Remove="Systems\CameraFollowSystem.cs" />
+    <Compile Remove="Systems\UnifiedRenderSystem.cs" />
     <Compile Remove="Systems\AnimationSystem.cs" />
     <Compile Remove="Systems\AnimationStateMachineSystem.cs" />
     <Compile Remove="Systems\DayNightCycleSystem.cs" />
@@ -57,7 +59,7 @@
     <Compile Remove="UI\UiButton.cs" />
     <Compile Remove="UI\UiButtonState.cs" />
     <Compile Include="Physics\PhysicsDebugRenderer.cs" />
-    <Compile Include="Graphics\Text.cs" />
+    <Compile Include="Graphics\Native\**\*.cs" />
     <Compile Include="ECS\Serializers\Native\**\*.cs" />
   </ItemGroup>
 

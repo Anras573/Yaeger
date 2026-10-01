@@ -2,7 +2,6 @@ using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Platform;
-using Yaeger.Windowing;
 
 namespace Yaeger.Systems;
 
@@ -14,7 +13,7 @@ public class UnifiedRenderSystem(
     IRenderSurface? renderer,
     ITextRenderSurface? textRenderer,
     World world,
-    Window? window = null
+    IViewport? viewport = null
 )
 {
     private readonly List<RenderCommand> _commands = Validate(renderer, textRenderer);
@@ -61,26 +60,14 @@ public class UnifiedRenderSystem(
                     break;
                 case RenderCommandKind.Text:
                     renderer?.FlushQueuedQuads();
-                    if (command.TextComponent.TryGetNativeFont(out var nativeFont))
-                    {
-                        textRenderer!.DrawText(
-                            command.TextComponent.Content,
-                            command.Transform,
-                            nativeFont,
-                            command.TextComponent.FontSize,
-                            command.TextComponent.Color
-                        );
-                    }
-                    else
-                    {
-                        textRenderer!.DrawText(
-                            command.TextComponent.Content,
-                            command.Transform,
-                            command.TextComponent.FontHandle,
-                            command.TextComponent.FontSize,
-                            command.TextComponent.Color
-                        );
-                    }
+                    textRenderer!.DrawText(
+                        command.TextComponent.Content,
+                        command.Transform,
+                        command.TextComponent.FontObject
+                            ?? (IFontHandle)command.TextComponent.FontHandle,
+                        command.TextComponent.FontSize,
+                        command.TextComponent.Color
+                    );
                     break;
                 default:
                     throw new InvalidOperationException(
@@ -235,13 +222,12 @@ public class UnifiedRenderSystem(
     {
         _activeCamera = null;
 
-        if (renderer is null || window is null)
+        if (renderer is null || viewport is null)
             return;
 
         foreach (var (_, camera) in world.GetStore<Camera2D>().All())
         {
-            var size = window.Size;
-            var aspectRatio = size.Y > 0 ? size.X / size.Y : 1f;
+            var aspectRatio = viewport.AspectRatio;
             _activeCamera = camera;
             _aspectRatio = aspectRatio;
             renderer.SetCamera(camera.ViewProjection(aspectRatio));

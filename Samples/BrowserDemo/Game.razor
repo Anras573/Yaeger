@@ -17,8 +17,12 @@
         _renderSurface = new BrowserRenderSurface("yaeger-canvas");
         _renderSurface.Initialize();
 
-        var controller = new GameController(_renderSurface);
-        YaegerBrowser.StartGameLoop(controller.Tick);
+        // "?scene=tilemap" selects the camera-followed tilemap scene; the default is the paddle demo.
+        var query = new Uri(Nav.Uri).Query;
+        Action<double> tick = query.Contains("scene=tilemap", StringComparison.OrdinalIgnoreCase)
+            ? new TilemapGameController(_renderSurface).Tick
+            : new GameController(_renderSurface).Tick;
+        YaegerBrowser.StartGameLoop(tick);
     }
 
     public void Dispose()

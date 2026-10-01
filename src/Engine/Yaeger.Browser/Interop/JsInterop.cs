@@ -22,6 +22,13 @@ internal static partial class JsInterop
     [JSImport("clearFrame", "yaeger-browser")]
     public static partial void ClearFrame();
 
+    /// <summary>
+    /// Returns <c>[clientWidth, clientHeight, devicePixelRatio]</c> of the canvas (CSS pixels).
+    /// </summary>
+    [JSImport("getViewport", "yaeger-browser")]
+    [return: JSMarshalAs<JSType.Array<JSType.Number>>]
+    public static partial double[] GetViewport();
+
     [JSImport("disposeCanvas", "yaeger-browser")]
     public static partial void DisposeCanvas();
 

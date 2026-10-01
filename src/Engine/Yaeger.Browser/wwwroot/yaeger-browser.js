@@ -395,6 +395,11 @@ export function initWebGL(canvasId) {
 /**
  * Clears the colour buffer and updates the WebGL viewport if the canvas was resized.
  */
+export function getViewport() {
+    if (!canvas) return [0, 0, window.devicePixelRatio || 1];
+    return [canvas.clientWidth, canvas.clientHeight, window.devicePixelRatio || 1];
+}
+
 export function clearFrame() {
     if (!gl) return;
 
