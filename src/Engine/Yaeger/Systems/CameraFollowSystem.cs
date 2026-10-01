@@ -2,7 +2,7 @@ using System.Numerics;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Physics.Components;
-using Yaeger.Windowing;
+using Yaeger.Platform;
 
 namespace Yaeger.Systems;
 
@@ -18,11 +18,11 @@ namespace Yaeger.Systems;
 /// (destroyed or otherwise despawned), the camera simply holds its last position for that
 /// entity this step, rather than snapping or throwing.
 /// </remarks>
-public class CameraFollowSystem(World world, Window? window = null) : IUpdateSystem
+public class CameraFollowSystem(World world, IViewport? viewport = null) : IUpdateSystem
 {
     public void Update(float deltaTime)
     {
-        var aspectRatio = ComputeAspectRatio(window);
+        var aspectRatio = viewport?.AspectRatio ?? 1f;
 
         // Query enumerates the CameraFollow store; we only write back Camera2D, so no snapshot
         // needed — iterating a different store than we're mutating.
@@ -137,14 +137,5 @@ public class CameraFollowSystem(World world, Window? window = null) : IUpdateSys
         return minCenter <= maxCenter
             ? Math.Clamp(value, minCenter, maxCenter)
             : (minCenter + maxCenter) / 2f;
-    }
-
-    private static float ComputeAspectRatio(Window? window)
-    {
-        if (window is null)
-            return 1f;
-
-        var size = window.Size;
-        return size.Y > 0 ? size.X / size.Y : 1f;
     }
 }

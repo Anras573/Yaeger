@@ -12,7 +12,7 @@ namespace Yaeger.Browser;
 /// WebGL draw call (up to 1 000 quads), matching the batching strategy of the desktop
 /// <c>Renderer</c>.
 /// </summary>
-public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDisposable
+public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IViewport, IDisposable
 {
     private const int MaxQuadsPerBatch = 1000;
     private const int VerticesPerQuad = 4;
@@ -34,6 +34,20 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
     /// </summary>
     public void Initialize() => JsInterop.InitWebGL(canvasId);
 
+    /// <summary>Canvas size in CSS pixels, as of the last <see cref="BeginFrame"/>.</summary>
+    public Vector2 Size { get; private set; } = new(1f, 1f);
+
+    /// <summary><c>devicePixelRatio</c>, as of the last <see cref="BeginFrame"/>.</summary>
+    public float PixelRatio { get; private set; } = 1f;
+
+    /// <summary>Re-reads the canvas size and device pixel ratio from the page.</summary>
+    public void RefreshViewport()
+    {
+        var v = JsInterop.GetViewport();
+        Size = new Vector2((float)v[0], (float)v[1]);
+        PixelRatio = v[2] > 0 ? (float)v[2] : 1f;
+    }
+
     public void Dispose()
     {
         BrowserInputState.EndFrame();
@@ -43,6 +57,7 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IDis
     public void BeginFrame()
     {
         BrowserInputState.BeginFrame();
+        RefreshViewport();
         JsInterop.ClearFrame();
         _submissionQueue.Clear();
     }

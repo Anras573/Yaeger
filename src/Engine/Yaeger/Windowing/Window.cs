@@ -4,10 +4,11 @@ using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 using Yaeger.Audio;
 using Yaeger.Input;
+using Yaeger.Platform;
 
 namespace Yaeger.Windowing;
 
-public sealed class Window : IDisposable
+public sealed class Window : IViewport, IDisposable
 {
     private readonly IWindow _innerWindow;
     private readonly IInputContext _inputContext;
@@ -78,6 +79,10 @@ public sealed class Window : IDisposable
     public static Window Create() => new(Silk.NET.Windowing.Window.Create(WindowOptions.Default));
 
     public Vector2 Size => new(_innerWindow.Size.X, _innerWindow.Size.Y);
+
+    /// <summary>Framebuffer-to-window size ratio (e.g. 2 on a Retina display).</summary>
+    public float PixelRatio =>
+        _innerWindow.Size.X > 0 ? (float)_innerWindow.FramebufferSize.X / _innerWindow.Size.X : 1f;
 
     #region "Events"
     // Backing fields for public events

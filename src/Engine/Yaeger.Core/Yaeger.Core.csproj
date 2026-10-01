@@ -17,7 +17,7 @@
     />
     <Compile
       Include="..\Yaeger\Graphics\**\*.cs"
-      Exclude="..\Yaeger\Graphics\Text.cs"
+      Exclude="..\Yaeger\Graphics\Native\**\*.cs"
       Link="Graphics\%(RecursiveDir)%(Filename)%(Extension)"
     />
     <Compile
@@ -28,6 +28,14 @@
     <Compile
       Include="..\Yaeger\Sequencing\**\*.cs"
       Link="Sequencing\%(RecursiveDir)%(Filename)%(Extension)"
+    />
+    <Compile
+      Include="..\Yaeger\Systems\CameraFollowSystem.cs"
+      Link="Systems\CameraFollowSystem.cs"
+    />
+    <Compile
+      Include="..\Yaeger\Systems\UnifiedRenderSystem.cs"
+      Link="Systems\UnifiedRenderSystem.cs"
     />
     <Compile Include="..\Yaeger\Systems\AnimationSystem.cs" Link="Systems\AnimationSystem.cs" />
     <Compile
