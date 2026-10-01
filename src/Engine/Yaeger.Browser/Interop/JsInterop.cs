@@ -73,4 +73,27 @@ internal static partial class JsInterop
 
     [JSImport("getAndResetScrollDelta", "yaeger-browser")]
     public static partial double GetAndResetScrollDelta();
+
+    [JSImport("fontLoad", "yaeger-browser")]
+    [return: JSMarshalAs<JSType.Promise<JSType.Void>>]
+    public static partial Task FontLoad(string family, string url);
+
+    /// <summary>Returns <c>[lineHeight, ascent]</c> in CSS pixels.</summary>
+    [JSImport("fontLineMetrics", "yaeger-browser")]
+    [return: JSMarshalAs<JSType.Array<JSType.Number>>]
+    public static partial double[] FontLineMetrics(string family, int sizePx, double dpr);
+
+    /// <summary>
+    /// Rasterizes missing glyphs and returns 11 numbers per codepoint:
+    /// <c>[codepoint, page, advance, offsetX, offsetY, width, height, u0, v0, u1, v1]</c>.
+    /// </summary>
+    [JSImport("glyphAtlasEnsure", "yaeger-browser")]
+    [return: JSMarshalAs<JSType.Array<JSType.Number>>]
+    public static partial double[] GlyphAtlasEnsure(
+        string family,
+        int sizePx,
+        double dpr,
+        string pathPrefix,
+        int[] codepoints
+    );
 }

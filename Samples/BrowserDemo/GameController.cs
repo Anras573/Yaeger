@@ -21,11 +21,20 @@ public sealed class GameController
     private readonly PaddleControlSystem _paddleSystem;
     private readonly BallMovementSystem _movementSystem;
     private readonly BrowserTimeSource _timeSource = new();
+    private readonly UnifiedRenderSystem _renderSystem;
 
     public GameController(BrowserRenderSurface renderSurface)
     {
         _renderSurface = renderSurface;
         _world = new World();
+        // Text goes through the browser's own font stack (Canvas 2D glyph atlas); "sans-serif"
+        // is a CSS family, so no font file needs loading.
+        _renderSystem = new UnifiedRenderSystem(
+            renderSurface,
+            new BrowserTextRenderSurface(renderSurface),
+            _world,
+            renderSurface
+        );
         _paddleSystem = new PaddleControlSystem(_world, _input);
         _movementSystem = new BallMovementSystem(_world);
         // Opt in: stop the arrow keys from scrolling the page while playing.
@@ -52,6 +61,33 @@ public sealed class GameController
         );
         _world.AddComponent(ball, new Sprite("", new Color(255, 140, 0)));
         _world.AddComponent(ball, new Velocity2D(0.45f, -0.6f));
+
+        // A label redrawn every frame; its glyphs come from a cached atlas, so updating the
+        // content never allocates new atlas pages.
+        var label = _world.CreateEntity("timer");
+        _world.AddComponent(label, new Transform2D(new Vector2(-0.95f, 0.88f)));
+        _world.AddComponent(
+            label,
+            new Text("Time 0.0", new FontHandle("sans-serif"), 28, new Color(255, 255, 255))
+        );
+    }
+
+    // Text lays out in pixels, so scale pixels -> NDC by the canvas size (like UiRenderSystem).
+    private void UpdateLabel()
+    {
+        if (
+            !_world.TryGetEntity("timer", out var label)
+            || !_world.TryGetComponent<Text>(label, out var text)
+            || !_world.TryGetComponent<Transform2D>(label, out var transform)
+        )
+            return;
+
+        text.Content = $"Time {_timeSource.TotalTime:F1}";
+        _world.AddComponent(label, text);
+
+        var size = _renderSurface.Size;
+        transform.Scale = new Vector2(2f / MathF.Max(size.X, 1f), 2f / MathF.Max(size.Y, 1f));
+        _world.AddComponent(label, transform);
     }
 
     /// <summary>
@@ -73,16 +109,8 @@ public sealed class GameController
 
     private void Render()
     {
-        _renderSurface.BeginFrame();
-
-        foreach (var (_, sprite, transform) in _world.Query<Sprite, Transform2D>())
-            _renderSurface.SubmitQuad(
-                transform.TransformMatrix,
-                sprite.TexturePath,
-                sprite.Tint.ToVector4()
-            );
-
-        _renderSurface.EndFrame();
+        UpdateLabel();
+        _renderSystem.Render();
     }
 }
 

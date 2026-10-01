@@ -57,3 +57,13 @@ so it works from `/` or from a sub-path such as a GitHub Pages project site
    `<base href>` and would be served instead of your edited file.
 4. Add an empty `.nojekyll` file at the site root so GitHub Pages' Jekyll doesn't drop the
    `_framework/` folder (Jekyll ignores paths starting with an underscore).
+
+## Text
+
+The paddle scene draws a live `Time` label with a `Text` entity through `UnifiedRenderSystem` and
+`BrowserTextRenderSurface`. Glyphs are rasterized by the browser (Canvas 2D `fillText`) into cached
+atlas pages at `size × devicePixelRatio`, so any CSS font works. A font handle's id is a CSS family:
+use `"sans-serif"` etc. directly, or register a file first with
+`await BrowserTextRenderSurface.LoadFontAsync("MyFont", "fonts/my.woff2")` and use
+`new FontHandle("MyFont")`. Layout (advance, newlines, word wrap, alignment) is `TextLayout` in
+`Yaeger.Core`; set `BrowserTextRenderSurface.Options` for wrap width/alignment.
