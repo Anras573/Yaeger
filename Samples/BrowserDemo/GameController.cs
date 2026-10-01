@@ -29,6 +29,8 @@ public sealed class GameController
         _world = new World();
         _paddleSystem = new PaddleControlSystem(_world, _input);
         _movementSystem = new BallMovementSystem(_world);
+        // Opt in: stop the arrow keys from scrolling the page while playing.
+        BrowserInputState.SetPreventDefaultKeys([Keys.Left, Keys.Right, Keys.Up, Keys.Down]);
         BuildScene();
     }
 

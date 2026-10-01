@@ -1,4 +1,5 @@
 using Silk.NET.Input;
+using Yaeger.Browser;
 using Yaeger.Input;
 
 namespace Yaeger.Tests.Input;
@@ -22,5 +23,54 @@ public class KeyMapperTests
 
         Assert.True(mapped);
         Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void TryGetMappedKey_ShouldCoverEveryEngineKey()
+    {
+        var mapped = new HashSet<Keys>();
+        foreach (var key in Enum.GetValues<Key>())
+        {
+            if (KeyMapper.TryGetMappedKey(key, out var result))
+                mapped.Add(result);
+        }
+
+        var missing = Enum.GetValues<Keys>().Where(k => !mapped.Contains(k)).ToList();
+        Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void GetDomCodes_ShouldCoverEveryEngineKey()
+    {
+        var missing = Enum.GetValues<Keys>()
+            .Where(k => BrowserKeyMapper.GetDomCodes(k).Count == 0)
+            .ToList();
+
+        Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void GetDomCodes_ShouldNotShareACodeBetweenKeys()
+    {
+        var duplicates = Enum.GetValues<Keys>()
+            .SelectMany(k => BrowserKeyMapper.GetDomCodes(k).Select(c => (Code: c, Key: k)))
+            .GroupBy(x => x.Code)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        Assert.Empty(duplicates);
+    }
+
+    [Theory]
+    [InlineData(Keys.B, "KeyB")]
+    [InlineData(Keys.Up, "ArrowUp")]
+    [InlineData(Keys.Num5, "Digit5")]
+    [InlineData(Keys.Shift, "ShiftRight")]
+    [InlineData(Keys.Plus, "NumpadAdd")]
+    [InlineData(Keys.F12, "F12")]
+    public void GetDomCodes_ShouldContainExpectedCode(Keys key, string code)
+    {
+        Assert.Contains(code, BrowserKeyMapper.GetDomCodes(key));
     }
 }
