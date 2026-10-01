@@ -42,5 +42,76 @@ public enum Keys
     Num7,
     Num8,
     Num9,
-    // Add more keys as needed
+
+    // Remaining letters
+    G,
+    K,
+    L,
+    N,
+    U,
+    X,
+    Y,
+    Z,
+
+    // Function keys (F1 is declared above)
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+
+    // Editing and navigation
+    Tab,
+    Enter,
+    Backspace,
+    Delete,
+    Insert,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+
+    // Modifiers (left and right variants are merged, like Shift)
+    Control,
+    Alt,
+    Super,
+
+    // Punctuation (Plus covers the = key, Minus the - key; see KeyMapper)
+    Comma,
+    Period,
+    Slash,
+    Backslash,
+    Semicolon,
+    Apostrophe,
+    GraveAccent,
+
+    // Locks and system keys
+    CapsLock,
+    NumLock,
+    ScrollLock,
+    PrintScreen,
+    Pause,
+    Menu,
+
+    // Numeric keypad (keypad + and - are merged into Plus/Minus)
+    Keypad0,
+    Keypad1,
+    Keypad2,
+    Keypad3,
+    Keypad4,
+    Keypad5,
+    Keypad6,
+    Keypad7,
+    Keypad8,
+    Keypad9,
+    KeypadDecimal,
+    KeypadDivide,
+    KeypadMultiply,
+    KeypadEnter,
 }

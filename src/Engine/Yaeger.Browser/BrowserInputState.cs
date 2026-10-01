@@ -46,7 +46,15 @@ public sealed class BrowserInputState : IInputState
         _frameStarted = false;
     }
 
-    public bool IsKeyPressed(Keys key) => JsInterop.IsKeyPressed(ToJsKey(key));
+    public bool IsKeyPressed(Keys key)
+    {
+        foreach (var code in BrowserKeyMapper.GetDomCodes(key))
+        {
+            if (JsInterop.IsKeyPressed(code))
+                return true;
+        }
+        return false;
+    }
 
     public bool IsMouseButtonPressed(MouseButton button) =>
         JsInterop.IsMouseButtonPressed(ToDomButton(button));
@@ -75,37 +83,4 @@ public sealed class BrowserInputState : IInputState
     /// <see cref="EndFrame"/> allows the next frame to snapshot again.
     /// </summary>
     public float ScrollDelta => _scrollDelta;
-
-    private static string ToJsKey(Keys key) =>
-        key switch
-        {
-            Keys.W => "KeyW",
-            Keys.A => "KeyA",
-            Keys.S => "KeyS",
-            Keys.D => "KeyD",
-            Keys.Q => "KeyQ",
-            Keys.E => "KeyE",
-            Keys.R => "KeyR",
-            Keys.I => "KeyI",
-            Keys.J => "KeyJ",
-            Keys.H => "KeyH",
-            Keys.C => "KeyC",
-            Keys.Space => "Space",
-            Keys.Escape => "Escape",
-            Keys.Up => "ArrowUp",
-            Keys.Down => "ArrowDown",
-            Keys.Left => "ArrowLeft",
-            Keys.Right => "ArrowRight",
-            Keys.Num1 => "Digit1",
-            Keys.Num2 => "Digit2",
-            Keys.Num3 => "Digit3",
-            Keys.Num4 => "Digit4",
-            Keys.Num5 => "Digit5",
-            Keys.Num6 => "Digit6",
-            Keys.Num7 => "Digit7",
-            Keys.Num8 => "Digit8",
-            Keys.Num9 => "Digit9",
-            Keys.Num0 => "Digit0",
-            _ => key.ToString(),
-        };
 }
