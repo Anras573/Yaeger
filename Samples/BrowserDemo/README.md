@@ -36,3 +36,9 @@ browser with WebGL 2.0 support works.
 - **`Game.razor`** — loads the `yaeger-browser` JS module, then hands a `DotNetObjectReference`
   to `startGameLoop` (in `wwwroot/index.html`) which pumps `requestAnimationFrame` into
   `GameController.Tick`.
+
+## Keyboard defaults
+
+The browser's default key behaviour (arrows/Space scrolling, Tab moving focus, F5 reloading) is left
+alone unless you opt in. Call `BrowserInputState.SetPreventDefaultKeys([Keys.Space, Keys.Up, ...])` to
+suppress it for specific keys; pass an empty list to restore defaults.

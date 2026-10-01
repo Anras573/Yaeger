@@ -38,6 +38,9 @@ internal static partial class JsInterop
     [JSImport("isKeyPressed", "yaeger-browser")]
     public static partial bool IsKeyPressed(string key);
 
+    [JSImport("setPreventDefaultKeys", "yaeger-browser")]
+    public static partial void SetPreventDefaultKeys(string[] codes);
+
     [JSImport("isMouseButtonPressed", "yaeger-browser")]
     public static partial bool IsMouseButtonPressed(int button);
 

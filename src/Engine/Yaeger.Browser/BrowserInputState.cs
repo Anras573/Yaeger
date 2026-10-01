@@ -46,6 +46,17 @@ public sealed class BrowserInputState : IInputState
         _frameStarted = false;
     }
 
+    /// <summary>
+    /// Opts the given keys out of the browser's default behaviour (page scroll on Space/arrows,
+    /// focus change on Tab, reload on F5, ...) while the page has focus. Replaces any previous
+    /// list; pass an empty collection to restore defaults. Nothing is suppressed by default.
+    /// Browser/OS shortcuts the page can't intercept (e.g. Ctrl+W) are unaffected.
+    /// </summary>
+    public static void SetPreventDefaultKeys(IEnumerable<Keys> keys) =>
+        JsInterop.SetPreventDefaultKeys([
+            .. keys.SelectMany(BrowserKeyMapper.GetDomCodes).Distinct(),
+        ]);
+
     public bool IsKeyPressed(Keys key)
     {
         foreach (var code in BrowserKeyMapper.GetDomCodes(key))

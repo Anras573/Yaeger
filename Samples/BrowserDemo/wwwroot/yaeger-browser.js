@@ -156,6 +156,8 @@ function getOrLoadTexture(url) {
 // ---------------------------------------------------------------------------
 
 const pressedKeys = new Set();
+// DOM key codes whose browser default (scroll, focus change, reload, ...) is suppressed.
+let preventDefaultKeys = new Set();
 let mouseX = 0;
 let mouseY = 0;
 let scrollDelta = 0;
@@ -203,7 +205,11 @@ function setupInputListeners() {
         if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
     };
 
-    keyDownHandler = (e) => { if (e.code) pressedKeys.add(e.code); };
+    keyDownHandler = (e) => {
+        if (!e.code) return;
+        pressedKeys.add(e.code);
+        if (preventDefaultKeys.has(e.code)) e.preventDefault();
+    };
     keyUpHandler = (e) => { if (e.code) pressedKeys.delete(e.code); };
 
     pointerMoveHandler = (e) => {
@@ -471,6 +477,10 @@ export function disposeCanvas() {
     mouseX = 0;
     mouseY = 0;
     canvas = null;
+}
+
+export function setPreventDefaultKeys(codes) {
+    preventDefaultKeys = new Set(codes);
 }
 
 export function isKeyPressed(key) {
