@@ -42,3 +42,16 @@ browser with WebGL 2.0 support works.
 The browser's default key behaviour (arrows/Space scrolling, Tab moving focus, F5 reloading) is left
 alone unless you opt in. Call `BrowserInputState.SetPreventDefaultKeys([Keys.Space, Keys.Up, ...])` to
 suppress it for specific keys; pass an empty list to restore defaults.
+
+## Hosting under a sub-path (GitHub Pages)
+
+The demo resolves `yaeger-browser.js` (and relative texture paths) against the app's `<base href>`,
+so it works from `/` or from a sub-path such as a GitHub Pages project site
+(`https://user.github.io/repo/`). To host it under a sub-path:
+
+1. Publish: `dotnet publish Samples/BrowserDemo -c Release -o pub`, and deploy `pub/wwwroot`.
+2. In the deployed `index.html`, change `<base href="/" />` to `<base href="/repo/" />`.
+3. Delete the precompressed `index.html.br` and `index.html.gz` — they still contain the old
+   `<base href>` and would be served instead of your edited file.
+4. Add an empty `.nojekyll` file at the site root so GitHub Pages' Jekyll doesn't drop the
+   `_framework/` folder (Jekyll ignores paths starting with an underscore).

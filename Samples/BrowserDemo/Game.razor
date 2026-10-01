@@ -1,4 +1,5 @@
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 @implements IAsyncDisposable
 
 <canvas id="yaeger-canvas"></canvas>
@@ -13,7 +14,7 @@
             return;
 
         // Load the Yaeger interop ES module so all [JSImport] functions become available.
-        await JSHost.ImportAsync("yaeger-browser", "/yaeger-browser.js");
+        await JSHost.ImportAsync("yaeger-browser", Nav.BaseUri + "yaeger-browser.js");
 
         _renderSurface = new BrowserRenderSurface("yaeger-canvas");
         _renderSurface.Initialize();
