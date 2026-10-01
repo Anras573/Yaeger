@@ -33,8 +33,10 @@ browser with WebGL 2.0 support works.
 - **`PaddleControlSystem`** — reads `IInputState.IsKeyPressed` for keyboard control and
   `IsMouseButtonPressed` / `MousePositionNdc` for pointer control, so the same code path drives
   the paddle from a mouse on desktop or a finger on mobile.
-- **`Game.razor`** — loads the `yaeger-browser` JS module, then hands a `DotNetObjectReference`
-  to `startGameLoop` (in `wwwroot/index.html`) which pumps `requestAnimationFrame` into
+- **`Game.razor`** — calls `YaegerBrowser.InitializeAsync(Nav.BaseUri)` to import the
+  `yaeger-browser.js` module that `Yaeger.Browser` ships as a static web asset
+  (`_content/Yaeger.Browser/yaeger-browser.js`, no copy needed), then
+  `YaegerBrowser.StartGameLoop(controller.Tick)` pumps `requestAnimationFrame` into
   `GameController.Tick`.
 
 ## Keyboard defaults
@@ -45,7 +47,7 @@ suppress it for specific keys; pass an empty list to restore defaults.
 
 ## Hosting under a sub-path (GitHub Pages)
 
-The demo resolves `yaeger-browser.js` (and relative texture paths) against the app's `<base href>`,
+The demo resolves the packaged `yaeger-browser.js` (and relative texture paths) against the app's `<base href>`,
 so it works from `/` or from a sub-path such as a GitHub Pages project site
 (`https://user.github.io/repo/`). To host it under a sub-path:
 

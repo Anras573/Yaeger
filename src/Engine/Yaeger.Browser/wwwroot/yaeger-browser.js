@@ -514,3 +514,31 @@ export function getAndResetScrollDelta() {
     scrollDelta = 0;
     return delta;
 }
+
+// --- requestAnimationFrame pump ------------------------------------------------------------
+// Drives the game loop from JS and calls straight into a C# callback, so hosts don't need a
+// DotNetObjectReference / invokeMethodAsync round trip per frame.
+let rafRunning = false;
+let rafHandle = 0;
+
+export function startGameLoop(tick) {
+    if (rafRunning) return;
+    rafRunning = true;
+    function loop(timestamp) {
+        if (!rafRunning) return;
+        try {
+            tick(timestamp);
+        } catch (err) {
+            console.error('[Yaeger] Game loop error:', err);
+            rafRunning = false;
+            return;
+        }
+        if (rafRunning) rafHandle = requestAnimationFrame(loop);
+    }
+    rafHandle = requestAnimationFrame(loop);
+}
+
+export function stopGameLoop() {
+    rafRunning = false;
+    cancelAnimationFrame(rafHandle);
+}

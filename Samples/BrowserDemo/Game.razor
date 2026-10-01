@@ -1,11 +1,9 @@
-@inject IJSRuntime JS
 @inject NavigationManager Nav
-@implements IAsyncDisposable
+@implements IDisposable
 
 <canvas id="yaeger-canvas"></canvas>
 
 @code {
-    private DotNetObjectReference<GameController>? _controllerRef;
     private BrowserRenderSurface? _renderSurface;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -13,23 +11,19 @@
         if (!firstRender)
             return;
 
-        // Load the Yaeger interop ES module so all [JSImport] functions become available.
-        await JSHost.ImportAsync("yaeger-browser", Nav.BaseUri + "yaeger-browser.js");
+        // Load the packaged Yaeger interop module so all [JSImport] functions become available.
+        await YaegerBrowser.InitializeAsync(Nav.BaseUri);
 
         _renderSurface = new BrowserRenderSurface("yaeger-canvas");
         _renderSurface.Initialize();
 
         var controller = new GameController(_renderSurface);
-        _controllerRef = DotNetObjectReference.Create(controller);
-
-        // Hand a reference to the controller to the JS game loop pump.
-        await JS.InvokeVoidAsync("startGameLoop", _controllerRef);
+        YaegerBrowser.StartGameLoop(controller.Tick);
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        await JS.InvokeVoidAsync("stopGameLoop");
+        YaegerBrowser.StopGameLoop();
         _renderSurface?.Dispose();
-        _controllerRef?.Dispose();
     }
 }

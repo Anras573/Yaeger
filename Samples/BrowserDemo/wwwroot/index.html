@@ -26,27 +26,6 @@
         <span class="dismiss">&#10006;</span>
     </div>
 
-    <script>
-        // Drives the requestAnimationFrame game loop by invoking the C# Tick method.
-        let _rafRunning = false;
-
-        function startGameLoop(dotnetRef) {
-            if (_rafRunning) return;
-            _rafRunning = true;
-            function loop(timestamp) {
-                if (!_rafRunning) return;
-                dotnetRef.invokeMethodAsync('Tick', timestamp)
-                    .then(() => { if (_rafRunning) requestAnimationFrame(loop); })
-                    .catch((err) => console.error('[Yaeger] Game loop error:', err));
-            }
-            requestAnimationFrame(loop);
-        }
-
-        function stopGameLoop() {
-            _rafRunning = false;
-        }
-    </script>
-
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
 </body>
 
