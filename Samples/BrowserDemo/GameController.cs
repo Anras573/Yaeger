@@ -1,5 +1,4 @@
 using System.Numerics;
-using Microsoft.JSInterop;
 using Yaeger.Browser;
 using Yaeger.ECS;
 using Yaeger.Graphics;
@@ -11,8 +10,8 @@ using Yaeger.Systems;
 namespace BrowserDemo;
 
 /// <summary>
-/// Owns the ECS world and drives the game loop.  Each tick is invoked by JavaScript's
-/// <c>requestAnimationFrame</c> via <see cref="Tick"/>.
+/// Owns the ECS world and drives the game loop.  Each tick is invoked by the
+/// <c>requestAnimationFrame</c> pump in <see cref="YaegerBrowser.StartGameLoop"/>.
 /// </summary>
 public sealed class GameController
 {
@@ -56,10 +55,9 @@ public sealed class GameController
     }
 
     /// <summary>
-    /// Called once per frame by the JavaScript <c>requestAnimationFrame</c> pump.
+    /// Called once per frame by the <c>requestAnimationFrame</c> pump.
     /// The <paramref name="timestampMs"/> is the <c>DOMHighResTimeStamp</c> value from the browser.
     /// </summary>
-    [JSInvokable]
     public void Tick(double timestampMs)
     {
         _timeSource.Advance(timestampMs);

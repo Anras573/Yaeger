@@ -8,6 +8,14 @@ namespace Yaeger.Browser.Interop;
 /// </summary>
 internal static partial class JsInterop
 {
+    [JSImport("startGameLoop", "yaeger-browser")]
+    public static partial void StartGameLoop(
+        [JSMarshalAs<JSType.Function<JSType.Number>>] Action<double> tick
+    );
+
+    [JSImport("stopGameLoop", "yaeger-browser")]
+    public static partial void StopGameLoop();
+
     [JSImport("initWebGL", "yaeger-browser")]
     public static partial void InitWebGL(string canvasId);
 
