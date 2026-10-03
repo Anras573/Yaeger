@@ -50,6 +50,12 @@ internal static partial class JsInterop
     [JSImport("drawBatch", "yaeger-browser")]
     public static partial void DrawBatch(string textureUrl, byte[] vertexBytes, int quadCount);
 
+    [JSImport("setDefaultTextureSampling", "yaeger-browser")]
+    public static partial void SetDefaultTextureSampling(int filter, int wrap);
+
+    [JSImport("setTextureSampling", "yaeger-browser")]
+    public static partial void SetTextureSampling(string url, int filter, int wrap);
+
     [JSImport("isKeyPressed", "yaeger-browser")]
     public static partial bool IsKeyPressed(string key);
 

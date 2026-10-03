@@ -38,7 +38,7 @@ public sealed class SponzaScene : IDemoScene
         var world = new World();
         var registry = new GpuMeshRegistry(window.Gl);
         _registry = registry;
-        _textures = new TextureManager(window.Gl);
+        _textures = new TextureManager(window.Gl, global::Yaeger.Platform.TextureSampling.Tiled);
 
         var cameraEntity = world.CreateEntity("camera");
         world.AddComponent(

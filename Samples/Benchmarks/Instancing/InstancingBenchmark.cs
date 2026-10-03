@@ -31,7 +31,10 @@ public sealed class InstancingBenchmark : IBenchmark
         using var window = Window.Create();
         var world = new World();
         using var registry = new GpuMeshRegistry(window.Gl);
-        using var textures = new TextureManager(window.Gl);
+        using var textures = new TextureManager(
+            window.Gl,
+            global::Yaeger.Platform.TextureSampling.Tiled
+        );
 
         var boxData = MeshFactory.CreateBox("box");
         var boxMesh = registry.Register(boxData);

@@ -1,5 +1,6 @@
 using Silk.NET.OpenGL;
 using StbImageSharp;
+using Yaeger.Platform;
 
 namespace Yaeger.Rendering;
 
@@ -8,6 +9,7 @@ public class Texture : IDisposable
     private readonly GL _gl;
     private readonly uint _handle;
     private readonly string? _path;
+    private TextureSampling _sampling;
 
     public int Width { get; private set; }
     public int Height { get; private set; }
@@ -16,8 +18,10 @@ public class Texture : IDisposable
     // coordinate convention (v=0 at the bottom) matches the uploaded data.
     static Texture() => StbImage.stbi_set_flip_vertically_on_load(1);
 
-    public unsafe Texture(GL gl, string path)
+    public unsafe Texture(GL gl, string path, TextureSampling sampling = default)
     {
+        if (sampling == default)
+            sampling = TextureSampling.Default;
         _gl = gl;
         _path = path;
         _handle = _gl.GenTexture();
@@ -44,27 +48,41 @@ public class Texture : IDisposable
             );
         }
 
-        _gl.TexParameter(
-            TextureTarget.Texture2D,
-            TextureParameterName.TextureMinFilter,
-            (int)GLEnum.Linear
-        );
-        _gl.TexParameter(
-            TextureTarget.Texture2D,
-            TextureParameterName.TextureMagFilter,
-            (int)GLEnum.Linear
-        );
-        _gl.TexParameter(
-            TextureTarget.Texture2D,
-            TextureParameterName.TextureWrapS,
-            (int)GLEnum.Repeat
-        );
-        _gl.TexParameter(
-            TextureTarget.Texture2D,
-            TextureParameterName.TextureWrapT,
-            (int)GLEnum.Repeat
-        );
-        _gl.GenerateMipmap(TextureTarget.Texture2D);
+        _sampling = sampling;
+        ApplySampling();
+        if (sampling.UsesMipmaps)
+            _gl.GenerateMipmap(TextureTarget.Texture2D);
+    }
+
+    /// <summary>The sampling state currently applied to this texture.</summary>
+    public TextureSampling Sampling => _sampling;
+
+    /// <summary>Changes filter/wrap in place, generating mipmaps if newly required.</summary>
+    public void SetSampling(TextureSampling sampling)
+    {
+        if (sampling == _sampling || _path is null)
+            return;
+        _sampling = sampling;
+        _gl.BindTexture(TextureTarget.Texture2D, _handle);
+        ApplySampling();
+        if (sampling.UsesMipmaps)
+            _gl.GenerateMipmap(TextureTarget.Texture2D);
+    }
+
+    private void ApplySampling()
+    {
+        var min = _sampling.Filter switch
+        {
+            TextureFilter.Nearest => GLEnum.Nearest,
+            TextureFilter.LinearMipmap => GLEnum.LinearMipmapLinear,
+            _ => GLEnum.Linear,
+        };
+        var mag = _sampling.Filter == TextureFilter.Nearest ? GLEnum.Nearest : GLEnum.Linear;
+        var wrap = _sampling.Wrap == TextureWrap.Repeat ? GLEnum.Repeat : GLEnum.ClampToEdge;
+        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)min);
+        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)mag);
+        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)wrap);
+        _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)wrap);
     }
 
     /// <summary>Creates a 1×1 opaque white texture, used to draw flat-coloured (untextured) quads.</summary>
@@ -149,7 +167,8 @@ public class Texture : IDisposable
             );
         }
 
-        _gl.GenerateMipmap(TextureTarget.Texture2D);
+        if (_sampling.UsesMipmaps)
+            _gl.GenerateMipmap(TextureTarget.Texture2D);
 
         Width = image.Width;
         Height = image.Height;

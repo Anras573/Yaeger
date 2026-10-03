@@ -49,7 +49,7 @@ public sealed class DamagedHelmetScene : IDemoScene
         var world = new World();
         var registry = new GpuMeshRegistry(window.Gl);
         _registry = registry;
-        _textures = new TextureManager(window.Gl);
+        _textures = new TextureManager(window.Gl, global::Yaeger.Platform.TextureSampling.Tiled);
 
         var modelPath = AssetPath.Resolve("Assets/DamagedHelmet/Model/DamagedHelmet.gltf");
         if (!File.Exists(modelPath))
