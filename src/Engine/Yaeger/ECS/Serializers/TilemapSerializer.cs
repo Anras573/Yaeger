@@ -44,7 +44,6 @@ public sealed class TilemapSerializer : IComponentSerializer
     /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
-        var texturePath = GetRequiredString(element, "texturePath");
         var columns = GetRequiredPositiveInt(element, "columns");
         var rows = GetOptionalPositiveInt(element, "rows") ?? 1;
         var width = GetRequiredPositiveInt(element, "width");
@@ -63,6 +62,9 @@ public sealed class TilemapSerializer : IComponentSerializer
                 $"Tilemap 'columns' ({columns}) and 'rows' ({rows}) produce too many tiles."
             );
         }
+
+        // The solid-colour path ("") is only valid for a one-tile tileset (see SpriteSheet).
+        var texturePath = GetRequiredString(element, "texturePath", allowEmpty: tileCount == 1);
 
         if ((long)width * height > int.MaxValue)
             throw new PrefabLoadException(
@@ -201,7 +203,11 @@ public sealed class TilemapSerializer : IComponentSerializer
         return obj;
     }
 
-    private static string GetRequiredString(JsonElement element, string propertyName)
+    private static string GetRequiredString(
+        JsonElement element,
+        string propertyName,
+        bool allowEmpty = false
+    )
     {
         if (!element.TryGetProperty(propertyName, out var property))
             throw new PrefabLoadException(
@@ -211,7 +217,9 @@ public sealed class TilemapSerializer : IComponentSerializer
         if (property.ValueKind != JsonValueKind.String)
             throw new PrefabLoadException($"Tilemap '{propertyName}' must be a string.");
 
-        return property.GetString() is { } value && !string.IsNullOrWhiteSpace(value)
+        return
+            property.GetString() is { } value
+            && (value.Length == 0 ? allowEmpty : !string.IsNullOrWhiteSpace(value))
             ? value
             : throw new PrefabLoadException(
                 $"Tilemap '{propertyName}' must be a non-empty string."

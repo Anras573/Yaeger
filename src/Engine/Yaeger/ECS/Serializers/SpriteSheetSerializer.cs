@@ -33,7 +33,6 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
     /// <inheritdoc/>
     public Action<World, Entity> Deserialize(JsonElement element)
     {
-        var texturePath = GetRequiredString(element, "texturePath");
         var columns = GetRequiredPositiveInt(element, "columns");
         var rows = GetOptionalPositiveInt(element, "rows") ?? 1;
         var frameCount = GetOptionalPositiveInt(element, "frameCount");
@@ -49,6 +48,13 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
                 $"SpriteSheet 'columns' ({columns}) and 'rows' ({rows}) produce too many frames."
             );
         }
+
+        // The solid-colour path ("") is only valid for a single-frame sheet.
+        var texturePath = GetRequiredString(
+            element,
+            "texturePath",
+            allowEmpty: (frameCount ?? maxFrameCount) == 1
+        );
 
         if (frameCount.HasValue && frameCount.Value > maxFrameCount)
             throw new PrefabLoadException(
@@ -124,7 +130,11 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
         return obj;
     }
 
-    private static string GetRequiredString(JsonElement element, string propertyName)
+    private static string GetRequiredString(
+        JsonElement element,
+        string propertyName,
+        bool allowEmpty = false
+    )
     {
         if (!element.TryGetProperty(propertyName, out var property))
             throw new PrefabLoadException(
@@ -134,7 +144,9 @@ public sealed class SpriteSheetSerializer : IComponentSerializer
         if (property.ValueKind != JsonValueKind.String)
             throw new PrefabLoadException($"SpriteSheet '{propertyName}' must be a string.");
 
-        return property.GetString() is { } value && !string.IsNullOrWhiteSpace(value)
+        return
+            property.GetString() is { } value
+            && (value.Length == 0 ? allowEmpty : !string.IsNullOrWhiteSpace(value))
             ? value
             : throw new PrefabLoadException(
                 $"SpriteSheet '{propertyName}' must be a non-empty string."

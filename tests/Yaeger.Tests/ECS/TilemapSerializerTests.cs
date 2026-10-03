@@ -239,4 +239,45 @@ public class TilemapSerializerTests
         Assert.Equal(tilemap.Tint, reloadedMap.Tint);
         Assert.Equal(tilemap.Tiles, reloadedMap.Tiles);
     }
+
+    [Fact]
+    public void SceneSaver_SolidTexturePathTilemap_ShouldRoundTrip()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var world = new World();
+        var entity = world.CreateEntity("map");
+        world.AddComponent(
+            entity,
+            new Tilemap(
+                new Tileset(Yaeger.Platform.IRenderSurface.SolidTexturePath, columns: 1, rows: 1),
+                width: 2,
+                height: 1,
+                tiles: [0, 0],
+                tint: new Color(10, 20, 30)
+            )
+        );
+
+        var json = new SceneSaver(registry).Serialize(world);
+
+        var reloaded = new World();
+        reloaded.Instantiate(new SceneLoader(registry).Parse(json));
+        Assert.True(
+            reloaded.TryGetComponent<Tilemap>(reloaded.Entities.Single(), out var reloadedMap)
+        );
+        Assert.Equal("", reloadedMap.Tileset.TexturePath);
+        Assert.Equal(new Color(10, 20, 30), reloadedMap.Tint);
+    }
+
+    [Theory]
+    [InlineData("\"texturePath\": \"\", \"columns\": 2")]
+    [InlineData("\"texturePath\": \"  \", \"columns\": 1")]
+    public void Deserialize_InvalidEmptyTexturePath_ShouldThrow(string fields)
+    {
+        var json =
+            "{ \"components\": [ { \"type\": \"Tilemap\", "
+            + fields
+            + ", \"width\": 1, \"height\": 1 } ] }";
+
+        Assert.Throws<PrefabLoadException>(() => MakeLoader().Parse(json));
+    }
 }

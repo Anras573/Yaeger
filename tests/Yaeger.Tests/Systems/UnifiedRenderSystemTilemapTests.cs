@@ -91,6 +91,38 @@ public class UnifiedRenderSystemTilemapTests
     }
 
     [Fact]
+    public void Render_SolidTexturePathTileset_ShouldSubmitTintedFlatColourQuads()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(Vector2.Zero));
+        var tint = new Color(51, 102, 153, 255);
+        world.AddComponent(
+            entity,
+            new Tilemap(
+                new Tileset(IRenderSurface.SolidTexturePath, columns: 1, rows: 1),
+                width: 2,
+                height: 1,
+                tiles: [0, 0],
+                tint: tint
+            )
+        );
+
+        var surface = new FakeRenderSurface();
+        new UnifiedRenderSystem(surface, null, world).Render();
+
+        Assert.Equal(2, surface.Quads.Count);
+        Assert.All(
+            surface.Quads,
+            quad =>
+            {
+                Assert.Equal(IRenderSurface.SolidTexturePath, quad.TexturePath);
+                Assert.Equal(tint.ToVector4(), quad.Color);
+            }
+        );
+    }
+
+    [Fact]
     public void Render_ShouldPositionTilesBottomLeftOriginWithTopRowFirst()
     {
         // 2x2 map at world position (10, 20) with unit tiles. Row 0 is the top row, so
