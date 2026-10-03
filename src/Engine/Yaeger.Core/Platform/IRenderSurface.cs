@@ -10,6 +10,12 @@ public interface IRenderSurface
     void BeginFrame();
     void EndFrame();
     void FlushQueuedQuads();
+
+    /// <summary>
+    /// Sets the view-projection applied to quads submitted from now on. If the matrix
+    /// differs from the current one, quads already queued are flushed first, so they are
+    /// drawn with the matrix that was active when they were submitted.
+    /// </summary>
     void SetCamera(Matrix4x4 viewProjection);
     void SubmitQuad(Matrix4x4 transform, string texturePath, Vector4 color);
     void SubmitQuad(

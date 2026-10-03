@@ -34,6 +34,10 @@ If you omit the `Window`, `UnifiedRenderSystem` skips camera updates and the ren
 
 If multiple `Camera2D` entities exist, the **first one** encountered during iteration wins. There's no `MainCamera` tag component yet — add one when you need deterministic multi-camera selection.
 
+## Switching cameras mid-frame
+
+`IRenderSurface.SetCamera` flushes already-queued quads (with the previous matrix) whenever the matrix actually changes, on both the native and browser runtimes. A custom pass can therefore render the world, call `SetCamera` with a screen-space matrix, and render a HUD without calling `FlushQueuedQuads()` itself. Setting an identical matrix costs nothing.
+
 ## World-space sprites vs screen-space text
 
 `Renderer` applies the camera; `TextRenderer` does **not**. This is deliberate: in most 2D games, sprites are world objects (move with the camera) and text is UI (stays pinned). See `Samples/Platformer`'s HUD (built with the UI system, which is likewise always screen-space) for a direct demonstration — it stays at the top-left as the camera pans.

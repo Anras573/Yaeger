@@ -38,7 +38,7 @@ public class Renderer : IRenderSurface, IDisposable
 
     private readonly List<QuadSubmission> _submissionQueue = [];
 
-    private Matrix4x4 _viewProjection = Matrix4x4.Identity;
+    private readonly CameraMatrixTracker _camera = new();
 
     /// <summary>
     /// The texture cache this renderer draws from. Exposed so a caller can re-upload a changed
@@ -90,13 +90,13 @@ public class Renderer : IRenderSurface, IDisposable
     }
 
     /// <summary>
-    /// Sets the view-projection matrix applied to every quad. Call once per frame before
-    /// <see cref="EndFrame"/>. Defaults to <see cref="Matrix4x4.Identity"/>, which renders
-    /// quads in NDC directly.
+    /// Sets the view-projection matrix applied to quads submitted from now on. Defaults to
+    /// <see cref="Matrix4x4.Identity"/>, which renders quads in NDC directly. If the matrix
+    /// changes mid-frame, quads already queued are flushed first with the previous matrix.
     /// </summary>
     public void SetCamera(Matrix4x4 viewProjection)
     {
-        _viewProjection = viewProjection;
+        _camera.Set(viewProjection, FlushQueuedQuads);
     }
 
     /// <summary>Queues a quad drawn with the full texture and default white tint.</summary>
@@ -174,7 +174,7 @@ public class Renderer : IRenderSurface, IDisposable
     {
         var texture = _textureManager.Get(texturePath);
         _textureShader.Bind();
-        _textureShader.SetUniformMatrix4("uViewProj", _viewProjection);
+        _textureShader.SetUniformMatrix4("uViewProj", _camera.Current);
         texture.Bind();
         _vao.Bind();
         _vbo.Bind();

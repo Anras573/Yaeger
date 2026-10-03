@@ -19,6 +19,7 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
     private const int FloatsPerVertex = 9; // pos(3) + uv(2) + color(4)
 
     private readonly List<QuadSubmission> _submissionQueue = [];
+    private readonly CameraMatrixTracker _camera = new();
 
     // Scratch float buffer, filled per batch; _vertexBytes is its raw-byte view passed to JS.
     private readonly float[] _vertexBuffer = new float[
@@ -159,6 +160,10 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
 
     public void SetCamera(Matrix4x4 viewProjection)
     {
+        // Flushes queued quads with the previous matrix before the uniform changes.
+        if (!_camera.Set(viewProjection, FlushQueuedQuads))
+            return;
+
         var span = MemoryMarshal.CreateReadOnlySpan(ref viewProjection, 1);
         var bytes = new byte[64];
         MemoryMarshal.AsBytes(span).CopyTo(bytes);
