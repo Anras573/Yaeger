@@ -38,7 +38,7 @@ public sealed class CornellBoxScene : IDemoScene
         _world = world;
         var registry = new GpuMeshRegistry(window.Gl);
         _registry = registry;
-        _textures = new TextureManager(window.Gl);
+        _textures = new TextureManager(window.Gl, global::Yaeger.Platform.TextureSampling.Tiled);
 
         // Room dimensions: 2 × 2 × 2, open at z = +1 (front, where the camera sits).
         // All vertex sequences are CCW when viewed from the interior-facing normal direction

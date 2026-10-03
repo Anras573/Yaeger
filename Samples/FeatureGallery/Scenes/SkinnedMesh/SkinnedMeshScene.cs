@@ -33,7 +33,7 @@ public sealed class SkinnedMeshScene : IDemoScene
         var world = new World();
         var meshRegistry = new GpuMeshRegistry(window.Gl);
         _meshRegistry = meshRegistry;
-        _textures = new TextureManager(window.Gl);
+        _textures = new TextureManager(window.Gl, global::Yaeger.Platform.TextureSampling.Tiled);
         _renderer3D = new Renderer3D(window.Gl);
 
         var cameraEntity = world.CreateEntity("camera");

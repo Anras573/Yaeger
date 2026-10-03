@@ -38,6 +38,10 @@ browser with WebGL 2.0 support works.
   one-shot "went down this frame" edge. `WasKeyPressed`/`WasKeyReleased` and
   `WasMouseButtonPressed`/`WasMouseButtonReleased` are recorded per frame (by the JS layer in the
   browser), so a press + release between two ticks still reports both edges.
+- **Texture preloading** — `Game.razor` calls `BrowserRenderSurface.PreloadAsync` with a progress
+  bar before starting the game loop, so the textured ball never flashes as a white placeholder.
+  A missing path throws a `TextureLoadException` (inside an `AggregateException`);
+  `IsReady`, `GetTextureSize` and `GetLoadError` cover lazy loads.
 - **`Game.razor`** — calls `YaegerBrowser.InitializeAsync(Nav.BaseUri)` to import the
   `yaeger-browser.js` module that `Yaeger.Browser` ships as a static web asset
   (`_content/Yaeger.Browser/yaeger-browser.js`, no copy needed), then

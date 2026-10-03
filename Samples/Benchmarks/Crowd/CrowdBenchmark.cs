@@ -50,7 +50,10 @@ public sealed class CrowdBenchmark : IBenchmark
         using var window = Window.Create();
         var world = new World();
         using var meshRegistry = new GpuMeshRegistry(window.Gl);
-        using var textures = new TextureManager(window.Gl);
+        using var textures = new TextureManager(
+            window.Gl,
+            global::Yaeger.Platform.TextureSampling.Tiled
+        );
         var skeletonRegistry = new SkeletonRegistry();
 
         // Registered once and shared by every character in the crowd: the whole point of instanced
