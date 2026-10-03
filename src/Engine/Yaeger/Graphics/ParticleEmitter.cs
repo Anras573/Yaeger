@@ -46,4 +46,30 @@ public struct ParticleEmitter(string texturePath)
 
     /// <summary>Path of the texture each particle is drawn with.</summary>
     public string TexturePath = texturePath;
+
+    /// <summary>
+    /// Lower-left corner of the texture sub-rectangle (normalised UV) each particle samples.
+    /// Defaults to (0, 0); together with <see cref="UvMax"/> it selects an atlas region.
+    /// </summary>
+    public Vector2 UvMin = Vector2.Zero;
+
+    /// <summary>Upper-right corner of the sub-rectangle (normalised UV). Defaults to (1, 1).</summary>
+    public Vector2 UvMax = Vector2.One;
+
+    /// <summary>
+    /// Flipbook grid columns. The grid subdivides the <see cref="UvMin"/>..<see cref="UvMax"/>
+    /// region, row 0 at the top (same layout as <see cref="SpriteSheet"/>). Ignored unless
+    /// <see cref="FrameCount"/> is positive.
+    /// </summary>
+    public int Columns = 1;
+
+    /// <summary>Flipbook grid rows. Ignored unless <see cref="FrameCount"/> is positive.</summary>
+    public int Rows = 1;
+
+    /// <summary>
+    /// Number of flipbook frames. <c>0</c> (default) disables the flipbook and every particle
+    /// uses the whole sub-rectangle; otherwise each particle shows frame
+    /// <c>floor(normalisedAge × FrameCount)</c>, clamped to the last frame.
+    /// </summary>
+    public int FrameCount = 0;
 }

@@ -46,6 +46,8 @@ See `Samples/Platformer/Systems/ParticleEffectsSystem.cs` for a complete program
 | `StartColor` / `EndColor` | `Color` | white | Tint lerped over each particle's lifetime |
 | `StartSize` / `EndSize` | `float` | `0.1` | Quad size lerped over each particle's lifetime |
 | `TexturePath` | `string` | (ctor) | Texture every particle is drawn with |
+| `UvMin` / `UvMax` | `Vector2` | `(0,0)` / `(1,1)` | Sub-rectangle of the texture each particle samples — point it at an atlas region so particles batch with other atlas sprites |
+| `Columns` / `Rows` / `FrameCount` | `int` | `1` / `1` / `0` | Optional flipbook: subdivides the `UvMin`..`UvMax` region (row 0 at top, like `SpriteSheet`); each particle shows frame `floor(age01 × FrameCount)`. `FrameCount = 0` disables it |
 
 The emitter entity must also carry a `Transform2D`; its `Position` is where particles spawn.
 

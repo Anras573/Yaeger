@@ -22,7 +22,12 @@ namespace Yaeger.ECS.Serializers;
 ///   "startColor": [255, 255, 255, 255],
 ///   "endColor": [255, 255, 255, 255],
 ///   "startSize": 0.1,
-///   "endSize": 0.1
+///   "endSize": 0.1,
+///   "uvMin": [0.0, 0.0],
+///   "uvMax": [1.0, 1.0],
+///   "columns": 1,
+///   "rows": 1,
+///   "frameCount": 0
 /// }
 /// </code>
 /// <c>texturePath</c> is required (matching <see cref="Sprite"/>'s convention); every other
@@ -73,6 +78,15 @@ public sealed class ParticleEmitterSerializer : IComponentSerializer
                 defaults.StartSize
             ),
             EndSize = ComponentJson2D.ReadOptionalSingle(element, "endSize", defaults.EndSize),
+            UvMin = element.TryGetProperty("uvMin", out var uvMinEl)
+                ? ComponentJson2D.ReadVector2(uvMinEl, "uvMin")
+                : defaults.UvMin,
+            UvMax = element.TryGetProperty("uvMax", out var uvMaxEl)
+                ? ComponentJson2D.ReadVector2(uvMaxEl, "uvMax")
+                : defaults.UvMax,
+            Columns = ReadOptionalInt(element, "columns", defaults.Columns),
+            Rows = ReadOptionalInt(element, "rows", defaults.Rows),
+            FrameCount = ReadOptionalInt(element, "frameCount", defaults.FrameCount),
         };
 
         return (world, entity) => world.AddComponent(entity, component);
@@ -98,6 +112,11 @@ public sealed class ParticleEmitterSerializer : IComponentSerializer
             ["endColor"] = ComponentJson.Write(emitter.EndColor),
             ["startSize"] = emitter.StartSize,
             ["endSize"] = emitter.EndSize,
+            ["uvMin"] = ComponentJson2D.Write(emitter.UvMin),
+            ["uvMax"] = ComponentJson2D.Write(emitter.UvMax),
+            ["columns"] = emitter.Columns,
+            ["rows"] = emitter.Rows,
+            ["frameCount"] = emitter.FrameCount,
         };
     }
 

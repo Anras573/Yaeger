@@ -13,6 +13,7 @@ public class ParticleSystemTests
     private sealed class FakeRenderSurface : IRenderSurface
     {
         public readonly List<(Matrix4x4 Transform, string TexturePath, Vector4 Color)> Quads = [];
+        public readonly List<(Vector2 Min, Vector2 Max)> Uvs = [];
         public int FlushCount;
 
         public void BeginFrame() { }
@@ -32,7 +33,11 @@ public class ParticleSystemTests
             Vector2 uvMin,
             Vector2 uvMax,
             Vector4 color
-        ) => Quads.Add((transform, texturePath, color));
+        )
+        {
+            Quads.Add((transform, texturePath, color));
+            Uvs.Add((uvMin, uvMax));
+        }
     }
 
     private static Entity CreateEmitter(
@@ -265,6 +270,80 @@ public class ParticleSystemTests
         Assert.Equal(5, renderer.Quads.Count);
         Assert.All(renderer.Quads, quad => Assert.Equal(TexturePath, quad.TexturePath));
         Assert.Equal(1, renderer.FlushCount);
+    }
+
+    [Fact]
+    public void Render_ShouldSubmitEmitterUvSubRect()
+    {
+        var world = new World();
+        var renderer = new FakeRenderSurface();
+        var system = new ParticleSystem(world, renderer, seed: 42);
+        CreateEmitter(
+            world,
+            new ParticleEmitter(TexturePath)
+            {
+                EmitRate = 10f,
+                ParticleLifetime = 10f,
+                UvMin = new Vector2(0.25f, 0.5f),
+                UvMax = new Vector2(0.5f, 0.75f),
+            }
+        );
+
+        system.Update(0.5f);
+        system.Render();
+
+        Assert.NotEmpty(renderer.Uvs);
+        Assert.All(
+            renderer.Uvs,
+            uv =>
+            {
+                Assert.Equal(new Vector2(0.25f, 0.5f), uv.Min);
+                Assert.Equal(new Vector2(0.5f, 0.75f), uv.Max);
+            }
+        );
+    }
+
+    [Theory]
+    [InlineData(0f, 0.0f, 0.5f)]
+    [InlineData(0.24f, 0.0f, 0.5f)]
+    [InlineData(0.25f, 0.5f, 0.5f)]
+    [InlineData(0.6f, 0.0f, 0.0f)]
+    [InlineData(0.99f, 0.5f, 0.0f)]
+    public void ResolveUv_ShouldPickFlipbookFrameFromNormalizedAge(
+        float age,
+        float expectedUMin,
+        float expectedVMin
+    )
+    {
+        var emitter = new ParticleEmitter(TexturePath)
+        {
+            Columns = 2,
+            Rows = 2,
+            FrameCount = 4,
+        };
+
+        var (min, max) = ParticleSystem.ResolveUv(in emitter, age);
+
+        Assert.Equal(new Vector2(expectedUMin, expectedVMin), min);
+        Assert.Equal(new Vector2(expectedUMin + 0.5f, expectedVMin + 0.5f), max);
+    }
+
+    [Fact]
+    public void ResolveUv_ShouldSubdivideSubRectForFlipbook()
+    {
+        var emitter = new ParticleEmitter(TexturePath)
+        {
+            UvMin = new Vector2(0.5f, 0f),
+            UvMax = Vector2.One,
+            Columns = 2,
+            Rows = 1,
+            FrameCount = 2,
+        };
+
+        var (min, max) = ParticleSystem.ResolveUv(in emitter, 0.9f);
+
+        Assert.Equal(new Vector2(0.75f, 0f), min);
+        Assert.Equal(Vector2.One, max);
     }
 
     [Fact]

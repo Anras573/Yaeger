@@ -121,7 +121,11 @@ public sealed class ParticleEffectsSystem
             Vector2.Zero,
             MathF.Tau, // full circle
             speed: 1.5f,
-            size: 0.045f
+            size: 0.045f,
+            // Sample only the centre of the texture — the same UvMin/UvMax mechanism selects a
+            // region of a packed atlas (and Columns/Rows/FrameCount drive a flipbook).
+            uvMin: new Vector2(0.25f),
+            uvMax: new Vector2(0.75f)
         );
 
     public void Render() => _particleSystem.Render();
@@ -133,7 +137,9 @@ public sealed class ParticleEffectsSystem
         Vector2 emitDirection,
         float spreadAngle,
         float speed,
-        float size
+        float size,
+        Vector2? uvMin = null,
+        Vector2? uvMax = null
     )
     {
         var entity = _world.CreateEntity();
@@ -152,6 +158,8 @@ public sealed class ParticleEffectsSystem
                 EndColor = endColor,
                 StartSize = size,
                 EndSize = size * 0.3f,
+                UvMin = uvMin ?? Vector2.Zero,
+                UvMax = uvMax ?? Vector2.One,
             }
         );
         _bursts.Add((entity, 0f));
