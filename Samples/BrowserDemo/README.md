@@ -33,6 +33,10 @@ browser with WebGL 2.0 support works.
 - **`PaddleControlSystem`** — reads `IInputState.IsKeyPressed` for keyboard control and
   `IsMouseButtonPressed` / `MousePositionNdc` for pointer control, so the same code path drives
   the paddle from a mouse on desktop or a finger on mobile.
+- **`GameController.Tick`** — toggles pause on `IInputState.WasKeyPressed(Keys.Space)`, the
+  one-shot "went down this frame" edge. `WasKeyPressed`/`WasKeyReleased` and
+  `WasMouseButtonPressed`/`WasMouseButtonReleased` are recorded per frame (by the JS layer in the
+  browser), so a press + release between two ticks still reports both edges.
 - **`Game.razor`** — calls `YaegerBrowser.InitializeAsync(Nav.BaseUri)` to import the
   `yaeger-browser.js` module that `Yaeger.Browser` ships as a static web asset
   (`_content/Yaeger.Browser/yaeger-browser.js`, no copy needed), then

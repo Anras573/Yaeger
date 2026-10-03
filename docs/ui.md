@@ -84,7 +84,10 @@ Ordering rules:
 compile into `Yaeger.Core` and work anywhere an `IInputState` exists — pass `NativeInputState` on
 desktop or `BrowserInputState` in a `Yaeger.Browser` game to get click/tap hit-testing there too
 (including touch, since `BrowserInputState` maps `pointerdown`/`pointerup` onto the same mouse
-state). `UiRenderSystem` still requires a native `Window` and isn't available in the browser.
+state). A click is "pressed inside, then released inside", derived from the
+`WasMouseButtonPressed`/`WasMouseButtonReleased` edges rather than the held level, so a press and
+release that both land inside one frame (a fast click, or a tap on a slow browser frame) still
+registers. `UiRenderSystem` still requires a native `Window` and isn't available in the browser.
 
 ## UiBuilder
 

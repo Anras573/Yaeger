@@ -53,6 +53,18 @@ internal static partial class JsInterop
     [JSImport("isKeyPressed", "yaeger-browser")]
     public static partial bool IsKeyPressed(string key);
 
+    [JSImport("takeKeyDownCodes", "yaeger-browser")]
+    public static partial string[] TakeKeyDownCodes();
+
+    [JSImport("takeKeyUpCodes", "yaeger-browser")]
+    public static partial string[] TakeKeyUpCodes();
+
+    [JSImport("takeMouseDownButtons", "yaeger-browser")]
+    public static partial int[] TakeMouseDownButtons();
+
+    [JSImport("takeMouseUpButtons", "yaeger-browser")]
+    public static partial int[] TakeMouseUpButtons();
+
     [JSImport("setPreventDefaultKeys", "yaeger-browser")]
     public static partial void SetPreventDefaultKeys(string[] codes);
 

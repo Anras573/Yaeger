@@ -13,24 +13,27 @@ namespace Yaeger.Systems;
 /// </summary>
 public class UiSystem(World world, IInputState inputState) : IUpdateSystem
 {
-    private bool _wasMousePressed;
     private readonly HashSet<Entity> _pressStartedOn = [];
 
     public void Update(float deltaTime)
     {
         var mousePos = inputState.MousePosition;
-        var isMousePressed = inputState.IsMouseButtonPressed(MouseButton.Left);
-        var pressStartedThisFrame = !_wasMousePressed && isMousePressed;
+        var isMouseHeld = inputState.IsMouseButtonPressed(MouseButton.Left);
+        // Edges, not the held level: a press + release inside one frame (a fast click, or a tap
+        // on a slow browser frame) never shows up as held but still reports both edges.
+        var pressedThisFrame = inputState.WasMouseButtonPressed(MouseButton.Left);
+        var releasedThisFrame = inputState.WasMouseButtonReleased(MouseButton.Left);
 
         foreach ((Entity entity, UiRect rect, UiButton _) in world.Query<UiRect, UiButton>())
         {
             var isHovered = HitTest(mousePos, rect);
 
-            if (pressStartedThisFrame && isHovered)
+            if (pressedThisFrame && isHovered)
                 _pressStartedOn.Add(entity);
 
-            var isPressed = isHovered && isMousePressed && _pressStartedOn.Contains(entity);
-            var wasClicked = isHovered && !isMousePressed && _pressStartedOn.Contains(entity);
+            var startedHere = _pressStartedOn.Contains(entity);
+            var isPressed = isHovered && isMouseHeld && startedHere;
+            var wasClicked = isHovered && releasedThisFrame && startedHere;
 
             world.AddComponent(
                 entity,
@@ -43,10 +46,10 @@ public class UiSystem(World world, IInputState inputState) : IUpdateSystem
             );
         }
 
-        if (_wasMousePressed && !isMousePressed)
+        // A release ends the gesture; also self-heal if the button is no longer held without a
+        // release edge having been observed (e.g. focus loss).
+        if (releasedThisFrame || !isMouseHeld)
             _pressStartedOn.Clear();
-
-        _wasMousePressed = isMousePressed;
     }
 
     private static bool HitTest(Vector2 mousePos, UiRect rect) =>

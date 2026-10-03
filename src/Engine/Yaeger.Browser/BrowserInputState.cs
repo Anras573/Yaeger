@@ -18,6 +18,13 @@ public sealed class BrowserInputState : IInputState
     private static float _scrollDelta;
     private static bool _frameStarted;
 
+    // Per-frame edge snapshots (DOM codes / DOM button ids), taken from JS at BeginFrame so a
+    // press+release that both land between two ticks is still visible as WasPressed + WasReleased.
+    private static readonly HashSet<string> KeysDown = [];
+    private static readonly HashSet<string> KeysUp = [];
+    private static readonly HashSet<int> ButtonsDown = [];
+    private static readonly HashSet<int> ButtonsUp = [];
+
     /// <summary>
     /// Snapshots the JS scroll accumulator for the current frame and resets it.
     /// Must be called once per tick at the tick boundary, before any game code reads
@@ -33,6 +40,10 @@ public sealed class BrowserInputState : IInputState
             return;
 
         _scrollDelta = (float)JsInterop.GetAndResetScrollDelta();
+        Refill(KeysDown, JsInterop.TakeKeyDownCodes());
+        Refill(KeysUp, JsInterop.TakeKeyUpCodes());
+        Refill(ButtonsDown, JsInterop.TakeMouseDownButtons());
+        Refill(ButtonsUp, JsInterop.TakeMouseUpButtons());
         _frameStarted = true;
     }
 
@@ -43,7 +54,17 @@ public sealed class BrowserInputState : IInputState
     public static void EndFrame()
     {
         _scrollDelta = 0f;
+        KeysDown.Clear();
+        KeysUp.Clear();
+        ButtonsDown.Clear();
+        ButtonsUp.Clear();
         _frameStarted = false;
+    }
+
+    private static void Refill<T>(HashSet<T> set, T[] items)
+    {
+        set.Clear();
+        set.UnionWith(items);
     }
 
     /// <summary>
@@ -69,6 +90,26 @@ public sealed class BrowserInputState : IInputState
 
     public bool IsMouseButtonPressed(MouseButton button) =>
         JsInterop.IsMouseButtonPressed(ToDomButton(button));
+
+    public bool WasKeyPressed(Keys key) => ContainsAny(KeysDown, key);
+
+    public bool WasKeyReleased(Keys key) => ContainsAny(KeysUp, key);
+
+    public bool WasMouseButtonPressed(MouseButton button) =>
+        ButtonsDown.Contains(ToDomButton(button));
+
+    public bool WasMouseButtonReleased(MouseButton button) =>
+        ButtonsUp.Contains(ToDomButton(button));
+
+    private static bool ContainsAny(HashSet<string> codes, Keys key)
+    {
+        foreach (var code in BrowserKeyMapper.GetDomCodes(key))
+        {
+            if (codes.Contains(code))
+                return true;
+        }
+        return false;
+    }
 
     private static int ToDomButton(MouseButton button) =>
         button switch

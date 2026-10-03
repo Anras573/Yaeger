@@ -19,6 +19,9 @@ public static class Mouse
     private static IMouse? _mouse;
     private static readonly HashSet<MouseButton> PressedButtons = [];
 
+    private static readonly HashSet<MouseButton> PressedThisFrame = [];
+    private static readonly HashSet<MouseButton> ReleasedThisFrame = [];
+
     private static readonly Dictionary<MouseButton, Action> ButtonDownActions = new();
     private static readonly Dictionary<MouseButton, Action> ButtonUpActions = new();
     private static readonly List<Action<float>> ScrollActions = [];
@@ -79,6 +82,8 @@ public static class Mouse
     {
         _previousPosition = _position;
         _scrollAccumulator = 0f;
+        PressedThisFrame.Clear();
+        ReleasedThisFrame.Clear();
     }
 
     /// <summary>
@@ -131,6 +136,12 @@ public static class Mouse
 
     public static bool IsButtonPressed(MouseButton button) => PressedButtons.Contains(button);
 
+    /// <summary>True if the button went down since the last frame boundary.</summary>
+    public static bool WasButtonPressed(MouseButton button) => PressedThisFrame.Contains(button);
+
+    /// <summary>True if the button went up since the last frame boundary.</summary>
+    public static bool WasButtonReleased(MouseButton button) => ReleasedThisFrame.Contains(button);
+
     private static void OnButtonDown(IMouse _, Silk.NET.Input.MouseButton button)
     {
         if (!MouseButtonMapper.TryGetMappedButton(button, out var mapped))
@@ -138,6 +149,7 @@ public static class Mouse
 
         if (PressedButtons.Add(mapped))
         {
+            PressedThisFrame.Add(mapped);
             ButtonDownActions.TryGetValue(mapped, out var action);
             action?.Invoke();
         }
@@ -150,6 +162,7 @@ public static class Mouse
 
         if (PressedButtons.Remove(mapped))
         {
+            ReleasedThisFrame.Add(mapped);
             ButtonUpActions.TryGetValue(mapped, out var action);
             action?.Invoke();
         }

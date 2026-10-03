@@ -22,6 +22,7 @@ public sealed class GameController
     private readonly BallMovementSystem _movementSystem;
     private readonly BrowserTimeSource _timeSource = new();
     private readonly UnifiedRenderSystem _renderSystem;
+    private bool _paused;
 
     public GameController(BrowserRenderSurface renderSurface)
     {
@@ -38,7 +39,13 @@ public sealed class GameController
         _paddleSystem = new PaddleControlSystem(_world, _input);
         _movementSystem = new BallMovementSystem(_world);
         // Opt in: stop the arrow keys from scrolling the page while playing.
-        BrowserInputState.SetPreventDefaultKeys([Keys.Left, Keys.Right, Keys.Up, Keys.Down]);
+        BrowserInputState.SetPreventDefaultKeys([
+            Keys.Left,
+            Keys.Right,
+            Keys.Up,
+            Keys.Down,
+            Keys.Space,
+        ]);
         BuildScene();
     }
 
@@ -102,8 +109,16 @@ public sealed class GameController
         // this tick see stable values, matching native input behavior.
         BrowserInputState.BeginFrame();
 
-        _paddleSystem.Update(_timeSource.DeltaTime);
-        _movementSystem.Update(_timeSource.DeltaTime);
+        // One-shot action: WasKeyPressed fires once per press (even a tap shorter than a frame),
+        // unlike IsKeyPressed which would toggle every tick the key is held.
+        if (_input.WasKeyPressed(Keys.Space))
+            _paused = !_paused;
+
+        if (!_paused)
+        {
+            _paddleSystem.Update(_timeSource.DeltaTime);
+            _movementSystem.Update(_timeSource.DeltaTime);
+        }
         Render();
     }
 
