@@ -7,6 +7,9 @@ public static class Keyboard
     private static IKeyboard? _keyboard;
     private static readonly HashSet<Keys> PressedKeys = [];
 
+    private static readonly HashSet<Keys> PressedThisFrame = [];
+    private static readonly HashSet<Keys> ReleasedThisFrame = [];
+
     private static readonly Dictionary<Keys, Action> KeyDownActions = new();
     private static readonly Dictionary<Keys, Action> KeyUpActions = new();
 
@@ -68,6 +71,7 @@ public static class Keyboard
 
         if (PressedKeys.Add(mappedKey))
         {
+            PressedThisFrame.Add(mappedKey);
             KeyDownActions.TryGetValue(mappedKey, out var action);
             action?.Invoke();
         }
@@ -80,10 +84,24 @@ public static class Keyboard
 
         if (PressedKeys.Remove(mappedKey))
         {
+            ReleasedThisFrame.Add(mappedKey);
             KeyUpActions.TryGetValue(mappedKey, out var action);
             action?.Invoke();
         }
     }
 
     public static bool IsKeyPressed(Keys key) => PressedKeys.Contains(key);
+
+    /// <summary>True if the key went down since the last frame boundary.</summary>
+    public static bool WasKeyPressed(Keys key) => PressedThisFrame.Contains(key);
+
+    /// <summary>True if the key went up since the last frame boundary.</summary>
+    public static bool WasKeyReleased(Keys key) => ReleasedThisFrame.Contains(key);
+
+    /// <summary>Call once per frame after input consumers have read the edge sets.</summary>
+    internal static void EndFrame()
+    {
+        PressedThisFrame.Clear();
+        ReleasedThisFrame.Clear();
+    }
 }

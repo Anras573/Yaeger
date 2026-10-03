@@ -297,6 +297,12 @@ let mouseX = 0;
 let mouseY = 0;
 let scrollDelta = 0;
 const mouseButtons = new Set();
+// Edges recorded by DOM events since the last takeInputEdges() snapshot. Kept separate from the
+// held sets so a down+up that both land between two ticks is still observable as a click.
+const keysDownThisFrame = new Set();
+const keysUpThisFrame = new Set();
+const buttonsDownThisFrame = new Set();
+const buttonsUpThisFrame = new Set();
 let activePrimaryPointerId;
 const PIXELS_PER_LINE = 16;
 const WHEEL_EVENT_OPTIONS = { passive: false };
@@ -313,9 +319,35 @@ let wheelHandler;
 let blurHandler;
 let contextMenuHandler;
 
+function pressKey(code) {
+    if (pressedKeys.has(code)) return;
+    pressedKeys.add(code);
+    keysDownThisFrame.add(code);
+}
+
+function releaseKey(code) {
+    if (!pressedKeys.delete(code)) return;
+    keysUpThisFrame.add(code);
+}
+
+function pressButton(button) {
+    if (mouseButtons.has(button)) return;
+    mouseButtons.add(button);
+    buttonsDownThisFrame.add(button);
+}
+
+function releaseButton(button) {
+    if (!mouseButtons.delete(button)) return;
+    buttonsUpThisFrame.add(button);
+}
+
 function clearInputState() {
     pressedKeys.clear();
     mouseButtons.clear();
+    keysDownThisFrame.clear();
+    keysUpThisFrame.clear();
+    buttonsDownThisFrame.clear();
+    buttonsUpThisFrame.clear();
     scrollDelta = 0;
     activePrimaryPointerId = undefined;
 }
@@ -342,10 +374,10 @@ function setupInputListeners() {
 
     keyDownHandler = (e) => {
         if (!e.code) return;
-        pressedKeys.add(e.code);
+        pressKey(e.code);
         if (preventDefaultKeys.has(e.code)) e.preventDefault();
     };
-    keyUpHandler = (e) => { if (e.code) pressedKeys.delete(e.code); };
+    keyUpHandler = (e) => { if (e.code) releaseKey(e.code); };
 
     pointerMoveHandler = (e) => {
         if (!canvas) return;
@@ -362,7 +394,7 @@ function setupInputListeners() {
             const rect = canvas.getBoundingClientRect();
             mouseX = e.clientX - rect.left;
             mouseY = e.clientY - rect.top;
-            mouseButtons.add(e.button);
+            pressButton(e.button);
             return;
         }
         if (activePrimaryPointerId === undefined) activePrimaryPointerId = e.pointerId;
@@ -370,16 +402,16 @@ function setupInputListeners() {
         const rect = canvas.getBoundingClientRect();
         mouseX = e.clientX - rect.left;
         mouseY = e.clientY - rect.top;
-        mouseButtons.add(0);
+        pressButton(0);
         if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
         e.preventDefault();
     };
 
     pointerUpHandler = (e) => {
         if (!canvas) return;
-        if (e.pointerType === 'mouse') { mouseButtons.delete(e.button); return; }
+        if (e.pointerType === 'mouse') { releaseButton(e.button); return; }
         if (e.pointerId !== activePrimaryPointerId) return;
-        mouseButtons.delete(0);
+        releaseButton(0);
         activePrimaryPointerId = undefined;
         if (canvas.hasPointerCapture?.(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         e.preventDefault();
@@ -387,14 +419,19 @@ function setupInputListeners() {
 
     pointerCancelHandler = (e) => {
         if (!canvas || e.pointerType === 'mouse' || e.pointerId !== activePrimaryPointerId) return;
-        mouseButtons.delete(0);
+        releaseButton(0);
         activePrimaryPointerId = undefined;
         if (canvas.hasPointerCapture?.(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         e.preventDefault();
     };
 
     wheelHandler = (e) => { scrollDelta += normalizeWheelDeltaToPixels(e); e.preventDefault(); };
-    blurHandler = () => clearInputState();
+    // Losing focus releases everything held, so gameplay still sees the release edges.
+    blurHandler = () => {
+        for (const code of [...pressedKeys]) releaseKey(code);
+        for (const button of [...mouseButtons]) releaseButton(button);
+        activePrimaryPointerId = undefined;
+    };
     contextMenuHandler = (e) => e.preventDefault();
 
     resizeCanvasHandler();
@@ -630,6 +667,32 @@ export function isKeyPressed(key) {
 
 export function isMouseButtonPressed(button) {
     return mouseButtons.has(button);
+}
+
+// Returns the keys / buttons that went down or up since the previous call, then clears them.
+// Called once per tick by BrowserInputState.BeginFrame.
+export function takeKeyDownCodes() {
+    const codes = [...keysDownThisFrame];
+    keysDownThisFrame.clear();
+    return codes;
+}
+
+export function takeKeyUpCodes() {
+    const codes = [...keysUpThisFrame];
+    keysUpThisFrame.clear();
+    return codes;
+}
+
+export function takeMouseDownButtons() {
+    const buttons = [...buttonsDownThisFrame];
+    buttonsDownThisFrame.clear();
+    return buttons;
+}
+
+export function takeMouseUpButtons() {
+    const buttons = [...buttonsUpThisFrame];
+    buttonsUpThisFrame.clear();
+    return buttons;
 }
 
 export function getMouseX() {

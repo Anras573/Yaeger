@@ -41,6 +41,7 @@ public sealed class Window : IViewport, IDisposable
             // Mouse.ScrollDelta during Update/Render for this frame sees the live values; they
             // reset only once the frame is fully consumed.
             Mouse.EndFrame();
+            Keyboard.EndFrame();
         };
 
         _innerWindow.Initialize();
