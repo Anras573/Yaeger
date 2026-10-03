@@ -109,11 +109,39 @@ public class ParticleSystem : IUpdateSystem
                     Matrix4x4.CreateScale(size, size, 1f)
                     * Matrix4x4.CreateTranslation(particle.Position.X, particle.Position.Y, 0f);
 
-                _renderer.SubmitQuad(model, emitter.TexturePath, color);
+                var (uvMin, uvMax) = ResolveUv(in emitter, t);
+                _renderer.SubmitQuad(model, emitter.TexturePath, uvMin, uvMax, color);
             }
         }
 
         _renderer.FlushQueuedQuads();
+    }
+
+    /// <summary>
+    /// Resolves the UV rectangle for a particle at <paramref name="normalizedAge"/>: the
+    /// emitter's sub-rectangle, or the flipbook frame within it when
+    /// <see cref="ParticleEmitter.FrameCount"/> is positive.
+    /// </summary>
+    internal static (Vector2 UvMin, Vector2 UvMax) ResolveUv(
+        in ParticleEmitter emitter,
+        float normalizedAge
+    )
+    {
+        if (emitter.FrameCount <= 0 || emitter.Columns <= 0 || emitter.Rows <= 0)
+            return (emitter.UvMin, emitter.UvMax);
+
+        var frame = Math.Clamp(
+            (int)MathF.Floor(normalizedAge * emitter.FrameCount),
+            0,
+            emitter.FrameCount - 1
+        );
+        var col = frame % emitter.Columns;
+        var row = frame / emitter.Columns;
+        var size = emitter.UvMax - emitter.UvMin;
+        var cell = new Vector2(size.X / emitter.Columns, size.Y / emitter.Rows);
+        var uMin = emitter.UvMin.X + col * cell.X;
+        var vMax = emitter.UvMax.Y - row * cell.Y;
+        return (new Vector2(uMin, vMax - cell.Y), new Vector2(uMin + cell.X, vMax));
     }
 
     /// <summary>

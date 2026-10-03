@@ -122,6 +122,11 @@ public class ParticleEmitterSerializerTests
                 EndColor = Color.Blue,
                 StartSize = 0.3f,
                 EndSize = 0.01f,
+                UvMin = new Vector2(0.25f, 0.5f),
+                UvMax = new Vector2(0.5f, 1f),
+                Columns = 2,
+                Rows = 3,
+                FrameCount = 5,
             }
         );
 
@@ -143,5 +148,10 @@ public class ParticleEmitterSerializerTests
         Assert.Equal((byte)255, emitter.EndColor.B);
         Assert.Equal(0.3f, emitter.StartSize);
         Assert.Equal(0.01f, emitter.EndSize);
+        Assert.Equal(new Vector2(0.25f, 0.5f), emitter.UvMin);
+        Assert.Equal(new Vector2(0.5f, 1f), emitter.UvMax);
+        Assert.Equal(2, emitter.Columns);
+        Assert.Equal(3, emitter.Rows);
+        Assert.Equal(5, emitter.FrameCount);
     }
 }
