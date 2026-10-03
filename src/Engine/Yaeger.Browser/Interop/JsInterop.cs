@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.InteropServices.JavaScript;
 
 namespace Yaeger.Browser.Interop;
@@ -20,7 +21,10 @@ internal static partial class JsInterop
     public static partial void InitWebGL(string canvasId);
 
     [JSImport("clearFrame", "yaeger-browser")]
-    public static partial void ClearFrame();
+    private static partial void ClearFrameRaw(double r, double g, double b, double a);
+
+    public static void ClearFrame(Vector4 color) =>
+        ClearFrameRaw(color.X, color.Y, color.Z, color.W);
 
     /// <summary>
     /// Returns <c>[clientWidth, clientHeight, devicePixelRatio]</c> of the canvas (CSS pixels).

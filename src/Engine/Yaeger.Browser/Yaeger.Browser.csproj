@@ -12,6 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Yaeger.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Yaeger.Core\Yaeger.Core.csproj" />
   </ItemGroup>
 </Project>

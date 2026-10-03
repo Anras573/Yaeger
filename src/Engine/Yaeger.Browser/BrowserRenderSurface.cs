@@ -35,6 +35,20 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
     /// </summary>
     public void Initialize() => JsInterop.InitWebGL(canvasId);
 
+    /// <summary>
+    /// Colour the canvas is cleared to at the start of every frame (components in [0, 1],
+    /// straight RGBA). Defaults to opaque black. An alpha below 1 lets the page behind the
+    /// canvas show through, since the WebGL context is created with an alpha channel; note
+    /// that the browser composites the canvas as premultiplied alpha while sprites blend with
+    /// straight alpha, so semi-transparent sprites over a transparent clear can look washed out.
+    /// </summary>
+    public Vector4 ClearColor { get; set; } = new(0f, 0f, 0f, 1f);
+
+    // Test seam: the real sink calls into JS, which is unavailable outside the browser.
+    internal Action<Vector4> ClearFrameSink { get; set; } = JsInterop.ClearFrame;
+
+    internal void ClearFrame() => ClearFrameSink(ClearColor);
+
     /// <summary>Canvas size in CSS pixels, as of the last <see cref="BeginFrame"/>.</summary>
     public Vector2 Size { get; private set; } = new(1f, 1f);
 
@@ -122,7 +136,7 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
     {
         BrowserInputState.BeginFrame();
         RefreshViewport();
-        JsInterop.ClearFrame();
+        ClearFrame();
         _submissionQueue.Clear();
     }
 

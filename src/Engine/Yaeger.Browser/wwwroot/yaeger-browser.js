@@ -655,7 +655,7 @@ export function getViewport() {
     return [canvas.clientWidth, canvas.clientHeight, window.devicePixelRatio || 1];
 }
 
-export function clearFrame() {
+export function clearFrame(r, g, b, a) {
     if (!gl) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -667,7 +667,7 @@ export function clearFrame() {
         gl.viewport(0, 0, w, h);
     }
 
-    gl.clearColor(0, 0, 0, 1);
+    gl.clearColor(r, g, b, a);
     gl.clear(gl.COLOR_BUFFER_BIT);
 }
 

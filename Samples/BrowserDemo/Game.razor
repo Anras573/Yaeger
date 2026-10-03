@@ -16,7 +16,11 @@
         // Load the packaged Yaeger interop module so all [JSImport] functions become available.
         await YaegerBrowser.InitializeAsync(Nav.BaseUri);
 
-        _renderSurface = new BrowserRenderSurface("yaeger-canvas");
+        // Dark slate background set through the API instead of a full-screen quad.
+        _renderSurface = new BrowserRenderSurface("yaeger-canvas")
+        {
+            ClearColor = new System.Numerics.Vector4(0.08f, 0.1f, 0.16f, 1f),
+        };
         _renderSurface.Initialize();
 
         // WebAudio output. Browsers block audio until the first click/key press, so nothing is
