@@ -1,9 +1,32 @@
 using Silk.NET.OpenGL;
+using Yaeger.Platform;
 
 namespace Yaeger.Rendering;
 
-public class TextureManager(GL gl) : IDisposable
+public class TextureManager(GL gl, TextureSampling? defaultSampling = null) : IDisposable
 {
+    private readonly TextureSamplingTable _sampling = new(
+        defaultSampling ?? TextureSampling.Default
+    );
+
+    /// <summary>Sampling for textures with no per-path override. Applies to textures loaded afterwards.</summary>
+    public TextureSampling DefaultSampling
+    {
+        get => _sampling.Default;
+        set => _sampling.Default = value;
+    }
+
+    /// <summary>
+    /// Overrides filtering/wrapping for <paramref name="path"/>; applied immediately if the
+    /// texture is already loaded, otherwise on load.
+    /// </summary>
+    public void SetSampling(string path, TextureSampling sampling)
+    {
+        _sampling.Set(path, sampling);
+        if (_cache.TryGetValue(path, out var texture))
+            texture.SetSampling(sampling);
+    }
+
     private readonly Dictionary<string, Texture> _cache = new();
 
     public Texture Get(string path)
@@ -12,7 +35,7 @@ public class TextureManager(GL gl) : IDisposable
             return texture;
         // The empty path is the engine-wide "no texture" sentinel (IRenderSurface.SolidTexturePath):
         // it resolves to a 1x1 white texture so tinted quads render as flat colour.
-        texture = path.Length == 0 ? new Texture(gl) : new Texture(gl, path);
+        texture = path.Length == 0 ? new Texture(gl) : new Texture(gl, path, _sampling.Get(path));
         _cache[path] = texture;
 
         return texture;

@@ -112,6 +112,46 @@ function createWhiteTexture() {
     return tex;
 }
 
+/** Sampling values mirror Yaeger.Platform.TextureFilter / TextureWrap. */
+const FILTER_NEAREST = 0;
+const FILTER_LINEAR_MIPMAP = 2;
+const WRAP_REPEAT = 1;
+
+// Matches TextureSampling.Default (Linear + Clamp) on the native runtime.
+let defaultSampling = { filter: 1, wrap: 0 };
+const samplingOverrides = new Map();
+
+function getSampling(url) {
+    return samplingOverrides.get(url) || defaultSampling;
+}
+
+/** Applies filter/wrap to tex (binding it) and generates mipmaps when required. */
+function applySampling(tex, sampling) {
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    const nearest = sampling.filter === FILTER_NEAREST;
+    const mips = sampling.filter === FILTER_LINEAR_MIPMAP;
+    if (mips) gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER,
+        nearest ? gl.NEAREST : mips ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, nearest ? gl.NEAREST : gl.LINEAR);
+    const wrap = sampling.wrap === WRAP_REPEAT ? gl.REPEAT : gl.CLAMP_TO_EDGE;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
+}
+
+/** Sets the sampling used by textures with no per-URL override (applies to textures loaded afterwards). */
+export function setDefaultTextureSampling(filter, wrap) {
+    defaultSampling = { filter, wrap };
+}
+
+/** Overrides sampling for one texture URL; applied immediately if it is already loaded. */
+export function setTextureSampling(url, filter, wrap) {
+    const sampling = { filter, wrap };
+    samplingOverrides.set(url, sampling);
+    const tex = textureCache.get(url);
+    if (gl && tex && tex !== whiteTexture) applySampling(tex, sampling);
+}
+
 /**
  * Returns the WebGLTexture for the given URL, starting an async load on first access.
  * Returns whiteTexture (1×1 white) while loading or when url is empty/null.
@@ -135,11 +175,7 @@ function getOrLoadTexture(url) {
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        applySampling(tex, getSampling(url));
         textureCache.set(url, tex);
     };
     img.onerror = () => {

@@ -86,7 +86,7 @@ public sealed class SpotLightsScene : IDemoScene
         _world = world;
         var registry = new GpuMeshRegistry(window.Gl);
         _registry = registry;
-        _textures = new TextureManager(window.Gl);
+        _textures = new TextureManager(window.Gl, global::Yaeger.Platform.TextureSampling.Tiled);
 
         BuildRoom(world, registry);
         BuildSweepingLights(world);

@@ -48,6 +48,17 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
         PixelRatio = v[2] > 0 ? (float)v[2] : 1f;
     }
 
+    /// <summary>
+    /// Sampling for textures with no per-path override (default <see cref="TextureSampling.Default"/>,
+    /// same as native). Set before textures start loading.
+    /// </summary>
+    public void SetDefaultSampling(TextureSampling sampling) =>
+        JsInterop.SetDefaultTextureSampling((int)sampling.Filter, (int)sampling.Wrap);
+
+    /// <summary>Overrides filtering/wrapping for one texture path; mirrors <c>TextureManager.SetSampling</c>.</summary>
+    public void SetSampling(string texturePath, TextureSampling sampling) =>
+        JsInterop.SetTextureSampling(texturePath, (int)sampling.Filter, (int)sampling.Wrap);
+
     public void Dispose()
     {
         BrowserInputState.EndFrame();
