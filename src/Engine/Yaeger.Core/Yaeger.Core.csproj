@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <Compile Include="..\Yaeger\AssetPath.cs" Link="AssetPath.cs" />
+    <Compile Include="..\Yaeger\Audio\AudioGroup.cs" Link="Audio\AudioGroup.cs" />
+    <Compile Include="..\Yaeger\Audio\AudioMixer.cs" Link="Audio\AudioMixer.cs" />
     <Compile Include="..\Yaeger\Assets\MtlMaterial.cs" Link="Assets\MtlMaterial.cs" />
     <Compile Include="..\Yaeger\Assets\ModelMaterial.cs" Link="Assets\ModelMaterial.cs" />
     <Compile

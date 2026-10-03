@@ -1,4 +1,5 @@
 using System.Numerics;
+using Yaeger.Audio;
 using Yaeger.Browser;
 using Yaeger.ECS;
 using Yaeger.Graphics;
@@ -22,6 +23,8 @@ public sealed class GameController
     private readonly BallMovementSystem _movementSystem;
     private readonly BrowserTimeSource _timeSource = new();
     private readonly UnifiedRenderSystem _renderSystem;
+    private readonly IAudioOutput _audio;
+    private readonly IMusicStream _music;
     private bool _paused;
 
     /// <summary>Textures the scene draws; preload these before the first <see cref="Tick"/>.</summary>
@@ -29,9 +32,23 @@ public sealed class GameController
 
     private const string BallTexture = "textures/ball.png";
 
-    public GameController(BrowserRenderSurface renderSurface)
+    /// <summary>
+    /// Gameplay only sees <see cref="IAudioOutput"/>, so this same code plays its blip and music
+    /// loop on a native OpenAL runtime too.
+    /// </summary>
+    public GameController(
+        BrowserRenderSurface renderSurface,
+        IAudioOutput audio,
+        SoundHandle paddleHitSound
+    )
     {
         _renderSurface = renderSurface;
+        _audio = audio;
+        // Browsers hold audio until the first click/key press; the loop starts then.
+        _music = audio.OpenStream("audio/music.mp3");
+        _music.Looping = true;
+        _music.Gain = 0.5f;
+        _music.Play();
         _world = new World();
         // Text goes through the browser's own font stack (Canvas 2D glyph atlas); "sans-serif"
         // is a CSS family, so no font file needs loading.
@@ -42,7 +59,10 @@ public sealed class GameController
             renderSurface
         );
         _paddleSystem = new PaddleControlSystem(_world, _input);
-        _movementSystem = new BallMovementSystem(_world);
+        _movementSystem = new BallMovementSystem(
+            _world,
+            () => audio.Play(paddleHitSound, gain: 0.8f)
+        );
         // Opt in: stop the arrow keys from scrolling the page while playing.
         BrowserInputState.SetPreventDefaultKeys([
             Keys.Left,
@@ -119,11 +139,16 @@ public sealed class GameController
         if (_input.WasKeyPressed(Keys.Space))
             _paused = !_paused;
 
+        // M toggles mute through the mixer; it affects the already-playing music immediately.
+        if (_input.WasKeyPressed(Keys.M))
+            _audio.Mixer.MasterVolume = _audio.Mixer.MasterVolume > 0f ? 0f : 1f;
+
         if (!_paused)
         {
             _paddleSystem.Update(_timeSource.DeltaTime);
             _movementSystem.Update(_timeSource.DeltaTime);
         }
+        _audio.Update(_timeSource.DeltaTime);
         Render();
     }
 
@@ -178,7 +203,7 @@ internal sealed class PaddleControlSystem(World world, IInputState input) : IUpd
 /// re-served from the top rather than ending the game — this is a bounce-practice toy, not a
 /// scored game.
 /// </summary>
-internal sealed class BallMovementSystem(World world) : IUpdateSystem
+internal sealed class BallMovementSystem(World world, Action? onPaddleHit = null) : IUpdateSystem
 {
     public void Update(float deltaTime)
     {
@@ -227,6 +252,7 @@ internal sealed class BallMovementSystem(World world) : IUpdateSystem
                     vel.Y = -vel.Y;
                     pos.Y = paddleTop + halfScale.Y;
                     vel.X += (pos.X - paddlePos.X) / paddleHalf.X * 0.5f;
+                    onPaddleHit?.Invoke();
                 }
             }
 

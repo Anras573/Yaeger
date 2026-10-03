@@ -19,6 +19,11 @@
         _renderSurface = new BrowserRenderSurface("yaeger-canvas");
         _renderSurface.Initialize();
 
+        // WebAudio output. Browsers block audio until the first click/key press, so nothing is
+        // audible (and no autoplay warning is logged) before the user interacts with the page.
+        var audio = new BrowserAudioOutput();
+        var blip = await audio.LoadAsync("audio/blip.wav");
+
         // "?scene=tilemap" selects the camera-followed tilemap scene; the default is the paddle demo.
         var query = new Uri(Nav.Uri).Query;
         var tilemap = query.Contains("scene=tilemap", StringComparison.OrdinalIgnoreCase);
@@ -27,7 +32,7 @@
 
         Action<double> tick = tilemap
             ? new TilemapGameController(_renderSurface).Tick
-            : new GameController(_renderSurface).Tick;
+            : new GameController(_renderSurface, audio, blip).Tick;
         YaegerBrowser.StartGameLoop(tick);
     }
 

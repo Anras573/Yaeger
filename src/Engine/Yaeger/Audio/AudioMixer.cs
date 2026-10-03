@@ -8,7 +8,7 @@ namespace Yaeger.Audio;
 /// <see cref="VolumeChanged"/>, which every live source subscribes to so the change takes effect
 /// immediately, without needing to touch the source itself.
 /// </summary>
-public sealed class AudioMixer
+public sealed class AudioMixer : Yaeger.Platform.IAudioMixer
 {
     private float _masterVolume = 1f;
     private float _musicVolume = 1f;

@@ -391,6 +391,39 @@ See `Samples/Platformer` (`Program.cs`) for a working example: jump/coin/stomp S
 through one `AudioSystem.PlayOneShot` call apiece instead of a dedicated `SoundSource` each, with
 death impacts given a higher `priority` so they're never stolen by an ambient coin pickup.
 
+## Cross-platform audio (`IAudioOutput`)
+
+`Yaeger.Core` exposes a small audio seam in `Yaeger.Platform` so the same gameplay code plays sound on native and in the browser:
+
+```csharp
+IAudioOutput audio = new NativeAudioOutput(audioContext);      // native (OpenAL)
+// IAudioOutput audio = new BrowserAudioOutput();              // browser (WebAudio)
+
+var blip = await audio.LoadAsync("audio/blip.wav");            // decoded fully (SFX)
+var music = audio.OpenStream("audio/music.mp3");               // streamed
+music.Looping = true;
+music.Play();
+
+audio.Play(blip, gain: 0.8f, pitch: 1.2f);                     // fire-and-forget one-shot
+audio.Mixer.MasterVolume = 0.5f;                               // affects playing sounds too
+audio.Update(dt);                                              // once per frame
+```
+
+- `IMusicStream` has `Play`/`Pause`/`Stop`/`Looping`/`Gain`; ramp `Gain` per frame to crossfade two streams. Dispose it to release it.
+- `IAudioMixer` (master/music/SFX, clamped to [0, 1]) has the same semantics as `AudioMixer`, which implements it in both runtimes.
+- `NativeAudioOutput` wraps an `AudioContext`: `SoundBuffer`s for SFX, a voice pool (default 32, `VoiceStealPolicy.Quietest`) for one-shots, and `StreamingSoundSource` (OGG) for music. It is non-positional; `AudioSystem` keeps positional audio native-only.
+- `BrowserAudioOutput` (`Yaeger.Browser`) uses a WebAudio graph with master, music and SFX gain nodes. SFX are `fetch` → `decodeAudioData` → `AudioBufferSourceNode`, capped at 8 simultaneous voices per sound (oldest stolen first; constructor parameter). Music is an `<audio>` element routed through `createMediaElementSource`, so long tracks stream.
+
+### Browser autoplay policy
+
+Browsers block audio until the first user gesture. `BrowserAudioOutput` creates the live `AudioContext` inside the first `pointerdown`/`pointerup`/`touchend`/`keydown`, so no autoplay warning is logged. Until then, loading works, `Play` calls are dropped, and a music stream that was asked to play starts on that first interaction.
+
+### Browser formats
+
+Ogg Vorbis isn't reliably decodable in Safari. If a path ends in `.ogg` and the browser can't play Ogg, `BrowserAudioOutput` loads a sibling `.m4a` (or else `.mp3`) of the same basename instead, so ship those next to the `.ogg`. Any other extension (`.wav`, `.mp3`, `.m4a`) is loaded as given. Native streaming remains OGG-only, so a project sharing assets across runtimes should ship `.ogg` plus a fallback.
+
+See `Samples/BrowserDemo` (paddle-hit blip, music loop, `M` to mute).
+
 ## Out of scope
 
 - MP3 (patent-free OGG Vorbis covers the streaming/compressed-audio need)
