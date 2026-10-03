@@ -31,6 +31,8 @@
   <ItemGroup>
     <Compile Remove="AssetPath.cs" />
     <Compile Remove="Assets\MtlMaterial.cs" />
+    <Compile Remove="Audio\AudioGroup.cs" />
+    <Compile Remove="Audio\AudioMixer.cs" />
     <Compile Remove="Assets\ModelMaterial.cs" />
     <Compile Remove="ECS\**\*.cs" />
     <Compile Remove="Graphics\**\*.cs" />

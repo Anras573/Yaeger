@@ -133,3 +133,28 @@ public class AudioMixerTests
         Assert.Equal(0, fired);
     }
 }
+
+public class AudioSeamTests
+{
+    [Fact]
+    public void AudioMixer_ShouldBeUsableThroughIAudioMixer()
+    {
+        Yaeger.Platform.IAudioMixer mixer = new AudioMixer();
+
+        mixer.MasterVolume = 0.5f;
+        mixer.MusicVolume = 2f;
+        mixer.SfxVolume = -1f;
+
+        Assert.Equal(0.5f, mixer.MasterVolume);
+        Assert.Equal(1f, mixer.MusicVolume);
+        Assert.Equal(0f, mixer.SfxVolume);
+    }
+
+    [Fact]
+    public void SoundHandle_ShouldOnlyBeValidWhenIssued()
+    {
+        Assert.False(Yaeger.Platform.SoundHandle.None.IsValid);
+        Assert.False(default(Yaeger.Platform.SoundHandle).IsValid);
+        Assert.True(new Yaeger.Platform.SoundHandle(1).IsValid);
+    }
+}

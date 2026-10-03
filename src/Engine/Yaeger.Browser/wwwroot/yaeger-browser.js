@@ -746,3 +746,218 @@ export function stopGameLoop() {
     rafRunning = false;
     cancelAnimationFrame(rafHandle);
 }
+
+// ---------------------------------------------------------------------------
+// Audio: WebAudio backend for Yaeger.Platform.IAudioOutput
+// ---------------------------------------------------------------------------
+// Graph: SFX voice -> sfxGain -> masterGain -> destination
+//        <audio> element -> per-stream gain -> musicGain -> masterGain -> destination
+//
+// Browsers block audio until a user gesture, and creating/resuming an AudioContext earlier logs
+// an autoplay-policy warning. So the live AudioContext is only created inside the first
+// pointer/key/touch event. Until then SFX are decoded on an OfflineAudioContext (allowed at any
+// time, and the resulting AudioBuffer plays in any context), SFX plays are dropped, and a music
+// stream asked to play is queued and starts on that first gesture.
+
+const AUDIO_GROUP_MUSIC = 0;
+const AUDIO_UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'keydown'];
+const AUDIO_UNLOCK_OPTIONS = { capture: true, passive: true };
+
+let audioCtx; // live context; undefined until the first user gesture
+let audioMaster;
+let audioMusic;
+let audioSfx;
+let audioDecoder; // OfflineAudioContext, used for decodeAudioData before/after unlock
+let audioInitialized = false;
+let audioMaxVoices = 8;
+const audioVolumes = { master: 1, music: 1, sfx: 1 };
+const audioSounds = new Map(); // id -> { buffer, voices: AudioBufferSourceNode[] }
+const audioStreams = new Map(); // id -> stream record
+let audioNextId = 1;
+
+function audioCanPlay(type) {
+    const probe = document.createElement('audio');
+    return !!probe.canPlayType && probe.canPlayType(type) !== '';
+}
+
+let audioOggSupported;
+
+/**
+ * Ogg Vorbis is not reliably decodable in Safari. When a path ends in .ogg and the browser can't
+ * play it, load the sibling file with the same basename instead: .m4a (AAC) if supported,
+ * otherwise .mp3. Ship those siblings next to the .ogg to support such browsers.
+ */
+function audioResolveUrl(path) {
+    if (audioOggSupported === undefined) {
+        audioOggSupported = audioCanPlay('audio/ogg; codecs="vorbis"');
+    }
+    if (audioOggSupported || !/\.ogg(\?.*)?$/i.test(path)) return path;
+    const ext = audioCanPlay('audio/mp4; codecs="mp4a.40.2"') ? 'm4a' : 'mp3';
+    return path.replace(/\.ogg(\?.*)?$/i, `.${ext}$1`);
+}
+
+function audioApplyVolumes() {
+    if (!audioCtx) return;
+    audioMaster.gain.value = audioVolumes.master;
+    audioMusic.gain.value = audioVolumes.music;
+    audioSfx.gain.value = audioVolumes.sfx;
+}
+
+function audioStartStream(stream) {
+    if (!audioCtx) return;
+    if (!stream.node) {
+        stream.node = audioCtx.createGain();
+        stream.node.gain.value = stream.gain;
+        audioCtx.createMediaElementSource(stream.el).connect(stream.node);
+        stream.node.connect(audioMusic);
+    }
+    stream.el.play().catch((err) => console.warn('[Yaeger] Music playback failed:', err));
+}
+
+function audioUnlock() {
+    if (audioCtx) return;
+    for (const type of AUDIO_UNLOCK_EVENTS) {
+        window.removeEventListener(type, audioUnlock, AUDIO_UNLOCK_OPTIONS);
+    }
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) {
+        console.warn('[Yaeger] WebAudio is not supported in this browser.');
+        return;
+    }
+    audioCtx = new Ctor();
+    audioMaster = audioCtx.createGain();
+    audioMusic = audioCtx.createGain();
+    audioSfx = audioCtx.createGain();
+    audioMusic.connect(audioMaster);
+    audioSfx.connect(audioMaster);
+    audioMaster.connect(audioCtx.destination);
+    audioApplyVolumes();
+    // Created inside a gesture it is already running; resume() covers browsers that start
+    // contexts suspended regardless.
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    for (const stream of audioStreams.values()) {
+        if (stream.wantPlay) audioStartStream(stream);
+    }
+}
+
+/** Installs the first-gesture unlock. maxVoicesPerSound caps simultaneous plays of one sound. */
+export function audioInit(maxVoicesPerSound) {
+    if (audioInitialized) return;
+    audioInitialized = true;
+    audioMaxVoices = Math.max(1, maxVoicesPerSound | 0);
+    for (const type of AUDIO_UNLOCK_EVENTS) {
+        window.addEventListener(type, audioUnlock, AUDIO_UNLOCK_OPTIONS);
+    }
+}
+
+export function audioSetVolumes(master, music, sfx) {
+    audioVolumes.master = master;
+    audioVolumes.music = music;
+    audioVolumes.sfx = sfx;
+    audioApplyVolumes();
+}
+
+/** Fetches and fully decodes a short sound; resolves to its handle id (> 0). */
+export async function audioLoad(path) {
+    const url = audioResolveUrl(path);
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to load audio '${url}': HTTP ${response.status}`);
+    }
+    const bytes = await response.arrayBuffer();
+    audioDecoder ??= new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(
+        1,
+        1,
+        48000,
+    );
+    const buffer = await audioDecoder.decodeAudioData(bytes);
+    const id = audioNextId++;
+    audioSounds.set(id, { buffer, voices: [] });
+    return id;
+}
+
+export function audioPlay(id, gain, pitch, group) {
+    const sound = audioSounds.get(id);
+    if (!sound || !audioCtx || audioCtx.state !== 'running') return;
+
+    // Voice budget per sound: steal the oldest voice rather than stack unboundedly.
+    while (sound.voices.length >= audioMaxVoices) {
+        const oldest = sound.voices.shift();
+        oldest.onended = null;
+        try {
+            oldest.stop();
+        } catch {}
+        oldest.disconnect();
+    }
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = sound.buffer;
+    source.playbackRate.value = pitch;
+    const voiceGain = audioCtx.createGain();
+    voiceGain.gain.value = gain;
+    source.connect(voiceGain);
+    voiceGain.connect(group === AUDIO_GROUP_MUSIC ? audioMusic : audioSfx);
+    source.onended = () => {
+        const index = sound.voices.indexOf(source);
+        if (index >= 0) sound.voices.splice(index, 1);
+        source.disconnect();
+        voiceGain.disconnect();
+    };
+    sound.voices.push(source);
+    source.start();
+}
+
+/** Opens a streamed track backed by an <audio> element; resolves to its handle id. */
+export function audioOpenStream(path) {
+    const el = new Audio();
+    el.preload = 'auto';
+    el.crossOrigin = 'anonymous';
+    el.src = audioResolveUrl(path);
+    const id = audioNextId++;
+    audioStreams.set(id, { el, node: undefined, gain: 1, wantPlay: false });
+    return id;
+}
+
+export function audioStreamPlay(id) {
+    const stream = audioStreams.get(id);
+    if (!stream) return;
+    stream.wantPlay = true;
+    audioStartStream(stream); // no-op until unlocked; audioUnlock starts it then
+}
+
+export function audioStreamPause(id) {
+    const stream = audioStreams.get(id);
+    if (!stream) return;
+    stream.wantPlay = false;
+    stream.el.pause();
+}
+
+export function audioStreamStop(id) {
+    const stream = audioStreams.get(id);
+    if (!stream) return;
+    stream.wantPlay = false;
+    stream.el.pause();
+    stream.el.currentTime = 0;
+}
+
+export function audioStreamSetLooping(id, looping) {
+    const stream = audioStreams.get(id);
+    if (stream) stream.el.loop = looping;
+}
+
+export function audioStreamSetGain(id, gain) {
+    const stream = audioStreams.get(id);
+    if (!stream) return;
+    stream.gain = gain;
+    if (stream.node) stream.node.gain.value = gain;
+}
+
+export function audioStreamDispose(id) {
+    const stream = audioStreams.get(id);
+    if (!stream) return;
+    audioStreams.delete(id);
+    stream.el.pause();
+    stream.el.removeAttribute('src');
+    stream.el.load();
+    stream.node?.disconnect();
+}

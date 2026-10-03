@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 
 [assembly: TypeForwardedTo(typeof(global::Yaeger.AssetPath))]
+[assembly: TypeForwardedTo(typeof(global::Yaeger.Audio.AudioGroup))]
+[assembly: TypeForwardedTo(typeof(global::Yaeger.Audio.AudioMixer))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Assets.ModelMaterial))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.Assets.MtlMaterial))]
 [assembly: TypeForwardedTo(typeof(global::Yaeger.ECS.ComponentRegistry))]

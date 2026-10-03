@@ -23,6 +23,7 @@ browser with WebGL 2.0 support works.
 |-------|--------|
 | ← / → or A / D | Move the paddle |
 | Mouse (hold LMB) or touch (drag) | Move the paddle directly under the pointer |
+| M | Mute / unmute |
 
 ## What to notice
 
@@ -42,6 +43,14 @@ browser with WebGL 2.0 support works.
   (`_content/Yaeger.Browser/yaeger-browser.js`, no copy needed), then
   `YaegerBrowser.StartGameLoop(controller.Tick)` pumps `requestAnimationFrame` into
   `GameController.Tick`.
+
+## Audio
+
+`GameController` plays a blip when the ball bounces off the paddle and a looping music track, both
+through the platform-agnostic `IAudioOutput` (`BrowserAudioOutput` here, `NativeAudioOutput` on
+native). Browsers block audio until you interact with the page, so the music starts on your first
+click or key press. **M** toggles the master volume, which also affects the already-playing music.
+The assets are `wwwroot/audio/blip.wav` and `music.mp3`, formats every browser decodes.
 
 ## Keyboard defaults
 

@@ -108,4 +108,40 @@ internal static partial class JsInterop
         string pathPrefix,
         int[] codepoints
     );
+
+    [JSImport("audioInit", "yaeger-browser")]
+    public static partial void AudioInit(int maxVoicesPerSound);
+
+    [JSImport("audioSetVolumes", "yaeger-browser")]
+    public static partial void AudioSetVolumes(double master, double music, double sfx);
+
+    /// <summary>Fetches and decodes a sound; resolves to a handle id, or rejects on failure.</summary>
+    [JSImport("audioLoad", "yaeger-browser")]
+    [return: JSMarshalAs<JSType.Promise<JSType.Number>>]
+    public static partial Task<int> AudioLoad(string path);
+
+    /// <param name="group">0 = music, 1 = SFX (the <c>AudioGroup</c> ordinal).</param>
+    [JSImport("audioPlay", "yaeger-browser")]
+    public static partial void AudioPlay(int id, double gain, double pitch, int group);
+
+    [JSImport("audioOpenStream", "yaeger-browser")]
+    public static partial int AudioOpenStream(string path);
+
+    [JSImport("audioStreamPlay", "yaeger-browser")]
+    public static partial void AudioStreamPlay(int id);
+
+    [JSImport("audioStreamPause", "yaeger-browser")]
+    public static partial void AudioStreamPause(int id);
+
+    [JSImport("audioStreamStop", "yaeger-browser")]
+    public static partial void AudioStreamStop(int id);
+
+    [JSImport("audioStreamSetLooping", "yaeger-browser")]
+    public static partial void AudioStreamSetLooping(int id, bool looping);
+
+    [JSImport("audioStreamSetGain", "yaeger-browser")]
+    public static partial void AudioStreamSetGain(int id, double gain);
+
+    [JSImport("audioStreamDispose", "yaeger-browser")]
+    public static partial void AudioStreamDispose(int id);
 }
