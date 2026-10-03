@@ -35,7 +35,10 @@ public readonly struct SpriteSheet
     /// <summary>
     /// Initializes a new <see cref="SpriteSheet"/>.
     /// </summary>
-    /// <param name="texturePath">Path to the sprite sheet image file.</param>
+    /// <param name="texturePath">
+    /// Path to the sprite sheet image file. <see cref="IRenderSurface.SolidTexturePath"/> (<c>""</c>)
+    /// is accepted for a single-frame sheet and renders as a flat colour.
+    /// </param>
     /// <param name="columns">Number of equally-wide columns in the sheet.</param>
     /// <param name="rows">Number of equally-tall rows in the sheet. Defaults to 1.</param>
     /// <param name="frameCount">
@@ -53,7 +56,7 @@ public readonly struct SpriteSheet
         Color? tint = null
     )
     {
-        ArgumentException.ThrowIfNullOrEmpty(texturePath);
+        ArgumentNullException.ThrowIfNull(texturePath);
         ArgumentOutOfRangeException.ThrowIfLessThan(columns, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(rows, 1);
 
@@ -61,6 +64,15 @@ public readonly struct SpriteSheet
         var resolvedFrameCount = frameCount ?? maxFrames;
         ArgumentOutOfRangeException.ThrowIfLessThan(resolvedFrameCount, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(resolvedFrameCount, maxFrames);
+
+        // The solid-colour path is a 1x1 white texture, so it only makes sense as a single frame.
+        if (texturePath.Length == 0 && resolvedFrameCount > 1)
+        {
+            throw new ArgumentException(
+                "An empty (solid-colour) texture path is only valid for a single-frame sheet.",
+                nameof(texturePath)
+            );
+        }
 
         TexturePath = texturePath;
         Columns = columns;

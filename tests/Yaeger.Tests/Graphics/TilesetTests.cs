@@ -27,9 +27,24 @@ public class TilesetTests
     }
 
     [Fact]
-    public void Constructor_EmptyTexturePath_ShouldThrow()
+    public void Constructor_NullTexturePath_ShouldThrow()
     {
-        Assert.Throws<ArgumentException>(() => new Tileset("", columns: 1));
+        Assert.Throws<ArgumentNullException>(() => new Tileset(null!, columns: 1));
+    }
+
+    [Fact]
+    public void Constructor_SolidTexturePathSingleTile_ShouldSucceed()
+    {
+        var tileset = new Tileset("", columns: 1, rows: 1);
+
+        Assert.Equal("", tileset.TexturePath);
+        Assert.Equal(1, tileset.TileCount);
+    }
+
+    [Fact]
+    public void Constructor_SolidTexturePathMultipleTiles_ShouldThrow()
+    {
+        Assert.Throws<ArgumentException>(() => new Tileset("", columns: 2));
     }
 
     [Fact]
