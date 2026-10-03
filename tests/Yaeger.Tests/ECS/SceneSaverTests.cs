@@ -113,6 +113,36 @@ public class SceneSaverTests
     }
 
     [Fact]
+    public void Serialize_SolidTexturePathSpriteSheet_ShouldRoundTrip()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new SpriteSheet("", 4, 2, frameCount: 1));
+
+        var json = new SceneSaver(registry).Serialize(world);
+
+        var reloaded = new World();
+        reloaded.Instantiate(new SceneLoader(registry).Parse(json));
+        Assert.True(reloaded.TryGetComponent<SpriteSheet>(reloaded.Entities.Single(), out var ss));
+        Assert.Equal("", ss.TexturePath);
+        Assert.Equal(1, ss.FrameCount);
+    }
+
+    [Fact]
+    public void Deserialize_SolidTexturePathMultiFrameSpriteSheet_ShouldThrow()
+    {
+        var registry = new ComponentRegistry().RegisterEngineComponents();
+        var loader = new PrefabLoader(registry);
+
+        Assert.Throws<PrefabLoadException>(() =>
+            loader.Parse(
+                """{ "components": [ { "type": "SpriteSheet", "texturePath": "", "columns": 2 } ] }"""
+            )
+        );
+    }
+
+    [Fact]
     public void Serialize_SpriteSheet_DefaultFrameCount_ShouldOmitFrameCountField()
     {
         var registry = new ComponentRegistry().RegisterEngineComponents();
