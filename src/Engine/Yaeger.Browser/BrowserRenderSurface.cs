@@ -59,6 +59,58 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
     public void SetSampling(string texturePath, TextureSampling sampling) =>
         JsInterop.SetTextureSampling(texturePath, (int)sampling.Filter, (int)sampling.Wrap);
 
+    /// <summary>
+    /// Loads and uploads every texture in <paramref name="paths"/> concurrently so the first draw
+    /// never shows the white placeholder. Reports completed/total in [0, 1] through
+    /// <paramref name="progress"/>. Every path is attempted; if any fail, throws an
+    /// <see cref="AggregateException"/> of <see cref="TextureLoadException"/>s afterwards.
+    /// </summary>
+    public async Task PreloadAsync(IEnumerable<string> paths, IProgress<float>? progress = null)
+    {
+        var distinct = paths.Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+        if (distinct.Count == 0)
+        {
+            progress?.Report(1f);
+            return;
+        }
+
+        var done = 0;
+        var failures = new List<Exception>();
+        var tasks = distinct.Select(async path =>
+        {
+            try
+            {
+                await JsInterop.PreloadTexture(path);
+            }
+            catch (Exception e)
+            {
+                lock (failures)
+                    failures.Add(new TextureLoadException(path, e.Message, e));
+            }
+            progress?.Report((float)Interlocked.Increment(ref done) / distinct.Count);
+        });
+        await Task.WhenAll(tasks);
+
+        if (failures.Count > 0)
+            throw new AggregateException("One or more textures failed to load.", failures);
+    }
+
+    /// <summary>True once <paramref name="path"/> is decoded and uploaded (empty/solid path is always ready).</summary>
+    public bool IsReady(string path) => JsInterop.IsTextureReady(path);
+
+    /// <summary>Pixel size of a ready texture, or <see cref="Vector2.Zero"/> if it is not ready.</summary>
+    public Vector2 GetTextureSize(string path)
+    {
+        var s = JsInterop.GetTextureSize(path);
+        return new Vector2((float)s[0], (float)s[1]);
+    }
+
+    /// <summary>
+    /// The error for a texture whose load failed (including lazy loads started by drawing),
+    /// or <c>null</c> if it hasn't failed.
+    /// </summary>
+    public string? GetLoadError(string path) => JsInterop.GetTextureError(path);
+
     public void Dispose()
     {
         BrowserInputState.EndFrame();

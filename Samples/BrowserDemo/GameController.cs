@@ -24,6 +24,11 @@ public sealed class GameController
     private readonly UnifiedRenderSystem _renderSystem;
     private bool _paused;
 
+    /// <summary>Textures the scene draws; preload these before the first <see cref="Tick"/>.</summary>
+    public static readonly string[] TexturePaths = [BallTexture];
+
+    private const string BallTexture = "textures/ball.png";
+
     public GameController(BrowserRenderSurface renderSurface)
     {
         _renderSurface = renderSurface;
@@ -66,7 +71,7 @@ public sealed class GameController
             ball,
             new Transform2D(new Vector2(0f, 0.6f), scale: new Vector2(0.08f, 0.08f))
         );
-        _world.AddComponent(ball, new Sprite("", new Color(255, 140, 0)));
+        _world.AddComponent(ball, new Sprite(BallTexture, new Color(255, 255, 255)));
         _world.AddComponent(ball, new Velocity2D(0.45f, -0.6f));
 
         // A label redrawn every frame; its glyphs come from a cached atlas, so updating the

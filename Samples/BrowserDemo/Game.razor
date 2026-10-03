@@ -1,4 +1,6 @@
 @inject NavigationManager Nav
+@using System.Numerics
+@using Yaeger.Platform
 @implements IDisposable
 
 <canvas id="yaeger-canvas"></canvas>
@@ -19,10 +21,51 @@
 
         // "?scene=tilemap" selects the camera-followed tilemap scene; the default is the paddle demo.
         var query = new Uri(Nav.Uri).Query;
-        Action<double> tick = query.Contains("scene=tilemap", StringComparison.OrdinalIgnoreCase)
+        var tilemap = query.Contains("scene=tilemap", StringComparison.OrdinalIgnoreCase);
+        if (!tilemap)
+            await PreloadWithLoadingBarAsync(GameController.TexturePaths);
+
+        Action<double> tick = tilemap
             ? new TilemapGameController(_renderSurface).Tick
             : new GameController(_renderSurface).Tick;
         YaegerBrowser.StartGameLoop(tick);
+    }
+
+    // Draws a progress bar while textures load, so no sprite ever appears as a white placeholder.
+    private async Task PreloadWithLoadingBarAsync(string[] paths)
+    {
+        var progress = 0f;
+        YaegerBrowser.StartGameLoop(_ =>
+        {
+            _renderSurface!.BeginFrame();
+            ((IRenderSurface)_renderSurface).SubmitQuad(
+                Matrix4x4.CreateScale(1.2f, 0.06f, 1f),
+                new Vector4(0.25f, 0.25f, 0.3f, 1f)
+            );
+            var width = 1.2f * progress;
+            ((IRenderSurface)_renderSurface).SubmitQuad(
+                Matrix4x4.CreateScale(width, 0.06f, 1f)
+                    * Matrix4x4.CreateTranslation(-0.6f + width / 2f, 0f, 0f),
+                new Vector4(0.1f, 0.55f, 0.95f, 1f)
+            );
+            _renderSurface.EndFrame();
+        });
+
+        try
+        {
+            await _renderSurface!.PreloadAsync(paths, new Progress<float>(p => progress = p));
+        }
+        catch (AggregateException e)
+        {
+            // Surface the failure instead of rendering white forever.
+            foreach (var inner in e.InnerExceptions)
+                Console.Error.WriteLine($"[BrowserDemo] {inner.Message}");
+            throw;
+        }
+        finally
+        {
+            YaegerBrowser.StopGameLoop();
+        }
     }
 
     public void Dispose()
