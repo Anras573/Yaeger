@@ -56,6 +56,21 @@ internal static partial class JsInterop
     [JSImport("setTextureSampling", "yaeger-browser")]
     public static partial void SetTextureSampling(string url, int filter, int wrap);
 
+    [JSImport("preloadTexture", "yaeger-browser")]
+    [return: JSMarshalAs<JSType.Promise<JSType.Void>>]
+    public static partial Task PreloadTexture(string url);
+
+    [JSImport("isTextureReady", "yaeger-browser")]
+    public static partial bool IsTextureReady(string url);
+
+    /// <summary>Returns <c>[width, height]</c>, or <c>[0, 0]</c> if the texture is not ready.</summary>
+    [JSImport("getTextureSize", "yaeger-browser")]
+    [return: JSMarshalAs<JSType.Array<JSType.Number>>]
+    public static partial double[] GetTextureSize(string url);
+
+    [JSImport("getTextureError", "yaeger-browser")]
+    public static partial string? GetTextureError(string url);
+
     [JSImport("isKeyPressed", "yaeger-browser")]
     public static partial bool IsKeyPressed(string key);
 

@@ -152,6 +152,51 @@ export function setTextureSampling(url, filter, wrap) {
     if (gl && tex && tex !== whiteTexture) applySampling(tex, sampling);
 }
 
+/** url -> Promise that settles once the texture is uploaded (or rejects on failure). */
+const textureLoads = new Map();
+/** url -> [width, height] in pixels, set once the image is uploaded. */
+const textureSizes = new Map();
+/** url -> error message for loads that failed. */
+const textureErrors = new Map();
+
+/** Starts (once) the async load+upload of url; returns the shared promise. */
+function startTextureLoad(url) {
+    let load = textureLoads.get(url);
+    if (load) return load;
+
+    textureCache.set(url, null); // mark as in-flight
+    load = new Promise((resolve, reject) => {
+        const img = new Image();
+        const fail = (message) => {
+            console.warn(`[Yaeger] ${message}`);
+            textureErrors.set(url, message);
+            textureCache.set(url, whiteTexture);
+            reject(new Error(message));
+        };
+        img.onload = async () => {
+            try { await img.decode(); } catch { /* onload already fired; upload below decodes if needed */ }
+            if (!gl) { reject(new Error('Canvas disposed')); return; }
+            const tex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            // Flip Y so row 0 is at the bottom, matching StbImageSharp FlipVerticallyOnLoad
+            // used by the desktop Texture loader. Without this, sprites render upside-down.
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+            applySampling(tex, getSampling(url));
+            textureSizes.set(url, [img.naturalWidth, img.naturalHeight]);
+            textureCache.set(url, tex);
+            resolve();
+        };
+        img.onerror = () => fail(`Failed to load texture: ${url}`);
+        img.src = url;
+    });
+    textureLoads.set(url, load);
+    // Lazy loads (first drawBatch) never await the promise; avoid unhandled-rejection noise.
+    load.catch(() => { });
+    return load;
+}
+
 /**
  * Returns the WebGLTexture for the given URL, starting an async load on first access.
  * Returns whiteTexture (1×1 white) while loading or when url is empty/null.
@@ -163,28 +208,30 @@ function getOrLoadTexture(url) {
         return textureCache.get(url) || whiteTexture;
     }
 
-    textureCache.set(url, null); // mark as in-flight
-
-    const img = new Image();
-    img.onload = () => {
-        if (!gl) return;
-        const tex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        // Flip Y so row 0 is at the bottom, matching StbImageSharp FlipVerticallyOnLoad
-        // used by the desktop Texture loader. Without this, sprites render upside-down.
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-        applySampling(tex, getSampling(url));
-        textureCache.set(url, tex);
-    };
-    img.onerror = () => {
-        console.warn(`[Yaeger] Failed to load texture: ${url}`);
-        textureCache.set(url, whiteTexture);
-    };
-    img.src = url;
-
+    startTextureLoad(url);
     return whiteTexture;
+}
+
+/** Starts loading url (if not already) and resolves once it is decoded and uploaded; rejects on failure. */
+export function preloadTexture(url) {
+    if (!url) return Promise.resolve();
+    return startTextureLoad(url);
+}
+
+/** True once url has been loaded and uploaded successfully (empty url is always ready). */
+export function isTextureReady(url) {
+    if (!url) return true;
+    return textureSizes.has(url);
+}
+
+/** Returns [width, height] in pixels of a loaded texture, or [0, 0] if it is not ready. */
+export function getTextureSize(url) {
+    return textureSizes.get(url) || [0, 0];
+}
+
+/** Returns the load error message for url, or null if it has not failed. */
+export function getTextureError(url) {
+    return textureErrors.get(url) ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -677,6 +724,9 @@ export function disposeCanvas() {
             if (tex && tex !== whiteTexture) gl.deleteTexture(tex);
         });
         textureCache.clear();
+        textureLoads.clear();
+        textureSizes.clear();
+        textureErrors.clear();
         glyphAtlases.clear();
         if (whiteTexture) { gl.deleteTexture(whiteTexture); whiteTexture = null; }
         if (vao) { gl.deleteVertexArray(vao); vao = null; }
