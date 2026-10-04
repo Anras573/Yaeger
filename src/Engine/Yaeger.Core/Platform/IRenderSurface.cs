@@ -27,6 +27,12 @@ public interface IRenderSurface
     );
 
     /// <summary>
+    /// Pixel size of the texture at <paramref name="path"/>, or <see cref="Vector2.Zero"/> if
+    /// unknown (the default). Used to inset sprite-sheet/tile UVs against neighbour bleed.
+    /// </summary>
+    Vector2 GetTextureSize(string path) => Vector2.Zero;
+
+    /// <summary>
     /// Texture path meaning "no texture": a quad submitted with it is drawn as a flat
     /// <c>color</c>. It shares the regular batched quad path.
     /// </summary>

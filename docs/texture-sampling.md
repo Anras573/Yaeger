@@ -31,4 +31,5 @@ Mipmaps are off by default because they average neighbouring atlas entries when 
 
 - Extrude each tile's edge pixels by 1–2 px into the padding.
 - With `Linear`, inset UVs by half a texel so bilinear taps never reach a neighbouring tile.
+- Spacing-free sheets also bleed with `Nearest` at non-integer pixels-per-tile scales (e.g. a zooming camera). `UnifiedRenderSystem` therefore insets `Tilemap` tile and `SpriteSheet` frame UVs by half a texel automatically whenever the render surface reports the texture size (`IRenderSurface.GetTextureSize`; native `Renderer` and `BrowserRenderSurface` do). Call `GetFrameUv`/`GetTileUv(index, textureSize, texelInset)` for a custom inset. Particle flipbooks are not yet inset.
 - Use `Nearest` for pixel art and keep tile positions on whole pixels.

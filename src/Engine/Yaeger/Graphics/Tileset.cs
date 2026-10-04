@@ -89,6 +89,16 @@ public readonly struct Tileset
     public (Vector2 UvMin, Vector2 UvMax) GetTileUv(int tileIndex) => _sheet.GetFrameUv(tileIndex);
 
     /// <summary>
+    /// Tile UV rectangle inset by <paramref name="texelInset"/> texels per edge; see
+    /// <see cref="SpriteSheet.GetFrameUv(int, Vector2, float)"/>.
+    /// </summary>
+    public (Vector2 UvMin, Vector2 UvMax) GetTileUv(
+        int tileIndex,
+        Vector2 textureSize,
+        float texelInset = 0.5f
+    ) => _sheet.GetFrameUv(tileIndex, textureSize, texelInset);
+
+    /// <summary>
     /// Returns whether the given tile index is solid for collision purposes. Out-of-range
     /// indices (including <see cref="Tilemap.EmptyTile"/>) are never solid.
     /// </summary>

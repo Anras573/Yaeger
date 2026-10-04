@@ -100,6 +100,12 @@ public class Renderer : IRenderSurface, IDisposable
     }
 
     /// <summary>Queues a quad drawn with the full texture and default white tint.</summary>
+    public Vector2 GetTextureSize(string path)
+    {
+        var texture = _textureManager.Get(path);
+        return new Vector2(texture.Width, texture.Height);
+    }
+
     public void SubmitQuad(Matrix4x4 model, string texturePath)
     {
         SubmitQuad(model, texturePath, Vector4.One);

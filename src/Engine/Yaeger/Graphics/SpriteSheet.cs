@@ -112,4 +112,31 @@ public readonly struct SpriteSheet
 
         return (uvMin, uvMax);
     }
+
+    /// <summary>
+    /// Like <see cref="GetFrameUv(int)"/>, but pulls each edge inward by <paramref name="texelInset"/>
+    /// texels so bilinear taps and rounding at non-integer scales never sample a neighbouring
+    /// cell of a spacing-free sheet. The inset is capped at a quarter of the cell so a frame
+    /// never collapses. A zero/negative <paramref name="textureSize"/> or inset returns the exact
+    /// cell edges.
+    /// </summary>
+    /// <param name="frameIndex">Zero-based frame index.</param>
+    /// <param name="textureSize">Pixel size of the sheet texture.</param>
+    /// <param name="texelInset">Inset per edge in texels (default half a texel).</param>
+    public (Vector2 UvMin, Vector2 UvMax) GetFrameUv(
+        int frameIndex,
+        Vector2 textureSize,
+        float texelInset = 0.5f
+    )
+    {
+        var (uvMin, uvMax) = GetFrameUv(frameIndex);
+        if (textureSize.X <= 0f || textureSize.Y <= 0f || !(texelInset > 0f))
+            return (uvMin, uvMax);
+
+        var inset = new Vector2(
+            Math.Min(texelInset / textureSize.X, (uvMax.X - uvMin.X) * 0.25f),
+            Math.Min(texelInset / textureSize.Y, (uvMax.Y - uvMin.Y) * 0.25f)
+        );
+        return (uvMin + inset, uvMax - inset);
+    }
 }
