@@ -126,7 +126,10 @@ public class UnifiedRenderSystem(
                     continue;
 
                 var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
-                var (uvMin, uvMax) = sheet.GetFrameUv(frameIndex);
+                var (uvMin, uvMax) = sheet.GetFrameUv(
+                    frameIndex,
+                    renderer?.GetTextureSize(sheet.TexturePath) ?? default
+                );
 
                 // An optional co-located Sprite carries facing/flip state for an animated
                 // entity — its own TexturePath is unused here (SpriteSheet's is authoritative),
@@ -251,6 +254,8 @@ public class UnifiedRenderSystem(
         if (columnMin > columnMax || rowMin > rowMax)
             return;
 
+        var textureSize = renderer!.GetTextureSize(map.Tileset.TexturePath);
+
         for (var row = rowMin; row <= rowMax; row++)
         {
             for (var column = columnMin; column <= columnMax; column++)
@@ -259,7 +264,7 @@ public class UnifiedRenderSystem(
                 if (tileIndex == Tilemap.EmptyTile)
                     continue;
 
-                var (uvMin, uvMax) = map.Tileset.GetTileUv(tileIndex);
+                var (uvMin, uvMax) = map.Tileset.GetTileUv(tileIndex, textureSize);
 
                 // Tile quad in map-local space: the unit quad is centred on the origin, so
                 // scale it to tile size and translate to the cell centre (row 0 is the top
