@@ -192,6 +192,25 @@ public class UnifiedRenderSystemTilemapTests
     }
 
     [Fact]
+    public void Render_WithTextureSizeProvider_ShouldInsetTileUvs()
+    {
+        var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new Transform2D(Vector2.Zero));
+        world.AddComponent(entity, new Tilemap(MakeTileset(), width: 1, height: 1, tiles: [3]));
+
+        var surface = new FakeRenderSurface();
+        var size = new Vector2(64f, 64f);
+        new UnifiedRenderSystem(surface, null, world, textureSizeProvider: _ => size).Render();
+
+        var quad = Assert.Single(surface.Quads);
+        var (expectedMin, expectedMax) = MakeTileset().GetTileUv(3, size);
+        Assert.Equal(expectedMin, quad.UvMin);
+        Assert.Equal(expectedMax, quad.UvMax);
+        Assert.NotEqual(MakeTileset().GetTileUv(3).UvMin, quad.UvMin);
+    }
+
+    [Fact]
     public void Render_ShouldApplyTintToAllTiles()
     {
         var world = new World();
