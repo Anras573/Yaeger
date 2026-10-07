@@ -51,7 +51,10 @@ public class RenderSystem(IRenderSurface renderer, World world, Window? window =
                 continue;
             }
             var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
-            var (uvMin, uvMax) = sheet.GetFrameUv(frameIndex);
+            var (uvMin, uvMax) = sheet.GetFrameUv(
+                frameIndex,
+                renderer.GetTextureSize(sheet.TexturePath)
+            );
 
             renderer.SubmitQuad(
                 transform.TransformMatrix,

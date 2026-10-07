@@ -111,6 +111,9 @@ public class ParticleRenderSystem3D(
         var velocityStretch = MathF.Max(emitter.VelocityStretch, 0f);
         var totalFrames = Math.Max(emitter.FrameColumns, 1) * Math.Max(emitter.FrameRows, 1);
 
+        var texture = textureManager.Get(emitter.TexturePath);
+        var textureSize = new Vector2(texture.Width, texture.Height);
+
         _instanceScratch.Clear();
         for (var i = 0; i < pool.AliveCount; i++)
         {
@@ -144,7 +147,8 @@ public class ParticleRenderSystem3D(
             var (uvMin, uvMax) = BillboardMath.GetFrameUv(
                 emitter.FrameColumns,
                 emitter.FrameRows,
-                frameIndex
+                frameIndex,
+                textureSize
             );
 
             _instanceScratch.Add(

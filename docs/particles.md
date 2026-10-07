@@ -46,8 +46,8 @@ See `Samples/Platformer/Systems/ParticleEffectsSystem.cs` for a complete program
 | `StartColor` / `EndColor` | `Color` | white | Tint lerped over each particle's lifetime |
 | `StartSize` / `EndSize` | `float` | `0.1` | Quad size lerped over each particle's lifetime |
 | `TexturePath` | `string` | (ctor) | Texture every particle is drawn with |
-| `UvMin` / `UvMax` | `Vector2` | `(0,0)` / `(1,1)` | Sub-rectangle of the texture each particle samples — point it at an atlas region so particles batch with other atlas sprites |
-| `Columns` / `Rows` / `FrameCount` | `int` | `1` / `1` / `0` | Optional flipbook: subdivides the `UvMin`..`UvMax` region (row 0 at top, like `SpriteSheet`); each particle shows frame `floor(age01 × FrameCount)`. `FrameCount = 0` disables it |
+| `UvMin` / `UvMax` | `Vector2` | `(0,0)` / `(1,1)` | Sub-rectangle of the texture each particle samples — point it at an atlas region so particles batch with other atlas sprites. Edges are inset by half a texel (capped at a quarter of the region) when the render surface reports the texture size, so packed atlases don't bleed neighbours |
+| `Columns` / `Rows` / `FrameCount` | `int` | `1` / `1` / `0` | Optional flipbook: subdivides the `UvMin`..`UvMax` region (row 0 at top, like `SpriteSheet`); each particle shows frame `floor(age01 × FrameCount)`, inset by half a texel per edge like the region above. `FrameCount = 0` disables it |
 
 The emitter entity must also carry a `Transform2D`; its `Position` is where particles spawn.
 
@@ -217,7 +217,7 @@ unless you opt in.
 
 The math is split the same way `SpriteSheet.GetFrameUv` is: `BillboardMath.ComputeFrameIndex` (age
 → frame index, looping) and `BillboardMath.GetFrameUv` (frame index → normalised UV rect, frames
-indexed left-to-right top-to-bottom, matching `SpriteSheet.GetFrameUv`'s own convention) are both
+indexed left-to-right top-to-bottom, matching `SpriteSheet.GetFrameUv`'s own convention; the overload taking a `textureSize` insets each frame by half a texel so spacing-free sheets don't bleed) are both
 public statics, unit-tested directly. Each particle's resolved UV rect is packed into
 `ParticleInstanceData` and consumed in `ParticleBillboard.vert`, which maps the quad's local `[0,1]`
 texcoord into that rect — so a non-animated particle (UV rect `(0,0)-(1,1)`) samples its texture

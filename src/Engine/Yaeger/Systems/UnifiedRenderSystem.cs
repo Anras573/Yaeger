@@ -9,11 +9,19 @@ namespace Yaeger.Systems;
 /// Renders sprites, sprite sheets, tilemaps, and text in a shared deterministic order using
 /// <see cref="RenderLayer"/>, <see cref="Entity.Id"/>, and command kind as sort keys.
 /// </summary>
+/// <remarks>
+/// Sprite-sheet and tile UVs are inset by half a texel to avoid neighbour bleed, which needs
+/// each texture's pixel size. By default it comes from
+/// <see cref="IRenderSurface.GetTextureSize"/>; pass <c>textureSizeProvider</c> to supply it
+/// explicitly (e.g. when the surface is a wrapper that does not forward that member). A
+/// provider returning <see cref="Vector2.Zero"/> means "unknown" and disables the inset.
+/// </remarks>
 public class UnifiedRenderSystem(
     IRenderSurface? renderer,
     ITextRenderSurface? textRenderer,
     World world,
-    IViewport? viewport = null
+    IViewport? viewport = null,
+    Func<string, Vector2>? textureSizeProvider = null
 )
 {
     private readonly List<RenderCommand> _commands = Validate(renderer, textRenderer);
@@ -33,6 +41,11 @@ public class UnifiedRenderSystem(
             );
         return [];
     }
+
+    private Vector2 GetTextureSize(string path) =>
+        textureSizeProvider is not null ? textureSizeProvider(path)
+        : renderer is not null ? renderer.GetTextureSize(path)
+        : default;
 
     public void Render()
     {
@@ -128,7 +141,7 @@ public class UnifiedRenderSystem(
                 var frameIndex = Math.Clamp(state.CurrentFrameIndex, 0, sheet.FrameCount - 1);
                 var (uvMin, uvMax) = sheet.GetFrameUv(
                     frameIndex,
-                    renderer?.GetTextureSize(sheet.TexturePath) ?? default
+                    GetTextureSize(sheet.TexturePath)
                 );
 
                 // An optional co-located Sprite carries facing/flip state for an animated
@@ -254,7 +267,7 @@ public class UnifiedRenderSystem(
         if (columnMin > columnMax || rowMin > rowMax)
             return;
 
-        var textureSize = renderer!.GetTextureSize(map.Tileset.TexturePath);
+        var textureSize = GetTextureSize(map.Tileset.TexturePath);
 
         for (var row = rowMin; row <= rowMax; row++)
         {

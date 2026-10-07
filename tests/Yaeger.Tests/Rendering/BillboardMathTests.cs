@@ -306,4 +306,25 @@ public class BillboardMathTests
 
         public int GetHashCode(Vector3 obj) => 0;
     }
+
+    [Fact]
+    public void GetFrameUv_WithTextureSize_ShouldInsetByHalfTexel()
+    {
+        var (exactMin, exactMax) = BillboardMath.GetFrameUv(2, 2, 1);
+        var (min, max) = BillboardMath.GetFrameUv(2, 2, 1, new Vector2(64f, 64f));
+
+        Assert.Equal(exactMin.X + 0.5f / 64f, min.X, 5);
+        Assert.Equal(exactMin.Y + 0.5f / 64f, min.Y, 5);
+        Assert.Equal(exactMax.X - 0.5f / 64f, max.X, 5);
+        Assert.Equal(exactMax.Y - 0.5f / 64f, max.Y, 5);
+    }
+
+    [Fact]
+    public void GetFrameUv_WithUnknownTextureSize_ShouldKeepExactEdges()
+    {
+        Assert.Equal(
+            BillboardMath.GetFrameUv(2, 2, 3),
+            BillboardMath.GetFrameUv(2, 2, 3, Vector2.Zero)
+        );
+    }
 }

@@ -130,13 +130,6 @@ public readonly struct SpriteSheet
     )
     {
         var (uvMin, uvMax) = GetFrameUv(frameIndex);
-        if (textureSize.X <= 0f || textureSize.Y <= 0f || !(texelInset > 0f))
-            return (uvMin, uvMax);
-
-        var inset = new Vector2(
-            Math.Min(texelInset / textureSize.X, (uvMax.X - uvMin.X) * 0.25f),
-            Math.Min(texelInset / textureSize.Y, (uvMax.Y - uvMin.Y) * 0.25f)
-        );
-        return (uvMin + inset, uvMax - inset);
+        return UvInset.Apply(uvMin, uvMax, textureSize, texelInset);
     }
 }
