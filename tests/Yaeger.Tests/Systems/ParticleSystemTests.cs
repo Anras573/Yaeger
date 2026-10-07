@@ -347,6 +347,72 @@ public class ParticleSystemTests
     }
 
     [Fact]
+    public void ResolveUv_WithTextureSize_ShouldInsetFlipbookFrameByHalfTexel()
+    {
+        var emitter = new ParticleEmitter(TexturePath)
+        {
+            Columns = 2,
+            Rows = 2,
+            FrameCount = 4,
+        };
+
+        var (min, max) = ParticleSystem.ResolveUv(in emitter, 0f, new Vector2(64f, 32f));
+
+        Assert.Equal(0.5f / 64f, min.X, 5);
+        Assert.Equal(0.5f + 0.5f / 32f, min.Y, 5);
+        Assert.Equal(0.5f - 0.5f / 64f, max.X, 5);
+        Assert.Equal(1f - 0.5f / 32f, max.Y, 5);
+    }
+
+    [Fact]
+    public void ResolveUv_WithTextureSize_ShouldInsetPlainRegion()
+    {
+        var emitter = new ParticleEmitter(TexturePath)
+        {
+            UvMin = new Vector2(0.25f, 0.25f),
+            UvMax = new Vector2(0.5f, 0.75f),
+        };
+
+        var (min, max) = ParticleSystem.ResolveUv(in emitter, 0.3f, new Vector2(100f, 100f));
+
+        Assert.Equal(new Vector2(0.255f, 0.255f), min);
+        Assert.Equal(new Vector2(0.495f, 0.745f), max);
+    }
+
+    [Fact]
+    public void ResolveUv_ShouldCapInsetAtQuarterOfCell()
+    {
+        var emitter = new ParticleEmitter(TexturePath)
+        {
+            Columns = 2,
+            Rows = 1,
+            FrameCount = 2,
+        };
+
+        // 2 px texture: half a texel (0.25 UV) exceeds a quarter of the 0.5-wide cell.
+        var (min, max) = ParticleSystem.ResolveUv(in emitter, 0f, new Vector2(2f, 2f));
+
+        Assert.Equal(0.125f, min.X, 5);
+        Assert.Equal(0.375f, max.X, 5);
+    }
+
+    [Fact]
+    public void ResolveUv_WithUnknownTextureSize_ShouldKeepExactEdges()
+    {
+        var emitter = new ParticleEmitter(TexturePath)
+        {
+            Columns = 2,
+            Rows = 1,
+            FrameCount = 2,
+        };
+
+        var (min, max) = ParticleSystem.ResolveUv(in emitter, 0f, Vector2.Zero);
+
+        Assert.Equal(Vector2.Zero, min);
+        Assert.Equal(new Vector2(0.5f, 1f), max);
+    }
+
+    [Fact]
     public void Render_ShouldInterpolateColorAndSizeOverLifetime()
     {
         var world = new World();

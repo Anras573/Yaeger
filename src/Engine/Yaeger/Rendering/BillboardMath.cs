@@ -106,6 +106,24 @@ public static class BillboardMath
     }
 
     /// <summary>
+    /// Like <see cref="GetFrameUv(int, int, int)"/>, but insets the frame by
+    /// <paramref name="texelInset"/> texels per edge (see <see cref="Yaeger.Graphics.UvInset"/>)
+    /// so flipbook frames on a spacing-free sheet never bleed neighbouring cells.
+    /// <see cref="Vector2.Zero"/> for <paramref name="textureSize"/> returns exact edges.
+    /// </summary>
+    public static (Vector2 UvMin, Vector2 UvMax) GetFrameUv(
+        int columns,
+        int rows,
+        int frameIndex,
+        Vector2 textureSize,
+        float texelInset = 0.5f
+    )
+    {
+        var (uvMin, uvMax) = GetFrameUv(columns, rows, frameIndex);
+        return Yaeger.Graphics.UvInset.Apply(uvMin, uvMax, textureSize, texelInset);
+    }
+
+    /// <summary>
     /// Converts a non-linear perspective device depth in <c>[0, 1]</c> (as sampled straight from a
     /// depth texture, or read from <c>gl_FragCoord.z</c>) to linear view-space depth — positive
     /// distance from the camera, in world units. The shader-side half of soft particles

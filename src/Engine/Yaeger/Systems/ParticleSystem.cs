@@ -98,6 +98,8 @@ public class ParticleSystem : IUpdateSystem
 
             var startColor = emitter.StartColor.ToVector4();
             var endColor = emitter.EndColor.ToVector4();
+            // Looked up once per emitter per frame; Vector2.Zero (unknown) keeps exact edges.
+            var textureSize = _renderer.GetTextureSize(emitter.TexturePath);
 
             for (var i = 0; i < pool.AliveCount; i++)
             {
@@ -109,7 +111,7 @@ public class ParticleSystem : IUpdateSystem
                     Matrix4x4.CreateScale(size, size, 1f)
                     * Matrix4x4.CreateTranslation(particle.Position.X, particle.Position.Y, 0f);
 
-                var (uvMin, uvMax) = ResolveUv(in emitter, t);
+                var (uvMin, uvMax) = ResolveUv(in emitter, t, textureSize);
                 _renderer.SubmitQuad(model, emitter.TexturePath, uvMin, uvMax, color);
             }
         }
@@ -120,15 +122,19 @@ public class ParticleSystem : IUpdateSystem
     /// <summary>
     /// Resolves the UV rectangle for a particle at <paramref name="normalizedAge"/>: the
     /// emitter's sub-rectangle, or the flipbook frame within it when
-    /// <see cref="ParticleEmitter.FrameCount"/> is positive.
+    /// <see cref="ParticleEmitter.FrameCount"/> is positive. With a known
+    /// <paramref name="textureSize"/> the result is inset by <paramref name="texelInset"/> texels
+    /// per edge (see <see cref="UvInset"/>); <see cref="Vector2.Zero"/> keeps exact edges.
     /// </summary>
     internal static (Vector2 UvMin, Vector2 UvMax) ResolveUv(
         in ParticleEmitter emitter,
-        float normalizedAge
+        float normalizedAge,
+        Vector2 textureSize = default,
+        float texelInset = 0.5f
     )
     {
         if (emitter.FrameCount <= 0 || emitter.Columns <= 0 || emitter.Rows <= 0)
-            return (emitter.UvMin, emitter.UvMax);
+            return UvInset.Apply(emitter.UvMin, emitter.UvMax, textureSize, texelInset);
 
         var frame = Math.Clamp(
             (int)MathF.Floor(normalizedAge * emitter.FrameCount),
@@ -141,7 +147,12 @@ public class ParticleSystem : IUpdateSystem
         var cell = new Vector2(size.X / emitter.Columns, size.Y / emitter.Rows);
         var uMin = emitter.UvMin.X + col * cell.X;
         var vMax = emitter.UvMax.Y - row * cell.Y;
-        return (new Vector2(uMin, vMax - cell.Y), new Vector2(uMin + cell.X, vMax));
+        return UvInset.Apply(
+            new Vector2(uMin, vMax - cell.Y),
+            new Vector2(uMin + cell.X, vMax),
+            textureSize,
+            texelInset
+        );
     }
 
     /// <summary>
