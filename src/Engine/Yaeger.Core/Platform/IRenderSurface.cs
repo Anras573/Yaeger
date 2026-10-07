@@ -29,6 +29,8 @@ public interface IRenderSurface
     /// <summary>
     /// Pixel size of the texture at <paramref name="path"/>, or <see cref="Vector2.Zero"/> if
     /// unknown (the default). Used to inset sprite-sheet/tile UVs against neighbour bleed.
+    /// Wrappers/decorators around another surface must forward this; otherwise they inherit
+    /// the default and the anti-bleed inset is silently skipped.
     /// </summary>
     Vector2 GetTextureSize(string path) => Vector2.Zero;
 

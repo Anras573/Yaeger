@@ -116,9 +116,18 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
     /// <summary>Pixel size of a ready texture, or <see cref="Vector2.Zero"/> if it is not ready.</summary>
     public Vector2 GetTextureSize(string path)
     {
+        if (_textureSizes.TryGetValue(path, out var cached))
+            return cached;
+
         var s = JsInterop.GetTextureSize(path);
-        return new Vector2((float)s[0], (float)s[1]);
+        var size = new Vector2((float)s[0], (float)s[1]);
+        // Sizes are fixed once loaded; only cache a real one so a not-ready texture is re-queried.
+        if (size.X > 0f && size.Y > 0f)
+            _textureSizes[path] = size;
+        return size;
     }
+
+    private readonly Dictionary<string, Vector2> _textureSizes = new();
 
     /// <summary>
     /// The error for a texture whose load failed (including lazy loads started by drawing),
