@@ -514,6 +514,8 @@ function setupInputListeners() {
         if (e.pointerId !== activePrimaryPointerId) return;
         releaseButton(0);
         activePrimaryPointerId = undefined;
+        // A touch has no hover: once the finger lifts the pointer is no longer over the canvas.
+        mouseInside = false;
         if (canvas.hasPointerCapture?.(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         e.preventDefault();
     };
@@ -522,6 +524,7 @@ function setupInputListeners() {
         if (!canvas || e.pointerType === 'mouse' || e.pointerId !== activePrimaryPointerId) return;
         releaseButton(0);
         activePrimaryPointerId = undefined;
+        mouseInside = false;
         if (canvas.hasPointerCapture?.(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         e.preventDefault();
     };

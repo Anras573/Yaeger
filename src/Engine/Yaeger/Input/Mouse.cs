@@ -96,6 +96,16 @@ public static class Mouse
     internal static void EndFrame()
     {
         _previousPosition = _position;
+        // GLFW stops sending move events once the cursor leaves the client area, so a fast exit
+        // would leave the last in-window position (and IsInside) stale. Re-read the live position.
+        if (_mouse != null)
+        {
+            var live = _mouse.Position;
+            // Only counts as a move once it differs, so an untouched (0, 0) default isn't "inside".
+            if (live != _position)
+                _hasMoved = true;
+            _position = live;
+        }
         _scrollAccumulator = 0f;
         PressedThisFrame.Clear();
         ReleasedThisFrame.Clear();
