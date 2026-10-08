@@ -378,6 +378,8 @@ const pressedKeys = new Set();
 let preventDefaultKeys = new Set();
 let mouseX = 0;
 let mouseY = 0;
+// True while a mouse/primary pointer is over the canvas. Starts false: no pointer event yet.
+let mouseInside = false;
 let scrollDelta = 0;
 const mouseButtons = new Set();
 // Edges recorded by DOM events since the last takeInputEdges() snapshot. Kept separate from the
@@ -396,6 +398,8 @@ let keyDownHandler;
 let keyUpHandler;
 let pointerDownHandler;
 let pointerMoveHandler;
+let pointerEnterHandler;
+let pointerLeaveHandler;
 let pointerUpHandler;
 let pointerCancelHandler;
 let wheelHandler;
@@ -468,7 +472,19 @@ function setupInputListeners() {
         const rect = canvas.getBoundingClientRect();
         mouseX = e.clientX - rect.left;
         mouseY = e.clientY - rect.top;
+        mouseInside = true;
         if (e.pointerType !== 'mouse') e.preventDefault();
+    };
+
+    pointerEnterHandler = (e) => {
+        if (e.pointerType !== 'mouse') return;
+        mouseInside = true;
+    };
+
+    // Touch pointers are captured on down, so only mouse pointers report a meaningful leave.
+    pointerLeaveHandler = (e) => {
+        if (e.pointerType !== 'mouse') return;
+        mouseInside = false;
     };
 
     pointerDownHandler = (e) => {
@@ -477,6 +493,7 @@ function setupInputListeners() {
             const rect = canvas.getBoundingClientRect();
             mouseX = e.clientX - rect.left;
             mouseY = e.clientY - rect.top;
+            mouseInside = true;
             pressButton(e.button);
             return;
         }
@@ -485,6 +502,7 @@ function setupInputListeners() {
         const rect = canvas.getBoundingClientRect();
         mouseX = e.clientX - rect.left;
         mouseY = e.clientY - rect.top;
+        mouseInside = true;
         pressButton(0);
         if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
         e.preventDefault();
@@ -496,6 +514,8 @@ function setupInputListeners() {
         if (e.pointerId !== activePrimaryPointerId) return;
         releaseButton(0);
         activePrimaryPointerId = undefined;
+        // A touch has no hover: once the finger lifts the pointer is no longer over the canvas.
+        mouseInside = false;
         if (canvas.hasPointerCapture?.(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         e.preventDefault();
     };
@@ -504,6 +524,7 @@ function setupInputListeners() {
         if (!canvas || e.pointerType === 'mouse' || e.pointerId !== activePrimaryPointerId) return;
         releaseButton(0);
         activePrimaryPointerId = undefined;
+        mouseInside = false;
         if (canvas.hasPointerCapture?.(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
         e.preventDefault();
     };
@@ -514,6 +535,8 @@ function setupInputListeners() {
         for (const code of [...pressedKeys]) releaseKey(code);
         for (const button of [...mouseButtons]) releaseButton(button);
         activePrimaryPointerId = undefined;
+        // The last position is kept for callers who want it.
+        mouseInside = false;
     };
     contextMenuHandler = (e) => e.preventDefault();
 
@@ -523,6 +546,8 @@ function setupInputListeners() {
     window.addEventListener('keyup', keyUpHandler);
     canvas.addEventListener('pointermove', pointerMoveHandler, POINTER_EVENT_OPTIONS);
     canvas.addEventListener('pointerdown', pointerDownHandler, POINTER_EVENT_OPTIONS);
+    canvas.addEventListener('pointerenter', pointerEnterHandler, POINTER_EVENT_OPTIONS);
+    canvas.addEventListener('pointerleave', pointerLeaveHandler, POINTER_EVENT_OPTIONS);
     window.addEventListener('pointerup', pointerUpHandler, POINTER_EVENT_OPTIONS);
     window.addEventListener('pointercancel', pointerCancelHandler, POINTER_EVENT_OPTIONS);
     canvas.addEventListener('wheel', wheelHandler, WHEEL_EVENT_OPTIONS);
@@ -550,6 +575,14 @@ function removeInputListeners() {
     if (pointerDownHandler && canvas) {
         canvas.removeEventListener('pointerdown', pointerDownHandler, POINTER_EVENT_OPTIONS);
         pointerDownHandler = undefined;
+    }
+    if (pointerEnterHandler && canvas) {
+        canvas.removeEventListener('pointerenter', pointerEnterHandler, POINTER_EVENT_OPTIONS);
+        pointerEnterHandler = undefined;
+    }
+    if (pointerLeaveHandler && canvas) {
+        canvas.removeEventListener('pointerleave', pointerLeaveHandler, POINTER_EVENT_OPTIONS);
+        pointerLeaveHandler = undefined;
     }
     if (pointerUpHandler) {
         window.removeEventListener('pointerup', pointerUpHandler, POINTER_EVENT_OPTIONS);
@@ -740,6 +773,7 @@ export function disposeCanvas() {
     clearInputState();
     mouseX = 0;
     mouseY = 0;
+    mouseInside = false;
     canvas = null;
 }
 
@@ -779,6 +813,10 @@ export function takeMouseUpButtons() {
     const buttons = [...buttonsUpThisFrame];
     buttonsUpThisFrame.clear();
     return buttons;
+}
+
+export function isMouseInside() {
+    return mouseInside;
 }
 
 export function getMouseX() {

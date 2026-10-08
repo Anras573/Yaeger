@@ -122,6 +122,9 @@ public sealed class BrowserInputState : IInputState
             _ => (int)button,
         };
 
+    /// <inheritdoc />
+    public bool IsMouseInside => JsInterop.IsMouseInside();
+
     public Vector2 MousePosition => new((float)JsInterop.GetMouseX(), (float)JsInterop.GetMouseY());
 
     public Vector2 MousePositionNdc =>

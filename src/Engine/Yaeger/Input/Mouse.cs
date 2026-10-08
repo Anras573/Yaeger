@@ -30,9 +30,24 @@ public static class Mouse
     private static Vector2 _previousPosition;
     private static float _scrollAccumulator;
     private static Vector2 _windowSize = Vector2.Zero;
+    private static bool _hasMoved;
 
     /// <summary>Current cursor position in client pixels.</summary>
     public static Vector2 Position => _position;
+
+    /// <summary>
+    /// True once the cursor has reported a position and that position lies inside the window
+    /// client area. Silk.NET exposes no enter/leave events, so this is derived from
+    /// <see cref="Position"/> against the window size; <see cref="Position"/> itself is not reset.
+    /// </summary>
+    public static bool IsInside => ComputeIsInside(_hasMoved, _position, _windowSize);
+
+    internal static bool ComputeIsInside(bool hasMoved, Vector2 position, Vector2 windowSize) =>
+        hasMoved
+        && position.X >= 0
+        && position.Y >= 0
+        && position.X < windowSize.X
+        && position.Y < windowSize.Y;
 
     /// <summary>Movement in pixels since the previous frame.</summary>
     public static Vector2 PositionDelta => _position - _previousPosition;
@@ -81,6 +96,16 @@ public static class Mouse
     internal static void EndFrame()
     {
         _previousPosition = _position;
+        // GLFW stops sending move events once the cursor leaves the client area, so a fast exit
+        // would leave the last in-window position (and IsInside) stale. Re-read the live position.
+        if (_mouse != null)
+        {
+            var live = _mouse.Position;
+            // Only counts as a move once it differs, so an untouched (0, 0) default isn't "inside".
+            if (live != _position)
+                _hasMoved = true;
+            _position = live;
+        }
         _scrollAccumulator = 0f;
         PressedThisFrame.Clear();
         ReleasedThisFrame.Clear();
@@ -171,6 +196,7 @@ public static class Mouse
     private static void OnMove(IMouse _, Vector2 position)
     {
         _position = position;
+        _hasMoved = true;
     }
 
     private static void OnScroll(IMouse _, ScrollWheel wheel)

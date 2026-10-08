@@ -20,6 +20,8 @@ public sealed class NativeInputState : IInputState
 
     public bool WasMouseButtonReleased(MouseButton button) => Mouse.WasButtonReleased(button);
 
+    public bool IsMouseInside => Mouse.IsInside;
+
     public Vector2 MousePosition => Mouse.Position;
 
     public Vector2 MousePositionNdc => Mouse.PositionNdc;
