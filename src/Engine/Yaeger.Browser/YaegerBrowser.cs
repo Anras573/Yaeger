@@ -34,12 +34,28 @@ public static partial class YaegerBrowser
     /// <summary>
     /// Starts the <c>requestAnimationFrame</c> loop, invoking <paramref name="tick"/> once per
     /// frame with the <c>DOMHighResTimeStamp</c> in milliseconds. No-op if already running.
+    /// Each call to <paramref name="tick"/> is wrapped in <see cref="BrowserInputState.BeginFrame"/>
+    /// / <see cref="BrowserInputState.EndFrame"/>, so input edges and scroll stay stable for the
+    /// whole tick (before and after rendering) and never leak into the next one — the browser
+    /// counterpart of native <c>Window</c> owning the input frame. Calling
+    /// <see cref="BrowserInputState.BeginFrame"/> yourself inside the tick is a harmless no-op.
     /// Requires <see cref="InitializeAsync"/> to have completed.
     /// </summary>
     public static void StartGameLoop(Action<double> tick)
     {
         ArgumentNullException.ThrowIfNull(tick);
-        Interop.JsInterop.StartGameLoop(tick);
+        Interop.JsInterop.StartGameLoop(timestampMs =>
+        {
+            BrowserInputState.BeginFrame();
+            try
+            {
+                tick(timestampMs);
+            }
+            finally
+            {
+                BrowserInputState.EndFrame();
+            }
+        });
     }
 
     /// <summary>Stops the loop started by <see cref="StartGameLoop"/>.</summary>

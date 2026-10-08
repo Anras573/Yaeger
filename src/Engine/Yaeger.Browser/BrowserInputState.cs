@@ -31,8 +31,9 @@ public sealed class BrowserInputState : IInputState
     /// <see cref="ScrollDelta"/>. This ensures all systems and gameplay code within a single
     /// tick see the same stable scroll value, consistent with native <c>Mouse.ScrollDelta</c>
     /// read behavior (without implying identical reset timing).
-    /// Callers should invoke this before running update systems (e.g., at the start of
-    /// the host tick method), not during rendering.
+    /// <see cref="YaegerBrowser.StartGameLoop"/> calls this (and <see cref="EndFrame"/>)
+    /// around every tick, so calling it again inside the tick is a harmless no-op. Hosts that
+    /// pump their own loop should call it at the start of the tick, not during rendering.
     /// </summary>
     public static void BeginFrame()
     {
@@ -49,7 +50,8 @@ public sealed class BrowserInputState : IInputState
 
     /// <summary>
     /// Marks the current frame complete so the next <see cref="BeginFrame"/> call can
-    /// snapshot fresh browser input.
+    /// snapshot fresh browser input. Called by <see cref="YaegerBrowser.StartGameLoop"/> after
+    /// the tick; render surfaces do not end the input frame.
     /// </summary>
     public static void EndFrame()
     {
