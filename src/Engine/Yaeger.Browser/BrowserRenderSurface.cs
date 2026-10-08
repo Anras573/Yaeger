@@ -143,7 +143,6 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
 
     public void BeginFrame()
     {
-        BrowserInputState.BeginFrame();
         RefreshViewport();
         ClearFrame();
         _submissionQueue.Clear();
@@ -152,7 +151,6 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
     public void EndFrame()
     {
         FlushQueuedQuads();
-        BrowserInputState.EndFrame();
     }
 
     public void FlushQueuedQuads()

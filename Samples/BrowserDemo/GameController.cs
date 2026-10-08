@@ -130,8 +130,8 @@ public sealed class GameController
     {
         _timeSource.Advance(timestampMs);
 
-        // Snapshot keyboard/mouse/scroll input at the tick boundary so all game systems within
-        // this tick see stable values, matching native input behavior.
+        // StartGameLoop already began the input frame; this is an idempotent no-op that keeps
+        // the controller correct if driven by a different loop.
         BrowserInputState.BeginFrame();
 
         // One-shot action: WasKeyPressed fires once per press (even a tap shorter than a frame),
