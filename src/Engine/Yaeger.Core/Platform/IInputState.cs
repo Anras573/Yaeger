@@ -27,6 +27,15 @@ public interface IInputState
     /// <summary>True if <paramref name="button"/> went up since the previous frame boundary.</summary>
     bool WasMouseButtonReleased(MouseButton button);
 
+    /// <summary>
+    /// True while the pointer is over the render surface (canvas / window client area).
+    /// <see cref="MousePosition"/> keeps its last value once the pointer leaves, and reads
+    /// <c>(0, 0)</c> before any pointer event, so check this before treating the position as
+    /// meaningful (edge scrolling, hover picking). Defaults to <c>true</c> for implementations
+    /// that cannot tell.
+    /// </summary>
+    bool IsMouseInside => true;
+
     Vector2 MousePosition { get; }
     Vector2 MousePositionNdc { get; }
     float ScrollDelta { get; }

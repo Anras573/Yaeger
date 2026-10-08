@@ -115,3 +115,13 @@ so hover/press feedback needs no game code.
 
 - [`Samples/Platformer/Systems/GameFlowSystem.cs`](../Samples/Platformer/Systems/GameFlowSystem.cs) — title screen, pause menu and HUD: `dotnet run --project Samples/Platformer/Platformer.csproj`
 - [`Samples/FeatureGallery/SceneHost.cs`](../Samples/FeatureGallery/SceneHost.cs) — the gallery's own scene menu.
+
+## Pointer inside the surface
+
+`IInputState.IsMouseInside` is `true` while the pointer is over the window client area (native) or canvas (browser). `MousePosition` keeps its last value after the pointer leaves and reads `(0, 0)` before any pointer event, so gate edge scrolling and hover picking on the flag:
+
+```csharp
+if (input.IsMouseInside && input.MousePosition.X < EdgeBand) { /* scroll camera */ }
+```
+
+In the browser it starts `false`, becomes `true` on `pointerenter`/`pointermove`/`pointerdown`, and clears on `pointerleave` (mouse) and window blur. Natively it is derived from the cursor position against the window size, since Silk.NET has no enter/leave events.

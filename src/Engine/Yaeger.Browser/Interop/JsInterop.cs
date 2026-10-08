@@ -96,6 +96,9 @@ internal static partial class JsInterop
     [JSImport("isMouseButtonPressed", "yaeger-browser")]
     public static partial bool IsMouseButtonPressed(int button);
 
+    [JSImport("isMouseInside", "yaeger-browser")]
+    public static partial bool IsMouseInside();
+
     [JSImport("getMouseX", "yaeger-browser")]
     public static partial double GetMouseX();
 
