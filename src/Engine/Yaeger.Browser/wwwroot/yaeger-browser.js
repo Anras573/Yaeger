@@ -34,7 +34,7 @@ layout(location = 2) in vec4 aColor;
 
 uniform mat4 uViewProj;
 
-out vec2 vTexCoord;
+centroid out vec2 vTexCoord;
 out vec4 vColor;
 
 void main() {
@@ -46,7 +46,7 @@ void main() {
 const FRAGMENT_SHADER_SOURCE = `#version 300 es
 precision mediump float;
 
-in vec2 vTexCoord;
+centroid in vec2 vTexCoord;
 in vec4 vColor;
 out vec4 FragColor;
 
