@@ -20,10 +20,12 @@ Vorbis audio, either fully decoded into memory (short SFX) or streamed from a ri
 ## Running without an audio device
 
 A missing audio device (CI runners, containers, Xvfb, some VMs) is not fatal: `Window` logs a
-warning to stderr and leaves `window.AudioContext` as `null`. Check `window.HasAudio` before
-creating sounds. Pass `new WindowSettings { EnableAudio = false }` to skip audio initialisation
-entirely (headless smoke tests, tools). The samples assume audio is present and use
-`window.AudioContext!`.
+warning to stderr and falls back to a *silent* `AudioContext` (`AudioContext.IsSilent`). It
+accepts every call (buffers, sources, streaming, `AudioSystem`) and keeps plausible state — set
+properties read back, queued buffers are tracked — but nothing is audible, and a non-looping
+sound reports `Stopped` immediately so voice pools recycle. Games need no special handling. Pass
+`new WindowSettings { EnableAudio = false }` to skip opening a device at all (headless smoke
+tests, tools); `AudioContext.CreateSilent()` builds one directly.
 
 ## Basic Usage
 
@@ -31,7 +33,7 @@ entirely (headless smoke tests, tools). The samples assume audio is present and 
 
 ```csharp
 // The audio context is available from the window
-var audioContext = window.AudioContext!;
+var audioContext = window.AudioContext;
 
 // Load a WAV or OGG file into a buffer — dispatched by extension
 var soundBuffer = SoundBuffer.FromFile(audioContext, "Assets/beep.wav");
@@ -121,14 +123,14 @@ using Yaeger.Windowing;
 using var window = Window.Create();
 
 // Load sound effects
-var bounceSound = SoundBuffer.FromFile(window.AudioContext!, "Assets/bounce.wav");
-var scoreSound = SoundBuffer.FromFile(window.AudioContext!, "Assets/score.wav");
+var bounceSound = SoundBuffer.FromFile(window.AudioContext, "Assets/bounce.wav");
+var scoreSound = SoundBuffer.FromFile(window.AudioContext, "Assets/score.wav");
 
 // Create sound sources
-var bounceSrc = SoundSource.Create(window.AudioContext!);
+var bounceSrc = SoundSource.Create(window.AudioContext);
 bounceSrc.SetBuffer(bounceSound);
 
-var scoreSrc = SoundSource.Create(window.AudioContext!);
+var scoreSrc = SoundSource.Create(window.AudioContext);
 scoreSrc.SetBuffer(scoreSound);
 
 // In your game logic:
@@ -152,7 +154,7 @@ stereo 16-bit audio. `StreamingSoundSource` avoids that by decoding a small ring
 ahead of playback and refilling them as OpenAL finishes with each one:
 
 ```csharp
-var music = StreamingSoundSource.FromFile(window.AudioContext!, "Assets/music.ogg");
+var music = StreamingSoundSource.FromFile(window.AudioContext, "Assets/music.ogg");
 music.Looping = true;
 music.Gain = 0.3f;
 music.Play();
@@ -177,9 +179,9 @@ too (see below), just fully decoded rather than streamed.
 defaulting to 1:
 
 ```csharp
-window.AudioContext!.Mixer.MasterVolume = 0.8f;
-window.AudioContext!.Mixer.MusicVolume = 0.5f;
-window.AudioContext!.Mixer.SfxVolume = 1.0f;
+window.AudioContext.Mixer.MasterVolume = 0.8f;
+window.AudioContext.Mixer.MusicVolume = 0.5f;
+window.AudioContext.Mixer.SfxVolume = 1.0f;
 ```
 
 Every `SoundSource`/`StreamingSoundSource` belongs to an `AudioGroup` (`Music` or `Sfx`, chosen
@@ -187,8 +189,8 @@ when you create it — `SoundSource.Create` defaults to `Sfx`, `StreamingSoundSo
 defaults to `Music`):
 
 ```csharp
-var music = StreamingSoundSource.FromFile(window.AudioContext!, "Assets/music.ogg", AudioGroup.Music);
-var jump = SoundSource.Create(window.AudioContext!, AudioGroup.Sfx);
+var music = StreamingSoundSource.FromFile(window.AudioContext, "Assets/music.ogg", AudioGroup.Music);
+var jump = SoundSource.Create(window.AudioContext, AudioGroup.Sfx);
 ```
 
 A source's own `Gain` is its logical volume; the value actually sent to OpenAL is
@@ -204,8 +206,8 @@ works with either format:
 
 ```csharp
 // Load music (WAV or OGG)
-var musicBuffer = SoundBuffer.FromFile(window.AudioContext!, "Assets/music.wav");
-var musicSource = SoundSource.Create(window.AudioContext!, AudioGroup.Music);
+var musicBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/music.wav");
+var musicSource = SoundSource.Create(window.AudioContext, AudioGroup.Music);
 musicSource.SetBuffer(musicBuffer);
 
 // Set it to loop and lower the volume
@@ -251,8 +253,8 @@ built-in distance attenuation and stereo panning:
 using Yaeger.Audio;
 using Yaeger.Systems;
 
-var buffer = SoundBuffer.FromFile(window.AudioContext!, "Assets/torch.wav");
-var audioSystem = new AudioSystem(world, window.AudioContext!);
+var buffer = SoundBuffer.FromFile(window.AudioContext, "Assets/torch.wav");
+var audioSystem = new AudioSystem(world, window.AudioContext);
 
 var torch = world.CreateEntity();
 world.AddComponent(torch, new Transform3D(new Vector3(4f, 1f, 0f), Quaternion.Identity, Vector3.One));
@@ -328,10 +330,10 @@ dropping and no diagnostic. `AudioSystem.PlayOneShot` is the fire-and-forget pat
 using Yaeger.Audio;
 using Yaeger.Systems;
 
-var impactBuffer = SoundBuffer.FromFile(window.AudioContext!, "Assets/impact.wav");
+var impactBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/impact.wav");
 
 // oneShotVoiceBudget defaults to 32; oneShotStealPolicy defaults to VoiceStealPolicy.Quietest.
-var audioSystem = new AudioSystem(world, window.AudioContext!);
+var audioSystem = new AudioSystem(world, window.AudioContext);
 
 window.OnUpdate += deltaTime =>
 {

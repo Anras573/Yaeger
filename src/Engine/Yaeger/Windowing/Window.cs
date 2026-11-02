@@ -22,15 +22,12 @@ public sealed class Window : IViewport, IDisposable
     internal IInputContext InputContext => _inputContext;
 
     /// <summary>
-    /// Gets the audio context for this window, or <c>null</c> when audio is unavailable (no audio
-    /// device could be opened) or was disabled via <see cref="WindowSettings.EnableAudio"/>.
-    /// Check <see cref="HasAudio"/> before creating sounds; the game itself runs fine without it.
+    /// Gets the audio context for this window. Never <c>null</c>: when no audio device is
+    /// available (or <see cref="WindowSettings.EnableAudio"/> is <c>false</c>) it is a silent
+    /// context (<see cref="Audio.AudioContext.IsSilent"/>) whose operations all succeed without
+    /// producing sound, so games run unchanged.
     /// </summary>
-    public AudioContext? AudioContext { get; }
-
-    /// <summary>Whether <see cref="AudioContext"/> is available.</summary>
-    [System.Diagnostics.CodeAnalysis.MemberNotNullWhen(true, nameof(AudioContext))]
-    public bool HasAudio => AudioContext is not null;
+    public AudioContext AudioContext { get; }
 
     private Window(IWindow window, bool enableAudio)
     {
@@ -66,19 +63,25 @@ public sealed class Window : IViewport, IDisposable
         _innerWindow.Resize += size => Mouse.SetWindowSize(new Vector2(size.X, size.Y));
         // Note: _inputContext lifecycle is managed by _innerWindow, which will dispose it
 
-        // Audio is optional: a missing device (CI, containers, Xvfb, VMs) must not stop the game.
-        if (enableAudio)
+        // Audio is optional: a missing device (CI, containers, Xvfb, VMs) must not stop the game,
+        // so fall back to a silent context that accepts every call.
+        AudioContext = enableAudio
+            ? CreateAudioContextOrSilent()
+            : Audio.AudioContext.CreateSilent();
+    }
+
+    private static AudioContext CreateAudioContextOrSilent()
+    {
+        try
         {
-            try
-            {
-                AudioContext = Audio.AudioContext.Create();
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine(
-                    $"Yaeger: audio unavailable, continuing without sound ({ex.Message})"
-                );
-            }
+            return Audio.AudioContext.Create();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(
+                $"Yaeger: audio unavailable, continuing without sound ({ex.Message})"
+            );
+            return Audio.AudioContext.CreateSilent();
         }
     }
 
@@ -185,7 +188,7 @@ public sealed class Window : IViewport, IDisposable
         // Gl must be released before the native window is destroyed.
         try
         {
-            AudioContext?.Dispose();
+            AudioContext.Dispose();
         }
         finally
         {

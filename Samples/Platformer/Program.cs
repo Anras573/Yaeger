@@ -47,7 +47,7 @@ var parallaxSystem = new ParallaxSystem(world);
 var animationSystem = new AnimationSystem(world);
 var stateMachineSystem = new AnimationStateMachineSystem(world);
 var particleEffects = new ParticleEffectsSystem(world, renderer);
-var audioSystem = new AudioSystem(world, window.AudioContext!, oneShotVoiceBudget: 16);
+var audioSystem = new AudioSystem(world, window.AudioContext, oneShotVoiceBudget: 16);
 
 // ---------------------------------------------------------------------------------------------
 // Level: a code-built tilemap. Two tile types (both solid): grass-top ground and brick.
@@ -366,14 +366,14 @@ void FullLevelReset()
 // pooled voice budget (#264: replaces one dedicated SoundSource per sound, so a burst of nearby
 // pickups can never exhaust playback slots).
 // ---------------------------------------------------------------------------------------------
-var music = StreamingSoundSource.FromFile(window.AudioContext!, "Assets/bgm.ogg");
+var music = StreamingSoundSource.FromFile(window.AudioContext, "Assets/bgm.ogg");
 music.Looping = true;
 music.Gain = 0.35f;
 music.Play();
 
-var jumpBuffer = SoundBuffer.FromFile(window.AudioContext!, "Assets/jump.wav");
-var coinBuffer = SoundBuffer.FromFile(window.AudioContext!, "Assets/coin.wav");
-var stompBuffer = SoundBuffer.FromFile(window.AudioContext!, "Assets/stomp.wav");
+var jumpBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/jump.wav");
+var coinBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/coin.wav");
+var stompBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/stomp.wav");
 
 // ---------------------------------------------------------------------------------------------
 // Gameplay wiring, input, and the per-frame update/render loop

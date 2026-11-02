@@ -25,14 +25,14 @@ namespace Yaeger.Audio;
 /// </remarks>
 public sealed class SoundSource : IDisposable
 {
-    private readonly AL _al;
+    private readonly IAudioBackend _al;
     private readonly uint _sourceId;
     private readonly AudioMixer _mixer;
     private AudioGroup _group;
     private float _gain = 1f;
     private bool _disposed;
 
-    private SoundSource(AL al, uint sourceId, AudioMixer mixer, AudioGroup group)
+    private SoundSource(IAudioBackend al, uint sourceId, AudioMixer mixer, AudioGroup group)
     {
         _al = al;
         _sourceId = sourceId;
