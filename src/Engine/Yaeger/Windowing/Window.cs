@@ -22,11 +22,17 @@ public sealed class Window : IViewport, IDisposable
     internal IInputContext InputContext => _inputContext;
 
     /// <summary>
-    /// Gets the audio context for this window.
+    /// Gets the audio context for this window, or <c>null</c> when audio is unavailable (no audio
+    /// device could be opened) or was disabled via <see cref="WindowSettings.EnableAudio"/>.
+    /// Check <see cref="HasAudio"/> before creating sounds; the game itself runs fine without it.
     /// </summary>
-    public AudioContext AudioContext { get; }
+    public AudioContext? AudioContext { get; }
 
-    private Window(IWindow window)
+    /// <summary>Whether <see cref="AudioContext"/> is available.</summary>
+    [System.Diagnostics.CodeAnalysis.MemberNotNullWhen(true, nameof(AudioContext))]
+    public bool HasAudio => AudioContext is not null;
+
+    private Window(IWindow window, bool enableAudio)
     {
         _innerWindow = window;
 
@@ -60,20 +66,19 @@ public sealed class Window : IViewport, IDisposable
         _innerWindow.Resize += size => Mouse.SetWindowSize(new Vector2(size.X, size.Y));
         // Note: _inputContext lifecycle is managed by _innerWindow, which will dispose it
 
-        // Initialize audio - if this fails, we need to clean up resources
-        try
+        // Audio is optional: a missing device (CI, containers, Xvfb, VMs) must not stop the game.
+        if (enableAudio)
         {
-            AudioContext = Audio.AudioContext.Create();
-        }
-        catch (Exception ex)
-        {
-            // Clean up already-initialized resources if audio initialization fails
-            Gl.Dispose();
-            _innerWindow.Dispose();
-            throw new InvalidOperationException(
-                "Failed to initialize audio system. Ensure audio device is available.",
-                ex
-            );
+            try
+            {
+                AudioContext = Audio.AudioContext.Create();
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(
+                    $"Yaeger: audio unavailable, continuing without sound ({ex.Message})"
+                );
+            }
         }
     }
 
@@ -82,7 +87,10 @@ public sealed class Window : IViewport, IDisposable
     /// resizability, fullscreen and update/render rates; <c>null</c> uses Silk.NET's defaults.
     /// </summary>
     public static Window Create(WindowSettings? settings = null) =>
-        new(Silk.NET.Windowing.Window.Create(settings?.ToWindowOptions() ?? WindowOptions.Default));
+        new(
+            Silk.NET.Windowing.Window.Create(settings?.ToWindowOptions() ?? WindowOptions.Default),
+            settings?.EnableAudio ?? true
+        );
 
     /// <summary>Gets or sets the window title.</summary>
     public string Title
@@ -177,7 +185,7 @@ public sealed class Window : IViewport, IDisposable
         // Gl must be released before the native window is destroyed.
         try
         {
-            AudioContext.Dispose();
+            AudioContext?.Dispose();
         }
         finally
         {

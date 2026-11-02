@@ -238,9 +238,9 @@ public sealed class DamagedHelmetScene : IDemoScene
         // panning/attenuation tracks the orbit automatically. Distances are scaled to orbitRadius
         // so the effect is audible across the sample's zoom range (see OrbitCameraSystem's min/max
         // radius).
-        var humBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/DamagedHelmet/hum.wav");
+        var humBuffer = SoundBuffer.FromFile(window.AudioContext!, "Assets/DamagedHelmet/hum.wav");
         _humBuffer = humBuffer;
-        var audioSystem = new AudioSystem(world, window.AudioContext);
+        var audioSystem = new AudioSystem(world, window.AudioContext!);
         _audioSystem = audioSystem;
 
         var humEntity = world.CreateEntity("helmet hum");

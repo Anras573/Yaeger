@@ -365,8 +365,8 @@ var knightStateMachineSystem = new SkeletalAnimationStateMachineSystem(
 
 // --- Audio: pooled one-shot footstep SFX, triggered by the walk clip's event markers -------------
 
-using var footstepBuffer = SoundBuffer.FromFile(window.AudioContext, "Assets/footstep.wav");
-var audioSystem = new AudioSystem(world, window.AudioContext);
+using var footstepBuffer = SoundBuffer.FromFile(window.AudioContext!, "Assets/footstep.wav");
+var audioSystem = new AudioSystem(world, window.AudioContext!);
 
 knightAnimationSystem.OnAnimationEvent += e =>
 {
