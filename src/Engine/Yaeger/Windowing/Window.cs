@@ -77,7 +77,37 @@ public sealed class Window : IViewport, IDisposable
         }
     }
 
-    public static Window Create() => new(Silk.NET.Windowing.Window.Create(WindowOptions.Default));
+    /// <summary>
+    /// Creates a window. Pass <paramref name="settings"/> to configure title, size, VSync,
+    /// resizability, fullscreen and update/render rates; <c>null</c> uses Silk.NET's defaults.
+    /// </summary>
+    public static Window Create(WindowSettings? settings = null) =>
+        new(Silk.NET.Windowing.Window.Create(settings?.ToWindowOptions() ?? WindowOptions.Default));
+
+    /// <summary>Gets or sets the window title.</summary>
+    public string Title
+    {
+        get => _innerWindow.Title;
+        set => _innerWindow.Title = value;
+    }
+
+    /// <summary>Gets or sets whether the window is fullscreen (restores to normal when cleared).</summary>
+    public bool Fullscreen
+    {
+        get => _innerWindow.WindowState == WindowState.Fullscreen;
+        set => _innerWindow.WindowState = value ? WindowState.Fullscreen : WindowState.Normal;
+    }
+
+    /// <summary>Gets or sets whether presentation is synchronised to the display refresh.</summary>
+    public bool VSync
+    {
+        get => _innerWindow.VSync;
+        set => _innerWindow.VSync = value;
+    }
+
+    /// <summary>Resizes the window's client area, in pixels.</summary>
+    public void SetSize(int width, int height) =>
+        _innerWindow.Size = new Silk.NET.Maths.Vector2D<int>(width, height);
 
     public Vector2 Size => new(_innerWindow.Size.X, _innerWindow.Size.Y);
 
