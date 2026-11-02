@@ -33,6 +33,13 @@ public sealed record WindowSettings
     /// <summary>Render-event rate in Hz; <c>null</c> keeps Silk.NET's default.</summary>
     public double? FramesPerSecond { get; init; }
 
+    /// <summary>
+    /// Whether to initialise audio. Set <c>false</c> to skip opening a device entirely (headless
+    /// smoke tests, tools). Even when <c>true</c>, a missing audio device is non-fatal:
+    /// <see cref="Window.AudioContext"/> falls back to a silent context.
+    /// </summary>
+    public bool EnableAudio { get; init; } = true;
+
     internal WindowOptions ToWindowOptions()
     {
         var options = WindowOptions.Default;

@@ -22,11 +22,14 @@ public sealed class Window : IViewport, IDisposable
     internal IInputContext InputContext => _inputContext;
 
     /// <summary>
-    /// Gets the audio context for this window.
+    /// Gets the audio context for this window. Never <c>null</c>: when no audio device is
+    /// available (or <see cref="WindowSettings.EnableAudio"/> is <c>false</c>) it is a silent
+    /// context (<see cref="Audio.AudioContext.IsSilent"/>) whose operations all succeed without
+    /// producing sound, so games run unchanged.
     /// </summary>
     public AudioContext AudioContext { get; }
 
-    private Window(IWindow window)
+    private Window(IWindow window, bool enableAudio)
     {
         _innerWindow = window;
 
@@ -60,20 +63,25 @@ public sealed class Window : IViewport, IDisposable
         _innerWindow.Resize += size => Mouse.SetWindowSize(new Vector2(size.X, size.Y));
         // Note: _inputContext lifecycle is managed by _innerWindow, which will dispose it
 
-        // Initialize audio - if this fails, we need to clean up resources
+        // Audio is optional: a missing device (CI, containers, Xvfb, VMs) must not stop the game,
+        // so fall back to a silent context that accepts every call.
+        AudioContext = enableAudio
+            ? CreateAudioContextOrSilent()
+            : Audio.AudioContext.CreateSilent();
+    }
+
+    private static AudioContext CreateAudioContextOrSilent()
+    {
         try
         {
-            AudioContext = Audio.AudioContext.Create();
+            return Audio.AudioContext.Create();
         }
         catch (Exception ex)
         {
-            // Clean up already-initialized resources if audio initialization fails
-            Gl.Dispose();
-            _innerWindow.Dispose();
-            throw new InvalidOperationException(
-                "Failed to initialize audio system. Ensure audio device is available.",
-                ex
+            Console.Error.WriteLine(
+                $"Yaeger: audio unavailable, continuing without sound ({ex.Message})"
             );
+            return Audio.AudioContext.CreateSilent();
         }
     }
 
@@ -82,7 +90,10 @@ public sealed class Window : IViewport, IDisposable
     /// resizability, fullscreen and update/render rates; <c>null</c> uses Silk.NET's defaults.
     /// </summary>
     public static Window Create(WindowSettings? settings = null) =>
-        new(Silk.NET.Windowing.Window.Create(settings?.ToWindowOptions() ?? WindowOptions.Default));
+        new(
+            Silk.NET.Windowing.Window.Create(settings?.ToWindowOptions() ?? WindowOptions.Default),
+            settings?.EnableAudio ?? true
+        );
 
     /// <summary>Gets or sets the window title.</summary>
     public string Title

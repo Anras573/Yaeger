@@ -40,7 +40,7 @@ public sealed class StreamingSoundSource : IDisposable
     private const int BufferCount = 4;
     private const int FramesPerBuffer = 8192;
 
-    private readonly AL _al;
+    private readonly IAudioBackend _al;
     private readonly uint _sourceId;
     private readonly uint[] _bufferIds;
     private readonly VorbisReader _reader;
@@ -54,7 +54,7 @@ public sealed class StreamingSoundSource : IDisposable
     private bool _disposed;
 
     private StreamingSoundSource(
-        AL al,
+        IAudioBackend al,
         uint sourceId,
         uint[] bufferIds,
         VorbisReader reader,

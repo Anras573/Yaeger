@@ -17,6 +17,16 @@ Vorbis audio, either fully decoded into memory (short SFX) or streamed from a ri
 - **Flexible Playback**: Control volume, pitch, looping, and 3D positioning
 - **Resource Management**: Proper disposal of audio resources
 
+## Running without an audio device
+
+A missing audio device (CI runners, containers, Xvfb, some VMs) is not fatal: `Window` logs a
+warning to stderr and falls back to a *silent* `AudioContext` (`AudioContext.IsSilent`). It
+accepts every call (buffers, sources, streaming, `AudioSystem`) and keeps plausible state — set
+properties read back, queued buffers are tracked — but nothing is audible, and a non-looping
+sound reports `Stopped` immediately so voice pools recycle. Games need no special handling. Pass
+`new WindowSettings { EnableAudio = false }` to skip opening a device at all (headless smoke
+tests, tools); `AudioContext.CreateSilent()` builds one directly.
+
 ## Basic Usage
 
 ### 1. Load a Sound

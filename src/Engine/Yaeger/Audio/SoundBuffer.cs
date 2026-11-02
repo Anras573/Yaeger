@@ -7,11 +7,11 @@ namespace Yaeger.Audio;
 /// </summary>
 public sealed class SoundBuffer : IDisposable
 {
-    private readonly AL _al;
+    private readonly IAudioBackend _al;
     private readonly uint _bufferId;
     private bool _disposed;
 
-    private SoundBuffer(AL al, uint bufferId)
+    private SoundBuffer(IAudioBackend al, uint bufferId)
     {
         _al = al;
         _bufferId = bufferId;
