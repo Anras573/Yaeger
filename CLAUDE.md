@@ -154,7 +154,7 @@ Retained-mode, screen-space UI built from ECS components: `UiRect` (position/siz
 
 ### Windowing (`Windowing/Window`)
 
-Wraps Silk.NET's `IWindow`. The public surface is event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Exposes `window.Gl` (the OpenGL context) and `window.AudioContext`. Always `using var window = Window.Create();` to ensure disposal.
+Wraps Silk.NET's `IWindow`. The public surface is event-based: `OnLoad`, `OnUpdate`, `OnRender`, `OnResize`, `OnClosing`. Exposes `window.Gl` (the OpenGL context) and `window.AudioContext`. Always `using var window = Window.Create();` to ensure disposal. `Window.Create(new WindowSettings { Title, Width, Height, VSync, Resizable, Fullscreen, UpdatesPerSecond, FramesPerSecond })` configures it without exposing Silk.NET types; `Title`/`Fullscreen`/`VSync`/`SetSize` change it at runtime.
 
 ### Input (`Input/`)
 
