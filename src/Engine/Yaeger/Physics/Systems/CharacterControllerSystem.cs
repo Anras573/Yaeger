@@ -47,6 +47,13 @@ namespace Yaeger.Physics.Systems;
 /// grounded-state flicker (the rider is carried down with it instead of momentarily being left
 /// behind and re-falling into contact every step).
 /// </para>
+/// <para>
+/// <b>Gravity-relative ground</b>: <c>IsGrounded</c>/<c>GroundNormal</c>/<c>GroundEntity</c> are
+/// set from any contact whose push normal opposes the controller's effective gravity
+/// (<c>Gravity * GravityScale</c>), so sideways or upside-down gravity grounds against walls or
+/// ceilings. <c>IsTouchingWallLeft/Right</c> and <c>IsTouchingCeiling</c> remain world-space
+/// contact flags. With zero gravity, world-down is assumed.
+/// </para>
 /// </remarks>
 public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSystem
 {
@@ -59,6 +66,11 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
     /// obstacle.
     /// </summary>
     private const float ContactSkin = 0.001f;
+
+    /// <summary>
+    /// Minimum <c>dot(contactNormal, -gravityDirection)</c> for a contact to count as ground.
+    /// </summary>
+    private const float GroundDotThreshold = 0.5f;
 
     // Every collidable entity's position as of the end of the last Update call, so this step
     // can compute how far a controller's ground entity has moved since then — see
@@ -167,7 +179,9 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
 
         var halfSize = controller.HalfSize;
 
-        foreach (var (_, collider, colliderCenter) in SolidCandidates(entity, controller))
+        foreach (
+            var (candidateEntity, collider, colliderCenter) in SolidCandidates(entity, controller)
+        )
         {
             var center = position + controller.Offset;
             var colliderHalf = collider.HalfSize;
@@ -231,6 +245,8 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
                 controller.IsTouchingWallRight = true;
             else
                 controller.IsTouchingWallLeft = true;
+
+            TryRegisterGround(ref controller, new Vector2(pushX, 0f), candidateEntity);
         }
     }
 
@@ -285,17 +301,35 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             position.Y += pushY * MathF.Max(overlapY, 0f);
             velocity.Linear.Y = 0f;
 
-            if (pushY > 0f)
-            {
-                controller.IsGrounded = true;
-                controller.GroundNormal = Vector2.UnitY;
-                controller.GroundEntity = candidateEntity;
-            }
-            else
-            {
+            if (pushY < 0f)
                 controller.IsTouchingCeiling = true;
-            }
+
+            TryRegisterGround(ref controller, new Vector2(0f, pushY), candidateEntity);
         }
+    }
+
+    /// <summary>
+    /// Marks the controller grounded if <paramref name="normal"/> (the push direction of a
+    /// resolved contact) opposes the controller's effective gravity, whichever axis resolved it.
+    /// </summary>
+    private void TryRegisterGround(
+        ref CharacterController2D controller,
+        Vector2 normal,
+        Entity contactEntity
+    )
+    {
+        var effectiveGravity = Gravity * controller.GravityScale;
+        // Zero gravity (e.g. isolating other behaviour) falls back to the world-down convention.
+        var up =
+            effectiveGravity.LengthSquared() <= 0f
+                ? Vector2.UnitY
+                : -Vector2.Normalize(effectiveGravity);
+        if (Vector2.Dot(normal, up) <= GroundDotThreshold)
+            return;
+
+        controller.IsGrounded = true;
+        controller.GroundNormal = normal;
+        controller.GroundEntity = contactEntity;
     }
 
     private IEnumerable<(Entity Entity, BoxCollider2D Collider, Vector2 Center)> SolidCandidates(
