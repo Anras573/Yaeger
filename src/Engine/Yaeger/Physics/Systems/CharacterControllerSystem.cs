@@ -58,6 +58,38 @@ namespace Yaeger.Physics.Systems;
 public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSystem
 {
     /// <summary>
+    /// A solid contact resolved by move-and-slide: the <paramref name="Controller"/> was pushed
+    /// out of <paramref name="Other"/> along <paramref name="Normal"/> (the push direction applied
+    /// to the controller, pointing away from the obstacle).
+    /// </summary>
+    public readonly record struct Contact(Entity Controller, Entity Other, Vector2 Normal);
+
+    private readonly List<Contact> _contacts = new();
+    private readonly HashSet<(Entity Controller, Entity Trigger)> _activeTriggers = new();
+    private readonly HashSet<(Entity Controller, Entity Trigger)> _currentTriggers = new();
+
+    /// <summary>
+    /// Solid contacts resolved during the last <see cref="Update"/> call (entity + normal). Cleared
+    /// at the start of every update.
+    /// </summary>
+    public IReadOnlyList<Contact> Contacts => _contacts;
+
+    /// <summary>Raised (controller, trigger) the step a controller starts overlapping a trigger collider.</summary>
+    public event Action<Entity, Entity>? OnTriggerEnter;
+
+    /// <summary>Raised (controller, trigger) every step a controller overlaps a trigger collider, including the entering step.</summary>
+    public event Action<Entity, Entity>? OnTriggerStay;
+
+    /// <summary>
+    /// Raised (controller, trigger) the step a controller stops overlapping a trigger collider,
+    /// including when either entity was destroyed or lost its components.
+    /// </summary>
+    public event Action<Entity, Entity>? OnTriggerExit;
+
+    /// <summary>Raised for every solid contact resolved during move-and-slide, after all controllers have moved.</summary>
+    public event Action<Contact>? OnContact;
+
+    /// <summary>
     /// Contacts within this distance of exact touching (but not actually overlapping) still count
     /// as a contact for flag-setting purposes. Without this, a contact that resolves to exactly
     /// zero overlap (velocity zeroed, nothing regenerating overlap frame-to-frame — unlike gravity
@@ -95,6 +127,7 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
         // Snapshot before mutating components on these same entities, so we never depend on
         // subtle Dictionary-enumeration-during-mutation semantics.
         var controllers = world.Query<CharacterController2D, Transform2D>().ToList();
+        _contacts.Clear();
 
         foreach (var (entity, controllerSnapshot, transformSnapshot) in controllers)
         {
@@ -126,6 +159,79 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
         }
 
         RefreshLastPositions();
+        UpdateTriggers(controllers);
+
+        foreach (var contact in _contacts)
+            OnContact?.Invoke(contact);
+    }
+
+    /// <summary>
+    /// Tests each controller's box against trigger <see cref="BoxCollider2D"/>s (respecting
+    /// layer masks) and raises enter/stay/exit events by diffing against the previous step.
+    /// </summary>
+    private void UpdateTriggers(List<(Entity, CharacterController2D, Transform2D)> controllers)
+    {
+        _currentTriggers.Clear();
+        var triggers = new List<(Entity, BoxCollider2D, Vector2)>();
+        foreach (
+            (Entity e, BoxCollider2D collider, Transform2D t) in world.Query<
+                BoxCollider2D,
+                Transform2D
+            >()
+        )
+        {
+            if (collider.IsTrigger)
+                triggers.Add((e, collider, t.Position + collider.Offset));
+        }
+
+        foreach (var (entity, _, _) in controllers)
+        {
+            // Re-read: the controller/transform were rewritten during this step.
+            if (
+                !world.TryGetComponent<CharacterController2D>(entity, out var controller)
+                || !world.TryGetComponent<Transform2D>(entity, out var transform)
+            )
+                continue;
+
+            var center = transform.Position + controller.Offset;
+            var half = controller.HalfSize;
+
+            foreach (var (triggerEntity, collider, triggerCenter) in triggers)
+            {
+                if (triggerEntity == entity)
+                    continue;
+                if (
+                    !ShouldCollide(
+                        controller.Layer,
+                        controller.CollidesWith,
+                        collider.Layer,
+                        collider.CollidesWith
+                    )
+                )
+                    continue;
+
+                var delta = Vector2.Abs(center - triggerCenter);
+                var limit = half + collider.HalfSize;
+                if (delta.X < limit.X && delta.Y < limit.Y)
+                    _currentTriggers.Add((entity, triggerEntity));
+            }
+        }
+
+        foreach (var pair in _currentTriggers)
+            if (!_activeTriggers.Contains(pair))
+                OnTriggerEnter?.Invoke(pair.Controller, pair.Trigger);
+
+        foreach (var pair in _currentTriggers)
+            OnTriggerStay?.Invoke(pair.Controller, pair.Trigger);
+
+        var exited = _activeTriggers.Where(p => !_currentTriggers.Contains(p)).ToList();
+
+        _activeTriggers.Clear();
+        foreach (var pair in _currentTriggers)
+            _activeTriggers.Add(pair);
+
+        foreach (var pair in exited)
+            OnTriggerExit?.Invoke(pair.Controller, pair.Trigger);
     }
 
     /// <summary>
@@ -246,6 +352,7 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             else
                 controller.IsTouchingWallLeft = true;
 
+            _contacts.Add(new Contact(entity, candidateEntity, new Vector2(pushX, 0f)));
             TryRegisterGround(ref controller, new Vector2(pushX, 0f), candidateEntity);
         }
     }
@@ -304,6 +411,7 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             if (pushY < 0f)
                 controller.IsTouchingCeiling = true;
 
+            _contacts.Add(new Contact(entity, candidateEntity, new Vector2(0f, pushY)));
             TryRegisterGround(ref controller, new Vector2(0f, pushY), candidateEntity);
         }
     }

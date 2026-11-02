@@ -674,4 +674,115 @@ public class CharacterControllerSystemTests
         Assert.Equal(-dir, controller.GroundNormal);
         Assert.Equal(surface, controller.GroundEntity);
     }
+
+    // ── Trigger & contact events ──────────────────────────────────────────────
+
+    private static (World, Entity, Entity) TriggerSetup(int layer = 0, uint mask = uint.MaxValue)
+    {
+        var world = new World();
+        var trigger = world.CreateEntity();
+        world.AddComponent(trigger, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(
+            trigger,
+            new BoxCollider2D(2, 2)
+            {
+                IsTrigger = true,
+                Layer = layer,
+                CollidesWith = mask,
+            }
+        );
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(5, 0)));
+        world.AddComponent(player, Velocity2D.Zero);
+        world.AddComponent(player, new CharacterController2D(1, 1, gravityScale: 0f));
+        return (world, player, trigger);
+    }
+
+    [Fact]
+    public void Update_ControllerEntersAndLeavesTrigger_ShouldRaiseEnterStayExit()
+    {
+        var (world, player, trigger) = TriggerSetup();
+        var system = new CharacterControllerSystem(world, Vector2.Zero);
+        var enters = 0;
+        var stays = 0;
+        var exits = 0;
+        system.OnTriggerEnter += (c, t) =>
+        {
+            Assert.Equal((player, trigger), (c, t));
+            enters++;
+        };
+        system.OnTriggerStay += (_, _) => stays++;
+        system.OnTriggerExit += (_, _) => exits++;
+
+        system.Update(0.016f);
+        Assert.Equal((0, 0, 0), (enters, stays, exits));
+
+        world.AddComponent(player, new Transform2D(new Vector2(0.5f, 0)));
+        system.Update(0.016f);
+        system.Update(0.016f);
+        Assert.Equal((1, 2, 0), (enters, stays, exits));
+
+        world.AddComponent(player, new Transform2D(new Vector2(5, 0)));
+        system.Update(0.016f);
+        Assert.Equal((1, 2, 1), (enters, stays, exits));
+    }
+
+    [Fact]
+    public void Update_TriggerDestroyed_ShouldRaiseExit()
+    {
+        var (world, player, trigger) = TriggerSetup();
+        world.AddComponent(player, new Transform2D(new Vector2(0.5f, 0)));
+        var system = new CharacterControllerSystem(world, Vector2.Zero);
+        var exits = 0;
+        system.OnTriggerExit += (_, _) => exits++;
+
+        system.Update(0.016f);
+        world.DestroyEntity(trigger);
+        system.Update(0.016f);
+
+        Assert.Equal(1, exits);
+    }
+
+    [Fact]
+    public void Update_TriggerOnNonMatchingLayer_ShouldNotRaiseEvents()
+    {
+        var (world, player, _) = TriggerSetup(layer: 1, mask: 1u << 1);
+        world.AddComponent(player, new Transform2D(new Vector2(0.5f, 0)));
+        world.AddComponent(
+            player,
+            new CharacterController2D(1, 1, gravityScale: 0f, layer: 0, collidesWith: 1u)
+        );
+        var system = new CharacterControllerSystem(world, Vector2.Zero);
+        var enters = 0;
+        system.OnTriggerEnter += (_, _) => enters++;
+
+        system.Update(0.016f);
+
+        Assert.Equal(0, enters);
+    }
+
+    [Fact]
+    public void Update_LandingOnFloor_ShouldReportContactWithEntityAndNormal()
+    {
+        var world = new World();
+        var floor = world.CreateEntity();
+        world.AddComponent(floor, new Transform2D(new Vector2(0, 0)));
+        world.AddComponent(floor, new BoxCollider2D(10, 1));
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(new Vector2(0, 0.9f)));
+        world.AddComponent(player, Velocity2D.Zero);
+        world.AddComponent(player, new CharacterController2D(1, 1));
+        var system = new CharacterControllerSystem(world, new Vector2(0, -20));
+        var raised = new List<CharacterControllerSystem.Contact>();
+        system.OnContact += raised.Add;
+
+        system.Update(1f / 60f);
+
+        Assert.Contains(
+            system.Contacts,
+            c => c.Controller == player && c.Other == floor && c.Normal == Vector2.UnitY
+        );
+        Assert.Equal(system.Contacts.Count, raised.Count);
+    }
 }
