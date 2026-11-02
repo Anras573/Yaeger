@@ -636,4 +636,42 @@ public class CharacterControllerSystemTests
         Assert.Null(controller.GroundEntity);
         Assert.False(controller.IsGrounded);
     }
+
+    // ── Gravity-relative grounding ────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(0f, -20f, 0f, -1f)] // down: floor below
+    [InlineData(0f, 20f, 0f, 1f)] // up: ceiling above
+    [InlineData(20f, 0f, 1f, 0f)] // right: wall to the right
+    [InlineData(-20f, 0f, -1f, 0f)] // left: wall to the left
+    public void Update_GravityInCardinalDirection_ShouldGroundAgainstSurfaceInThatDirection(
+        float gx,
+        float gy,
+        float dirX,
+        float dirY
+    )
+    {
+        var world = new World();
+        var dir = new Vector2(dirX, dirY);
+
+        var surface = world.CreateEntity();
+        var surfaceBox = Math.Abs(dirX) > 0 ? new BoxCollider2D(1, 10) : new BoxCollider2D(10, 1);
+        world.AddComponent(surface, new Transform2D(dir * 0f));
+        world.AddComponent(surface, surfaceBox);
+
+        var player = world.CreateEntity();
+        world.AddComponent(player, new Transform2D(-dir * 5f));
+        world.AddComponent(player, Velocity2D.Zero);
+        world.AddComponent(player, new CharacterController2D(1, 1));
+
+        var system = new CharacterControllerSystem(world, new Vector2(gx, gy));
+
+        for (var i = 0; i < 180; i++)
+            system.Update(1f / 60f);
+
+        var controller = world.GetComponent<CharacterController2D>(player);
+        Assert.True(controller.IsGrounded);
+        Assert.Equal(-dir, controller.GroundNormal);
+        Assert.Equal(surface, controller.GroundEntity);
+    }
 }
