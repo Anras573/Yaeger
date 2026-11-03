@@ -54,8 +54,19 @@ public class UnifiedRenderSystem(
 
         renderer?.BeginFrame();
 
+        var screenSpace = false;
         foreach (var command in _commands)
         {
+            // Text is screen-space on every runtime: native TextRenderer has no camera, so the
+            // browser (which draws glyphs as quads through the camera-aware surface) must
+            // match. Switching the camera flushes the quads queued under the previous one.
+            var wantScreenSpace = command.Kind == RenderCommandKind.Text;
+            if (wantScreenSpace != screenSpace)
+            {
+                SetTextSpace(wantScreenSpace);
+                screenSpace = wantScreenSpace;
+            }
+
             switch (command.Kind)
             {
                 case RenderCommandKind.Sprite:
@@ -89,7 +100,18 @@ public class UnifiedRenderSystem(
             }
         }
 
+        if (screenSpace)
+            SetTextSpace(false);
+
         renderer?.EndFrame();
+    }
+
+    private void SetTextSpace(bool screenSpace)
+    {
+        if (renderer is null || _activeCamera is not { } camera)
+            return;
+
+        renderer.SetCamera(screenSpace ? Matrix4x4.Identity : camera.ViewProjection(_aspectRatio));
     }
 
     private void BuildCommandQueue()
