@@ -19,8 +19,17 @@ public class UnifiedRenderSystemTextSpaceTests
         public Matrix4x4 Camera = Matrix4x4.Identity;
         public readonly List<string> Log = [];
         public Matrix4x4? CameraAtText;
+        public Matrix4x4? TextTransform;
+        public int BeginFrameCalls;
+        public bool? LastClear;
 
-        public void BeginFrame() { }
+        public void BeginFrame(bool clear)
+        {
+            BeginFrameCalls++;
+            LastClear = clear;
+        }
+
+        public void BeginFrame() => BeginFrame(true);
 
         public void EndFrame() { }
 
@@ -52,6 +61,7 @@ public class UnifiedRenderSystemTextSpaceTests
         )
         {
             CameraAtText = Camera;
+            TextTransform = transform;
             Log.Add("text");
         }
 
@@ -84,5 +94,70 @@ public class UnifiedRenderSystemTextSpaceTests
 
         Assert.Equal(Matrix4x4.Identity, surface.CameraAtText);
         Assert.Equal(camera.ViewProjection(800f / 600f), surface.Camera);
+    }
+
+    [Fact]
+    public void Render_WorldSpaceText_BakesCameraIntoTransformUnderIdentityCamera()
+    {
+        var world = new World();
+        var cam = world.CreateEntity();
+        var camera = new Camera2D(new Vector2(0.3f, 0.1f), 2f, MathF.PI / 2);
+        world.AddComponent(cam, camera);
+        var label = world.CreateEntity();
+        var transform = new Transform2D(new Vector2(0.5f, 0.25f));
+        world.AddComponent(label, transform);
+        world.AddComponent(
+            label,
+            new Text("Sign", new FontHandle("f.ttf"), 12, Color.White) { WorldSpace = true }
+        );
+
+        var surface = new RecordingSurface();
+        new UnifiedRenderSystem(surface, surface, world, new Viewport()).Render();
+
+        Assert.Equal(Matrix4x4.Identity, surface.CameraAtText);
+        Assert.Equal(
+            transform.TransformMatrix * camera.ViewProjection(800f / 600f),
+            surface.TextTransform
+        );
+    }
+
+    [Fact]
+    public void Render_ScreenSpaceText_KeepsTransformUnchanged()
+    {
+        var world = new World();
+        var cam = world.CreateEntity();
+        world.AddComponent(cam, new Camera2D(Vector2.One, 2f, 1f));
+        var label = world.CreateEntity();
+        var transform = new Transform2D(new Vector2(-0.9f, 0.9f));
+        world.AddComponent(label, transform);
+        world.AddComponent(label, new Text("HUD", new FontHandle("f.ttf"), 12, Color.White));
+
+        var surface = new RecordingSurface();
+        new UnifiedRenderSystem(surface, surface, world, new Viewport()).Render();
+
+        Assert.Equal(transform.TransformMatrix, surface.TextTransform);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Render_ForwardsClearFlagToSurface(bool clear)
+    {
+        var world = new World();
+        var surface = new RecordingSurface();
+
+        new UnifiedRenderSystem(surface, surface, world).Render(clear);
+
+        Assert.Equal(clear, surface.LastClear);
+    }
+
+    [Fact]
+    public void Render_Default_Clears()
+    {
+        var surface = new RecordingSurface();
+
+        new UnifiedRenderSystem(surface, surface, new World()).Render();
+
+        Assert.True(surface.LastClear);
     }
 }

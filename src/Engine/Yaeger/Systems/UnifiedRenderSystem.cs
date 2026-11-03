@@ -47,12 +47,19 @@ public class UnifiedRenderSystem(
         : renderer is not null ? renderer.GetTextureSize(path)
         : default;
 
-    public void Render()
+    /// <summary>Renders the frame, clearing the target first.</summary>
+    public void Render() => Render(clear: true);
+
+    /// <summary>
+    /// Renders the frame. Pass <c>clear: false</c> to draw on top of what an earlier pass left
+    /// in the target (an overlay or HUD pass) instead of clearing it first.
+    /// </summary>
+    public void Render(bool clear)
     {
         UpdateCamera();
         BuildCommandQueue();
 
-        renderer?.BeginFrame();
+        renderer?.BeginFrame(clear);
 
         var screenSpace = false;
         foreach (var command in _commands)
@@ -86,7 +93,7 @@ public class UnifiedRenderSystem(
                     renderer?.FlushQueuedQuads();
                     textRenderer!.DrawText(
                         command.TextComponent.Content,
-                        command.Transform,
+                        TextTransform(command),
                         command.TextComponent.FontObject
                             ?? (IFontHandle)command.TextComponent.FontHandle,
                         command.TextComponent.FontSize,
@@ -105,6 +112,13 @@ public class UnifiedRenderSystem(
 
         renderer?.EndFrame();
     }
+
+    // Text always draws under an identity surface camera (native TextRenderer has none), so a
+    // world-space label bakes the camera into its transform instead. Both runtimes then agree.
+    private Matrix4x4 TextTransform(in RenderCommand command) =>
+        command.TextComponent.WorldSpace && _activeCamera is { } camera
+            ? command.Transform * camera.ViewProjection(_aspectRatio)
+            : command.Transform;
 
     private void SetTextSpace(bool screenSpace)
     {
