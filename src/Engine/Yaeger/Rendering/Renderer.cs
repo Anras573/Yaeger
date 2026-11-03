@@ -75,14 +75,20 @@ public class Renderer : IRenderSurface, IDisposable
         );
     }
 
-    public void BeginFrame()
+    public void BeginFrame() => BeginFrame(clear: true);
+
+    /// <inheritdoc />
+    public void BeginFrame(bool clear)
     {
         // Window owns the viewport — it syncs on resize, so the renderer doesn't touch it here.
         _gl.Enable(GLEnum.Blend);
         _gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
 
-        _gl.ClearColor(0f, 0f, 0f, 1f);
-        _gl.Clear((uint)ClearBufferMask.ColorBufferBit);
+        if (clear)
+        {
+            _gl.ClearColor(0f, 0f, 0f, 1f);
+            _gl.Clear((uint)ClearBufferMask.ColorBufferBit);
+        }
 
         _submissionQueue.Clear();
 

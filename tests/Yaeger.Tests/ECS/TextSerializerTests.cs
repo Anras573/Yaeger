@@ -178,4 +178,34 @@ public class TextSerializerTests
         Assert.Contains("Text", registry.RegisteredTypeIds);
         Assert.Contains("Sprite", registry.RegisteredTypeIds);
     }
+
+    [Fact]
+    public void SceneSaver_WorldSpaceText_ShouldRoundTrip()
+    {
+        var registry = new ComponentRegistry().RegisterNativeEngineComponents();
+        var world = new World();
+        var entity = world.CreateEntity("sign");
+        world.AddComponent(
+            entity,
+            new Text("Shop", new FontHandle("Assets/Roboto-Regular.ttf"), 18, Color.White)
+            {
+                WorldSpace = true,
+            }
+        );
+        var plain = world.CreateEntity("hud");
+        world.AddComponent(
+            plain,
+            new Text("HP", new FontHandle("Assets/Roboto-Regular.ttf"), 18, Color.White)
+        );
+
+        var json = new SceneSaver(registry).Serialize(world);
+
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(json, "worldSpace"));
+        var reloaded = new World();
+        reloaded.Instantiate(new SceneLoader(registry).Parse(json));
+        reloaded.TryGetEntity("sign", out var sign);
+        reloaded.TryGetEntity("hud", out var hud);
+        Assert.True(reloaded.GetComponent<Text>(sign).WorldSpace);
+        Assert.False(reloaded.GetComponent<Text>(hud).WorldSpace);
+    }
 }

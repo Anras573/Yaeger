@@ -42,7 +42,13 @@ If multiple `Camera2D` entities exist, the **first one** encountered during iter
 
 `Renderer` applies the camera; `TextRenderer` does **not**. This is deliberate: in most 2D games, sprites are world objects (move with the camera) and text is UI (stays pinned). See `Samples/Platformer`'s HUD (built with the UI system, which is likewise always screen-space) for a direct demonstration — it stays at the top-left as the camera pans.
 
-If you need world-anchored labels (e.g., a name floating above a sprite), position a text entity at the anchor's world coordinates and multiply through manually, or file an issue and we can add a `UseCamera` flag to `Text`.
+`UnifiedRenderSystem` makes this identical on the native and browser runtimes: it draws every `Text` with the surface camera set to identity, then restores the scene camera for the next sprite. Browser text, which is submitted as quads through the camera-aware surface, therefore stays pinned too.
+
+For world-anchored labels (a name floating above a sprite, a sign in the level) set `Text.WorldSpace = true` (JSON: `"worldSpace": true`). `UnifiedRenderSystem` then multiplies the label's transform by the camera's view-projection itself, so it pans, zooms and rotates like a sprite — on both runtimes. Without a `Camera2D` (or a viewport) it behaves like screen-space text.
+
+## Overlay passes
+
+`UnifiedRenderSystem.Render(clear: false)` renders without clearing the target (it calls `IRenderSurface.BeginFrame(clear: false)`), so a second system can draw an overlay or HUD over what an earlier pass rendered. The default `Render()` still clears. A custom `IRenderSurface` gets a default `BeginFrame(bool)` that calls `BeginFrame()` for `clear: true` and does nothing otherwise; override it if your surface needs per-frame housekeeping on an overlay pass.
 
 ## Following a target
 

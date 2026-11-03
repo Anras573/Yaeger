@@ -15,7 +15,8 @@ namespace Yaeger.ECS.Serializers;
 ///   "content": "Score: 0",
 ///   "font": "Assets/Roboto-Regular.ttf",
 ///   "fontSize": 24,
-///   "color": [255, 255, 255, 255]
+///   "color": [255, 255, 255, 255],
+///   "worldSpace": false
 /// }
 /// </code>
 /// <c>content</c>, <c>font</c>, and <c>fontSize</c> are required. <c>font</c> is a path resolved
@@ -23,6 +24,8 @@ namespace Yaeger.ECS.Serializers;
 /// <see cref="FontHandle"/> — the component only ever round-trips the handle, never a native
 /// <c>Yaeger.Font.Font</c> instance, matching how <c>UnifiedRenderSystem</c> resolves fonts by
 /// path at render time. <c>color</c> is optional and defaults to white (255, 255, 255, 255).
+/// <c>worldSpace</c> is optional (default <c>false</c>, omitted when <c>false</c>); see
+/// <see cref="Text.WorldSpace"/>.
 /// <para>
 /// Lives under <c>ECS/Serializers/Native/</c> rather than alongside the other serializers: it
 /// references <see cref="Text"/>, which holds a native <c>Yaeger.Font.Font</c> field with no
@@ -56,7 +59,10 @@ public sealed class TextSerializer : IComponentSerializer
             throw new PrefabLoadException($"Text has an invalid 'font' property: {ex.Message}", ex);
         }
 
-        var component = new Text(content, fontHandle, fontSize, color);
+        var worldSpace =
+            element.TryGetProperty("worldSpace", out var ws) && ws.ValueKind == JsonValueKind.True;
+
+        var component = new Text(content, fontHandle, fontSize, color) { WorldSpace = worldSpace };
         return (world, entity) => world.AddComponent(entity, component);
     }
 
@@ -76,6 +82,9 @@ public sealed class TextSerializer : IComponentSerializer
 
         if (!IsWhite(text.Color))
             obj["color"] = ComponentJson.Write(text.Color);
+
+        if (text.WorldSpace)
+            obj["worldSpace"] = true;
 
         return obj;
     }

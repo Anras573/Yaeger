@@ -8,6 +8,19 @@ namespace Yaeger.Platform;
 public interface IRenderSurface
 {
     void BeginFrame();
+
+    /// <summary>
+    /// Begins a frame, optionally without clearing the target. <c>clear: false</c> lets a
+    /// second pass (an overlay or HUD) draw on top of what an earlier pass rendered. The
+    /// default implementation calls <see cref="BeginFrame()"/> when <paramref name="clear"/>
+    /// is <see langword="true"/> and does nothing otherwise; the built-in surfaces override it
+    /// to keep their per-frame housekeeping while skipping only the clear.
+    /// </summary>
+    void BeginFrame(bool clear)
+    {
+        if (clear)
+            BeginFrame();
+    }
     void EndFrame();
     void FlushQueuedQuads();
 

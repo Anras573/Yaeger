@@ -24,6 +24,15 @@ public record struct Text
         }
     }
 
+    /// <summary>
+    /// When <see langword="true"/>, <c>UnifiedRenderSystem</c> draws this text in world space:
+    /// its <c>Transform2D</c> is a world transform and the active <c>Camera2D</c> pans, zooms
+    /// and rotates it like a sprite. Defaults to <see langword="false"/> (screen space: the
+    /// transform is used as NDC and the camera is ignored). Behaves the same on native and
+    /// browser runtimes.
+    /// </summary>
+    public bool WorldSpace { get; set; }
+
     public int FontSize { get; set; }
     public Color Color { get; set; }
 

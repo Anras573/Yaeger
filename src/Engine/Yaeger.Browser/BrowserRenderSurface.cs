@@ -141,10 +141,13 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
         JsInterop.DisposeCanvas();
     }
 
-    public void BeginFrame()
+    public void BeginFrame() => BeginFrame(clear: true);
+
+    public void BeginFrame(bool clear)
     {
         RefreshViewport();
-        ClearFrame();
+        if (clear)
+            ClearFrame();
         _submissionQueue.Clear();
     }
 
