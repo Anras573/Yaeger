@@ -86,6 +86,12 @@
     <PackageReference Include="Silk.NET.OpenAL" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" />
     <PackageReference Include="SkiaSharp.HarfBuzz" Version="3.119.1" />
+    <!--
+      Like HarfBuzzSharp, SkiaSharp ships native binaries for win-* and osx only. Without this,
+      libSkiaSharp.so is never copied on Linux and the first SKData/SKTypeface use (e.g. building
+      a GlyphAtlas) throws DllNotFoundException. Keep the version in step with SkiaSharp.HarfBuzz.
+    -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
   </ItemGroup>
 </Project>
