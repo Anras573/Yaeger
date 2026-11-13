@@ -28,6 +28,7 @@ expected.
 | `sprites` | 2D sprite-batching / submission cost — thousands of sprites sharing one texture, so the renderer collapses them into one batched draw call per frame. FPS here is a proxy for CPU-side submission cost (ECS iteration + per-vertex transform), not GPU fill rate. | 5 000 sprites | **ESC** exit |
 | `instancing` | 3D instanced-rendering draw-call collapse (issue #148) — a grid of boxes sharing one of two materials, drawn via `Renderer3D.DrawInstanced` instead of one draw call per entity. | 2 000 boxes (20×10×10 grid) | **I** toggle instancing on/off (forces `InstancingThreshold` to `int.MaxValue` when off), **ESC** exit |
 | `crowd` | 3D instanced-skinning draw-call collapse (issue #198) — a grid of CesiumMan characters sharing one skeleton, each playing the walk clip out of phase, drawn via `Renderer3D.DrawInstancedSkinned`. | 64 characters (8×8 grid) | **I** toggle instancing on/off, **ESC** exit |
+| `ecs` | ECS query iteration cost (issue #337) — 2- and 3-component `world.Query` passes over `count` entities, timed against an in-process reproduction of the old dictionary + `IEnumerable` iterator design, plus bytes allocated per pass. **Headless**: needs no display. | 100 000 entities | — (prints results and exits) |
 
 `count` is optional and overrides the benchmark's default entity count, e.g.:
 

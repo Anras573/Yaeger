@@ -18,8 +18,9 @@ public interface IBenchmark
     int DefaultCount { get; }
 
     /// <summary>
-    /// Creates its own <c>Window</c>, builds the scene sized by <paramref name="count"/>, and
-    /// runs the window's loop to completion (blocks until the window closes).
+    /// Builds the workload sized by <paramref name="count"/> and runs it to completion. Rendering
+    /// benchmarks create their own <c>Window</c> and block until it closes; headless ones (e.g.
+    /// <c>ecs</c>) print their results and return.
     /// </summary>
     void Run(int count);
 }
