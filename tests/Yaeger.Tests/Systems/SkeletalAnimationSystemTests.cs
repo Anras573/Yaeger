@@ -712,6 +712,34 @@ public class SkeletalAnimationSystemTests
     }
 
     [Fact]
+    public void Update_HandlerDestroyingEntities_ShouldNotThrowAndStillAdvanceTheRest()
+    {
+        var (registry, handle) = BuildRigWithEvents(2f, (0.5f, "a"));
+        var world = new World();
+        var entities = new List<Entity>();
+        for (var i = 0; i < 3; i++)
+        {
+            var entity = world.CreateEntity();
+            world.AddComponent(entity, handle);
+            world.AddComponent(entity, new AnimationPlayer("slide", loop: false, speed: 1f));
+            entities.Add(entity);
+        }
+
+        var system = new SkeletalAnimationSystem(world, registry);
+        var fired = new List<Entity>();
+        system.OnAnimationEvent += e =>
+        {
+            fired.Add(e.Entity);
+            world.DestroyEntity(e.Entity);
+        };
+
+        system.Update(0.6f); // every entity crosses "a"; each handler call destroys its entity
+
+        Assert.Equal(entities, fired);
+        Assert.Equal(0, world.GetStore<AnimationPlayer>().Count);
+    }
+
+    [Fact]
     public void Update_MarkerCrossedWithinFrame_FiresExactlyOnce()
     {
         var (registry, handle) = BuildRigWithEvents(2f, (0.5f, "a"), (1f, "b"), (1.5f, "c"));

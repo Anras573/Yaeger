@@ -11,6 +11,8 @@ public class ComponentStorageTests
 
     private struct Tag { }
 
+    private struct Marker { }
+
     private static (World world, Entity[] entities) Populate(int count)
     {
         var world = new World();
@@ -147,18 +149,84 @@ public class ComponentStorageTests
     }
 
     [Fact]
-    public void Query_ShouldAllowMutatingNonDrivingStoreDuringIteration()
+    public void Query_ShouldThrow_WhenNonDrivingStoreIsStructurallyModified()
     {
         var (world, _) = Populate(5);
         var extra = world.CreateEntity();
         foreach (var (entity, _) in world.GetStore<Health>().All().ToList())
             world.AddComponent(entity, new Tag());
 
-        // Force Tag to drive: adding a Health is then not a structural change to the driver.
-        foreach (var (_, _, _) in world.Query<Health, Tag>(forceIndex: 1))
-            world.AddComponent(extra, new Health());
+        // Tag drives, but Health is still part of the query: whether a loop throws must not depend
+        // on which store happens to be driving.
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (var (_, _, _) in world.Query<Health, Tag>(forceIndex: 1))
+                world.AddComponent(extra, new Health());
+        });
+    }
 
-        Assert.Equal(6, world.GetStore<Health>().Count);
+    [Fact]
+    public void Query_ShouldThrow_WhenComponentRemovedRegardlessOfDrivingStore()
+    {
+        for (var forceIndex = 0; forceIndex <= 1; forceIndex++)
+        {
+            var (world, entities) = Populate(5);
+            foreach (var entity in entities)
+                world.AddComponent(entity, new Tag());
+
+            Assert.Throws<InvalidOperationException>(() =>
+            {
+                foreach (var (entity, _, _) in world.Query<Health, Tag>(forceIndex))
+                    world.RemoveComponent<Tag>(entity);
+            });
+        }
+    }
+
+    [Fact]
+    public void Query_ShouldThrow_WhenLastVisitedEntityIsDestroyed()
+    {
+        var (world, entities) = Populate(3);
+        foreach (var entity in entities)
+            world.AddComponent(entity, new Tag());
+        var last = entities[^1];
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (var (entity, _, _) in world.Query<Health, Tag>())
+            {
+                if (entity == last)
+                    world.DestroyEntity(entity);
+            }
+        });
+    }
+
+    [Fact]
+    public void Query_ShouldAllowMutatingStoresOutsideTheQueryDuringIteration()
+    {
+        var (world, entities) = Populate(5);
+        foreach (var entity in entities)
+            world.AddComponent(entity, new Tag());
+
+        foreach (var (entity, _, _) in world.Query<Health, Tag>())
+        {
+            world.AddComponent(entity, new Marker());
+            world.AddComponent(world.CreateEntity(), new Marker());
+        }
+
+        Assert.Equal(10, world.GetStore<Marker>().Count);
+    }
+
+    [Fact]
+    public void Query_ShouldAllowDestroyingEntities_WhenSnapshotted()
+    {
+        var (world, entities) = Populate(5);
+        foreach (var entity in entities)
+            world.AddComponent(entity, new Tag());
+
+        foreach (var (entity, _, _) in world.Query<Health, Tag>().ToList())
+            world.DestroyEntity(entity);
+
+        Assert.Equal(0, world.GetStore<Health>().Count);
     }
 
     [Fact]

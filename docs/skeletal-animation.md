@@ -233,6 +233,10 @@ animationSystem.OnAnimationEvent += e =>
 };
 ```
 
+Events are raised at the end of `SkeletalAnimationSystem.Update`, after every entity has been
+advanced and in the order the markers were crossed, not from inside the system's entity loop. A
+handler can therefore destroy the entity, add or remove components, or call `CrossFadeTo` safely.
+
 Markers are evaluated purely from the entity's **incoming** clip (`CurrentClip`/`Time`) — never the
 fade-out source of an in-progress `CrossFadeTo`, so a fading-out loop doesn't keep emitting its own
 markers once a fade begins. The crossing detection is correct under:

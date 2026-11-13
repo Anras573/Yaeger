@@ -34,7 +34,8 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
         private readonly ComponentStorage<T2> _s2;
         private readonly int _drive;
         private readonly int _count;
-        private readonly int _version;
+        private readonly int _v1;
+        private readonly int _v2;
         private int _index;
 
         internal Enumerator(ComponentStorage<T1> s1, ComponentStorage<T2> s2, int drive)
@@ -43,11 +44,13 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
             _s2 = s2;
             _drive = drive;
             _index = -1;
-            (_count, _version) = drive switch
+            _count = drive switch
             {
-                0 => (s1.Count, s1.Version),
-                _ => (s2.Count, s2.Version),
+                0 => s1.Count,
+                _ => s2.Count,
             };
+            _v1 = s1.Version;
+            _v2 = s2.Version;
             Current = default;
         }
 
@@ -57,13 +60,18 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
 
         public bool MoveNext()
         {
+            // Checked on every step, including the one that ends the loop, and against every
+            // store in the query (not just the driving one): which store drives depends on
+            // relative store sizes, so a narrower check would make the same loop throw or not
+            // depending on the data.
+            if (_s1.Version != _v1 || _s2.Version != _v2)
+                ThrowModified();
+
             switch (_drive)
             {
                 case 0:
                     while (++_index < _count)
                     {
-                        if (_s1.Version != _version)
-                            ThrowModified();
                         var entity = _s1.EntityAt(_index);
                         if (!_s2.TryGet(entity, out var c2))
                             continue;
@@ -74,8 +82,6 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
                 default:
                     while (++_index < _count)
                     {
-                        if (_s2.Version != _version)
-                            ThrowModified();
                         var entity = _s2.EntityAt(_index);
                         if (!_s1.TryGet(entity, out var c1))
                             continue;
@@ -92,8 +98,8 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
 
         private static void ThrowModified() =>
             throw new InvalidOperationException(
-                "The driving component store was structurally modified during enumeration. "
-                    + "Snapshot the query with ToList() before adding or destroying entities."
+                "A component store in this query was structurally modified during enumeration. "
+                    + "Snapshot the query with ToList() before adding or removing its components or destroying entities."
             );
     }
 }
@@ -140,7 +146,9 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
         private readonly ComponentStorage<T3> _s3;
         private readonly int _drive;
         private readonly int _count;
-        private readonly int _version;
+        private readonly int _v1;
+        private readonly int _v2;
+        private readonly int _v3;
         private int _index;
 
         internal Enumerator(
@@ -155,12 +163,15 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
             _s3 = s3;
             _drive = drive;
             _index = -1;
-            (_count, _version) = drive switch
+            _count = drive switch
             {
-                0 => (s1.Count, s1.Version),
-                1 => (s2.Count, s2.Version),
-                _ => (s3.Count, s3.Version),
+                0 => s1.Count,
+                1 => s2.Count,
+                _ => s3.Count,
             };
+            _v1 = s1.Version;
+            _v2 = s2.Version;
+            _v3 = s3.Version;
             Current = default;
         }
 
@@ -170,13 +181,18 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
 
         public bool MoveNext()
         {
+            // Checked on every step, including the one that ends the loop, and against every
+            // store in the query (not just the driving one): which store drives depends on
+            // relative store sizes, so a narrower check would make the same loop throw or not
+            // depending on the data.
+            if (_s1.Version != _v1 || _s2.Version != _v2 || _s3.Version != _v3)
+                ThrowModified();
+
             switch (_drive)
             {
                 case 0:
                     while (++_index < _count)
                     {
-                        if (_s1.Version != _version)
-                            ThrowModified();
                         var entity = _s1.EntityAt(_index);
                         if (!_s2.TryGet(entity, out var c2))
                             continue;
@@ -189,8 +205,6 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
                 case 1:
                     while (++_index < _count)
                     {
-                        if (_s2.Version != _version)
-                            ThrowModified();
                         var entity = _s2.EntityAt(_index);
                         if (!_s1.TryGet(entity, out var c1))
                             continue;
@@ -203,8 +217,6 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
                 default:
                     while (++_index < _count)
                     {
-                        if (_s3.Version != _version)
-                            ThrowModified();
                         var entity = _s3.EntityAt(_index);
                         if (!_s1.TryGet(entity, out var c1))
                             continue;
@@ -223,8 +235,8 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
 
         private static void ThrowModified() =>
             throw new InvalidOperationException(
-                "The driving component store was structurally modified during enumeration. "
-                    + "Snapshot the query with ToList() before adding or destroying entities."
+                "A component store in this query was structurally modified during enumeration. "
+                    + "Snapshot the query with ToList() before adding or removing its components or destroying entities."
             );
     }
 }
@@ -276,7 +288,10 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
         private readonly ComponentStorage<T4> _s4;
         private readonly int _drive;
         private readonly int _count;
-        private readonly int _version;
+        private readonly int _v1;
+        private readonly int _v2;
+        private readonly int _v3;
+        private readonly int _v4;
         private int _index;
 
         internal Enumerator(
@@ -293,13 +308,17 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
             _s4 = s4;
             _drive = drive;
             _index = -1;
-            (_count, _version) = drive switch
+            _count = drive switch
             {
-                0 => (s1.Count, s1.Version),
-                1 => (s2.Count, s2.Version),
-                2 => (s3.Count, s3.Version),
-                _ => (s4.Count, s4.Version),
+                0 => s1.Count,
+                1 => s2.Count,
+                2 => s3.Count,
+                _ => s4.Count,
             };
+            _v1 = s1.Version;
+            _v2 = s2.Version;
+            _v3 = s3.Version;
+            _v4 = s4.Version;
             Current = default;
         }
 
@@ -309,13 +328,23 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
 
         public bool MoveNext()
         {
+            // Checked on every step, including the one that ends the loop, and against every
+            // store in the query (not just the driving one): which store drives depends on
+            // relative store sizes, so a narrower check would make the same loop throw or not
+            // depending on the data.
+            if (
+                _s1.Version != _v1
+                || _s2.Version != _v2
+                || _s3.Version != _v3
+                || _s4.Version != _v4
+            )
+                ThrowModified();
+
             switch (_drive)
             {
                 case 0:
                     while (++_index < _count)
                     {
-                        if (_s1.Version != _version)
-                            ThrowModified();
                         var entity = _s1.EntityAt(_index);
                         if (!_s2.TryGet(entity, out var c2))
                             continue;
@@ -330,8 +359,6 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
                 case 1:
                     while (++_index < _count)
                     {
-                        if (_s2.Version != _version)
-                            ThrowModified();
                         var entity = _s2.EntityAt(_index);
                         if (!_s1.TryGet(entity, out var c1))
                             continue;
@@ -346,8 +373,6 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
                 case 2:
                     while (++_index < _count)
                     {
-                        if (_s3.Version != _version)
-                            ThrowModified();
                         var entity = _s3.EntityAt(_index);
                         if (!_s1.TryGet(entity, out var c1))
                             continue;
@@ -362,8 +387,6 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
                 default:
                     while (++_index < _count)
                     {
-                        if (_s4.Version != _version)
-                            ThrowModified();
                         var entity = _s4.EntityAt(_index);
                         if (!_s1.TryGet(entity, out var c1))
                             continue;
@@ -384,8 +407,8 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
 
         private static void ThrowModified() =>
             throw new InvalidOperationException(
-                "The driving component store was structurally modified during enumeration. "
-                    + "Snapshot the query with ToList() before adding or destroying entities."
+                "A component store in this query was structurally modified during enumeration. "
+                    + "Snapshot the query with ToList() before adding or removing its components or destroying entities."
             );
     }
 }

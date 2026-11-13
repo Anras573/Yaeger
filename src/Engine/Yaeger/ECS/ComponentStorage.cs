@@ -17,7 +17,8 @@ namespace Yaeger.ECS;
 /// entity to, or removing an entity from, the store being enumerated is a structural change: the
 /// enumerator throws <see cref="InvalidOperationException"/> on its next step rather than
 /// silently skipping or repeating entries (removal swaps the last element into the vacated slot).
-/// Snapshot with <c>.ToList()</c> first if a loop needs to add or destroy.
+/// A <c>world.Query&lt;...&gt;()</c> applies the same rule to every store it names, not only the
+/// one driving it. Snapshot with <c>.ToList()</c> first if a loop needs to add or destroy.
 /// </para>
 /// <para>
 /// <b>Iteration order</b> is dense order: insertion order, except that a removal moves the last

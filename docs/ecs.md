@@ -43,14 +43,20 @@ reference is invalidated by adding or removing a `T` on any entity; do not hold 
 
 ## Mutation during iteration
 
-| While enumerating store `S` … | Allowed? |
-|---|---|
-| Overwrite an existing entity's component in `S` (`AddComponent` on an entity that already has it, or via a `ref`) | Yes |
-| Add/overwrite/remove components in **other** stores | Yes |
-| Add a new entity to `S`, or remove one from `S` (including `DestroyEntity`) | **No** — the enumerator throws `InvalidOperationException` on its next step |
+A *structural* change to a store is adding a component to an entity that didn't have it, or
+removing one (including through `DestroyEntity`). Overwriting an existing component is not
+structural.
 
-For a query, `S` is the store that drives it (the smallest, or the `forceIndex` one). To add or
-destroy entities while looping, snapshot first: `world.Query<...>().ToList()` or
+| While enumerating … | Allowed? |
+|---|---|
+| Overwrite an existing entity's component (`AddComponent` on an entity that already has it, or via a `ref`), in any store | Yes |
+| Structurally change a store that is **not** being enumerated / not part of the query | Yes |
+| Structurally change the store being enumerated, or **any** store named in the query | **No** — the enumerator throws `InvalidOperationException` on its next step |
+
+The query rule covers every store in the query, not just the one driving it, and is checked on
+every step including the one that ends the loop. Which store drives depends on relative store
+sizes, so a narrower rule would make the same loop throw or not depending on the data. To add,
+remove or destroy while looping, snapshot first: `world.Query<...>().ToList()` or
 `store.All().ToList()`.
 
 Iteration order is dense order (insertion order, except that removals move the last element into
