@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using HarfBuzzSharp;
 using Yaeger.Graphics;
 using Buffer = HarfBuzzSharp.Buffer;
@@ -20,7 +21,7 @@ public class Font : IFontHandle, IDisposable
 
         Id = fontPath;
         FontBytes = File.ReadAllBytes(fontPath);
-        _blob = Blob.FromStream(new MemoryStream(FontBytes));
+        _blob = CreateUnmanagedBlob(FontBytes);
         _face = new Face(_blob, 0);
         _font = new HarfBuzzSharp.Font(_face);
     }
@@ -39,12 +40,24 @@ public class Font : IFontHandle, IDisposable
 
         Id = id;
         FontBytes = (byte[])fontBytes.Clone();
-        _blob = Blob.FromStream(new MemoryStream(FontBytes));
+        _blob = CreateUnmanagedBlob(FontBytes);
         _face = new Face(_blob, 0);
         _font = new HarfBuzzSharp.Font(_face);
     }
 
     public string Id { get; }
+
+    /// <summary>
+    /// Copies <paramref name="bytes"/> into unmanaged memory owned by the blob. HarfBuzz keeps
+    /// reading the font data for the blob's lifetime, so it must not live on the GC heap
+    /// (Blob.FromStream doesn't keep its backing memory alive, causing use-after-free).
+    /// </summary>
+    private static Blob CreateUnmanagedBlob(byte[] bytes)
+    {
+        var ptr = Marshal.AllocHGlobal(bytes.Length);
+        Marshal.Copy(bytes, 0, ptr, bytes.Length);
+        return new Blob(ptr, bytes.Length, MemoryMode.ReadOnly, () => Marshal.FreeHGlobal(ptr));
+    }
 
     /// <summary>
     /// Shapes <paramref name="text"/> with this font's glyph outlines scaled to
