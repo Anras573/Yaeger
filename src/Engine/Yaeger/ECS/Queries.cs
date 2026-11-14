@@ -38,6 +38,13 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
         private readonly int _v2;
         private int _index;
 
+        // The current match, held as the entity plus its dense slot in each store rather than as
+        // a materialised tuple: Current then copies each component exactly once, straight out of
+        // its store, instead of once into a cached tuple here and again out to the caller.
+        private Entity _entity;
+        private int _i1;
+        private int _i2;
+
         internal Enumerator(ComponentStorage<T1> s1, ComponentStorage<T2> s2, int drive)
         {
             _s1 = s1;
@@ -51,10 +58,13 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
             };
             _v1 = s1.Version;
             _v2 = s2.Version;
-            Current = default;
+            _entity = default;
+            _i1 = 0;
+            _i2 = 0;
         }
 
-        public (Entity, T1, T2) Current { get; private set; }
+        public readonly (Entity, T1, T2) Current =>
+            (_entity, _s1.ComponentAt(_i1), _s2.ComponentAt(_i2));
 
         object IEnumerator.Current => Current;
 
@@ -73,9 +83,12 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
                     while (++_index < _count)
                     {
                         var entity = _s1.EntityAt(_index);
-                        if (!_s2.TryGet(entity, out var c2))
+                        var i2 = _s2.IndexOf(entity);
+                        if (i2 < 0)
                             continue;
-                        Current = (entity, _s1.ComponentAt(_index), c2);
+                        _entity = entity;
+                        _i1 = _index;
+                        _i2 = i2;
                         return true;
                     }
                     return false;
@@ -83,9 +96,12 @@ public readonly struct Query2<T1, T2> : IEnumerable<(Entity, T1, T2)>
                     while (++_index < _count)
                     {
                         var entity = _s2.EntityAt(_index);
-                        if (!_s1.TryGet(entity, out var c1))
+                        var i1 = _s1.IndexOf(entity);
+                        if (i1 < 0)
                             continue;
-                        Current = (entity, c1, _s2.ComponentAt(_index));
+                        _entity = entity;
+                        _i1 = i1;
+                        _i2 = _index;
                         return true;
                     }
                     return false;
@@ -151,6 +167,14 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
         private readonly int _v3;
         private int _index;
 
+        // The current match, held as the entity plus its dense slot in each store rather than as
+        // a materialised tuple: Current then copies each component exactly once, straight out of
+        // its store, instead of once into a cached tuple here and again out to the caller.
+        private Entity _entity;
+        private int _i1;
+        private int _i2;
+        private int _i3;
+
         internal Enumerator(
             ComponentStorage<T1> s1,
             ComponentStorage<T2> s2,
@@ -172,10 +196,14 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
             _v1 = s1.Version;
             _v2 = s2.Version;
             _v3 = s3.Version;
-            Current = default;
+            _entity = default;
+            _i1 = 0;
+            _i2 = 0;
+            _i3 = 0;
         }
 
-        public (Entity, T1, T2, T3) Current { get; private set; }
+        public readonly (Entity, T1, T2, T3) Current =>
+            (_entity, _s1.ComponentAt(_i1), _s2.ComponentAt(_i2), _s3.ComponentAt(_i3));
 
         object IEnumerator.Current => Current;
 
@@ -194,11 +222,16 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
                     while (++_index < _count)
                     {
                         var entity = _s1.EntityAt(_index);
-                        if (!_s2.TryGet(entity, out var c2))
+                        var i2 = _s2.IndexOf(entity);
+                        if (i2 < 0)
                             continue;
-                        if (!_s3.TryGet(entity, out var c3))
+                        var i3 = _s3.IndexOf(entity);
+                        if (i3 < 0)
                             continue;
-                        Current = (entity, _s1.ComponentAt(_index), c2, c3);
+                        _entity = entity;
+                        _i1 = _index;
+                        _i2 = i2;
+                        _i3 = i3;
                         return true;
                     }
                     return false;
@@ -206,11 +239,16 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
                     while (++_index < _count)
                     {
                         var entity = _s2.EntityAt(_index);
-                        if (!_s1.TryGet(entity, out var c1))
+                        var i1 = _s1.IndexOf(entity);
+                        if (i1 < 0)
                             continue;
-                        if (!_s3.TryGet(entity, out var c3))
+                        var i3 = _s3.IndexOf(entity);
+                        if (i3 < 0)
                             continue;
-                        Current = (entity, c1, _s2.ComponentAt(_index), c3);
+                        _entity = entity;
+                        _i1 = i1;
+                        _i2 = _index;
+                        _i3 = i3;
                         return true;
                     }
                     return false;
@@ -218,11 +256,16 @@ public readonly struct Query3<T1, T2, T3> : IEnumerable<(Entity, T1, T2, T3)>
                     while (++_index < _count)
                     {
                         var entity = _s3.EntityAt(_index);
-                        if (!_s1.TryGet(entity, out var c1))
+                        var i1 = _s1.IndexOf(entity);
+                        if (i1 < 0)
                             continue;
-                        if (!_s2.TryGet(entity, out var c2))
+                        var i2 = _s2.IndexOf(entity);
+                        if (i2 < 0)
                             continue;
-                        Current = (entity, c1, c2, _s3.ComponentAt(_index));
+                        _entity = entity;
+                        _i1 = i1;
+                        _i2 = i2;
+                        _i3 = _index;
                         return true;
                     }
                     return false;
@@ -294,6 +337,15 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
         private readonly int _v4;
         private int _index;
 
+        // The current match, held as the entity plus its dense slot in each store rather than as
+        // a materialised tuple: Current then copies each component exactly once, straight out of
+        // its store, instead of once into a cached tuple here and again out to the caller.
+        private Entity _entity;
+        private int _i1;
+        private int _i2;
+        private int _i3;
+        private int _i4;
+
         internal Enumerator(
             ComponentStorage<T1> s1,
             ComponentStorage<T2> s2,
@@ -319,10 +371,21 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
             _v2 = s2.Version;
             _v3 = s3.Version;
             _v4 = s4.Version;
-            Current = default;
+            _entity = default;
+            _i1 = 0;
+            _i2 = 0;
+            _i3 = 0;
+            _i4 = 0;
         }
 
-        public (Entity, T1, T2, T3, T4) Current { get; private set; }
+        public readonly (Entity, T1, T2, T3, T4) Current =>
+            (
+                _entity,
+                _s1.ComponentAt(_i1),
+                _s2.ComponentAt(_i2),
+                _s3.ComponentAt(_i3),
+                _s4.ComponentAt(_i4)
+            );
 
         object IEnumerator.Current => Current;
 
@@ -346,13 +409,20 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
                     while (++_index < _count)
                     {
                         var entity = _s1.EntityAt(_index);
-                        if (!_s2.TryGet(entity, out var c2))
+                        var i2 = _s2.IndexOf(entity);
+                        if (i2 < 0)
                             continue;
-                        if (!_s3.TryGet(entity, out var c3))
+                        var i3 = _s3.IndexOf(entity);
+                        if (i3 < 0)
                             continue;
-                        if (!_s4.TryGet(entity, out var c4))
+                        var i4 = _s4.IndexOf(entity);
+                        if (i4 < 0)
                             continue;
-                        Current = (entity, _s1.ComponentAt(_index), c2, c3, c4);
+                        _entity = entity;
+                        _i1 = _index;
+                        _i2 = i2;
+                        _i3 = i3;
+                        _i4 = i4;
                         return true;
                     }
                     return false;
@@ -360,13 +430,20 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
                     while (++_index < _count)
                     {
                         var entity = _s2.EntityAt(_index);
-                        if (!_s1.TryGet(entity, out var c1))
+                        var i1 = _s1.IndexOf(entity);
+                        if (i1 < 0)
                             continue;
-                        if (!_s3.TryGet(entity, out var c3))
+                        var i3 = _s3.IndexOf(entity);
+                        if (i3 < 0)
                             continue;
-                        if (!_s4.TryGet(entity, out var c4))
+                        var i4 = _s4.IndexOf(entity);
+                        if (i4 < 0)
                             continue;
-                        Current = (entity, c1, _s2.ComponentAt(_index), c3, c4);
+                        _entity = entity;
+                        _i1 = i1;
+                        _i2 = _index;
+                        _i3 = i3;
+                        _i4 = i4;
                         return true;
                     }
                     return false;
@@ -374,13 +451,20 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
                     while (++_index < _count)
                     {
                         var entity = _s3.EntityAt(_index);
-                        if (!_s1.TryGet(entity, out var c1))
+                        var i1 = _s1.IndexOf(entity);
+                        if (i1 < 0)
                             continue;
-                        if (!_s2.TryGet(entity, out var c2))
+                        var i2 = _s2.IndexOf(entity);
+                        if (i2 < 0)
                             continue;
-                        if (!_s4.TryGet(entity, out var c4))
+                        var i4 = _s4.IndexOf(entity);
+                        if (i4 < 0)
                             continue;
-                        Current = (entity, c1, c2, _s3.ComponentAt(_index), c4);
+                        _entity = entity;
+                        _i1 = i1;
+                        _i2 = i2;
+                        _i3 = _index;
+                        _i4 = i4;
                         return true;
                     }
                     return false;
@@ -388,13 +472,20 @@ public readonly struct Query4<T1, T2, T3, T4> : IEnumerable<(Entity, T1, T2, T3,
                     while (++_index < _count)
                     {
                         var entity = _s4.EntityAt(_index);
-                        if (!_s1.TryGet(entity, out var c1))
+                        var i1 = _s1.IndexOf(entity);
+                        if (i1 < 0)
                             continue;
-                        if (!_s2.TryGet(entity, out var c2))
+                        var i2 = _s2.IndexOf(entity);
+                        if (i2 < 0)
                             continue;
-                        if (!_s3.TryGet(entity, out var c3))
+                        var i3 = _s3.IndexOf(entity);
+                        if (i3 < 0)
                             continue;
-                        Current = (entity, c1, c2, c3, _s4.ComponentAt(_index));
+                        _entity = entity;
+                        _i1 = i1;
+                        _i2 = i2;
+                        _i3 = i3;
+                        _i4 = _index;
                         return true;
                     }
                     return false;

@@ -27,6 +27,13 @@ public sealed class EcsBenchmark : IBenchmark
         public float Value;
     }
 
+    // A transform-sized component, so the cost of copying components out of the stores shows up
+    // (A/B/C are small enough that it mostly doesn't).
+    private struct Wide
+    {
+        public Matrix4x4 Value;
+    }
+
     public string Arg => "ecs";
 
     public string Description =>
@@ -40,6 +47,7 @@ public sealed class EcsBenchmark : IBenchmark
         var dictA = new Dictionary<Entity, A>();
         var dictB = new Dictionary<Entity, B>();
         var dictC = new Dictionary<Entity, C>();
+        var dictWide = new Dictionary<Entity, Wide>();
         for (var i = 0; i < count; i++)
         {
             var e = world.CreateEntity();
@@ -52,13 +60,16 @@ public sealed class EcsBenchmark : IBenchmark
             dictA[e] = a;
             dictB[e] = b;
             dictC[e] = c;
+            var wide = new Wide { Value = Matrix4x4.CreateTranslation(i, 1, 0) };
+            world.AddComponent(e, wide);
+            dictWide[e] = wide;
         }
 
         Console.WriteLine($"ECS iteration, {count:N0} entities (ms/pass, bytes allocated/pass)");
         Console.WriteLine();
 
         Measure(
-            "Query<A,B>    sparse-set",
+            "Query<A,B>      sparse-set",
             () =>
             {
                 var sum = 0f;
@@ -68,7 +79,7 @@ public sealed class EcsBenchmark : IBenchmark
             }
         );
         Measure(
-            "Query<A,B>    baseline  ",
+            "Query<A,B>      baseline  ",
             () =>
             {
                 var sum = 0f;
@@ -78,7 +89,7 @@ public sealed class EcsBenchmark : IBenchmark
             }
         );
         Measure(
-            "Query<A,B,C>  sparse-set",
+            "Query<A,B,C>    sparse-set",
             () =>
             {
                 var sum = 0f;
@@ -88,12 +99,32 @@ public sealed class EcsBenchmark : IBenchmark
             }
         );
         Measure(
-            "Query<A,B,C>  baseline  ",
+            "Query<A,B,C>    baseline  ",
             () =>
             {
                 var sum = 0f;
                 foreach (var (_, a, b, c) in BaselineQuery3(dictA, dictB, dictC))
                     sum += a.Value.X + b.Value.Y + c.Value;
+                return sum;
+            }
+        );
+        Measure(
+            "Query<A,B,Wide> sparse-set",
+            () =>
+            {
+                var sum = 0f;
+                foreach (var (_, a, b, w) in world.Query<A, B, Wide>())
+                    sum += a.Value.X + b.Value.Y + w.Value.M41;
+                return sum;
+            }
+        );
+        Measure(
+            "Query<A,B,Wide> baseline  ",
+            () =>
+            {
+                var sum = 0f;
+                foreach (var (_, a, b, w) in BaselineQuery3(dictA, dictB, dictWide))
+                    sum += a.Value.X + b.Value.Y + w.Value.M41;
                 return sum;
             }
         );
@@ -130,10 +161,10 @@ public sealed class EcsBenchmark : IBenchmark
                 yield return (entity, ca, cb);
     }
 
-    private static IEnumerable<(Entity, A, B, C)> BaselineQuery3(
+    private static IEnumerable<(Entity, A, B, T)> BaselineQuery3<T>(
         Dictionary<Entity, A> a,
         Dictionary<Entity, B> b,
-        Dictionary<Entity, C> c
+        Dictionary<Entity, T> c
     )
     {
         foreach (var (entity, ca) in a)

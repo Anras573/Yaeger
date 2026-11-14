@@ -52,7 +52,7 @@ public class ComponentStorage<T> : IComponentStore
 
     /// <summary>Returns the dense slot for <paramref name="entity"/>, or -1 if it has none.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int IndexOf(Entity entity)
+    internal int IndexOf(Entity entity)
     {
         var id = entity.Id;
         var pageIndex = id >> PageBits;
