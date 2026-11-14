@@ -4,7 +4,10 @@ public class World
 {
     private int _nextEntityId = 1;
     private readonly HashSet<Entity> _entities = [];
-    private readonly Dictionary<Type, IComponentStore> _componentStores = new();
+
+    // Indexed by ComponentTypeId<T>.Id; _storeList is the same stores densely, for iteration.
+    private IComponentStore?[] _storesById = new IComponentStore?[16];
+    private readonly List<IComponentStore> _storeList = [];
     private readonly Dictionary<string, Entity> _taggedEntities = new();
     private readonly Dictionary<Entity, string> _entitiesByTag = new();
 
@@ -43,7 +46,7 @@ public class World
         }
 
         _entities.Remove(entity);
-        foreach (var store in _componentStores.Values)
+        foreach (var store in _storeList)
             store.Remove(entity);
     }
 
@@ -197,13 +200,34 @@ public class World
     /// </summary>
     public IEnumerable<Entity> Entities => _entities;
 
+    /// <summary>
+    /// Returns a reference to <paramref name="entity"/>'s <typeparamref name="T"/> so it can be
+    /// modified in place instead of the copy / modify / <see cref="AddComponent{T}"/> round trip.
+    /// The reference is invalidated by adding or removing a <typeparamref name="T"/> on any
+    /// entity; don't hold it across such a call.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">The entity has no such component.</exception>
+    public ref T GetComponentRef<T>(Entity entity)
+        where T : struct => ref GetStore<T>().GetRef(entity);
+
     public ComponentStorage<T> GetStore<T>()
         where T : struct
     {
-        if (_componentStores.TryGetValue(typeof(T), out var store))
-            return (ComponentStorage<T>)store;
-        var newStore = new ComponentStorage<T>();
-        _componentStores[typeof(T)] = newStore;
-        return newStore;
+        var id = ComponentTypeId<T>.Id;
+        var stores = _storesById;
+        if ((uint)id < (uint)stores.Length && stores[id] is ComponentStorage<T> existing)
+            return existing;
+        return CreateStore<T>(id);
+    }
+
+    private ComponentStorage<T> CreateStore<T>(int id)
+        where T : struct
+    {
+        if (id >= _storesById.Length)
+            Array.Resize(ref _storesById, Math.Max(id + 1, _storesById.Length * 2));
+        var store = new ComponentStorage<T>();
+        _storesById[id] = store;
+        _storeList.Add(store);
+        return store;
     }
 }

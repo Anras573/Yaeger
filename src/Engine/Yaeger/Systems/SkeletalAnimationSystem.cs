@@ -67,7 +67,15 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
     /// source of an in-progress <see cref="CrossFadeTo"/>. See docs/skeletal-animation.md for the
     /// full ordering/looping/seek contract.
     /// </summary>
+    /// <remarks>
+    /// Events crossed during an <see cref="Update"/> are raised after every entity has been
+    /// advanced, in the order they were crossed — not from inside the entity loop — so a handler
+    /// may freely destroy entities, add or remove components, or call <see cref="CrossFadeTo"/>.
+    /// </remarks>
     public event Action<AnimationEvent>? OnAnimationEvent;
+
+    // Marker crossings collected during Update's entity loop and raised once it has finished.
+    private readonly List<AnimationEvent> _pendingEvents = new();
 
     public void Update(float deltaTime)
     {
@@ -79,10 +87,9 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
 
         _seenThisFrame.Clear();
 
-        // Force iteration over the SkeletonHandle store (index 0): the loop writes back the
-        // AnimationPlayer (and BonePalette) component, so enumerating the AnimationPlayer store
-        // would mutate the dictionary mid-iteration. Without forcing, Query auto-picks the smaller
-        // store, which could be AnimationPlayer.
+        // The loop writes back AnimationPlayer (an overwrite, legal mid-iteration) and BonePalette
+        // / Aabb3D (stores outside this query). Index 0 pins SkeletonHandle as the driving store so
+        // iteration order doesn't depend on relative store sizes.
         foreach (
             (Entity entity, SkeletonHandle handle, AnimationPlayer player) in world.Query<
                 SkeletonHandle,
@@ -246,6 +253,25 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
         }
 
         RemoveStaleMarkerBaselines();
+        RaisePendingEvents();
+    }
+
+    private void RaisePendingEvents()
+    {
+        if (_pendingEvents.Count == 0)
+            return;
+
+        try
+        {
+            var handler = OnAnimationEvent;
+            // Indexed loop: a handler that re-enters Update would append to the list.
+            for (var i = 0; handler is not null && i < _pendingEvents.Count; i++)
+                handler(_pendingEvents[i]);
+        }
+        finally
+        {
+            _pendingEvents.Clear();
+        }
     }
 
     // Guards against a bound that lands exactly on the animated pose due to floating-point rounding
@@ -436,8 +462,7 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
         bool loop
     )
     {
-        var handler = OnAnimationEvent;
-        if (handler is null || duration <= 0f)
+        if (OnAnimationEvent is null || duration <= 0f)
             return;
 
         var remaining = MathF.Abs(rawDelta);
@@ -461,7 +486,7 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
 
                 var step = MathF.Min(remaining, duration - current);
                 var segmentEnd = current + step;
-                FireForwardMarkers(handler, entity, clipName, events, current, segmentEnd);
+                QueueForwardMarkers(entity, clipName, events, current, segmentEnd);
                 remaining -= step;
                 current = segmentEnd;
             }
@@ -477,7 +502,7 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
 
                 var step = MathF.Min(remaining, current);
                 var segmentEnd = current - step;
-                FireReverseMarkers(handler, entity, clipName, events, segmentEnd, current);
+                QueueReverseMarkers(entity, clipName, events, segmentEnd, current);
                 remaining -= step;
                 current = segmentEnd;
             }
@@ -488,8 +513,7 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
     // order — the half-open interval means a marker sitting exactly on a frame boundary fires
     // exactly once: as the *arrival* end of the frame that reaches it, never again as the
     // *departure* end of the next.
-    private static void FireForwardMarkers(
-        Action<AnimationEvent> handler,
+    private void QueueForwardMarkers(
         Entity entity,
         string clipName,
         AnimationEventMarker[] events,
@@ -500,15 +524,14 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
         foreach (var marker in events)
         {
             if (marker.Time > segmentStart && marker.Time <= segmentEnd)
-                handler(new AnimationEvent(entity, clipName, marker.Key));
+                _pendingEvents.Add(new AnimationEvent(entity, clipName, marker.Key));
         }
     }
 
-    // Mirror of FireForwardMarkers for reverse playback: markers with Time in [segmentStart,
+    // Mirror of QueueForwardMarkers for reverse playback: markers with Time in [segmentStart,
     // segmentEnd), visited in descending order so they fire in the order reverse playback actually
     // reaches them.
-    private static void FireReverseMarkers(
-        Action<AnimationEvent> handler,
+    private void QueueReverseMarkers(
         Entity entity,
         string clipName,
         AnimationEventMarker[] events,
@@ -520,7 +543,7 @@ public sealed class SkeletalAnimationSystem(World world, SkeletonRegistry skelet
         {
             var marker = events[i];
             if (marker.Time >= segmentStart && marker.Time < segmentEnd)
-                handler(new AnimationEvent(entity, clipName, marker.Key));
+                _pendingEvents.Add(new AnimationEvent(entity, clipName, marker.Key));
         }
     }
 

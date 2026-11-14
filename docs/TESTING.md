@@ -154,7 +154,7 @@ public void MethodName_ShouldDoSomething()
    - Component storage (tested through World API)
    - Collection compatibility
 
-> **Note on ComponentStorage**: `ComponentStorage<T>` is an internal implementation detail of the ECS system. It is not directly tested because users should interact with components exclusively through the `World` class API (`AddComponent`, `RemoveComponent`, `TryGetComponent`, etc.). The component storage behavior is thoroughly tested indirectly through `WorldTests` and `WorldExtensionsTests`.
+> **Note on ComponentStorage**: `ComponentStorage<T>` is a sparse set; its swap-removal, paging, mutation-during-iteration rules and zero-allocation queries are covered by `ComponentStorageTests`, alongside the behaviour tested through the `World` API in `WorldTests` and `WorldExtensionsTests`.
 
 ### ⚠️ Not Tested (Requires Integration Testing)
 

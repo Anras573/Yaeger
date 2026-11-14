@@ -40,7 +40,7 @@ FeatureGallery scene names are also listed in [its README](../Samples/FeatureGal
 
 | Feature | Where | `dotnet run …` |
 |---|---|---|
-| ECS | [Pong](../Samples/Pong) — the minimal end-to-end game | `--project Samples/Pong/Pong.csproj` |
+| ECS | [Pong](../Samples/Pong) — the minimal end-to-end game; [Benchmarks](../Samples/Benchmarks) `ecs` for query cost (see [ecs.md](ecs.md)) | `--project Samples/Pong/Pong.csproj` |
 | Prefabs & scenes | [Platformer](../Samples/Platformer) `Scenes/background.json` via `SceneLoader` | `--project Samples/Platformer/Platformer.csproj` |
 | Entity hierarchy | [Hierarchy](../Samples/FeatureGallery/Scenes/Hierarchy) gallery scene | `--project Samples/FeatureGallery/FeatureGallery.csproj -- --scene Hierarchy` |
 | 2D rendering | [Platformer](../Samples/Platformer); [Pong](../Samples/Pong) | `--project Samples/Platformer/Platformer.csproj` |
