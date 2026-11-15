@@ -120,7 +120,9 @@ All three box-collider consumers — the tunneling sweep, `CollisionDetectionSys
   the static geometry changes.
 - **`CharacterControllerSystem`** owns its own broadphase (it runs outside `PhysicsWorld2D.Update`),
   synced at the start of each `Update`. Each axis move queries only the controller's swept box;
-  candidates are visited in world-query order, so results match a brute-force scan. Pass a
+  candidates are visited in world-query order, and the queried region is re-grown whenever a
+  depenetration push or step-up moves the controller out of it, so results match a brute-force
+  scan exactly. Pass a
   `broadphaseCellSize` roughly twice the typical collider extent to the constructor if your world
   isn't unit-scale. Moving-platform carrying reads the ground's previous position from the same
   index.

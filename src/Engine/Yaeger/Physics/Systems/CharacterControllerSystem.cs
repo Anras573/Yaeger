@@ -33,8 +33,9 @@ namespace Yaeger.Physics.Systems;
 /// (one per system, synced at the start of each <see cref="Update"/> — only colliders that were
 /// added, removed or moved are re-hashed): each axis move queries just the controller's swept box,
 /// so the cost scales with the colliders near the controller rather than every collider in the
-/// world. Candidates are visited in the same order a full world query would, so results match a
-/// brute-force scan.
+/// world. Candidates are visited in the same order a full world query would, and the queried
+/// region is re-grown whenever resolution moves the controller out of it, so results match a
+/// brute-force scan exactly.
 /// </para>
 /// <para>
 /// <b>Rider carrying</b>: before anything else each step, a grounded controller inherits its
@@ -119,6 +120,12 @@ public class CharacterControllerSystem : IUpdateSystem
     /// controller's own <see cref="CharacterController2D.GravityScale"/>). Default is (0, -9.81).
     /// </summary>
     public Vector2 Gravity { get; set; }
+
+    /// <summary>
+    /// Test hook: when set, every candidate query covers the whole world, i.e. the brute-force
+    /// scan the broadphase replaces. Lets tests assert the broadphase never changes results.
+    /// </summary>
+    internal bool ScanAllColliders { get; set; }
 
     /// <summary>
     /// Creates a system with the given gravity.
@@ -301,15 +308,12 @@ public class CharacterControllerSystem : IUpdateSystem
 
         var halfSize = controller.HalfSize;
 
-        foreach (
-            var (candidateEntity, collider, colliderCenter) in SolidCandidates(
-                entity,
-                controller,
-                position,
-                previous
-            )
-        )
+        // The cursor is handed the live position on every step: a push or step-up below can move
+        // the controller out of the region it queried, and it re-queries when that happens.
+        var candidates = SolidCandidates(entity, controller, position, previous);
+        while (candidates.MoveNext(position))
         {
+            var (candidateEntity, collider, colliderCenter) = candidates.Current;
             var center = position + controller.Offset;
             var colliderHalf = collider.HalfSize;
 
@@ -391,15 +395,12 @@ public class CharacterControllerSystem : IUpdateSystem
 
         var halfSize = controller.HalfSize;
 
-        foreach (
-            var (candidateEntity, collider, colliderCenter) in SolidCandidates(
-                entity,
-                controller,
-                position,
-                previous
-            )
-        )
+        // The cursor is handed the live position on every step: a push or step-up below can move
+        // the controller out of the region it queried, and it re-queries when that happens.
+        var candidates = SolidCandidates(entity, controller, position, previous);
+        while (candidates.MoveNext(position))
         {
+            var (candidateEntity, collider, colliderCenter) = candidates.Current;
             var center = position + controller.Offset;
             var colliderHalf = collider.HalfSize;
 
@@ -468,55 +469,112 @@ public class CharacterControllerSystem : IUpdateSystem
     }
 
     /// <summary>
-    /// Fills <see cref="_candidates"/> with the solid obstacles near this axis move and returns
-    /// them, in world-query order, as (entity, collider, centre) tuples. The region is the
-    /// controller's box swept from <paramref name="from"/> to <paramref name="to"/>, grown by the
-    /// controller's own size (so a depenetration push or step-up that shifts it mid-resolution
-    /// still sees its neighbours) plus the step height and contact skin.
+    /// Starts a walk over the solid obstacles near this axis move, in world-query order. The
+    /// initial region is the controller's box swept from <paramref name="from"/> to
+    /// <paramref name="to"/>, grown by a margin. See <see cref="CandidateCursor"/> for how the
+    /// region follows the controller if resolution moves it further than that.
     /// </summary>
-    private CandidateEnumerator SolidCandidates(
+    private CandidateCursor SolidCandidates(
         Entity self,
         CharacterController2D controller,
         Vector2 to,
         Vector2 from
     )
     {
-        var half = controller.HalfSize;
-        var margin = half + new Vector2(ContactSkin, controller.StepHeight + ContactSkin);
-        var min = Vector2.Min(from, to) + controller.Offset - half - margin;
-        var max = Vector2.Max(from, to) + controller.Offset + half + margin;
-
-        _candidates.Clear();
-        _broadphase.Query(min, max, _candidates);
-        _broadphase.SortByOrder(_candidates);
-
-        return new CandidateEnumerator(this, self, controller);
+        var cursor = new CandidateCursor(this, self, controller);
+        cursor.Begin(from, to);
+        return cursor;
     }
 
-    private readonly struct CandidateEnumerator(
+    /// <summary>
+    /// Walks broadphase candidates for one axis move while guaranteeing the same result as a
+    /// scan of every collider in the world.
+    /// </summary>
+    /// <remarks>
+    /// A collider can only pass the move loops' overlap tests if it intersects the controller's
+    /// box grown by <see cref="ContactSkin"/>. So as long as that box lies inside the queried
+    /// region, every collider outside the region is one a full scan would have skipped too.
+    /// Resolution moves the controller, though: a depenetration push is as large as the overlap
+    /// it resolves, which can exceed any fixed margin (a controller spawned deep inside geometry,
+    /// or shoved by a fast body). <see cref="MoveNext"/> therefore checks the invariant against
+    /// the live position on every step and, when the box has left the region, grows the region
+    /// and re-queries. The walk resumes after the last collider already visited: colliders
+    /// earlier in world order were outside the old region, so they could not have overlapped
+    /// the controller when the full scan would have reached them.
+    /// </remarks>
+    private struct CandidateCursor(
         CharacterControllerSystem system,
         Entity self,
         CharacterController2D controller
     )
     {
-        public Enumerator GetEnumerator() => new(system, self, controller);
-    }
+        private Vector2 _regionMin;
+        private Vector2 _regionMax;
+        private int _index;
 
-    private struct Enumerator(
-        CharacterControllerSystem system,
-        Entity self,
-        CharacterController2D controller
-    )
-    {
-        private int _index = -1;
+        // World-query order of the last collider visited, so a re-query can resume after it.
+        private int _lastOrder;
 
         public (Entity Entity, BoxCollider2D Collider, Vector2 Center) Current { get; private set; }
 
-        public bool MoveNext()
+        // How far past its own box the controller's reach is padded when (re)querying: its own
+        // size plus the step height and contact skin, so ordinary pushes and step-ups stay
+        // inside the region and re-queries are rare.
+        private readonly Vector2 Margin =>
+            controller.HalfSize + new Vector2(ContactSkin, controller.StepHeight + ContactSkin);
+
+        internal void Begin(Vector2 from, Vector2 to)
         {
+            var reach = controller.HalfSize + Margin;
+            _regionMin = Vector2.Min(from, to) + controller.Offset - reach;
+            _regionMax = Vector2.Max(from, to) + controller.Offset + reach;
+            if (system.ScanAllColliders)
+            {
+                _regionMin = new Vector2(float.NegativeInfinity);
+                _regionMax = new Vector2(float.PositiveInfinity);
+            }
+
+            _lastOrder = -1;
+            Requery();
+        }
+
+        private void Requery()
+        {
+            system._candidates.Clear();
+            system._broadphase.Query(_regionMin, _regionMax, system._candidates);
+            system._broadphase.SortByOrder(system._candidates);
+
+            // Resume after the last collider already visited.
+            _index = -1;
+            while (
+                _index + 1 < system._candidates.Count
+                && system._broadphase.Get(system._candidates[_index + 1]).Order <= _lastOrder
+            )
+                _index++;
+        }
+
+        public bool MoveNext(Vector2 position)
+        {
+            // The controller's box, grown by the contact skin, must stay inside the region.
+            var center = position + controller.Offset;
+            var needMin = center - controller.HalfSize - new Vector2(ContactSkin);
+            var needMax = center + controller.HalfSize + new Vector2(ContactSkin);
+            if (
+                needMin.X < _regionMin.X
+                || needMin.Y < _regionMin.Y
+                || needMax.X > _regionMax.X
+                || needMax.Y > _regionMax.Y
+            )
+            {
+                _regionMin = Vector2.Min(_regionMin, needMin - Margin);
+                _regionMax = Vector2.Max(_regionMax, needMax + Margin);
+                Requery();
+            }
+
             while (++_index < system._candidates.Count)
             {
                 var entry = system._broadphase.Get(system._candidates[_index]);
+                _lastOrder = entry.Order;
                 if (entry.Entity == self || entry.Collider.IsTrigger)
                     continue;
                 if (

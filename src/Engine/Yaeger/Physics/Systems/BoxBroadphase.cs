@@ -263,10 +263,16 @@ internal sealed class BoxBroadphase
     /// Finds every entry whose AABB overlaps (or touches) the region <paramref name="min"/>–
     /// <paramref name="max"/> as of the last <see cref="Sync"/>, appending its id to
     /// <paramref name="results"/> exactly once, in no particular order. A region too large for the
-    /// hash degrades to a scan of all entries rather than failing.
+    /// hash degrades to a scan of all entries rather than failing; a NaN region matches nothing.
     /// </summary>
     internal void Query(Vector2 min, Vector2 max, List<int> results)
     {
+        // A NaN region overlaps nothing. It must be rejected here: it can't be hashed, so it
+        // would reach the scan below, where every comparison against NaN is false and every
+        // entry would pass. (An infinite region is fine: it scans and compares correctly.)
+        if (float.IsNaN(min.X) || float.IsNaN(min.Y) || float.IsNaN(max.X) || float.IsNaN(max.Y))
+            return;
+
         _queryStamp++;
         _hashHits.Clear();
 

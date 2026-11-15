@@ -24,6 +24,24 @@ public class BoxBroadphaseTests
     }
 
     [Fact]
+    public void Query_ShouldReturnNothing_WhenRegionIsNaN()
+    {
+        // Arrange
+        var world = new World();
+        AddBox(world, new Vector2(0, 0), new Vector2(1, 1));
+        AddBox(world, new Vector2(3, 0), new Vector2(1, 1));
+        var broadphase = new BoxBroadphase(world, 1f, throwOnOversize: true);
+        broadphase.Sync();
+
+        // Act — every comparison against NaN is false, so an unguarded scan would let every
+        // entry through.
+        var hits = QueryEntities(broadphase, new Vector2(float.NaN, -1), new Vector2(float.NaN, 1));
+
+        // Assert
+        Assert.Empty(hits);
+    }
+
+    [Fact]
     public void Query_ShouldReturnOnlyCollidersOverlappingTheRegion_EachOnce()
     {
         // Arrange — one wide collider spanning many cells, plus a far one.
