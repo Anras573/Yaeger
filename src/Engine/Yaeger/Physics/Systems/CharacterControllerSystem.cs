@@ -29,8 +29,12 @@ namespace Yaeger.Physics.Systems;
 /// controller has no equivalent of <c>PhysicsWorld2D.DropThrough</c>.
 /// </para>
 /// <para>
-/// Candidate obstacles are queried brute-force each axis, each step (no broadphase) — adequate
-/// for typical level sizes; revisit if profiling shows otherwise.
+/// Candidate obstacles come from a region query against a persistent <see cref="BoxBroadphase"/>
+/// (one per system, synced at the start of each <see cref="Update"/> — only colliders that were
+/// added, removed or moved are re-hashed): each axis move queries just the controller's swept box,
+/// so the cost scales with the colliders near the controller rather than every collider in the
+/// world. Candidates are visited in the same order a full world query would, so results match a
+/// brute-force scan.
 /// </para>
 /// <para>
 /// <b>Rider carrying</b>: before anything else each step, a grounded controller inherits its
@@ -55,8 +59,14 @@ namespace Yaeger.Physics.Systems;
 /// contact flags. With zero gravity, world-down is assumed.
 /// </para>
 /// </remarks>
-public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSystem
+public class CharacterControllerSystem : IUpdateSystem
 {
+    private readonly World world;
+    private readonly BoxBroadphase _broadphase;
+    private readonly List<(Entity, CharacterController2D, Transform2D)> _controllers = [];
+    private readonly List<int> _candidates = [];
+    private readonly List<(Entity Controller, Entity Trigger)> _exitedTriggers = [];
+
     /// <summary>
     /// A solid contact resolved by move-and-slide: the <paramref name="Controller"/> was pushed
     /// out of <paramref name="Other"/> along <paramref name="Normal"/> (the push direction applied
@@ -104,17 +114,27 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
     /// </summary>
     private const float GroundDotThreshold = 0.5f;
 
-    // Every collidable entity's position as of the end of the last Update call, so this step
-    // can compute how far a controller's ground entity has moved since then — see
-    // ApplyGroundCarry. Rebuilt from scratch every call (not incrementally patched), so a
-    // destroyed entity simply falls out rather than needing explicit pruning.
-    private readonly Dictionary<Entity, Vector2> _lastPositions = new();
-
     /// <summary>
     /// The gravity vector applied to every <see cref="CharacterController2D"/> (scaled by each
     /// controller's own <see cref="CharacterController2D.GravityScale"/>). Default is (0, -9.81).
     /// </summary>
-    public Vector2 Gravity { get; set; } = gravity;
+    public Vector2 Gravity { get; set; }
+
+    /// <summary>
+    /// Creates a system with the given gravity.
+    /// </summary>
+    /// <param name="world">The ECS world containing controllers and obstacles.</param>
+    /// <param name="gravity">Gravity vector, scaled per controller by its own gravity scale.</param>
+    /// <param name="broadphaseCellSize">
+    /// Spatial-hash cell size in world units, as for <see cref="PhysicsWorld2D"/> — roughly twice
+    /// the typical collider extent. Defaults to 1.0.
+    /// </param>
+    public CharacterControllerSystem(World world, Vector2 gravity, float broadphaseCellSize = 1.0f)
+    {
+        this.world = world;
+        Gravity = gravity;
+        _broadphase = new BoxBroadphase(world, broadphaseCellSize, throwOnOversize: false);
+    }
 
     /// <summary>
     /// Creates a system using the default Earth-like gravity, (0, -9.81).
@@ -124,9 +144,19 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
 
     public void Update(float deltaTime)
     {
+        _broadphase.Sync();
+
         // Snapshot before mutating components on these same entities, so we never depend on
         // subtle Dictionary-enumeration-during-mutation semantics.
-        var controllers = world.Query<CharacterController2D, Transform2D>().ToList();
+        var controllers = _controllers;
+        controllers.Clear();
+        foreach (
+            (Entity e, CharacterController2D c, Transform2D t) in world.Query<
+                CharacterController2D,
+                Transform2D
+            >()
+        )
+            controllers.Add((e, c, t));
         _contacts.Clear();
 
         foreach (var (entity, controllerSnapshot, transformSnapshot) in controllers)
@@ -158,7 +188,6 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             world.AddComponent(entity, controller);
         }
 
-        RefreshLastPositions();
         UpdateTriggers(controllers);
 
         foreach (var contact in _contacts)
@@ -172,17 +201,6 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
     private void UpdateTriggers(List<(Entity, CharacterController2D, Transform2D)> controllers)
     {
         _currentTriggers.Clear();
-        var triggers = new List<(Entity, BoxCollider2D, Vector2)>();
-        foreach (
-            (Entity e, BoxCollider2D collider, Transform2D t) in world.Query<
-                BoxCollider2D,
-                Transform2D
-            >()
-        )
-        {
-            if (collider.IsTrigger)
-                triggers.Add((e, collider, t.Position + collider.Offset));
-        }
 
         foreach (var (entity, _, _) in controllers)
         {
@@ -196,9 +214,15 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             var center = transform.Position + controller.Offset;
             var half = controller.HalfSize;
 
-            foreach (var (triggerEntity, collider, triggerCenter) in triggers)
+            _candidates.Clear();
+            _broadphase.Query(center - half, center + half, _candidates);
+            _broadphase.SortByOrder(_candidates);
+
+            foreach (var id in _candidates)
             {
-                if (triggerEntity == entity)
+                var trigger = _broadphase.Get(id);
+                var collider = trigger.Collider;
+                if (!collider.IsTrigger || trigger.Entity == entity)
                     continue;
                 if (
                     !ShouldCollide(
@@ -210,10 +234,10 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
                 )
                     continue;
 
-                var delta = Vector2.Abs(center - triggerCenter);
-                var limit = half + collider.HalfSize;
+                var delta = Vector2.Abs(center - trigger.Center);
+                var limit = half + trigger.Half;
                 if (delta.X < limit.X && delta.Y < limit.Y)
-                    _currentTriggers.Add((entity, triggerEntity));
+                    _currentTriggers.Add((entity, trigger.Entity));
             }
         }
 
@@ -224,7 +248,13 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
         foreach (var pair in _currentTriggers)
             OnTriggerStay?.Invoke(pair.Controller, pair.Trigger);
 
-        var exited = _activeTriggers.Where(p => !_currentTriggers.Contains(p)).ToList();
+        var exited = _exitedTriggers;
+        exited.Clear();
+        foreach (var pair in _activeTriggers)
+        {
+            if (!_currentTriggers.Contains(pair))
+                exited.Add(pair);
+        }
 
         _activeTriggers.Clear();
         foreach (var pair in _currentTriggers)
@@ -250,27 +280,12 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
             return;
         }
 
-        if (_lastPositions.TryGetValue(groundEntity, out var lastPosition))
-            position += groundTransform.Position - lastPosition;
-    }
-
-    /// <summary>
-    /// Snapshots every collidable entity's current position for the next call's
-    /// <see cref="ApplyGroundCarry"/> to diff against.
-    /// </summary>
-    private void RefreshLastPositions()
-    {
-        _lastPositions.Clear();
-
-        foreach (
-            (Entity entity, BoxCollider2D _, Transform2D transform) in world.Query<
-                BoxCollider2D,
-                Transform2D
-            >()
-        )
-        {
-            _lastPositions[entity] = transform.Position;
-        }
+        // The broadphase kept the ground's position from the previous Update's sync — that
+        // call's start-of-step position, which is also its end-of-step one, since nothing here
+        // moves colliders.
+        var entry = _broadphase.Find(groundEntity);
+        if (entry is { HasPrevious: true })
+            position += groundTransform.Position - entry.PreviousPosition;
     }
 
     private void MoveHorizontal(
@@ -281,12 +296,18 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
         float deltaTime
     )
     {
+        var previous = position;
         position.X += velocity.Linear.X * deltaTime;
 
         var halfSize = controller.HalfSize;
 
         foreach (
-            var (candidateEntity, collider, colliderCenter) in SolidCandidates(entity, controller)
+            var (candidateEntity, collider, colliderCenter) in SolidCandidates(
+                entity,
+                controller,
+                position,
+                previous
+            )
         )
         {
             var center = position + controller.Offset;
@@ -365,12 +386,18 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
         float deltaTime
     )
     {
+        var previous = position;
         position.Y += velocity.Linear.Y * deltaTime;
 
         var halfSize = controller.HalfSize;
 
         foreach (
-            var (candidateEntity, collider, colliderCenter) in SolidCandidates(entity, controller)
+            var (candidateEntity, collider, colliderCenter) in SolidCandidates(
+                entity,
+                controller,
+                position,
+                previous
+            )
         )
         {
             var center = position + controller.Offset;
@@ -440,33 +467,73 @@ public class CharacterControllerSystem(World world, Vector2 gravity) : IUpdateSy
         controller.GroundEntity = contactEntity;
     }
 
-    private IEnumerable<(Entity Entity, BoxCollider2D Collider, Vector2 Center)> SolidCandidates(
+    /// <summary>
+    /// Fills <see cref="_candidates"/> with the solid obstacles near this axis move and returns
+    /// them, in world-query order, as (entity, collider, centre) tuples. The region is the
+    /// controller's box swept from <paramref name="from"/> to <paramref name="to"/>, grown by the
+    /// controller's own size (so a depenetration push or step-up that shifts it mid-resolution
+    /// still sees its neighbours) plus the step height and contact skin.
+    /// </summary>
+    private CandidateEnumerator SolidCandidates(
+        Entity self,
+        CharacterController2D controller,
+        Vector2 to,
+        Vector2 from
+    )
+    {
+        var half = controller.HalfSize;
+        var margin = half + new Vector2(ContactSkin, controller.StepHeight + ContactSkin);
+        var min = Vector2.Min(from, to) + controller.Offset - half - margin;
+        var max = Vector2.Max(from, to) + controller.Offset + half + margin;
+
+        _candidates.Clear();
+        _broadphase.Query(min, max, _candidates);
+        _broadphase.SortByOrder(_candidates);
+
+        return new CandidateEnumerator(this, self, controller);
+    }
+
+    private readonly struct CandidateEnumerator(
+        CharacterControllerSystem system,
         Entity self,
         CharacterController2D controller
     )
     {
-        foreach (
-            (Entity candidateEntity, BoxCollider2D collider, Transform2D transform) in world.Query<
-                BoxCollider2D,
-                Transform2D
-            >()
-        )
-        {
-            if (candidateEntity == self)
-                continue;
-            if (collider.IsTrigger)
-                continue;
-            if (
-                !ShouldCollide(
-                    controller.Layer,
-                    controller.CollidesWith,
-                    collider.Layer,
-                    collider.CollidesWith
-                )
-            )
-                continue;
+        public Enumerator GetEnumerator() => new(system, self, controller);
+    }
 
-            yield return (candidateEntity, collider, transform.Position + collider.Offset);
+    private struct Enumerator(
+        CharacterControllerSystem system,
+        Entity self,
+        CharacterController2D controller
+    )
+    {
+        private int _index = -1;
+
+        public (Entity Entity, BoxCollider2D Collider, Vector2 Center) Current { get; private set; }
+
+        public bool MoveNext()
+        {
+            while (++_index < system._candidates.Count)
+            {
+                var entry = system._broadphase.Get(system._candidates[_index]);
+                if (entry.Entity == self || entry.Collider.IsTrigger)
+                    continue;
+                if (
+                    !ShouldCollide(
+                        controller.Layer,
+                        controller.CollidesWith,
+                        entry.Collider.Layer,
+                        entry.Collider.CollidesWith
+                    )
+                )
+                    continue;
+
+                Current = (entry.Entity, entry.Collider, entry.Center);
+                return true;
+            }
+
+            return false;
         }
     }
 

@@ -10,26 +10,70 @@ namespace Yaeger.Physics.Systems;
 /// pairs, followed by exact AABB/circle narrowphase checks.
 /// Supports Box-Box (AABB), Circle-Circle, and Box-Circle collision pairs.
 /// </summary>
-public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
+/// <remarks>
+/// Box colliders live in a persistent <see cref="BoxBroadphase"/> that only re-hashes colliders
+/// that were added, removed or moved, so static and tilemap-generated geometry costs nothing per
+/// step. Candidate pairs are produced by querying the broadphase from each non-static collider,
+/// which emits every pair exactly once (no de-duplication set), and are then sorted, so manifold
+/// order is deterministic. Pairs of two <see cref="BodyType.Static"/> bodies are found once and
+/// cached until the static geometry changes, rather than re-queried every step.
+/// Circle colliders are few and short-lived by comparison and are hashed into a small per-step
+/// grid of their own.
+/// </remarks>
+public class CollisionDetectionSystem
 {
-    private readonly SpatialHash _spatialHash =
-        cellSize > 0 && float.IsFinite(cellSize)
-            ? new(cellSize)
-            : throw new ArgumentOutOfRangeException(
-                nameof(cellSize),
-                cellSize,
-                "Cell size must be a positive finite value."
-            );
+    private readonly World _world;
+    private readonly BoxBroadphase _broadphase;
+    private readonly SpatialHash _circleHash;
     private readonly List<CollisionManifold> _manifolds = [];
-    private readonly List<(Entity Entity, Vector2 Center, BoxCollider2D Collider)> _boxEntities =
-    [];
     private readonly List<(
         Entity Entity,
         Vector2 Center,
         CircleCollider2D Collider
     )> _circleEntities = [];
-    private readonly HashSet<(int A, int B)> _candidatePairs = [];
-    private readonly List<(int A, int B)> _sortedPairs = [];
+
+    // Candidate pairs packed as (indexA << 32) | indexB, where a box's index is its
+    // BoxBroadphase.Entry.Order and circle k's index is boxCount + k. Sorted before use.
+    private readonly List<long> _pairKeys = [];
+    private readonly List<int> _hits = [];
+
+    // Pairs of overlapping-AABB static bodies, as broadphase entry ids. Neither side can move, so
+    // the list only changes when the static geometry does (BoxBroadphase.StaticRevision) — it is
+    // recomputed then and merely replayed on every other step.
+    private readonly List<(int A, int B)> _staticPairs = [];
+    private int _staticPairsRevision = -1;
+    private readonly List<int> _circleHits = [];
+    private int[] _circleVisited = new int[16];
+    private int _circleStamp;
+
+    /// <summary>
+    /// Creates a detection system with its own broadphase.
+    /// </summary>
+    /// <param name="world">The ECS world containing physics entities.</param>
+    /// <param name="cellSize">Spatial-hash cell size in world units.</param>
+    public CollisionDetectionSystem(World world, float cellSize = 1.0f)
+        : this(world, CreateBroadphase(world, cellSize)) { }
+
+    /// <summary>
+    /// Creates a detection system over a broadphase shared with other systems. The broadphase
+    /// is still re-synced inside <see cref="Detect"/>, since positions have changed since it was
+    /// last built (a no-op for everything that didn't move).
+    /// </summary>
+    internal CollisionDetectionSystem(World world, BoxBroadphase broadphase)
+    {
+        _world = world;
+        _broadphase = broadphase;
+        _circleHash = new SpatialHash(broadphase.CellSize);
+    }
+
+    private static BoxBroadphase CreateBroadphase(World world, float cellSize) =>
+        cellSize > 0 && float.IsFinite(cellSize)
+            ? new BoxBroadphase(world, cellSize, throwOnOversize: true)
+            : throw new ArgumentOutOfRangeException(
+                nameof(cellSize),
+                cellSize,
+                "Cell size must be a positive finite value."
+            );
 
     /// <summary>
     /// The collision manifolds detected in the last call to <see cref="Detect"/>.
@@ -42,25 +86,14 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
     public void Detect()
     {
         _manifolds.Clear();
-        _boxEntities.Clear();
         _circleEntities.Clear();
-        _candidatePairs.Clear();
-        _spatialHash.Clear();
+        _pairKeys.Clear();
+        _circleHash.Clear();
 
-        // Collect all collidable entities with their world positions
-        foreach (
-            (Entity entity, BoxCollider2D collider, Transform2D transform) in world.Query<
-                BoxCollider2D,
-                Transform2D
-            >()
-        )
-        {
-            var center = transform.Position + collider.Offset;
-            _boxEntities.Add((entity, center, collider));
-        }
+        _broadphase.Sync();
 
         foreach (
-            (Entity entity, CircleCollider2D collider, Transform2D transform) in world.Query<
+            (Entity entity, CircleCollider2D collider, Transform2D transform) in _world.Query<
                 CircleCollider2D,
                 Transform2D
             >()
@@ -70,40 +103,91 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
             _circleEntities.Add((entity, center, collider));
         }
 
-        var boxCount = _boxEntities.Count;
+        var ordered = _broadphase.Ordered;
+        var boxCount = ordered.Count;
 
-        // Broadphase: insert all collider AABBs into the spatial hash.
-        // Box indices: 0..boxCount-1. Circle indices: boxCount..boxCount+circleCount-1.
-        for (var i = 0; i < _boxEntities.Count; i++)
+        // Box indices: 0..boxCount-1 (broadphase order). Circle indices: boxCount.. onwards.
+        // Box-box: query from every body that can move; a pair of two movers is emitted from the
+        // lower-ordered side only. Static-vs-static pairs are replayed from a cache below.
+        for (var i = 0; i < boxCount; i++)
         {
-            var (_, center, collider) = _boxEntities[i];
-            _spatialHash.Insert(i, center - collider.HalfSize, center + collider.HalfSize);
+            var self = _broadphase.Get(ordered[i]);
+            if (self.IsStaticBody)
+                continue;
+
+            _hits.Clear();
+            _broadphase.Query(self.Center - self.Half, self.Center + self.Half, _hits);
+            foreach (var id in _hits)
+            {
+                var other = _broadphase.Get(id);
+                if (other.Order == i)
+                    continue;
+                if (!other.IsStaticBody && other.Order < i)
+                    continue;
+
+                AddPair(Math.Min(i, other.Order), Math.Max(i, other.Order));
+            }
         }
 
-        for (var i = 0; i < _circleEntities.Count; i++)
+        RefreshStaticPairs(ordered);
+        foreach (var (idA, idB) in _staticPairs)
         {
-            var (_, center, collider) = _circleEntities[i];
+            var orderA = _broadphase.Get(idA).Order;
+            var orderB = _broadphase.Get(idB).Order;
+            AddPair(Math.Min(orderA, orderB), Math.Max(orderA, orderB));
+        }
+
+        // Circles: against the boxes through the shared broadphase, against each other through
+        // a small hash of their own.
+        for (var k = 0; k < _circleEntities.Count; k++)
+        {
+            var (_, center, collider) = _circleEntities[k];
             var r = new Vector2(collider.Radius);
-            _spatialHash.Insert(boxCount + i, center - r, center + r);
+            _circleHash.Insert(k, center - r, center + r);
         }
 
-        _spatialHash.GetCandidatePairs(_candidatePairs);
+        if (_circleVisited.Length < _circleEntities.Count)
+            _circleVisited = new int[Math.Max(_circleEntities.Count, _circleVisited.Length * 2)];
+
+        for (var k = 0; k < _circleEntities.Count; k++)
+        {
+            var (_, center, collider) = _circleEntities[k];
+            var r = new Vector2(collider.Radius);
+
+            _hits.Clear();
+            _broadphase.Query(center - r, center + r, _hits);
+            foreach (var id in _hits)
+                AddPair(_broadphase.Get(id).Order, boxCount + k);
+
+            _circleHits.Clear();
+            if (_circleHash.Query(center - r, center + r, _circleHits))
+            {
+                _circleStamp++;
+                foreach (var m in _circleHits)
+                {
+                    if (m <= k || _circleVisited[m] == _circleStamp)
+                        continue;
+                    _circleVisited[m] = _circleStamp;
+                    AddPair(boxCount + k, boxCount + m);
+                }
+            }
+        }
 
         // Sort pairs for deterministic narrowphase and manifold order.
-        _sortedPairs.Clear();
-        _sortedPairs.AddRange(_candidatePairs);
-        _sortedPairs.Sort();
+        _pairKeys.Sort();
 
         // Narrowphase: test only broadphase candidate pairs.
-        foreach (var (ia, ib) in _sortedPairs)
+        foreach (var key in _pairKeys)
         {
+            var ia = (int)(key >> 32);
+            var ib = (int)(key & 0xFFFFFFFF);
             var aIsBox = ia < boxCount;
             var bIsBox = ib < boxCount;
 
             if (aIsBox && bIsBox)
             {
-                var a = _boxEntities[ia];
-                var b = _boxEntities[ib];
+                var a = BoxTuple(ordered[ia]);
+                var b = BoxTuple(ordered[ib]);
 
                 if (
                     !ShouldCollide(
@@ -140,7 +224,7 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
             {
                 // Mixed pair: box indices are always less than circle indices, so ia is
                 // always the box index and ib - boxCount is always the circle index.
-                var box = _boxEntities[ia];
+                var box = BoxTuple(ordered[ia]);
                 var circle = _circleEntities[ib - boxCount];
 
                 if (box.Entity == circle.Entity)
@@ -160,6 +244,39 @@ public class CollisionDetectionSystem(World world, float cellSize = 1.0f)
                     _manifolds.Add(manifold);
             }
         }
+    }
+
+    private void RefreshStaticPairs(IReadOnlyList<int> ordered)
+    {
+        if (_staticPairsRevision == _broadphase.StaticRevision)
+            return;
+
+        _staticPairsRevision = _broadphase.StaticRevision;
+        _staticPairs.Clear();
+
+        foreach (var id in ordered)
+        {
+            var self = _broadphase.Get(id);
+            if (!self.IsStaticBody)
+                continue;
+
+            _hits.Clear();
+            _broadphase.Query(self.Center - self.Half, self.Center + self.Half, _hits);
+            foreach (var otherId in _hits)
+            {
+                // Each unordered pair once, from its lower-id side.
+                if (otherId > id && _broadphase.Get(otherId).IsStaticBody)
+                    _staticPairs.Add((id, otherId));
+            }
+        }
+    }
+
+    private void AddPair(int a, int b) => _pairKeys.Add(((long)a << 32) | (uint)b);
+
+    private (Entity Entity, Vector2 Center, BoxCollider2D Collider) BoxTuple(int id)
+    {
+        var entry = _broadphase.Get(id);
+        return (entry.Entity, entry.Center, entry.Collider);
     }
 
     /// <summary>

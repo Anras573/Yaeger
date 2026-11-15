@@ -25,6 +25,10 @@ public sealed class TilemapColliderSystem(World world) : IUpdateSystem
     private readonly Dictionary<Entity, List<Entity>> _generatedColliders = new();
     private readonly List<Entity> _staleTilemapEntities = [];
 
+    // Reused per-update scratch: the tilemap snapshot and the set of tilemaps seen this update.
+    private readonly List<(Entity, Tilemap, Transform2D)> _tilemaps = [];
+    private readonly HashSet<Entity> _seen = [];
+
     /// <summary>
     /// Rebuilds collider entities for every <see cref="Tilemap"/> whose tile contents changed
     /// since the last call (including the first call, for initial generation), and discards
@@ -34,17 +38,24 @@ public sealed class TilemapColliderSystem(World world) : IUpdateSystem
     {
         // Snapshot before mutating the world (creating/destroying entities) so we never
         // mutate a component store while WorldExtensions.Query is enumerating it.
-        var tilemaps = world.Query<Tilemap, Transform2D>().ToList();
+        _tilemaps.Clear();
+        foreach (
+            (Entity entity, Tilemap tilemap, Transform2D transform) in world.Query<
+                Tilemap,
+                Transform2D
+            >()
+        )
+            _tilemaps.Add((entity, tilemap, transform));
 
-        var seen = new HashSet<Entity>();
-        foreach (var (entity, tilemap, transform) in tilemaps)
+        _seen.Clear();
+        foreach (var (entity, tilemap, transform) in _tilemaps)
         {
-            seen.Add(entity);
+            _seen.Add(entity);
             if (HasChanged(entity, tilemap))
                 Rebuild(entity, tilemap, transform);
         }
 
-        RemoveStaleTilemaps(seen);
+        RemoveStaleTilemaps(_seen);
     }
 
     private bool HasChanged(Entity entity, in Tilemap tilemap)

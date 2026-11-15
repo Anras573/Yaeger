@@ -95,8 +95,41 @@ Note that only *position* is clamped; velocity is left alone. The actual bounce/
 response comes from the same step's ordinary discrete resolution, which runs immediately
 afterward in the same `PhysicsWorld2D` step — not from the sweep itself.
 
-Candidate obstacles are queried brute-force each `MovementSystem.Update` call (no broadphase) —
-adequate for typical level sizes; revisit if profiling shows otherwise.
+Candidate obstacles come from a region query of the mover's swept AABB (start box ∪ end box)
+against the shared broadphase (see below), so cost scales with the colliders near the mover's path,
+not with every collider in the world. Obstacles are seen at their start-of-step positions — a
+kinematic platform is swept against where it was *before* this step moved it.
+
+## Shared broadphase and performance
+
+All three box-collider consumers — the tunneling sweep, `CollisionDetectionSystem`, and
+`CharacterControllerSystem` — go through one persistent spatial index (`BoxBroadphase`):
+
+- **Incremental.** Each step it makes one cheap pass over the box colliders but only re-hashes a
+  collider that was added, removed, or whose world AABB changed. Static and tilemap-generated
+  geometry is hashed once and then costs nothing per step; movers are re-hashed only when they
+  actually move. `PhysicsWorld2D` syncs it before `MovementSystem` (sweep sees start-of-step
+  positions) and `CollisionDetectionSystem.Detect` syncs again after movement.
+- **Region queries.** `Query(min, max)` returns each overlapping collider once. A collider or query
+  region spanning more than 65 536 cells doesn't fail in the controller/standalone systems — it
+  falls back to a linear scan. `PhysicsWorld2D` still throws for an oversized *collider* (raise
+  `broadphaseCellSize`), as before.
+- **Pair generation without a hash set.** Pairs are emitted by querying from each non-static
+  collider (each pair exactly once), then sorted by box-store order, so manifold order is
+  deterministic and unchanged. Pairs of two `Static` bodies are cached and recomputed only when
+  the static geometry changes.
+- **`CharacterControllerSystem`** owns its own broadphase (it runs outside `PhysicsWorld2D.Update`),
+  synced at the start of each `Update`. Each axis move queries only the controller's swept box;
+  candidates are visited in world-query order, so results match a brute-force scan. Pass a
+  `broadphaseCellSize` roughly twice the typical collider extent to the constructor if your world
+  isn't unit-scale. Moving-platform carrying reads the ground's previous position from the same
+  index.
+- **No steady-state allocations.** A `PhysicsWorld2D.Update` / `CharacterControllerSystem.Update`
+  with no entities created or destroyed allocates zero bytes per step (excluding your own event
+  handlers); `PhysicsAllocationTests` enforces it.
+
+`dotnet run -c Release --project Samples/Benchmarks -- physics [boxes]` is a headless benchmark
+(500 dynamic boxes over a noisy 200×60 tilemap; one controller among 3 000 static colliders).
 
 ## Moving platforms and rider carrying
 

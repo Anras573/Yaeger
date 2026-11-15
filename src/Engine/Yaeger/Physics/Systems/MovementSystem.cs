@@ -20,10 +20,13 @@ namespace Yaeger.Physics.Systems;
 /// <c>position + velocity * deltaTime</c> would put it, so this step's discrete
 /// <see cref="CollisionDetectionSystem"/> pass always finds a small genuine overlap to resolve
 /// normally. Circle colliders, triggers, and one-way platforms are not swept — out of scope for
-/// this pass (see <c>docs/physics.md</c>). Candidate obstacles are queried brute-force each call
-/// (no broadphase) — adequate for typical level sizes; revisit if profiling shows otherwise.
+/// this pass (see <c>docs/physics.md</c>). Candidate obstacles come from a region query of the
+/// mover's swept AABB against the shared <see cref="BoxBroadphase"/>, so the cost per mover
+/// scales with the colliders near its path, not with every collider in the world. Obstacles are
+/// seen at their start-of-step positions (a kinematic platform is swept against where it was
+/// before this step moved it).
 /// </remarks>
-public class MovementSystem(World world) : IUpdateSystem
+public class MovementSystem : IUpdateSystem
 {
     /// <summary>
     /// Small absolute overshoot (world units) applied past a swept contact's entry time, so this
@@ -34,11 +37,42 @@ public class MovementSystem(World world) : IUpdateSystem
     /// </summary>
     private const float ContactOvershoot = 0.001f;
 
-    private readonly List<(Entity Entity, BoxCollider2D Collider, Vector2 Center)> _obstacles = [];
+    private readonly World _world;
+    private readonly BoxBroadphase _broadphase;
+    private readonly bool _ownsBroadphase;
+    private readonly List<int> _candidates = [];
+
+    /// <summary>
+    /// Creates a movement system with its own broadphase for the tunneling sweep, re-synced at
+    /// the start of every <see cref="Update"/>.
+    /// </summary>
+    /// <param name="world">The ECS world containing physics entities.</param>
+    /// <param name="broadphaseCellSize">
+    /// Spatial-hash cell size in world units, as for <see cref="PhysicsWorld2D"/>.
+    /// </param>
+    public MovementSystem(World world, float broadphaseCellSize = 1.0f)
+    {
+        _world = world;
+        _broadphase = new BoxBroadphase(world, broadphaseCellSize, throwOnOversize: false);
+        _ownsBroadphase = true;
+    }
+
+    /// <summary>
+    /// Creates a movement system that queries a broadphase owned and synced by the caller
+    /// (<see cref="PhysicsWorld2D"/>, once per step before this runs).
+    /// </summary>
+    internal MovementSystem(World world, BoxBroadphase sharedBroadphase)
+    {
+        _world = world;
+        _broadphase = sharedBroadphase;
+    }
 
     public void Update(float deltaTime)
     {
-        RefreshObstacles();
+        if (_ownsBroadphase)
+            _broadphase.Sync();
+
+        var world = _world;
 
         // Query enumerates RigidBody2D store; we only write back Transform2D and Velocity2D,
         // so no snapshot needed — iterating a different store than we're mutating.
@@ -71,7 +105,6 @@ public class MovementSystem(World world) : IUpdateSystem
 
             if (
                 body.Type == BodyType.Dynamic
-                && _obstacles.Count > 0
                 && world.TryGetComponent<BoxCollider2D>(entity, out var moverCollider)
             )
             {
@@ -93,29 +126,6 @@ public class MovementSystem(World world) : IUpdateSystem
         }
     }
 
-    private void RefreshObstacles()
-    {
-        _obstacles.Clear();
-
-        foreach (
-            (Entity entity, BoxCollider2D collider, Transform2D transform) in world.Query<
-                BoxCollider2D,
-                Transform2D
-            >()
-        )
-        {
-            if (collider.IsTrigger || collider.OneWay)
-                continue;
-            if (
-                world.TryGetComponent<RigidBody2D>(entity, out var body)
-                && body.Type == BodyType.Dynamic
-            )
-                continue;
-
-            _obstacles.Add((entity, collider, transform.Position + collider.Offset));
-        }
-    }
-
     private Vector2 ClampAgainstTunneling(
         Entity mover,
         BoxCollider2D moverCollider,
@@ -127,19 +137,33 @@ public class MovementSystem(World world) : IUpdateSystem
             return displacement;
 
         var halfSize = moverCollider.HalfSize;
+        var end = start + displacement;
+
+        // Swept AABB: the mover's box at the start unioned with its box at the end, padded by
+        // the contact overshoot so an obstacle the nudge would reach is still a candidate.
+        var pad = new Vector2(ContactOvershoot);
+        var regionMin = Vector2.Min(start, end) - halfSize - pad;
+        var regionMax = Vector2.Max(start, end) + halfSize + pad;
+
+        _candidates.Clear();
+        _broadphase.Query(regionMin, regionMax, _candidates);
+
         var earliestT = 1f;
         var hit = false;
 
-        foreach (var (obstacleEntity, obstacleCollider, obstacleCenter) in _obstacles)
+        foreach (var id in _candidates)
         {
-            if (obstacleEntity == mover)
+            var obstacle = _broadphase.Get(id);
+            if (obstacle.Entity == mover)
+                continue;
+            if (obstacle.Collider.IsTrigger || obstacle.Collider.OneWay || obstacle.IsDynamicBody)
                 continue;
             if (
                 !ShouldCollide(
                     moverCollider.Layer,
                     moverCollider.CollidesWith,
-                    obstacleCollider.Layer,
-                    obstacleCollider.CollidesWith
+                    obstacle.Collider.Layer,
+                    obstacle.Collider.CollidesWith
                 )
             )
                 continue;
@@ -149,8 +173,8 @@ public class MovementSystem(World world) : IUpdateSystem
                     start,
                     halfSize,
                     displacement,
-                    obstacleCenter,
-                    obstacleCollider.HalfSize,
+                    obstacle.Center,
+                    obstacle.Half,
                     out var t
                 )
                 && t < earliestT

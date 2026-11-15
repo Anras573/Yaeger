@@ -37,9 +37,10 @@ public class CollisionResolutionSystem(World world)
         IReadOnlySet<Entity>? droppingThroughEntities = null
     )
     {
-        foreach (var manifold in manifolds)
+        // Indexed loop: foreach over an IReadOnlyList would box an enumerator every step.
+        for (var i = 0; i < manifolds.Count; i++)
         {
-            ResolveManifold(manifold, droppingThroughEntities);
+            ResolveManifold(manifolds[i], droppingThroughEntities);
         }
     }
 

@@ -2,12 +2,13 @@ using Benchmarks;
 using Benchmarks.Crowd;
 using Benchmarks.Ecs;
 using Benchmarks.Instancing;
+using Benchmarks.Physics;
 using Benchmarks.Sprites;
 
 // Benchmarks: perf smoke tests, one clean process per benchmark — no menu UI or leftover state
 // from other scenes that could skew the numbers. Select one via a command-line arg:
 //
-//   dotnet run --project Samples/Benchmarks -- sprites|instancing|crowd|ecs [count]
+//   dotnet run --project Samples/Benchmarks -- sprites|instancing|crowd|ecs|physics [count]
 //
 // `count` is optional and overrides the benchmark's default entity count (e.g. `-- crowd 400`).
 
@@ -17,6 +18,7 @@ IBenchmark[] benchmarks =
     new InstancingBenchmark(),
     new CrowdBenchmark(),
     new EcsBenchmark(),
+    new PhysicsBenchmark(),
 ];
 
 if (args.Length == 0)
