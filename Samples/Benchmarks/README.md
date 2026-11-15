@@ -29,6 +29,7 @@ expected.
 | `instancing` | 3D instanced-rendering draw-call collapse (issue #148) — a grid of boxes sharing one of two materials, drawn via `Renderer3D.DrawInstanced` instead of one draw call per entity. | 2 000 boxes (20×10×10 grid) | **I** toggle instancing on/off (forces `InstancingThreshold` to `int.MaxValue` when off), **ESC** exit |
 | `crowd` | 3D instanced-skinning draw-call collapse (issue #198) — a grid of CesiumMan characters sharing one skeleton, each playing the walk clip out of phase, drawn via `Renderer3D.DrawInstancedSkinned`. | 64 characters (8×8 grid) | **I** toggle instancing on/off, **ESC** exit |
 | `ecs` | ECS query iteration cost (issue #337) — 2- and 3-component `world.Query` passes over `count` entities, timed against an in-process reproduction of the old dictionary + `IEnumerable` iterator design, plus bytes allocated per pass. **Headless**: needs no display. | 100 000 entities | — (prints results and exits) |
+| `physics` | 2D physics step cost (issue #338) — `count` dynamic boxes over a large noisy tilemap through `PhysicsWorld2D`, plus one `CharacterControllerSystem` controller among 3 000 static colliders; reports ms and bytes allocated per step. **Headless**: needs no display. | 500 boxes | — (prints results and exits) |
 
 `count` is optional and overrides the benchmark's default entity count, e.g.:
 

@@ -41,6 +41,32 @@ public class CollisionDetectionSystemTests
     }
 
     [Fact]
+    public void Detect_ShouldReportNothing_ForABoxWithANaNPosition()
+    {
+        // Arrange — a dynamic box whose position has gone NaN, among ordinary boxes that don't
+        // touch each other.
+        var world = new World();
+        var broken = world.CreateEntity();
+        world.AddComponent(broken, new Transform2D(new Vector2(float.NaN, 0f)));
+        world.AddComponent(broken, new BoxCollider2D(new Vector2(1f, 1f)));
+        world.AddComponent(broken, RigidBody2D.CreateDynamic(1f));
+        for (var i = 0; i < 5; i++)
+        {
+            var entity = world.CreateEntity();
+            world.AddComponent(entity, new Transform2D(new Vector2(i * 3f, 0f)));
+            world.AddComponent(entity, new BoxCollider2D(new Vector2(1f, 1f)));
+        }
+
+        var system = new CollisionDetectionSystem(world);
+
+        // Act
+        system.Detect();
+
+        // Assert — the broken box must not pair with every other collider in the world.
+        Assert.Empty(system.Manifolds);
+    }
+
+    [Fact]
     public void Detect_BoxBox_ShouldNotDetectNonOverlapping()
     {
         // Arrange

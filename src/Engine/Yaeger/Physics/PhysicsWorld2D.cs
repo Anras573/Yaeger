@@ -11,6 +11,7 @@ namespace Yaeger.Physics;
 /// </summary>
 public class PhysicsWorld2D : IUpdateSystem
 {
+    private readonly BoxBroadphase _broadphase;
     private readonly TilemapColliderSystem _tilemapColliderSystem;
     private readonly GravitySystem _gravitySystem;
     private readonly MovementSystem _movementSystem;
@@ -27,13 +28,18 @@ public class PhysicsWorld2D : IUpdateSystem
     }
 
     // The previous step's contact pairs, keyed order-independently on the two entity IDs, so
-    // this step's manifolds can be diffed against it to derive enter/exit events. Replaced
-    // wholesale (not mutated) at the end of each Step — see the comment there.
+    // this step's manifolds can be diffed against it to derive enter/exit events. Two
+    // long-lived dictionaries swapped at the end of each Step (the old one is cleared and
+    // becomes next step's scratch), so a steady-state step allocates nothing.
     private Dictionary<(Entity A, Entity B), CollisionManifold> _activePairs = new();
+    private Dictionary<(Entity A, Entity B), CollisionManifold> _currentPairs = new();
 
     // Entities currently dropping through one-way platforms, and when each expires. Checked
-    // (and pruned) once per Step — see DropThrough.
+    // (and pruned) once per Step — see DropThrough. The active set and expired list are
+    // reused scratch.
     private readonly Dictionary<Entity, float> _dropThroughUntil = new();
+    private readonly HashSet<Entity> _activeDropThrough = [];
+    private readonly List<Entity> _expiredDropThrough = [];
     private float _elapsedTime;
 
     // Leftover time not yet consumed by a fixed sub-step — see Update.
@@ -140,10 +146,11 @@ public class PhysicsWorld2D : IUpdateSystem
             );
 
         var g = gravity ?? new Vector2(0, -9.81f);
+        _broadphase = new BoxBroadphase(world, broadphaseCellSize, throwOnOversize: true);
         _tilemapColliderSystem = new TilemapColliderSystem(world);
         _gravitySystem = new GravitySystem(world, g);
-        _movementSystem = new MovementSystem(world);
-        _collisionDetectionSystem = new CollisionDetectionSystem(world, broadphaseCellSize);
+        _movementSystem = new MovementSystem(world, _broadphase);
+        _collisionDetectionSystem = new CollisionDetectionSystem(world, _broadphase);
         _collisionResolutionSystem = new CollisionResolutionSystem(world);
         FixedTimeStep = fixedTimeStep;
         MaxSubSteps = maxSubSteps;
@@ -234,7 +241,10 @@ public class PhysicsWorld2D : IUpdateSystem
         // 2. Apply gravity to dynamic bodies
         _gravitySystem.Update(deltaTime);
 
-        // 3. Integrate velocity into position
+        // 3. Integrate velocity into position. The shared broadphase is brought up to date first
+        // (cheap: only colliders that changed since the last step are re-hashed) so the
+        // tunneling sweep queries start-of-step positions; detection re-syncs after the move.
+        _broadphase.Sync();
         _movementSystem.Update(deltaTime);
 
         // 4. Detect collisions
@@ -249,9 +259,13 @@ public class PhysicsWorld2D : IUpdateSystem
         // exit (pairs from last step no longer present — including pairs where an entity was
         // destroyed between steps, since a destroyed entity's collider can no longer produce a
         // manifold and so silently drops out of "current").
-        var currentPairs = new Dictionary<(Entity A, Entity B), CollisionManifold>();
-        foreach (var manifold in _collisionDetectionSystem.Manifolds)
+        // (Indexed loops over the manifold list: foreach over IReadOnlyList boxes an enumerator.)
+        var manifolds = _collisionDetectionSystem.Manifolds;
+        var currentPairs = _currentPairs;
+        currentPairs.Clear();
+        for (var i = 0; i < manifolds.Count; i++)
         {
+            var manifold = manifolds[i];
             currentPairs[NormalizePair(manifold.EntityA, manifold.EntityB)] = manifold;
         }
 
@@ -268,10 +282,8 @@ public class PhysicsWorld2D : IUpdateSystem
         var stayHandler = OnCollision;
         if (stayHandler is not null)
         {
-            foreach (var manifold in _collisionDetectionSystem.Manifolds)
-            {
-                stayHandler(manifold);
-            }
+            for (var i = 0; i < manifolds.Count; i++)
+                stayHandler(manifolds[i]);
         }
 
         var exitHandler = OnCollisionExit;
@@ -284,6 +296,9 @@ public class PhysicsWorld2D : IUpdateSystem
             }
         }
 
+        // Swap rather than allocate: this step's pairs become the baseline, and last step's
+        // dictionary is next step's scratch.
+        _currentPairs = _activePairs;
         _activePairs = currentPairs;
     }
 
@@ -304,29 +319,20 @@ public class PhysicsWorld2D : IUpdateSystem
         if (_dropThroughUntil.Count == 0)
             return null;
 
-        HashSet<Entity>? active = null;
-        List<Entity>? expired = null;
+        _activeDropThrough.Clear();
+        _expiredDropThrough.Clear();
 
         foreach (var (entity, until) in _dropThroughUntil)
         {
             if (until <= _elapsedTime)
-            {
-                expired ??= [];
-                expired.Add(entity);
-            }
+                _expiredDropThrough.Add(entity);
             else
-            {
-                active ??= [];
-                active.Add(entity);
-            }
+                _activeDropThrough.Add(entity);
         }
 
-        if (expired is not null)
-        {
-            foreach (var entity in expired)
-                _dropThroughUntil.Remove(entity);
-        }
+        foreach (var entity in _expiredDropThrough)
+            _dropThroughUntil.Remove(entity);
 
-        return active;
+        return _activeDropThrough.Count > 0 ? _activeDropThrough : null;
     }
 }
