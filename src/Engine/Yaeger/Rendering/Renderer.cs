@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Silk.NET.OpenGL;
 using Yaeger.Platform;
 using Yaeger.Windowing;
@@ -37,6 +38,8 @@ public class Renderer : IRenderSurface, IDisposable
     ];
 
     private readonly List<QuadSubmission> _submissionQueue = [];
+    private readonly TexturePathTable _texturePaths = new();
+    private readonly List<Texture?> _textures = [];
 
     private readonly CameraMatrixTracker _camera = new();
 
@@ -141,8 +144,41 @@ public class Renderer : IRenderSurface, IDisposable
         Vector4 color
     )
     {
-        _submissionQueue.Add(new QuadSubmission(texturePath, model, uvMin, uvMax, color));
+        QuadVertexWriter.FromMatrix(in model, out var origin, out var xAxis, out var yAxis);
+        _submissionQueue.Add(
+            new QuadSubmission(
+                _texturePaths.GetId(texturePath),
+                origin,
+                xAxis,
+                yAxis,
+                uvMin,
+                uvMax,
+                color
+            )
+        );
     }
+
+    /// <inheritdoc />
+    public void SubmitQuad(
+        Vector2 center,
+        Vector2 xAxis,
+        Vector2 yAxis,
+        string texturePath,
+        Vector2 uvMin,
+        Vector2 uvMax,
+        Vector4 color
+    ) =>
+        _submissionQueue.Add(
+            new QuadSubmission(
+                _texturePaths.GetId(texturePath),
+                new Vector3(center, 0f),
+                new Vector3(xAxis, 0f),
+                new Vector3(yAxis, 0f),
+                uvMin,
+                uvMax,
+                color
+            )
+        );
 
     /// <summary>
     /// Flushes all queued quads, preserving submission order and batching contiguous
@@ -155,110 +191,72 @@ public class Renderer : IRenderSurface, IDisposable
     }
 
     /// <summary>
-    /// Flushes queued quads immediately while preserving submission order.
+    /// Flushes queued quads immediately while preserving submission order. Shader, VAO and
+    /// VBO are bound once for the whole flush; only the texture changes between batches.
     /// </summary>
     public void FlushQueuedQuads()
     {
-        if (_submissionQueue.Count == 0)
+        var queue = CollectionsMarshal.AsSpan(_submissionQueue);
+        if (queue.IsEmpty)
             return;
 
+        _textureShader.Bind();
+        _textureShader.SetUniformMatrix4("uViewProj", _camera.Current);
+        _vao.Bind();
+        _vbo.Bind();
+
         var startIndex = 0;
-        while (startIndex < _submissionQueue.Count)
+        while (startIndex < queue.Length)
         {
-            var texturePath = _submissionQueue[startIndex].TexturePath;
+            var textureId = queue[startIndex].TextureId;
             var batchSize = 1;
-            while (
-                startIndex + batchSize < _submissionQueue.Count
-                && batchSize < MaxQuadsPerBatch
-                && _submissionQueue[startIndex + batchSize].TexturePath == texturePath
-            )
+            var limit = Math.Min(queue.Length - startIndex, MaxQuadsPerBatch);
+            while (batchSize < limit && queue[startIndex + batchSize].TextureId == textureId)
             {
                 batchSize++;
             }
 
-            RenderBatch(texturePath, startIndex, batchSize);
+            RenderBatch(textureId, queue.Slice(startIndex, batchSize));
             startIndex += batchSize;
         }
 
+        _vao.Unbind();
+        _textureShader.Unbind();
         _submissionQueue.Clear();
     }
 
-    private void RenderBatch(string texturePath, int startIndex, int batchSize)
+    private void RenderBatch(int textureId, ReadOnlySpan<QuadSubmission> batch)
     {
-        var texture = _textureManager.Get(texturePath);
-        _textureShader.Bind();
-        _textureShader.SetUniformMatrix4("uViewProj", _camera.Current);
+        // The Texture object is stable across TextureManager.Reload (re-uploaded in place),
+        // so caching it per id is safe and skips the per-batch path lookup.
+        while (_textures.Count <= textureId)
+            _textures.Add(null);
+        var texture = _textures[textureId] ??= _textureManager.Get(
+            _texturePaths.GetPath(textureId)
+        );
+
         texture.Bind();
-        _vao.Bind();
-        _vbo.Bind();
-
-        FillVertexBuffer(startIndex, batchSize);
-        DrawBatch(batchSize);
-
-        _vao.Unbind();
+        FillVertexBuffer(batch);
+        DrawBatch(batch.Length);
         texture.Unbind();
-        _textureShader.Unbind();
     }
 
-    private void FillVertexBuffer(int startIndex, int count)
+    private void FillVertexBuffer(ReadOnlySpan<QuadSubmission> batch)
     {
-        // Corner order must match the quad winding baked into QuadIndexing: TR, BR, BL, TL.
-        ReadOnlySpan<Vector3> basePositions =
-        [
-            new Vector3(0.5f, 0.5f, 0f),
-            new Vector3(0.5f, -0.5f, 0f),
-            new Vector3(-0.5f, -0.5f, 0f),
-            new Vector3(-0.5f, 0.5f, 0f),
-        ];
-
-        for (var q = 0; q < count; q++)
+        var vertices = _vertexBuffer.AsSpan();
+        for (var q = 0; q < batch.Length; q++)
         {
-            var submission = _submissionQueue[startIndex + q];
-            var transform = submission.Transform;
-            var uvMin = submission.UvMin;
-            var uvMax = submission.UvMax;
-            var color = submission.Color;
-
-            ReadOnlySpan<Vector2> uvs =
-            [
-                new Vector2(uvMax.X, uvMax.Y),
-                new Vector2(uvMax.X, uvMin.Y),
-                new Vector2(uvMin.X, uvMin.Y),
-                new Vector2(uvMin.X, uvMax.Y),
-            ];
-
-            var vertexOffset = q * VerticesPerQuad * FloatsPerVertex;
-            for (var c = 0; c < VerticesPerQuad; c++)
-            {
-                WriteVertex(
-                    vertexOffset + c * FloatsPerVertex,
-                    basePositions[c],
-                    in transform,
-                    uvs[c],
-                    color
-                );
-            }
+            ref readonly var s = ref batch[q];
+            QuadVertexWriter.Write(
+                vertices[(q * QuadVertexWriter.FloatsPerQuad)..],
+                s.Origin,
+                s.XAxis,
+                s.YAxis,
+                s.UvMin,
+                s.UvMax,
+                s.Color
+            );
         }
-    }
-
-    private void WriteVertex(
-        int offset,
-        Vector3 basePosition,
-        in Matrix4x4 transform,
-        Vector2 uv,
-        Vector4 color
-    )
-    {
-        var transformed = Vector3.Transform(basePosition, transform);
-        _vertexBuffer[offset + 0] = transformed.X;
-        _vertexBuffer[offset + 1] = transformed.Y;
-        _vertexBuffer[offset + 2] = transformed.Z;
-        _vertexBuffer[offset + 3] = uv.X;
-        _vertexBuffer[offset + 4] = uv.Y;
-        _vertexBuffer[offset + 5] = color.X;
-        _vertexBuffer[offset + 6] = color.Y;
-        _vertexBuffer[offset + 7] = color.Z;
-        _vertexBuffer[offset + 8] = color.W;
     }
 
     private unsafe void DrawBatch(int quadCount)
@@ -302,8 +300,10 @@ public class Renderer : IRenderSurface, IDisposable
     }
 
     private readonly record struct QuadSubmission(
-        string TexturePath,
-        Matrix4x4 Transform,
+        int TextureId,
+        Vector3 Origin,
+        Vector3 XAxis,
+        Vector3 YAxis,
         Vector2 UvMin,
         Vector2 UvMax,
         Vector4 Color

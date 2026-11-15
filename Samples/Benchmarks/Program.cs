@@ -4,17 +4,19 @@ using Benchmarks.Ecs;
 using Benchmarks.Instancing;
 using Benchmarks.Physics;
 using Benchmarks.Sprites;
+using Benchmarks.TileRendering;
 
 // Benchmarks: perf smoke tests, one clean process per benchmark — no menu UI or leftover state
 // from other scenes that could skew the numbers. Select one via a command-line arg:
 //
-//   dotnet run --project Samples/Benchmarks -- sprites|instancing|crowd|ecs|physics [count]
+//   dotnet run --project Samples/Benchmarks -- sprites|tilemap|instancing|crowd|ecs|physics [count]
 //
 // `count` is optional and overrides the benchmark's default entity count (e.g. `-- crowd 400`).
 
 IBenchmark[] benchmarks =
 [
     new SpritesBenchmark(),
+    new TilemapBenchmark(),
     new InstancingBenchmark(),
     new CrowdBenchmark(),
     new EcsBenchmark(),

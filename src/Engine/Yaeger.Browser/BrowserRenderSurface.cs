@@ -19,6 +19,7 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
     private const int FloatsPerVertex = 9; // pos(3) + uv(2) + color(4)
 
     private readonly List<QuadSubmission> _submissionQueue = [];
+    private readonly TexturePathTable _texturePaths = new();
     private readonly CameraMatrixTracker _camera = new();
 
     // Scratch float buffer, filled per batch; _vertexBytes is its raw-byte view passed to JS.
@@ -158,24 +159,22 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
 
     public void FlushQueuedQuads()
     {
-        if (_submissionQueue.Count == 0)
+        var queue = CollectionsMarshal.AsSpan(_submissionQueue);
+        if (queue.IsEmpty)
             return;
 
         var startIndex = 0;
-        while (startIndex < _submissionQueue.Count)
+        while (startIndex < queue.Length)
         {
-            var texturePath = _submissionQueue[startIndex].TexturePath;
+            var textureId = queue[startIndex].TextureId;
             var batchSize = 1;
-            while (
-                startIndex + batchSize < _submissionQueue.Count
-                && batchSize < MaxQuadsPerBatch
-                && _submissionQueue[startIndex + batchSize].TexturePath == texturePath
-            )
+            var limit = Math.Min(queue.Length - startIndex, MaxQuadsPerBatch);
+            while (batchSize < limit && queue[startIndex + batchSize].TextureId == textureId)
             {
                 batchSize++;
             }
 
-            RenderBatch(texturePath, startIndex, batchSize);
+            RenderBatch(_texturePaths.GetPath(textureId), queue.Slice(startIndex, batchSize));
             startIndex += batchSize;
         }
 
@@ -203,60 +202,74 @@ public sealed class BrowserRenderSurface(string canvasId) : IRenderSurface, IVie
         Vector2 uvMin,
         Vector2 uvMax,
         Vector4 color
-    ) => _submissionQueue.Add(new QuadSubmission(texturePath, transform, uvMin, uvMax, color));
-
-    private void RenderBatch(string texturePath, int startIndex, int batchSize)
+    )
     {
-        FillVertexBuffer(startIndex, batchSize);
-        var byteCount = batchSize * VerticesPerQuad * FloatsPerVertex * 4;
-        Buffer.BlockCopy(_vertexBuffer, 0, _vertexBytes, 0, byteCount);
-        JsInterop.DrawBatch(texturePath, _vertexBytes, batchSize);
+        QuadVertexWriter.FromMatrix(in transform, out var origin, out var xAxis, out var yAxis);
+        _submissionQueue.Add(
+            new QuadSubmission(
+                _texturePaths.GetId(texturePath),
+                origin,
+                xAxis,
+                yAxis,
+                uvMin,
+                uvMax,
+                color
+            )
+        );
     }
 
-    private void FillVertexBuffer(int startIndex, int count)
+    public void SubmitQuad(
+        Vector2 center,
+        Vector2 xAxis,
+        Vector2 yAxis,
+        string texturePath,
+        Vector2 uvMin,
+        Vector2 uvMax,
+        Vector4 color
+    ) =>
+        _submissionQueue.Add(
+            new QuadSubmission(
+                _texturePaths.GetId(texturePath),
+                new Vector3(center, 0f),
+                new Vector3(xAxis, 0f),
+                new Vector3(yAxis, 0f),
+                uvMin,
+                uvMax,
+                color
+            )
+        );
+
+    private void RenderBatch(string texturePath, ReadOnlySpan<QuadSubmission> batch)
     {
-        // Corner order matches the quad winding baked into the JS index buffer: TR, BR, BL, TL.
-        ReadOnlySpan<Vector3> basePositions =
-        [
-            new Vector3(0.5f, 0.5f, 0f),
-            new Vector3(0.5f, -0.5f, 0f),
-            new Vector3(-0.5f, -0.5f, 0f),
-            new Vector3(-0.5f, 0.5f, 0f),
-        ];
+        FillVertexBuffer(batch);
+        var byteCount = batch.Length * VerticesPerQuad * FloatsPerVertex * 4;
+        Buffer.BlockCopy(_vertexBuffer, 0, _vertexBytes, 0, byteCount);
+        JsInterop.DrawBatch(texturePath, _vertexBytes, batch.Length);
+    }
 
-        for (var q = 0; q < count; q++)
+    private void FillVertexBuffer(ReadOnlySpan<QuadSubmission> batch)
+    {
+        var vertices = _vertexBuffer.AsSpan();
+        for (var q = 0; q < batch.Length; q++)
         {
-            var sub = _submissionQueue[startIndex + q];
-
-            ReadOnlySpan<Vector2> uvs =
-            [
-                new Vector2(sub.UvMax.X, sub.UvMax.Y), // TR
-                new Vector2(sub.UvMax.X, sub.UvMin.Y), // BR
-                new Vector2(sub.UvMin.X, sub.UvMin.Y), // BL
-                new Vector2(sub.UvMin.X, sub.UvMax.Y), // TL
-            ];
-
-            var baseOffset = q * VerticesPerQuad * FloatsPerVertex;
-            for (var c = 0; c < VerticesPerQuad; c++)
-            {
-                var pos = Vector3.Transform(basePositions[c], sub.Transform);
-                var offset = baseOffset + c * FloatsPerVertex;
-                _vertexBuffer[offset + 0] = pos.X;
-                _vertexBuffer[offset + 1] = pos.Y;
-                _vertexBuffer[offset + 2] = pos.Z;
-                _vertexBuffer[offset + 3] = uvs[c].X;
-                _vertexBuffer[offset + 4] = uvs[c].Y;
-                _vertexBuffer[offset + 5] = sub.Color.X;
-                _vertexBuffer[offset + 6] = sub.Color.Y;
-                _vertexBuffer[offset + 7] = sub.Color.Z;
-                _vertexBuffer[offset + 8] = sub.Color.W;
-            }
+            ref readonly var s = ref batch[q];
+            QuadVertexWriter.Write(
+                vertices[(q * QuadVertexWriter.FloatsPerQuad)..],
+                s.Origin,
+                s.XAxis,
+                s.YAxis,
+                s.UvMin,
+                s.UvMax,
+                s.Color
+            );
         }
     }
 
     private readonly record struct QuadSubmission(
-        string TexturePath,
-        Matrix4x4 Transform,
+        int TextureId,
+        Vector3 Origin,
+        Vector3 XAxis,
+        Vector3 YAxis,
         Vector2 UvMin,
         Vector2 UvMax,
         Vector4 Color

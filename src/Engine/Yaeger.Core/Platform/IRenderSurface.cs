@@ -40,6 +40,49 @@ public interface IRenderSurface
     );
 
     /// <summary>
+    /// Queues a quad from a pre-resolved 2D affine placement instead of a full
+    /// <see cref="Matrix4x4"/>: <paramref name="center"/> is the quad centre and
+    /// <paramref name="xAxis"/> / <paramref name="yAxis"/> are the world-space edge vectors
+    /// (the unit quad's X and Y steps after transformation). It draws exactly what the
+    /// equivalent matrix would, but lets bulk submitters (tilemaps) skip building a matrix
+    /// per quad. The default builds that matrix and forwards; the built-in surfaces override
+    /// it to queue the placement directly.
+    /// </summary>
+    void SubmitQuad(
+        Vector2 center,
+        Vector2 xAxis,
+        Vector2 yAxis,
+        string texturePath,
+        Vector2 uvMin,
+        Vector2 uvMax,
+        Vector4 color
+    ) =>
+        SubmitQuad(
+            new Matrix4x4(
+                xAxis.X,
+                xAxis.Y,
+                0f,
+                0f,
+                yAxis.X,
+                yAxis.Y,
+                0f,
+                0f,
+                0f,
+                0f,
+                1f,
+                0f,
+                center.X,
+                center.Y,
+                0f,
+                1f
+            ),
+            texturePath,
+            uvMin,
+            uvMax,
+            color
+        );
+
+    /// <summary>
     /// Pixel size of the texture at <paramref name="path"/>, or <see cref="Vector2.Zero"/> if
     /// unknown (the default). Used to inset sprite-sheet/tile UVs against neighbour bleed.
     /// Wrappers/decorators around another surface must forward this; otherwise they inherit

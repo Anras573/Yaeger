@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Yaeger.ECS;
 using Yaeger.Graphics;
 using Yaeger.Platform;
@@ -24,13 +25,31 @@ public class UnifiedRenderSystem(
     Func<string, Vector2>? textureSizeProvider = null
 )
 {
-    private readonly List<RenderCommand> _commands = Validate(renderer, textRenderer);
+    // Commands are split by kind into compact payload lists; the sort runs over a parallel
+    // (key, payload index) pair of lists instead of over fat structs with a delegate.
+    // Key layout (high to low): biased layer | biased entity id | kind (2 bits), so an
+    // unsigned compare reproduces layer, then entity id, then kind exactly.
+    private readonly List<UInt128> _keys = Validate(renderer, textRenderer);
+    private readonly List<int> _payloadIndices = [];
+    private readonly List<QuadCommand> _quadCommands = [];
+    private readonly List<TilemapCommand> _tilemapCommands = [];
+    private readonly List<TextCommand> _textCommands = [];
+
+    // Per-tilemap tile UV cache, keyed by entity. See TileUvCache.
+    private readonly Dictionary<Entity, TileUvCache> _tileUvCaches = [];
+    private readonly List<Entity> _staleCacheScratch = [];
+    private int _frameNumber;
+
+    // Last texture-size lookup, so a run of sprite-sheet entities sharing one texture does one
+    // string-keyed lookup instead of one each.
+    private string? _lastSizePath;
+    private Vector2 _lastSize;
 
     // Active camera state captured during UpdateCamera, used for tilemap culling.
     private Camera2D? _activeCamera;
     private float _aspectRatio = 1f;
 
-    private static List<RenderCommand> Validate(
+    private static List<UInt128> Validate(
         IRenderSurface? renderer,
         ITextRenderSurface? textRenderer
     )
@@ -42,10 +61,22 @@ public class UnifiedRenderSystem(
         return [];
     }
 
-    private Vector2 GetTextureSize(string path) =>
-        textureSizeProvider is not null ? textureSizeProvider(path)
-        : renderer is not null ? renderer.GetTextureSize(path)
-        : default;
+    private Vector2 GetTextureSize(string path)
+    {
+        if (ReferenceEquals(path, _lastSizePath) && _lastSize != Vector2.Zero)
+            return _lastSize;
+
+        var size =
+            textureSizeProvider is not null ? textureSizeProvider(path)
+            : renderer is not null ? renderer.GetTextureSize(path)
+            : default;
+
+        // Only remember a known size: an unknown one (browser: texture still loading) must be
+        // re-queried so the half-texel inset kicks in once the texture arrives.
+        _lastSizePath = path;
+        _lastSize = size;
+        return size;
+    }
 
     /// <summary>Renders the frame, clearing the target first.</summary>
     public void Render() => Render(clear: true);
@@ -56,54 +87,58 @@ public class UnifiedRenderSystem(
     /// </summary>
     public void Render(bool clear)
     {
+        _frameNumber++;
+        _lastSizePath = null; // sizes can change between frames (hot reload, async load)
         UpdateCamera();
         BuildCommandQueue();
 
         renderer?.BeginFrame(clear);
 
         var screenSpace = false;
-        foreach (var command in _commands)
+        for (var i = 0; i < _keys.Count; i++)
         {
+            var kind = (RenderCommandKind)(int)(ulong)(_keys[i] & KindMask);
+            var payload = _payloadIndices[i];
+
             // Text is screen-space on every runtime: native TextRenderer has no camera, so the
             // browser (which draws glyphs as quads through the camera-aware surface) must
             // match. Switching the camera flushes the quads queued under the previous one.
-            var wantScreenSpace = command.Kind == RenderCommandKind.Text;
+            var wantScreenSpace = kind == RenderCommandKind.Text;
             if (wantScreenSpace != screenSpace)
             {
                 SetTextSpace(wantScreenSpace);
                 screenSpace = wantScreenSpace;
             }
 
-            switch (command.Kind)
+            switch (kind)
             {
                 case RenderCommandKind.Sprite:
                 case RenderCommandKind.SpriteSheet:
+                    var quad = CollectionsMarshal.AsSpan(_quadCommands)[payload];
                     renderer!.SubmitQuad(
-                        command.Transform,
-                        command.TexturePath!,
-                        command.UvMin,
-                        command.UvMax,
-                        command.Color
+                        quad.Transform,
+                        quad.TexturePath,
+                        quad.UvMin,
+                        quad.UvMax,
+                        quad.Color
                     );
                     break;
                 case RenderCommandKind.Tilemap:
-                    SubmitTilemap(command);
+                    SubmitTilemap(in CollectionsMarshal.AsSpan(_tilemapCommands)[payload]);
                     break;
                 case RenderCommandKind.Text:
                     renderer?.FlushQueuedQuads();
+                    ref readonly var text = ref CollectionsMarshal.AsSpan(_textCommands)[payload];
                     textRenderer!.DrawText(
-                        command.TextComponent.Content,
-                        TextTransform(command),
-                        command.TextComponent.FontObject
-                            ?? (IFontHandle)command.TextComponent.FontHandle,
-                        command.TextComponent.FontSize,
-                        command.TextComponent.Color
+                        text.Component.Content,
+                        TextTransform(in text),
+                        text.Component.FontObject ?? (IFontHandle)text.Component.FontHandle,
+                        text.Component.FontSize,
+                        text.Component.Color
                     );
                     break;
                 default:
-                    throw new InvalidOperationException(
-                        $"Unknown render command kind: {command.Kind}"
-                    );
+                    throw new InvalidOperationException($"Unknown render command kind: {kind}");
             }
         }
 
@@ -111,12 +146,13 @@ public class UnifiedRenderSystem(
             SetTextSpace(false);
 
         renderer?.EndFrame();
+        PruneTileUvCaches();
     }
 
     // Text always draws under an identity surface camera (native TextRenderer has none), so a
     // world-space label bakes the camera into its transform instead. Both runtimes then agree.
-    private Matrix4x4 TextTransform(in RenderCommand command) =>
-        command.TextComponent.WorldSpace && _activeCamera is { } camera
+    private Matrix4x4 TextTransform(in TextCommand command) =>
+        command.Component.WorldSpace && _activeCamera is { } camera
             ? command.Transform * camera.ViewProjection(_aspectRatio)
             : command.Transform;
 
@@ -130,7 +166,11 @@ public class UnifiedRenderSystem(
 
     private void BuildCommandQueue()
     {
-        _commands.Clear();
+        _keys.Clear();
+        _payloadIndices.Clear();
+        _quadCommands.Clear();
+        _tilemapCommands.Clear();
+        _textCommands.Clear();
 
         if (renderer != null)
         {
@@ -152,12 +192,22 @@ public class UnifiedRenderSystem(
                 )
                     continue;
 
-                _commands.Add(
-                    RenderCommand.ForSprite(
-                        entity,
-                        GetRenderLayerValue(renderLayerStore, entity),
+                var (flippedMin, flippedMax) = Sprite.ApplyFlip(
+                    Vector2.Zero,
+                    Vector2.One,
+                    sprite.FlipX,
+                    sprite.FlipY
+                );
+                AddQuad(
+                    entity,
+                    GetRenderLayerValue(renderLayerStore, entity),
+                    RenderCommandKind.Sprite,
+                    new QuadCommand(
                         transform.TransformMatrix,
-                        sprite
+                        sprite.TexturePath,
+                        flippedMin,
+                        flippedMax,
+                        sprite.Tint.ToVector4()
                     )
                 );
             }
@@ -191,10 +241,11 @@ public class UnifiedRenderSystem(
                         spriteForFlip.FlipY
                     );
 
-                _commands.Add(
-                    RenderCommand.ForSpriteSheet(
-                        entity,
-                        GetRenderLayerValue(renderLayerStore, entity),
+                AddQuad(
+                    entity,
+                    GetRenderLayerValue(renderLayerStore, entity),
+                    RenderCommandKind.SpriteSheet,
+                    new QuadCommand(
                         transform.TransformMatrix,
                         sheet.TexturePath,
                         uvMin,
@@ -216,14 +267,13 @@ public class UnifiedRenderSystem(
                 if (tilemap.Tiles is null || tilemap.Tileset.TileCount <= 0)
                     continue;
 
-                _commands.Add(
-                    RenderCommand.ForTilemap(
-                        entity,
-                        GetRenderLayerValue(renderLayerStore, entity),
-                        transform,
-                        tilemap
-                    )
+                AddKey(
+                    entity,
+                    GetRenderLayerValue(renderLayerStore, entity),
+                    RenderCommandKind.Tilemap,
+                    _tilemapCommands.Count
                 );
+                _tilemapCommands.Add(new TilemapCommand(entity, transform, tilemap));
             }
         }
 
@@ -238,31 +288,36 @@ public class UnifiedRenderSystem(
                 >()
             )
             {
-                _commands.Add(
-                    RenderCommand.ForText(
-                        entity,
-                        GetRenderLayerValue(renderLayerStore, entity),
-                        transform.TransformMatrix,
-                        text
-                    )
+                AddKey(
+                    entity,
+                    GetRenderLayerValue(renderLayerStore, entity),
+                    RenderCommandKind.Text,
+                    _textCommands.Count
                 );
+                _textCommands.Add(new TextCommand(transform.TransformMatrix, text));
             }
         }
 
-        _commands.Sort(
-            static (a, b) =>
-            {
-                var layerComparison = a.Layer.CompareTo(b.Layer);
-                if (layerComparison != 0)
-                    return layerComparison;
-
-                var entityComparison = a.Entity.Id.CompareTo(b.Entity.Id);
-                if (entityComparison != 0)
-                    return entityComparison;
-
-                return a.Kind.CompareTo(b.Kind);
-            }
+        // Unstable sort is fine: keys are unique (an entity has at most one command per kind).
+        MemoryExtensions.Sort(
+            CollectionsMarshal.AsSpan(_keys),
+            CollectionsMarshal.AsSpan(_payloadIndices)
         );
+    }
+
+    private void AddQuad(Entity entity, int layer, RenderCommandKind kind, in QuadCommand command)
+    {
+        AddKey(entity, layer, kind, _quadCommands.Count);
+        _quadCommands.Add(command);
+    }
+
+    private void AddKey(Entity entity, int layer, RenderCommandKind kind, int payloadIndex)
+    {
+        // XOR with int.MinValue maps signed order onto unsigned order.
+        var high = (ulong)(uint)(layer ^ int.MinValue);
+        var low = ((ulong)(uint)(entity.Id ^ int.MinValue) << 2) | (ulong)kind;
+        _keys.Add(new UInt128(high, low));
+        _payloadIndices.Add(payloadIndex);
     }
 
     private static int GetRenderLayerValue(
@@ -289,10 +344,10 @@ public class UnifiedRenderSystem(
         renderer.SetCamera(Matrix4x4.Identity);
     }
 
-    private void SubmitTilemap(in RenderCommand command)
+    private void SubmitTilemap(in TilemapCommand command)
     {
-        var map = command.TilemapComponent;
-        var mapTransform = command.SourceTransform;
+        var map = command.Tilemap;
+        var mapTransform = command.Transform;
         var tint = map.Tint.ToVector4();
 
         var (columnMin, columnMax, rowMin, rowMax) = _activeCamera is { } camera
@@ -303,38 +358,80 @@ public class UnifiedRenderSystem(
         if (columnMin > columnMax || rowMin > rowMax)
             return;
 
-        var textureSize = GetTextureSize(map.Tileset.TexturePath);
+        var cache = GetTileUvCache(command.Entity, map);
+        var texturePath = map.Tileset.TexturePath;
 
+        // The map's own placement is one affine transform; a tile is that transform applied to
+        // an axis-aligned cell, so per tile we only step along the map's basis vectors instead
+        // of building and multiplying matrices. matrix rows: M1x = image of +X, M2x = image of +Y.
+        var matrix = mapTransform.TransformMatrix;
+        var stepX = new Vector2(matrix.M11, matrix.M12) * map.TileSize.X; // one tile right
+        var stepY = new Vector2(matrix.M21, matrix.M22) * map.TileSize.Y; // one tile up
+        var origin = new Vector2(matrix.M41, matrix.M42);
+
+        var tiles = map.Tiles.AsSpan();
         for (var row = rowMin; row <= rowMax; row++)
         {
+            // Cell centre = (column + 0.5, (Height - 1 - row) + 0.5) tiles from the map origin
+            // (row 0 is the top row, hence the flip into the Y-up world).
+            var rowOrigin = origin + stepY * (map.Height - 1 - row + 0.5f);
             for (var column = columnMin; column <= columnMax; column++)
             {
-                var tileIndex = map.Tiles[row * map.Width + column];
-                if (tileIndex == Tilemap.EmptyTile)
+                var cell = row * map.Width + column;
+                if (tiles[cell] == Tilemap.EmptyTile)
                     continue;
 
-                var (uvMin, uvMax) = map.Tileset.GetTileUv(tileIndex, textureSize);
-
-                // Tile quad in map-local space: the unit quad is centred on the origin, so
-                // scale it to tile size and translate to the cell centre (row 0 is the top
-                // row, hence the Height - 1 - row flip into the Y-up world).
-                var local =
-                    Matrix4x4.CreateScale(map.TileSize.X, map.TileSize.Y, 1f)
-                    * Matrix4x4.CreateTranslation(
-                        (column + 0.5f) * map.TileSize.X,
-                        (map.Height - 1 - row + 0.5f) * map.TileSize.Y,
-                        0f
-                    );
-
                 renderer!.SubmitQuad(
-                    local * command.Transform,
-                    map.Tileset.TexturePath,
-                    uvMin,
-                    uvMax,
+                    rowOrigin + stepX * (column + 0.5f),
+                    stepX,
+                    stepY,
+                    texturePath,
+                    cache.UvMin[cell],
+                    cache.UvMax[cell],
                     tint
                 );
             }
         }
+    }
+
+    /// <summary>
+    /// Returns the UV cache for a tilemap, creating it or patching it to match the current
+    /// tiles. A static map costs one vectorised compare of the tile array per frame; an edit
+    /// re-resolves only the cells that changed. A change to the tileset, or to the texture's
+    /// size (async load, hot reload), rebuilds the whole cache.
+    /// </summary>
+    private TileUvCache GetTileUvCache(Entity entity, in Tilemap map)
+    {
+        var textureSize = GetTextureSize(map.Tileset.TexturePath);
+
+        if (
+            !_tileUvCaches.TryGetValue(entity, out var cache)
+            || !cache.Matches(map.Tileset, textureSize, map.Tiles.Length)
+        )
+        {
+            cache = new TileUvCache(map.Tileset, textureSize, map.Tiles.Length);
+            _tileUvCaches[entity] = cache;
+        }
+
+        cache.LastUsedFrame = _frameNumber;
+        cache.Sync(map.Tiles);
+        return cache;
+    }
+
+    private void PruneTileUvCaches()
+    {
+        if (_tileUvCaches.Count == 0)
+            return;
+
+        _staleCacheScratch.Clear();
+        foreach (var (entity, cache) in _tileUvCaches)
+        {
+            if (cache.LastUsedFrame != _frameNumber)
+                _staleCacheScratch.Add(entity);
+        }
+
+        foreach (var entity in _staleCacheScratch)
+            _tileUvCaches.Remove(entity);
     }
 
     /// <summary>
@@ -411,109 +508,73 @@ public class UnifiedRenderSystem(
         Text = 3,
     }
 
-    private readonly record struct RenderCommand(
-        Entity Entity,
-        int Layer,
-        RenderCommandKind Kind,
+    // Low bits of a sort key hold the kind.
+    private static readonly UInt128 KindMask = 3;
+
+    private readonly record struct QuadCommand(
         Matrix4x4 Transform,
-        string? TexturePath,
+        string TexturePath,
         Vector2 UvMin,
         Vector2 UvMax,
-        Vector4 Color,
-        Text TextComponent,
-        Tilemap TilemapComponent,
-        Transform2D SourceTransform
-    )
+        Vector4 Color
+    );
+
+    private readonly record struct TilemapCommand(
+        Entity Entity,
+        Transform2D Transform,
+        Tilemap Tilemap
+    );
+
+    private readonly record struct TextCommand(Matrix4x4 Transform, Text Component);
+
+    /// <summary>
+    /// Cached per-cell UV rectangles for one tilemap (the expensive per-tile work that never
+    /// changes while the tiles don't). Holds a snapshot of the tile indices it was built from,
+    /// so it detects edits made through <c>SetTile</c> or by writing <c>Tiles</c> directly.
+    /// </summary>
+    private sealed class TileUvCache
     {
-        public static RenderCommand ForSprite(
-            Entity entity,
-            int layer,
-            Matrix4x4 transform,
-            Sprite sprite
-        )
+        private readonly Tileset _tileset;
+        private readonly Vector2 _textureSize;
+        private readonly int[] _snapshot;
+
+        public readonly Vector2[] UvMin;
+        public readonly Vector2[] UvMax;
+        public int LastUsedFrame;
+        private bool _filled;
+
+        public TileUvCache(Tileset tileset, Vector2 textureSize, int cellCount)
         {
-            var (uvMin, uvMax) = Sprite.ApplyFlip(
-                Vector2.Zero,
-                Vector2.One,
-                sprite.FlipX,
-                sprite.FlipY
-            );
-            return new(
-                entity,
-                layer,
-                RenderCommandKind.Sprite,
-                transform,
-                sprite.TexturePath,
-                uvMin,
-                uvMax,
-                sprite.Tint.ToVector4(),
-                default,
-                default,
-                default
-            );
+            _tileset = tileset;
+            _textureSize = textureSize;
+            _snapshot = new int[cellCount];
+            UvMin = new Vector2[cellCount];
+            UvMax = new Vector2[cellCount];
         }
 
-        public static RenderCommand ForSpriteSheet(
-            Entity entity,
-            int layer,
-            Matrix4x4 transform,
-            string texturePath,
-            Vector2 uvMin,
-            Vector2 uvMax,
-            Vector4 color
-        ) =>
-            new(
-                entity,
-                layer,
-                RenderCommandKind.SpriteSheet,
-                transform,
-                texturePath,
-                uvMin,
-                uvMax,
-                color,
-                default,
-                default,
-                default
-            );
+        public bool Matches(Tileset tileset, Vector2 textureSize, int cellCount) =>
+            _snapshot.Length == cellCount
+            && _textureSize == textureSize
+            && _tileset.Columns == tileset.Columns
+            && _tileset.Rows == tileset.Rows
+            && string.Equals(_tileset.TexturePath, tileset.TexturePath, StringComparison.Ordinal);
 
-        public static RenderCommand ForText(
-            Entity entity,
-            int layer,
-            Matrix4x4 transform,
-            Text text
-        ) =>
-            new(
-                entity,
-                layer,
-                RenderCommandKind.Text,
-                transform,
-                null,
-                Vector2.Zero,
-                Vector2.One,
-                Vector4.Zero,
-                text,
-                default,
-                default
-            );
+        public void Sync(int[] tiles)
+        {
+            if (_filled && tiles.AsSpan().SequenceEqual(_snapshot))
+                return;
 
-        public static RenderCommand ForTilemap(
-            Entity entity,
-            int layer,
-            Transform2D transform,
-            Tilemap tilemap
-        ) =>
-            new(
-                entity,
-                layer,
-                RenderCommandKind.Tilemap,
-                transform.TransformMatrix,
-                null,
-                Vector2.Zero,
-                Vector2.One,
-                Vector4.Zero,
-                default,
-                tilemap,
-                transform
-            );
+            for (var i = 0; i < tiles.Length; i++)
+            {
+                if (_filled && tiles[i] == _snapshot[i])
+                    continue;
+
+                _snapshot[i] = tiles[i];
+                if (tiles[i] != Tilemap.EmptyTile)
+                    (UvMin[i], UvMax[i]) = _tileset.GetTileUv(tiles[i], _textureSize);
+            }
+
+            _filled = true;
+        }
     }
 }
