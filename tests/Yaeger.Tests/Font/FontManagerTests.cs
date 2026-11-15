@@ -122,6 +122,24 @@ public class FontManagerTests : IDisposable
         Assert.Same(font1, font2);
     }
 
+    [SkippableTheory]
+    [InlineData("Office")]
+    [InlineData("flip")]
+    [InlineData("affluent fish")]
+    public void Shape_LigatureSequences_ReturnsOneGlyphPerCharacter(string text)
+    {
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "TestAssets", "Roboto-Regular.ttf");
+        Skip.IfNot(File.Exists(fontPath), "Roboto-Regular.ttf test asset is missing.");
+        Skip.IfNot(IsHarfBuzzAvailable(), "HarfBuzz native library not available.");
+
+        using var font = new Yaeger.Font.Font(fontPath);
+
+        var glyphs = font.Shape(text, 20);
+
+        Assert.Equal(text.Length, glyphs.Length);
+        Assert.Equal(text, string.Concat(glyphs.Select(g => (char)g.Codepoint)));
+    }
+
     // Mirrors AssimpLoaderTests.IsAssimpAvailable: force the native library to load and report
     // whether it did. Probing for a file path instead would have to hardcode both the platform's
     // library naming (.so/.dylib/.dll) and every RID subfolder it might sit in — the previous

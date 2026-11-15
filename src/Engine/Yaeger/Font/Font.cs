@@ -45,6 +45,12 @@ public class Font : IFontHandle, IDisposable
         _font = new HarfBuzzSharp.Font(_face);
     }
 
+    private static readonly Feature[] NoLigatures =
+    [
+        new Feature(Tag.Parse("liga"), 0),
+        new Feature(Tag.Parse("clig"), 0),
+    ];
+
     public string Id { get; }
 
     /// <summary>
@@ -80,7 +86,10 @@ public class Font : IFontHandle, IDisposable
         buffer.GuessSegmentProperties();
         buffer.Direction = Direction.LeftToRight;
 
-        _font.Shape(buffer);
+        // Ligatures are disabled: GlyphAtlas/SdfGlyphAtlas key glyphs by codepoint and rasterize
+        // one character each, so a many-to-one substitution (fi, fl, ffi...) would draw only the
+        // first letter. Kerning stays on.
+        _font.Shape(buffer, NoLigatures);
 
         var glyphInfos = buffer.GlyphInfos;
         var glyphPositions = buffer.GlyphPositions;
