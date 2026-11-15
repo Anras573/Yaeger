@@ -73,6 +73,22 @@ camera entity present), only the tiles intersecting the camera's visible span ar
 submitted each frame. Maps with a rotated `Transform2D` fall back to submitting every
 tile (conservative — never culls a visible tile).
 
+### Submission cost and the UV cache
+
+`UnifiedRenderSystem` keeps a per-tilemap cache of each cell's UV rectangle (the
+half-texel-inset lookup against the texture size), so a static map does not re-resolve
+UVs every frame. Each frame it compares the tile array against the snapshot the cache was
+built from (one vectorised compare): unchanged means no per-tile UV work at all; after
+`SetTile` (or any direct write to `Tiles`) only the changed cells are re-resolved. A change
+to the tileset, or to the texture's size (async load in the browser, hot reload), rebuilds
+the whole cache. Caches are dropped when their tilemap entity disappears.
+
+Visible tiles are submitted through
+`IRenderSurface.SubmitQuad(center, xAxis, yAxis, texturePath, uvMin, uvMax, color)`: the
+map transform's basis vectors are stepped across the grid, so no `Matrix4x4` is built or
+multiplied per tile. Surfaces that don't override it get a default that builds the
+equivalent matrix. Measure with `dotnet run --project Samples/Benchmarks -- tilemap`.
+
 ## Scenes and prefabs
 
 `Tilemap` is registered with `ComponentRegistry.RegisterEngineComponents()` under the
